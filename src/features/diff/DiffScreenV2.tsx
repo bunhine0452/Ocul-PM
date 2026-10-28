@@ -1,85 +1,132 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { useCallback, useMemo, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { FileCode2, ExternalLinkIcon, GitBranchIcon, CheckMark, Loader, ShieldCheck } from "@/components/Icons";
+import { ExternalLinkIcon, GitBranchIcon, Loader } from "@/components/Icons";
 import { fileOpenApi } from "@/api/fileOpen";
 import { errorDetail } from "@/api/invoke";
+import { oculpmApi } from "@/api/oculpm";
 import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
+import { ManualEntryModalV2 } from "@/features/oculpm/ManualEntryModalV2";
+import { useJournalEvents } from "@/features/oculpm/useOculpmLive";
+import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { toast } from "@/lib/toast";
-import { requestAgentContext } from "@/lib/agentContextNav";
-import { ruleGlobsFromPaths } from "@/lib/promoteSeed";
-import { DiffFileList } from "./DiffFileList";
+import { localWorkdayKey } from "@/lib/workday";
+import { ChangeFileList } from "./ChangeFileList";
 import { DiffBody } from "./DiffBody";
 import { DiffEntryFooter } from "./DiffEntryFooter";
+import { UnrecordedBanner } from "./UnrecordedBanner";
+import { groupKey, recordRequestText, splitChanges, visiblePaths } from "./changeGroups";
 import type { DiffBaseline } from "./changeList";
 import { useDiffChanges } from "./useDiffChanges";
 import { useDiffFile } from "./useDiffFile";
-import { useDiffSearch } from "./useDiffSearch";
-import { useT } from "@/i18n";
-import { blocked } from "@/lib/blocked";
+import { useGroupEntries } from "./useGroupEntries";
+import "./changes.css";
 
-// Final UI Update (ui_v2) — 변경 diff 전용 화면 (02-screen-specs §3). Wraps the
-// EXISTING diff pipeline: file list = git uncommitted changes (persistent,
-// gitApi.uncommittedChanges) merged with WorkspaceContext.recentChanges
-// (the live Watcher buffer) — Bug 1 fix so the list survives app restarts /
-// project switches instead of depending on the session-only watcher. body =
-// diffApi.compute, rendering = PatchView (which owns the markup over
-// diffParse's pure classifyDiffLines/groupIntoHunks/pairDiffLines, so the
-// Lite-W6 PR6.x safety-net tests keep covering the parsers). The mockup
-// .diff-screen 2-pane shell replaces the side-panel layout. flag-off
-// LocalDiffView untouched.
+// 변경 화면 (4.0) — 왼쪽 340px 목록 + 오른쪽 diff. 목록은 「기록 없음」(어느 일지에도 없는 변경)이
+// 먼저이고 그다음 「일지에 있음」 이 일지별이다. 기록 없는 파일을 고르면 diff 위에 배너가 서서
+// 에이전트에게 맡기거나(요청 복사) 직접 한 건 남기게 한다.
 //
-// 이 파일은 **배치와 화면 동작**만 갖는다 (분할 라운드 {#planner-diff-split}):
-// 목록·기준선은 `useDiffChanges`, 고른 파일 한 장은 `useDiffFile`, `/`·n·N
-// 검색은 `useDiffSearch`, 본문 분기는 `DiffBody` 가 소유한다.
+// 이 파일은 배치와 화면 동작만 갖는다: 목록·기준선은 `useDiffChanges`, 고른 파일 한 장은
+// `useDiffFile`, 일지 요약은 `useGroupEntries`, 본문 분기는 `DiffBody` 가 소유한다.
+// 키는 컨테이너가 듣는다 (j/k 파일 이동) — 전역 keydown 이 아니다.
 
 interface DiffScreenV2Props {
   projectId: number;
   /** Absolute project root — required by fileOpenApi.inExternalEditor. */
   projectRoot: string | null;
   branch: string | null;
-  /** Jump to a journal entry (path relative to the journal root). Dogfooding #3. */
+  /** Jump to a journal entry (path relative to the journal root). */
   onOpenEntry?: (relativePath: string) => void;
 }
 
 export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: DiffScreenV2Props) {
   const { t } = useT();
   const { state, setState } = useWorkspace();
-  const { diffReadPaths, diffMode } = state;
+  const { diffMode } = state;
   const { settings } = useSettings();
 
   const list = useDiffChanges(projectId);
   const { changes, baseline, lastCommit, lastCommitChanges, workingChanges } = list;
   const file = useDiffFile(projectId, changes, baseline);
-  const { selected, diff } = file;
-  const search = useDiffSearch(projectId, selected, diffMode, diff);
+  const { selected } = file;
+  const buckets = useMemo(() => splitChanges(list.groups, changes), [list.groups, changes]);
+  const entries = useGroupEntries(projectId, list.groups);
 
-  const setMode = (mode: DiffMode) =>
-    setState((prev) => ({ ...prev, diffMode: mode }));
+  // 에이전트가 방금 일지를 남겼으면 「기록 없음」 이 풀려야 한다 — 일지 이벤트에 묶음을 다시 받는다.
+  const regroup = list.retryEnrich;
+  useJournalEvents(projectId, changes.length > 0, regroup);
 
-  // "검토 완료" — push the current file into diffReadPaths (deduped).
-  const onMarkReviewed = useCallback(() => {
+  const setMode = (mode: DiffMode) => setState((prev) => ({ ...prev, diffMode: mode }));
+
+  // 펼친 묶음. 고른 파일이 든 묶음은 늘 펼쳐져 있다 (보이지 않는 파일이 선택돼 있으면 안 된다).
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set<string>());
+  const selectedGroup = useMemo(
+    () => (selected ? buckets.groups.find((g) => g.files.includes(selected)) ?? null : null),
+    [selected, buckets.groups],
+  );
+  useEffect(() => {
+    if (!selectedGroup) return;
+    const key = groupKey(selectedGroup);
+    setOpen((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  }, [selectedGroup]);
+  const toggleGroup = useCallback(
+    (key: string) =>
+      setOpen((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return next;
+      }),
+    [],
+  );
+
+  // 처음 열 때는 예외부터 — 기록 없는 파일이 있으면 그 첫 파일을 고른다. 일지에서 건너온 한 번짜리
+  // 지정(`diffActivePath`)이 있으면 그쪽이 이긴다. 기준선이 바뀌면 다시 한 번.
+  const handoff = useRef(state.diffActivePath != null);
+  const pickedFor = useRef<DiffBaseline | null>(null);
+  const select = file.select;
+  useEffect(() => {
+    if (handoff.current || !buckets.known || pickedFor.current === baseline) return;
+    pickedFor.current = baseline;
+    if (buckets.unrecorded.length > 0) select(buckets.unrecorded[0]);
+  }, [buckets, baseline, select]);
+
+  const splitRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = document.activeElement as HTMLElement | null;
+    const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    if (!typing) splitRef.current?.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
     if (!selected) return;
-    setState((prev) =>
-      prev.diffReadPaths.includes(selected)
-        ? prev
-        : { ...prev, diffReadPaths: [...prev.diffReadPaths, selected] },
-    );
-  }, [selected, setState]);
+    for (const row of listRef.current?.querySelectorAll<HTMLElement>(".chg-item") ?? []) {
+      if (row.dataset.path === selected) row.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [selected]);
 
-  // "모두 검토 완료" — mark every changed file reviewed at once (dogfooding #4).
-  const onMarkAllReviewed = useCallback(() => {
-    setState((prev) => {
-      const merged = new Set(prev.diffReadPaths);
-      for (const c of changes) merged.add(c.path);
-      return merged.size === prev.diffReadPaths.length
-        ? prev
-        : { ...prev, diffReadPaths: [...merged] };
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const el = e.target as HTMLElement;
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable) return;
+    if (e.key !== "j" && e.key !== "k") return;
+    e.preventDefault();
+    const paths = visiblePaths(buckets, changes, open);
+    if (paths.length === 0) return;
+    const cur = selected ? paths.indexOf(selected) : -1;
+    const next = e.key === "j" ? Math.min(cur + 1, paths.length - 1) : Math.max(cur - 1, 0);
+    select(paths[next]);
+    // 포커스도 따라간다 — 안 그러면 이전 줄에 남은 포커스에서 Enter 가 옛 줄을 다시 고른다.
+    requestAnimationFrame(() => {
+      for (const row of listRef.current?.querySelectorAll<HTMLElement>(".chg-item") ?? []) {
+        if (row.dataset.path === paths[next]) row.focus({ preventScroll: true });
+      }
     });
-  }, [setState, changes]);
+  };
 
   const onOpenEditor = useCallback(async () => {
     if (!selected || !projectRoot) return;
@@ -88,57 +135,36 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
       .catch((e: unknown) => toast.destructive(t("diff.editorFailed", { error: errorDetail(e) })));
   }, [projectRoot, selected, settings.externalEditorCommand, t]);
 
-  const onOpenAffected = useCallback(
-    async (path: string) => {
-      if (!projectRoot) return;
-      await fileOpenApi
-        .inExternalEditor(projectRoot, path, settings.externalEditorCommand, null)
-        .catch((e: unknown) => toast.destructive(t("diff.editorFailed", { error: errorDetail(e) })));
-    },
-    [projectRoot, settings.externalEditorCommand, t],
-  );
+  // 기록 없는 변경을 남기는 두 길. 둘 다 「기록 없음」 묶음 전체를 다룬다 — 한 번의 작업이 여러 파일을
+  // 고친 경우가 대부분이고, 에이전트는 한 건으로 묶어 쓰는 편이 낫다.
+  const unrecorded = buckets.unrecorded;
+  const copyRequest = () => {
+    const text = recordRequestText(unrecorded, t("diff.unrecorded.prompt"), (n) => t("diff.unrecorded.promptMore", { n }));
+    void navigator.clipboard?.writeText(text).then(() => toast.info(t("diff.unrecorded.copied")));
+  };
+  const [manual, setManual] = useState<{ workday: string; files: string[] } | null>(null);
+  const openManual = async () => {
+    // 일지는 프로젝트의 workday 에 쓰인다 — 모르면 로컬 달력으로.
+    const status = await oculpmApi.getStatus(projectId).catch(() => null);
+    setManual({ workday: status?.current_workday || localWorkdayKey(), files: unrecorded });
+  };
 
-  // 묶음 기준 — 일지별(기본) / 파일별. 화면 지역 상태다: 어제 고른 평면 보기가 오늘 일지
-  // 묶음을 가리면 안 된다 (시안 Diff). 파일별은 그룹을 끊은 평면 목록이다.
-  const [byEntry, setByEntry] = useState(true);
-  const selectedGroup = useMemo(
-    () => (selected && list.groups ? list.groups.find((g) => g.files.includes(selected)) ?? null : null),
-    [selected, list.groups],
-  );
-  const reviewed = selected ? diffReadPaths.includes(selected) : false;
-  const allReviewed =
-    changes.length > 0 && changes.every((c) => diffReadPaths.includes(c.path));
+  const sub =
+    baseline === "last_commit"
+      ? t("diff.summaryLast", { n: changes.length, sha: lastCommit?.short_sha ?? "", subject: lastCommit?.subject ?? "" })
+      : branch
+        ? t("diff.summaryBranch", { n: changes.length, branch })
+        : t("diff.summaryWorking", { n: changes.length });
+  const selectedUnrecorded = buckets.known && selected != null && unrecorded.includes(selected);
 
   return (
     <>
-      <Toolbar
-        title={t("nav.diff")}
-        sub={
-          <span>
-            {baseline === "last_commit" ? (
-              <>
-                {t("diff.lastCommit")} <span className="mono">{lastCommit?.short_sha}</span>
-                {lastCommit?.subject ? ` · ${lastCommit.subject}` : ""}
-              </>
-            ) : (
-              <>
-                {branch ? <span className="mono">{branch}</span> : null}
-                {branch ? " · " : ""}
-                {t("diff.uncommittedFiles", { n: changes.length })}
-              </>
-            )}
-          </span>
-        }
-      >
-        {/* '둘 중 하나' 는 `.seg` 한 물체다 (2026-09-10 {#unify-toolbar-vocab}).
-            예전엔 `.btn ghost sm` 에 선택 배경을 JSX 에서 계산해 얹었다 — 같은
-            뜻을 앱에서 네 가지로 말하던 것 중 하나였고, 인라인이라 테마·프리셋이
-            바뀌어도 따라오지 못했다. */}
+      <Toolbar title={t("nav.diff")} sub={sub}>
         {lastCommitChanges.length > 0 ? (
           <div className="seg" role="tablist" title={t("diff.modeTitle")} aria-label={t("diff.modeTitle")}>
             {(
               [
-                ["working", `${t("diff.modeWorking")}${workingChanges.length ? ` ${workingChanges.length}` : ""}`],
+                ["working", t("diff.modeWorking")],
                 ["last_commit", t("diff.lastCommit")],
               ] as [DiffBaseline, string][]
             ).map(([b, label]) => (
@@ -151,64 +177,11 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                 onClick={() => list.pinBaseline(b)}
               >
                 {label}
+                {b === "working" && workingChanges.length > 0 ? ` ${workingChanges.length}` : ""}
               </button>
             ))}
           </div>
         ) : null}
-        <div className="seg" role="tablist" aria-label={t("diff.viewAria")}>
-          {(["unified", "split"] as DiffMode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="tab"
-              aria-selected={diffMode === m}
-              className="seg-item"
-              onClick={() => setMode(m)}
-            >
-              {m === "unified" ? t("diff.viewUnified") : t("diff.viewSplit")}
-            </button>
-          ))}
-        </div>
-        <button
-          className="btn ghost"
-          onClick={() =>
-            requestAgentContext({
-              kind: "createRule",
-              seed: {
-                paths: ruleGlobsFromPaths(changes.map((c) => c.path)),
-                body: t("ctx.promote.seedFrom", {
-                  source: changes.map((c) => `\`${c.path}\``).slice(0, 8).join(", "),
-                }),
-              },
-            })
-          }
-          {...blocked(changes.length === 0 ? t("diff.blockedNoChanges") : null, t("ctx.promote.ruleTitle"))}
-        >
-          <ShieldCheck size={15} /> {t("ctx.promote.diffRule")}
-        </button>
-        <button
-          className="btn ghost"
-          onClick={onMarkAllReviewed}
-          {...blocked(
-            changes.length === 0
-              ? t("diff.blockedNoChanges")
-              : allReviewed
-                ? t("diff.blockedAllReviewed")
-                : null,
-            t("diff.markAllTitle"),
-          )}
-        >
-          <CheckMark size={15} /> {t("diff.markAll")}
-        </button>
-        <button
-          className="btn primary"
-          onClick={onMarkReviewed}
-          {...blocked(
-            !selected ? t("diff.blockedNoFile") : reviewed ? t("diff.blockedAlreadyReviewed") : null,
-          )}
-        >
-          <CheckMark size={15} /> {reviewed ? t("diff.isReviewed") : t("diff.reviewed")}
-        </button>
       </Toolbar>
 
       {changes.length === 0 ? (
@@ -239,39 +212,30 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
           </div>
         </div>
       ) : (
-        <div className="diff-screen">
-          {/* Left: file list — grouped by the journal entry / plan that
-              recorded each change (Dogfooding #3), with a flat fallback.
-              접힘 · 필터 · 경로 접기는 DiffFileList 가 소유한다. */}
-          <DiffFileList
+        <div className="chg-split" ref={splitRef} tabIndex={-1} onKeyDown={onKeyDown}>
+          <ChangeFileList
             changes={changes}
-            groups={byEntry ? list.groups : null}
-            byEntry={byEntry}
-            onByEntry={list.groups ? setByEntry : undefined}
+            buckets={buckets}
+            entries={entries}
             selected={selected}
-            reviewedPaths={diffReadPaths}
-            impact={list.impact}
-            onSelect={file.select}
-            onOpenEntry={onOpenEntry}
-            onToggleVerified={(path, next) => void list.toggleVerified(path, next)}
-            onOpenAffected={onOpenAffected}
+            open={open}
+            onToggle={toggleGroup}
+            onSelect={select}
+            listRef={listRef}
           />
-
-          {/* Right: diff body */}
-          <div className="diff-main">
+          <div className="chg-main">
             {list.enrichError ? (
-              <ErrorCard
-                title={t("diff.enrichFailed")}
-                error={list.enrichError}
-                onRetry={list.retryEnrich}
-                style={{ margin: 12 }}
-              />
+              <ErrorCard title={t("diff.enrichFailed")} error={list.enrichError} onRetry={list.retryEnrich} style={{ margin: 12 }} />
             ) : null}
-            <div className="diff-bar">
-              <FileCode2 size={15} color="var(--text-2)" />
-              <span className="fname">{selected ?? "—"}</span>
+            {selectedUnrecorded ? (
+              <UnrecordedBanner count={unrecorded.length} onCopy={copyRequest} onManual={() => void openManual()} />
+            ) : null}
+            <div className="chg-fh">
+              <b className="chg-fname" title={selected ?? undefined}>
+                {selected ?? "—"}
+              </b>
               {file.current ? (
-                <span className="chip" style={{ height: 20 }}>
+                <span className="chip sm">
                   {file.current.op === "A"
                     ? t("diff.opAdded")
                     : file.current.op === "D"
@@ -285,33 +249,20 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   <span className="del">−{file.stats.del}</span>
                 </span>
               ) : null}
-              <span style={{ flex: 1 }} />
-              {/* v2 U8 — in-diff 검색. Enter/n=다음, Shift+Enter/N=이전, Esc=해제 */}
-              <div className="search-box sm diff-search">
-                <input
-                  ref={search.searchInputRef}
-                  value={search.query}
-                  onChange={(e) => search.setQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      search.jumpMatch(e.shiftKey ? -1 : 1);
-                    } else if (e.key === "Escape") {
-                      search.setQuery("");
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                  placeholder={t("diff.searchPlaceholder")}
-                  aria-label={t("diff.searchAria")}
-                  spellCheck={false}
-                />
-                {search.matchPos ? (
-                  <span className="diff-search-count">
-                    {search.matchPos.total === 0
-                      ? t("diff.noMatches")
-                      : `${search.matchPos.idx}/${search.matchPos.total}`}
-                  </span>
-                ) : null}
+              <span className="chg-sp" />
+              <div className="seg" role="tablist" aria-label={t("diff.viewAria")}>
+                {(["unified", "split"] as DiffMode[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="tab"
+                    aria-selected={diffMode === m}
+                    className="seg-item"
+                    onClick={() => setMode(m)}
+                  >
+                    {m === "unified" ? t("diff.viewUnified") : t("diff.viewSplit")}
+                  </button>
+                ))}
               </div>
               <button
                 className="iconbtn"
@@ -323,19 +274,17 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               </button>
             </div>
 
-            <div className="diff-code" ref={search.diffCodeRef}>
+            <div className="diff-code">
               {file.loading ? (
                 <EmptyState>
                   <Loader size={15} /> {t("diff.computing")}
                 </EmptyState>
               ) : file.error ? (
-                // 「다시 시도」 버튼이 안 그려지고 있었다 — ErrorCard 는 onRetry 가
-                // 있어야 버튼을 낸다.
-                <ErrorCard title={t("diff.failed")} error={file.error} style={{ margin: 16 }}
-                  onRetry={file.retry} />
-              ) : diff ? (
+                // 「다시 시도」 버튼이 안 그려지고 있었다 — ErrorCard 는 onRetry 가 있어야 버튼을 낸다.
+                <ErrorCard title={t("diff.failed")} error={file.error} style={{ margin: 16 }} onRetry={file.retry} />
+              ) : file.diff ? (
                 <DiffBody
-                  result={diff}
+                  result={file.diff}
                   mode={diffMode}
                   newFilePatch={file.newFilePatch}
                   newFileError={file.newFileError}
@@ -347,17 +296,31 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                 <EmptyState>{t("diff.pickFile")}</EmptyState>
               )}
             </div>
-            {/* 이 파일을 적은 일지의 검증 — 일지가 말한 것과 바뀐 것을 한 화면에 (시안 Diff). */}
+            {/* 이 파일을 적은 일지의 검증 — 일지가 말한 것과 바뀐 것을 한 화면에. 일지가 없는 파일에는 안 그린다. */}
             {selectedGroup?.entry_path ? (
               <DiffEntryFooter
                 projectId={projectId}
                 group={selectedGroup}
                 onToggleVerified={(path, next) => void list.toggleVerified(path, next)}
+                onOpenEntry={onOpenEntry}
               />
             ) : null}
           </div>
         </div>
       )}
+
+      {manual ? (
+        <ManualEntryModalV2
+          projectId={projectId}
+          workday={manual.workday}
+          seedFiles={manual.files}
+          onCreated={(entry) => {
+            toast.info(t("journal.written", { title: entry.title }));
+            list.retryEnrich();
+          }}
+          onClose={() => setManual(null)}
+        />
+      ) : null}
     </>
   );
 }

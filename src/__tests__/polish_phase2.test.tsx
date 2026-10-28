@@ -3,8 +3,8 @@ import { cleanup, fireEvent, render, renderHook } from "@testing-library/react";
 
 // ─── 완성도 라운드 Phase 2 (2026-08-30) — 여정 ─────────────────────────────
 //
-// 순수 모듈(단축키 레지스트리 · 무결성 기록 · 그룹 뷰 · 닫기 문지기 · 요청
-// 버스)과 두 카드(첫 활성화 · diff 그룹 확인 토글)를 jsdom 에서 굳힌다.
+// 순수 모듈(단축키 레지스트리 · 무결성 기록 · 닫기 문지기 · 요청
+// 버스)과 두 카드(첫 활성화 · diff 바닥줄 확인 토글)를 jsdom 에서 굳힌다.
 
 import { ko } from "@/i18n/ko";
 import { en } from "@/i18n/en";
@@ -17,7 +17,6 @@ import {
   resetIntegrityLog,
   useIntegrityLog,
 } from "@/lib/integrityLog";
-import { buildGroupViews } from "@/features/diff/changeGroups";
 import {
   hasRunningWork,
   registerTabCloseGuard,
@@ -37,7 +36,7 @@ vi.mock("@/lib/bindings", () => ({
 }));
 
 import { FirstRunCard } from "@/features/today/FirstRunCard";
-import { DiffFileList } from "@/features/diff/DiffFileList";
+import { DiffEntryFooter } from "@/features/diff/DiffEntryFooter";
 
 afterEach(() => {
   cleanup();
@@ -99,87 +98,50 @@ describe("무결성 경고 기록 — 세션 링 버퍼", () => {
   });
 });
 
-describe("변경 그룹 뷰 — verified_by_user 가 머리글까지 온다", () => {
-  const group = (path: string | null, verified: boolean | null) => ({
-    entry_path: path,
-    entry_title: path ? "제목" : null,
-    entry_type: path ? "feature" : null,
-    created_at: path ? "2026-08-30T10:00:00+09:00" : null,
+describe("변경 바닥줄 — 일지의 확인 토글", () => {
+  const group = (verified: boolean, stale = false) => ({
+    entry_path: "j/1.md",
+    entry_title: "제목",
+    entry_type: "feature",
+    created_at: "2026-08-30T10:00:00+09:00",
     verified_by_user: verified,
-    verified_stale: verified == null ? null : false,
+    verified_stale: stale,
     plan_refs: [],
     files: ["src/a.ts"],
   });
 
-  it("일지 그룹은 값을 그대로, 미추적·평면은 null", () => {
-    const views = buildGroupViews({
-      groups: [group("j/1.md", true), group("j/2.md", false), group(null, null)],
-      changes: [],
-      filter: "",
-      collapsed: new Set(),
-      reviewed: new Set(),
-    });
-    expect(views.map((v) => v.verified)).toEqual([true, false, null]);
-    const flat = buildGroupViews({
-      groups: null,
-      changes: [{ path: "src/a.ts", op: "M", ts: 1, read: false }],
-      filter: "",
-      collapsed: new Set(),
-      reviewed: new Set(),
-    });
-    expect(flat[0].verified).toBeNull();
-  });
-
-  it("머리글의 확인 토글은 aria-pressed 로 상태를 말하고 반대 값으로 부른다", () => {
+  it("토글은 aria-pressed 로 상태를 말하고 반대 값으로 부른다", () => {
     const onToggleVerified = vi.fn();
     const { getByRole } = render(
-      <DiffFileList
-        changes={[{ path: "src/a.ts", op: "M", ts: 1, read: false }]}
-        groups={[group("j/1.md", false)]}
-        selected={null}
-        reviewedPaths={[]}
-        impact={null}
-        onSelect={() => {}}
-        onToggleVerified={onToggleVerified}
-        onOpenAffected={() => {}}
-      />,
+      <DiffEntryFooter projectId={1} group={group(false)} onToggleVerified={onToggleVerified} />,
     );
-    const btn = getByRole("button", { name: ko["entry.verifyTitle"] });
+    const btn = getByRole("button", { name: ko["entry.verify"] });
     expect(btn).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(btn);
     expect(onToggleVerified).toHaveBeenCalledWith("j/1.md", true);
   });
 
   // {#reviewed-hash} — 확인 뒤 본문이 바뀐 일지는 「확인됨」이 아니다.
-  it("확인 뒤 바뀐 일지는 토글이 꺼진 「다시 검토」이고, 누르면 다시 묶는다(true)", () => {
-    const stale = { ...group("j/1.md", true), verified_stale: true };
-    const views = buildGroupViews({
-      groups: [stale],
-      changes: [],
-      filter: "",
-      collapsed: new Set(),
-      reviewed: new Set(),
-    });
-    expect(views[0].verified).toBe(false);
-    expect(views[0].stale).toBe(true);
-
+  it("확인 뒤 바뀐 일지는 토글이 꺼진 채이고, 누르면 다시 묶는다(true)", () => {
     const onToggleVerified = vi.fn();
     const { getByRole } = render(
-      <DiffFileList
-        changes={[{ path: "src/a.ts", op: "M", ts: 1, read: false }]}
-        groups={[stale]}
-        selected={null}
-        reviewedPaths={[]}
-        impact={null}
-        onSelect={() => {}}
-        onToggleVerified={onToggleVerified}
-        onOpenAffected={() => {}}
-      />,
+      <DiffEntryFooter projectId={1} group={group(true, true)} onToggleVerified={onToggleVerified} />,
     );
-    const btn = getByRole("button", { name: ko["entry.reverifyTitle"] });
+    const btn = getByRole("button", { name: ko["entry.verify"] });
     expect(btn).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(btn);
     expect(onToggleVerified).toHaveBeenCalledWith("j/1.md", true);
+  });
+
+  it("확인된 일지는 눌린 토글이고, 누르면 해제(false)를 부른다", () => {
+    const onToggleVerified = vi.fn();
+    const { getByRole } = render(
+      <DiffEntryFooter projectId={1} group={group(true)} onToggleVerified={onToggleVerified} />,
+    );
+    const btn = getByRole("button", { name: ko["entry.verified"] });
+    expect(btn).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(btn);
+    expect(onToggleVerified).toHaveBeenCalledWith("j/1.md", false);
   });
 });
 
