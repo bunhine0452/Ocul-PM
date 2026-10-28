@@ -118,6 +118,8 @@ pub(super) const MIGRATIONS: &[(i64, &str)] = &[
         42,
         include_str!("../../migrations/042_oculpm_journal_evidence.sql"),
     ),
+    // 4.0 — 코드 색인·의미 검색 걷기. 색인 전용 표를 지운다 (`file_snapshots` 는 남는다).
+    (43, include_str!("../../migrations/043_drop_code_index.sql")),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —

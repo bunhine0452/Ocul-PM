@@ -441,7 +441,7 @@ pub struct WatcherConfig {
     /// (`fast|balanced|patient|relaxed|deferred|extended`). 값이 있으면
     /// `debounce_ms` 대신 쓰이고, 없으면 숫자가 그대로 산다 (커스텀 하위호환).
     /// OS 디바운서에 실제로 걸리는 창은 언제나 `balanced` 로 잘린다 —
-    /// `automation::tiers::os_debounce_ms`.
+    /// `watcher::tiers::os_debounce_ms`.
     #[serde(default)]
     pub responsiveness: Option<String>,
     // `batch_max_events` 는 2026-08-30 에 뺐다 — 워처 배치는 디바운스 창으로만
@@ -456,20 +456,9 @@ pub struct AgentsConfig {
     // `auto_detect_on_open` · `auto_sync_adapters` 는 2026-08-30 에 뺐다 — 감지와
     // 동기화는 프로젝트를 열 때 무조건 돌고(`oculpm_init` 2단계) 두 플래그를
     // 읽는 코드가 없었다.
-    /// F1 — when on, the watcher reconciles the single active plan against each
-    /// newly-written journal entry via a background LLM call (`auto:<provider>`
-    /// attribution). Opt-in (default `false`): it triggers automatic, billable
-    /// LLM requests that send journal/plan text to the configured provider.
-    /// `#[serde(default)]` so pre-F1 `config.toml` files parse to `false`.
-    #[serde(default)]
-    pub auto_reconcile: bool,
-    /// PR-CI1 — when on, a hook-detected Claude Code session end (AgentExit)
-    /// triggers a background LLM summary of the session transcript into ONE
-    /// journal draft (skipped if the agent wrote its own entry). Opt-in
-    /// (default `false`): billable, and sends transcript excerpts to the
-    /// configured provider.
-    #[serde(default)]
-    pub auto_journal_draft: bool,
+    // `auto_reconcile` · `auto_journal_draft` 는 4.0 에서 뺐다 — 앱 안 LLM 호출(자동
+    // 플랜 화해·세션 종료 일지 초안)을 걷었다. 기존 `config.toml` 에 남은 두 키는
+    // 모르는 키로 조용히 무시된다 (`deny_unknown_fields` 가 없다 — config.rs 테스트).
     /// PR-CI3 — 규칙 크로스툴 번역 타깃 (v1: "cursor"). 규칙 허브를 4.0 에서
     /// 걷어 **읽는 곳이 없다** — 스키마 호환(`config.toml` 의 기존 값을 지우지
     /// 않으려고)만을 위해 필드를 남긴다. `#[serde(default)]` 라 기존 config 는
@@ -487,46 +476,6 @@ fn default_template_language() -> String {
     "ko".to_string()
 }
 
-/// Osaurus 라운드 Phase 0 (Decision 4) — 자동화의 전역 스위치.
-///
-/// **전부 옵인, 기본 off.** `#[serde(default)]` 라 `[automation]` 섹션이 없는
-/// 기존 `config.toml` 은 전부 꺼진 상태로 파싱된다. `.oculpm/automation/` 은
-/// 신규 디렉터리라 기존 온디스크 스펙이 불변이고 `schema_version` 을 올리지
-/// 않는다 (`auto_reconcile`·`auto_journal_draft` 선례).
-///
-/// 개별 정의 파일의 `enabled` 와는 **AND** 다 — 여기가 꺼져 있으면 켜 둔
-/// 정의가 있어도 돌지 않는다.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct AutomationConfig {
-    /// 스케줄 집행 전역 스위치.
-    #[serde(default)]
-    pub schedules: bool,
-    /// 워처 자동화 전역 스위치.
-    #[serde(default)]
-    pub watchers: bool,
-    /// 한 워크데이에 자동화가 부를 수 있는 LLM 호출 상한 (폭주 가드).
-    /// `0` = 전면 정지. 드롭·스킵은 과금되지 않았으므로 세지 않는다.
-    #[serde(default = "default_daily_run_budget")]
-    pub daily_run_budget: u32,
-}
-
-fn default_daily_run_budget() -> u32 {
-    20
-}
-
-/// `#[serde(default)]` 로 통째로 빠진 `[automation]` 과, 부분만 적힌
-/// `[automation]` 이 **같은 값**을 내야 한다 — 그래서 파생 `Default` 를 쓰지
-/// 않고 필드별 serde 기본값과 손으로 맞춘다 (`automation_defaults_agree` 테스트).
-impl Default for AutomationConfig {
-    fn default() -> Self {
-        Self {
-            schedules: false,
-            watchers: false,
-            daily_run_budget: default_daily_run_budget(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct OculpmConfig {
     pub schema_version: u32,
@@ -535,8 +484,8 @@ pub struct OculpmConfig {
     pub git: GitConfig,
     pub watcher: WatcherConfig,
     pub agents: AgentsConfig,
-    #[serde(default)]
-    pub automation: AutomationConfig,
+    // `automation` (`[automation]` 섹션) 은 4.0 에서 자동화와 함께 뺐다 — 남은 섹션은
+    // 모르는 키로 무시된다.
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -598,7 +547,7 @@ pub struct WatcherStatus {
     /// 유계 큐가 가득 차 **버린** 이벤트 누계 (`watcher_queue`). 0 이 아니면
     /// 그만큼의 파일 변경을 이 워처가 보지 못했다는 뜻이다 — 정착 후
     /// 재동기화(`resync_after_drops`)가 일지·계획은 디스크에서 다시 읽어
-    /// 만회하지만, 코드 검색 색인은 「인덱스 재구축」이 필요할 수 있다.
+    /// 만회한다 (놓친 파일의 diff 기준선은 다음 변경 때 따라잡는다).
     /// 지금까지 이 값은 로그와 지나가는 토스트로만 보였다
     /// (`{#dropped-total-surface}`).
     ///
@@ -782,17 +731,6 @@ pub struct OculpmIntegrityWarning {
     pub warning: IntegrityWarning,
 }
 
-/// F1 — emitted after auto-reconcile applies status flips to a plan, so the UI
-/// can toast ("AI 가 N개 항목을 자동 갱신") and refresh the planner. Only fired on
-/// an actual change (≥1 applied); skips/no-ops stay silent.
-#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
-pub struct OculpmPlanReconciled {
-    pub project_id: u32,
-    pub plan_id: String,
-    /// Number of item statuses changed.
-    pub applied: u32,
-}
-
 /// 다른 ocul-pm 인스턴스가 이 프로젝트의 락을 가져가, 이 창은 실시간 갱신을
 /// 놓았다 (2026-08-23). 예전에는 이런 일이 로그에만 남아, 사용자는 화면이 왜
 /// 안 바뀌는지 알 길이 없었다.
@@ -842,19 +780,8 @@ pub enum OculpmDataArea {
     /// 다시 읽는다 (Phase 4). 예전엔 `.claude/**` 가 에이전트 내부 상태로 통째로
     /// 버려져 어떤 신호도 나가지 않았다.
     Rules,
-    /// `.oculpm/automation/**` — 자동화 탭이 다시 읽는다 (Osaurus Phase 2).
-    /// 정의는 사람이 손으로 고치고 git 에 올릴 수 있는 파일이라 UI 가 그
-    /// 변경을 봐야 한다. 동시에 자동화 **트리거 원인에서는 제외**된다
-    /// (`automation::settle::is_excluded_cause` — 증폭 루프 가드 R1).
-    Automation,
-    /// `.oculpm/rollups/**` — 주간 요약 층 (journal-scale-round
-    /// `{#rollup-weekly}`). **일지가 아니다**: 라우팅이 없으면 `.md` 파일
-    /// 하나가 코드 변경 ndjson 파이프라인까지 흘러 정직성 감사에 가짜 「누락」을
-    /// 만들고, 옆에 서는 문지기 락 파일(`.2026-W38.md.lock`)의 생성·삭제까지
-    /// 변경 원장을 오염시킨다 (`cas::acquire_doc_guard` 의 doc comment 가 바로
-    /// 이 함정을 적어 두었다). 대신 "다시 읽어라" 신호만 낸다 — 읽을 때
-    /// 파일에서 투영하는 planner/discussion 과 같은 모양.
-    Rollups,
+    // `Rollups`(`.oculpm/rollups/**`) 는 4.0 에서 주간 롤업과 함께 뺐다 — 남은 파일은
+    // 워처가 무시한다 (`watcher::classify::is_retired_area`).
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]

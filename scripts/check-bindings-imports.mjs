@@ -19,52 +19,34 @@ const ROOT = new URL("../src", import.meta.url).pathname;
 export const ALLOWLIST = new Set([
   // 래퍼 — 여기만 정본이다.
   "api/oculpm.ts",
-  "api/automation.ts",
-  "api/context.ts",
   "api/claudeSurface.ts",
   "api/window.ts",
   "api/deeplink.ts",
-  "api/declarativeConfig.ts",
-  "api/plugins.ts",
   "api/session.ts",
-  "api/import.ts",
   "api/projectFile.ts",
-  "api/llm.ts",
-  "api/codeHistory.ts",
   // `.oculpm/index/` 사용량 + diff 정리 (journal-scale-round {#index-usage}).
   "api/indexUsage.ts",
   // git 커맨드 래퍼 (2026-09-11 편집기 IDE 라운드) — 트리·탭 git 상태 장식의 창구.
   "api/git.ts",
-  "api/code.ts",
-  "api/acp.ts",
   "api/fileOpen.ts",
   // 설치 형식 (크로스플랫폼 L-UPD #upd-target-missing) — 업데이터의 deb 안내·대상 없음 판정.
   "api/installKind.ts",
   // 플래너 읽기 (`{#api-facades}` 첫 조각, 2026-09-18) — 트레이 스냅숏이 첫 호출자.
   "api/plan.ts",
-  "api/shellIntegration.ts",
   // `{#api-facades}` 2026-10-01 — 코드·LSP·터미널·git·diff·LLM 화면이 쓰던
   // 직접 호출 39파일(⌘K 팔레트 포함)을 여기로 옮겼다.
-  "api/conversations.ts",
   "api/diff.ts",
-  "api/lsp.ts",
   "api/projects.ts",
-  "api/search.ts",
-  "api/secrets.ts",
   "api/settings.ts",
-  "api/terminal.ts",
   // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준 87개 → 2026-10-01 52개). 새로
   // 늘리지 말 것 — 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.
   "contexts/SettingsContext.tsx",
   "contexts/WorkspaceContext.tsx",
-  "features/chat/AcpConversation.tsx",
-  "features/chat/AcpUsageMeter.tsx",
   "features/oculpm/useJournalDays.ts",
   "features/oculpm/useOculpmLive.ts",
   // v3-release {#planner-diff-split} — 플래너 화면에서 갈라 나온 조각. 직접 호출이
   // 늘어난 것이 아니라 화면이 들고 있던 것이 따라왔다. 옮길 때는 화면과 함께.
   "features/planner/usePlanDocument.ts",
-  "features/search/SearchScreenV2.tsx",
   "features/shell/ShellV2.tsx",
   "lib/externalLinks.ts",
   "lib/oculpmLog.ts",

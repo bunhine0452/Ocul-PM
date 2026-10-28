@@ -19,10 +19,10 @@
 //!
 //! | 지시어 | 왜 그 모양인가 (근거 파일) |
 //! |---|---|
-//! | `script-src 'self' 'wasm-unsafe-eval'` | 코드 검색 포매터가 `@wasm-fmt`(clang-format·gofmt·ruff·shfmt)를 지연 로드해 `WebAssembly` 를 컴파일한다 (`features/search/formatCode.ts`). `eval(`·`new Function` 은 빌드 산출물에 0곳이다(2026-10-07 dist 전수 확인) — `'unsafe-eval'` 은 없다. |
+//! | `script-src 'self'` | `'wasm-unsafe-eval'` 은 코드 검색 포매터(`@wasm-fmt`)의 몫이었고 4.0 에서 검색 화면과 함께 닫았다. `eval(`·`new Function` 은 빌드 산출물에 0곳이다(2026-10-07 dist 전수 확인) — `'unsafe-eval'` 은 없다. |
 //! | `style-src 'self' 'unsafe-inline'` | `style={{…}}` 인라인 속성이 수백 곳이다 (Monaco·xterm 은 2026-10-28 에 걷었다). Tauri 는 **빌드된 HTML 안의** `<style>`·인라인 `<script>` 에만 nonce 를 붙이는데(tauri-utils `inject_nonce_token`) 우리 index.html 에는 둘 다 없다 — nonce 가 붙으면 `'unsafe-inline'` 이 무시되니 이 사실이 이 줄의 전제다. |
 //! | `img-src 'self' data:` | 첨부 미리보기는 `data:`. `blob:` 은 코드 미리보기와 함께 2026-10-28 에 걷었다. **원격 이미지는 막는다** — 에이전트가 쓴 일지·답의 `![](https://…)` 가 화면을 여는 순간 바깥으로 요청을 내던 길이었다. |
-//! | `frame-src 'none'` · `worker-src 'self'` | PDF `<iframe>` 과 Monaco 워커가 2026-10-28 에 걷혀 둘 다 닫았다. `@wasm-fmt` 는 워커 없이 같은 문서에서 컴파일한다. |
+//! | `frame-src 'none'` · `worker-src 'self'` | PDF `<iframe>` 과 Monaco 워커가 2026-10-28 에 걷혀 둘 다 닫았다. |
 //! | `connect-src 'self' ipc: http://ipc.localhost` | Tauri IPC 가 `ipc://localhost`(Windows `http://ipc.localhost`) 로 나간다 — 빠뜨리면 모든 커맨드가 느린 postMessage 길로 떨어진다. **웹뷰는 바깥으로 나가지 않는다** (4.0 — 릴리스 노트를 직접 읽던 What's-new 카드·업데이트 탭이 걷혔다). 바깥 호출은 전부 Rust 쪽 — 목록은 `tests/egress_inventory.rs`. |
 //! | `object-src 'none'` · `base-uri 'self'` · `form-action 'none'` | 쓰지 않는 문은 닫는다. 폼은 전부 JS 로 처리한다 — 네이티브 제출은 SPA 를 새로고침할 뿐이다. |
 //!
@@ -65,8 +65,9 @@ fn the_webview_csp_is_on_and_shaped_like_the_app() {
     );
 
     let script = directive(&conf, "script-src");
-    assert!(script.contains(&"'self'".into()) && script.contains(&"'wasm-unsafe-eval'".into()));
+    assert_eq!(script, vec!["'self'".to_string()]);
     for banned in [
+        "'wasm-unsafe-eval'",
         "'unsafe-eval'",
         "'unsafe-inline'",
         "*",
@@ -81,11 +82,7 @@ fn the_webview_csp_is_on_and_shaped_like_the_app() {
         );
     }
     let connect = directive(&conf, "connect-src");
-    for need in [
-        "'self'",
-        "ipc:",
-        "http://ipc.localhost",
-    ] {
+    for need in ["'self'", "ipc:", "http://ipc.localhost"] {
         assert!(
             connect.contains(&need.to_string()),
             "connect-src 에 {need} 가 없다"
@@ -126,24 +123,27 @@ fn the_policy_still_matches_what_the_frontend_actually_does() {
     let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src");
     let read = |rel: &str| std::fs::read_to_string(src.join(rel)).unwrap_or_default();
 
-    assert!(
-        read("features/search/formatCode.ts").contains("wasm"),
-        "wasm 포매터가 사라졌으면 'wasm-unsafe-eval' 을 뺄 수 있다"
-    );
-    // blob: 미리보기(`features/code/CodePreview.tsx`)는 2026-10-28 에 걷혔고 그 지시어도 함께 닫았다 —
-    // 프런트 어디에도 `createObjectURL` 이 없어야 한다.
+    // blob: 미리보기(`features/code/CodePreview.tsx`)는 2026-10-28 에, wasm 포매터
+    // (`features/search/formatCode.ts`)는 4.0 에 걷혔고 그 지시어도 함께 닫았다 —
+    // 프런트 어디에도 `createObjectURL`·`WebAssembly`·`@wasm-fmt` 가 없어야 한다.
     let mut uses_blob = Vec::new();
+    let mut uses_wasm = Vec::new();
     for entry in walkdir(&src) {
-        if entry.extension().is_some_and(|e| e == "ts" || e == "tsx")
-            && !entry.to_string_lossy().contains("__tests__")
-            && std::fs::read_to_string(&entry)
-                .unwrap_or_default()
-                .contains("createObjectURL")
+        if !entry.extension().is_some_and(|e| e == "ts" || e == "tsx")
+            || entry.to_string_lossy().contains("__tests__")
         {
-            uses_blob.push(entry);
+            continue;
+        }
+        let text = std::fs::read_to_string(&entry).unwrap_or_default();
+        if text.contains("createObjectURL") {
+            uses_blob.push(entry.clone());
+        }
+        if text.contains("WebAssembly") || text.contains("@wasm-fmt") {
+            uses_wasm.push(entry);
         }
     }
     assert!(uses_blob.is_empty(), "createObjectURL 이 돌아왔다 — img-src/frame-src 에 blob: 을 되살리고 머리말에 적어라: {uses_blob:?}");
+    assert!(uses_wasm.is_empty(), "wasm 이 돌아왔다 — script-src 에 'wasm-unsafe-eval' 을 되살리고 머리말에 적어라: {uses_wasm:?}");
     assert!(
         read("main.tsx").contains("watchCspViolations"),
         "CSP 위반 감시가 빠지면 막힌 것이 조용히 사라진다 — e2e 도 그것을 읽는다"

@@ -147,21 +147,11 @@ pub(super) fn data_area_for_path(rel_str: &str) -> Option<OculpmDataArea> {
     if rel_str.starts_with(".oculpm/planner/") {
         return Some(OculpmDataArea::Planner);
     }
-    if rel_str.starts_with(".oculpm/automation/") {
-        return Some(OculpmDataArea::Automation);
-    }
     // 논의 화면은 4.0 에서 걷었지만 사용자의 `.oculpm/discussion/**` 파일은 디스크에
     // 그대로 남는다 — 그 편집이 코드 변경 파이프라인(ndjson·히스토리)으로 흘러
     // 들어가지 않도록 영역 분류는 둔다. 듣는 화면은 더는 없다.
     if rel_str.starts_with(".oculpm/discussion/") {
         return Some(OculpmDataArea::Discussion);
-    }
-    // 롤업(`{#rollup-weekly}`)도 같은 취급 — 파일이 SSOT 고 읽을 때 투영한다.
-    // 이 줄이 없으면 `.oculpm/rollups/**` 는 위 3.5 를 그냥 지나 코드 변경
-    // 파이프라인(ndjson·증분 색인·히스토리 캡처)으로 들어간다. 접두사가
-    // 문지기의 락 파일(`.2026-W38.md.lock`)까지 덮는 것은 의도다.
-    if rel_str.starts_with(".oculpm/rollups/") {
-        return Some(OculpmDataArea::Rollups);
     }
     None
 }
@@ -187,6 +177,17 @@ pub(super) fn classify_journal_op(kind: &EventKind) -> FileOp {
 pub(super) fn short_hash_of(input: &str) -> String {
     let full = blake3::hash(input.as_bytes()).to_hex().to_string();
     full[..8].to_string()
+}
+
+/// 걷은 기능이 남긴 `.oculpm/` 자리 — 읽는 화면이 없고 코드 변경 파이프라인에도
+/// 들어가면 안 된다 (`.md` 하나가 ndjson·히스토리 캡처로 새면 정직성 감사에 가짜
+/// 「누락」이 생긴다). 사용자의 파일이라 지우지 않고 **무시만** 한다.
+///
+/// - `.oculpm/automation/` — 자동화 정의 (4.0 에서 자동화와 함께 걷었다)
+/// - `.oculpm/rollups/` — 주간 요약과 그 문지기 락 파일(`.2026-W38.md.lock`)
+///   (4.0 에서 롤업과 함께 걷었다)
+pub(super) fn is_retired_area(rel_str: &str) -> bool {
+    rel_str.starts_with(".oculpm/automation/") || rel_str.starts_with(".oculpm/rollups/")
 }
 
 /// 화면이 볼 것이 없지만 **캐스케이드도 타면 안 되는** 경로.

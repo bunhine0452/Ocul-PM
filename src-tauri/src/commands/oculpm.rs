@@ -160,69 +160,6 @@ pub async fn oculpm_init(
         ),
     }
 
-    // 2.8 — Osaurus 라운드 D2 의 다리. 이 프로젝트가 이미 배경 자동화를 켜 뒀는데
-    // 배경 모델 슬롯이 비어 있으면 대화 모델을 1회 복사한다 — 단 **이 기기가 그
-    // 자동화를 허락했을 때만** (`consent::seed_wanted`). 저장소 config 만으로
-    // 시드하면 남의 저장소가 내 대화 모델로 배경 호출을 켠다 (보안 피드백 #1).
-    // 실패는 warn-only — init 자체는 성공했다.
-    let automation_on = match manager.get_config(project_id).await {
-        Ok(c) => crate::oculpm::automation::consent::seed_wanted(&db, project_id, &c, &root).await,
-        Err(_) => false,
-    };
-    match crate::oculpm::automation::core_model::seed_if_automation_enabled(&db, automation_on)
-        .await
-    {
-        Ok(true) => {
-            crate::commands::config::emit_settings_changed(
-                &app,
-                vec![
-                    crate::oculpm::automation::core_model::CORE_PROVIDER_KEY.to_string(),
-                    crate::oculpm::automation::core_model::CORE_MODEL_KEY.to_string(),
-                    crate::oculpm::automation::core_model::CORE_MODEL_SEEDED_KEY.to_string(),
-                ],
-            );
-            tracing::info!(
-                target: "oculpm::commands",
-                project_id,
-                "[FLOW] step 2.8 OK — core model seeded from the chat model (D2)"
-            );
-        }
-        Ok(false) => {}
-        Err(e) => tracing::warn!(
-            target: "oculpm::commands",
-            project_id,
-            error = %e,
-            "[FLOW] step 2.8 FAILED — core model seed errored (non-fatal)"
-        ),
-    }
-
-    // 2.9 — 자동화 상태의 고아 정리. 정의(`.oculpm/automation/**/<id>.md`)가
-    // SSOT 이므로 파일이 사라진 자동화의 상태·이력 행을 지운다. 디렉터리를
-    // **읽지 못하면 건너뛴다** — 빈 목록으로 오해해 전부 지우면 안 된다.
-    match crate::oculpm::automation::store::known_ids_for_prune(&root) {
-        Ok(ids) => match db.automation_prune_orphans(project_id, ids).await {
-            Ok(n) if n > 0 => tracing::info!(
-                target: "oculpm::commands",
-                project_id,
-                pruned = n,
-                "[FLOW] step 2.9 OK — pruned automation state rows with no definition file"
-            ),
-            Ok(_) => {}
-            Err(e) => tracing::warn!(
-                target: "oculpm::commands",
-                project_id,
-                error = %e,
-                "[FLOW] step 2.9 FAILED — automation orphan prune errored (non-fatal)"
-            ),
-        },
-        Err(e) => tracing::warn!(
-            target: "oculpm::commands",
-            project_id,
-            error = %e,
-            "[FLOW] step 2.9 SKIPPED — could not list automation definitions (state left intact)"
-        ),
-    }
-
     // Steps 2.6/2.7 run in the background. They used to be awaited here, and the
     // frontend starts the watcher only after `oculpm_init` returns — so on an
     // old project every open paid for the backfill's git work before live
@@ -301,8 +238,19 @@ pub async fn oculpm_get_config(
     Ok(manager.get_config(project_id).await?)
 }
 
-// `oculpm_set_config` 는 `commands/automation_consent.rs` 로 옮겼다 — 배경 스위치를
-// 켜는 저장이 곧 이 기기의 동의라, 그 기록과 한 자리에 있어야 한다.
+/// Validate + persist a new `OculpmConfig` (atomic write) and refresh the
+/// in-memory `WorkdayResolver`. Rejects invalid tz / HH:MM without touching
+/// disk. (배경 자동화의 기기 동의 기록이 붙어 `automation_consent.rs` 로 갔다가,
+/// 4.0 에서 자동화를 걷으며 돌아왔다.)
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_set_config(
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    new_config: OculpmConfig,
+) -> Result<(), AppError> {
+    Ok(manager.set_config(project_id, new_config).await?)
+}
 
 // ─── W2-PR6 commands ────────────────────────────────────────────────────────
 

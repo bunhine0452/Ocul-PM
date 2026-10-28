@@ -33,8 +33,8 @@ pub enum DiffSource {
         old_size: Option<u32>,
         new_size: Option<u32>,
     },
-    /// The file has neither a git baseline nor a captured snapshot. UI prompts
-    /// the user to run a partial reindex first.
+    /// The file has neither a git baseline nor a captured snapshot (the watcher
+    /// snapshots a non-HEAD file the first time it sees it change — `crate::baseline`).
     SnapshotsUnavailable,
 }
 
@@ -217,19 +217,8 @@ pub async fn git_last_commit_changes(
     blocking(move || Ok(git::last_commit_changes(&root))).await
 }
 
-/// 변경 영향 — 바뀐 파일을 (전이적으로) import 하는 파일들. 변경 화면의
-/// 파일 목록 위 「영향」 줄이 쓴다 (PR-GR4; 코드 맵이 사라진 뒤 남은 유일한 소비처).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_change_impact(
-    db: State<'_, Db>,
-    project_id: u32,
-    changed_paths: Vec<String>,
-) -> Result<crate::db::ImpactReport, String> {
-    db.get_change_impact(project_id, changed_paths)
-        .await
-        .map_err(|e| e.to_string())
-}
+// 변경 영향(`get_change_impact`, import 그래프 역추적)은 4.0 에서 코드 색인과 함께
+// 걷었다 — 그래프가 색인의 AST import 해석 위에 서 있었다.
 
 /// Persistent uncommitted-change list for the 변경 diff 화면. Backed by
 /// `git status` so it survives app restarts and project switches (the live

@@ -1,10 +1,9 @@
-//! PR-CI2 — MCP 서버 등록 (`.mcp.json` 머지) + Claude Desktop 원클릭 등록.
+//! PR-CI2 — MCP 서버 등록 (`.mcp.json` 머지).
 //!
 //! claude_hooks 설치기와 동일한 계약: 우리 키(`oculpm`)만 만지고, 남의 서버
 //! 정의·미지의 키는 보존하며, **파싱 불가 파일은 절대 덮어쓰지 않는다**.
-//! Claude Desktop 은 훅·transcript 가 없어 MCP 가 유일한 연동로다 (마스터플랜
-//! §1) — `claude_desktop_config.json` 에 같은 stdio 바이너리를 프로젝트별
-//! 키(`oculpm-<폴더명>`)로 기입하고, 설정은 앱 재시작 시 반영된다.
+//! (Claude Desktop 원클릭 등록은 4.0 에서 걷었다 — 에이전트 연결은 Claude Code ·
+//! Codex 의 플러그인·MCP 가 맡는다.)
 //!
 //! D3 캐비앗 그대로 — `.mcp.json` 은 커밋되는 프로젝트 파일인데 바이너리
 //! 경로는 머신 종속이다. UI 가 이를 고지하고, 팀 공유가 필요해지면 PR-CI8
@@ -33,8 +32,6 @@ pub struct McpRegistrationStatus {
     pub binary_found: bool,
     pub binary_path: Option<String>,
     pub mcp_json_path: String,
-    /// Claude Desktop `claude_desktop_config.json` 에 붙여넣을 스니펫.
-    pub desktop_snippet: String,
     /// 우리 것 아닌 MCP 서버 정의 수 (정보 표시용 — 건드리지 않음).
     pub foreign_servers: u32,
 }
@@ -65,7 +62,7 @@ pub fn resolve_binary_path() -> Option<PathBuf> {
     }
 }
 
-/// 다른 앱(Claude Code · Codex · Claude Desktop) 설정에 적을 사이드카 경로.
+/// 다른 앱(Claude Code · Codex) 설정에 적을 사이드카 경로.
 ///
 /// - macOS · Windows · deb: 메인 실행 파일의 **형제** — dev(`target/debug/`),
 ///   `.app` 의 `Contents/MacOS/`, NSIS 설치 폴더(`%LOCALAPPDATA%\Ocul-PM\`),
@@ -249,165 +246,6 @@ fn server_entry(binary: &Path, root: &Path) -> Value {
     })
 }
 
-/// Desktop 서버 키 — 프로젝트 폴더명을 붙여 여러 프로젝트가 한 설정 파일에
-/// 공존하게 한다 (Desktop 설정은 머신 전역 1개).
-pub fn desktop_server_key(root: &Path) -> String {
-    let dir_name = root
-        .file_name()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| "project".to_string());
-    format!("oculpm-{dir_name}")
-}
-
-/// 원클릭이 실패하는 환경(권한 등)을 위한 수동 폴백 스니펫.
-fn desktop_snippet(binary: Option<&Path>, root: &Path) -> String {
-    let command = binary
-        .map(|b| b.to_string_lossy().to_string())
-        .unwrap_or_else(|| "<oculpm-mcp 바이너리 경로>".to_string());
-    let snippet = json!({
-        "mcpServers": {
-            desktop_server_key(root): {
-                "command": command,
-                "args": ["--root", root.to_string_lossy()],
-            }
-        }
-    });
-    serde_json::to_string_pretty(&snippet).unwrap_or_default()
-}
-
-// ─── Claude Desktop (`claude_desktop_config.json`) ──────────────────────────
-
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct DesktopRegistrationStatus {
-    /// 설정 폴더가 존재한다 — Claude Desktop 설치 추정 근거.
-    pub installed: bool,
-    /// 이 프로젝트의 서버 엔트리가 등록되어 있다.
-    pub registered: bool,
-    pub config_path: String,
-    /// 이 프로젝트가 쓰는 서버 키 (`oculpm-<폴더명>`).
-    pub server_key: String,
-    /// oculpm 아닌 서버 정의 수 (정보 표시용 — 건드리지 않음).
-    pub foreign_servers: u32,
-}
-
-/// Claude Desktop 설정 파일 경로 — OS 별 자리(Windows MSIX 판 포함)는
-/// [`paths::claude_desktop_config_path`] 한 곳이 안다.
-pub fn desktop_config_path() -> Option<PathBuf> {
-    paths::claude_desktop_config_path()
-}
-
-/// 이 프로젝트의 엔트리인가 — 서명 바이너리 + `--root` 인자가 같은 루트.
-fn entry_is_ours_for_root(entry: &Value, root: &Path) -> bool {
-    let root_str = root.to_string_lossy();
-    entry_is_ours(entry)
-        && entry
-            .get("args")
-            .and_then(Value::as_array)
-            .is_some_and(|args| args.iter().any(|a| a.as_str() == Some(root_str.as_ref())))
-}
-
-pub fn desktop_status_at(
-    config_path: &Path,
-    root: &Path,
-) -> OculpmResult<DesktopRegistrationStatus> {
-    let installed = config_path.parent().is_some_and(Path::exists);
-    let value = read_json_config(config_path)?;
-    // 등록 여부는 키 이름이 아니라 **루트 일치**로 판정한다 — 동명 폴더의 다른
-    // 프로젝트가 같은 키를 선점했을 수 있다 (그 경우 우리는 해시 접미 키).
-    let mut found_key: Option<String> = None;
-    let mut foreign = 0u32;
-    if let Some(servers) = value.get("mcpServers").and_then(Value::as_object) {
-        for (k, entry) in servers {
-            if entry_is_ours_for_root(entry, root) {
-                found_key = Some(k.clone());
-            } else if !entry_is_ours(entry) {
-                foreign += 1;
-            }
-            // 남은 경우 = 다른 프로젝트의 oculpm 엔트리 — 우리도 남도 아님.
-        }
-    }
-    Ok(DesktopRegistrationStatus {
-        installed,
-        registered: found_key.is_some(),
-        config_path: config_path.to_string_lossy().to_string(),
-        server_key: found_key.unwrap_or_else(|| desktop_server_key(root)),
-        foreign_servers: foreign,
-    })
-}
-
-/// 등록 (멱등). 설정 폴더가 없으면(= Desktop 미설치 추정) 폴더를 만들지 않고
-/// 에러 — 남의 앱 데이터 디렉터리를 우리가 창조하지 않는다.
-pub fn desktop_register_at(
-    config_path: &Path,
-    root: &Path,
-    binary: &Path,
-) -> OculpmResult<DesktopRegistrationStatus> {
-    if !config_path.parent().is_some_and(Path::exists) {
-        return Err(OculpmError::InvalidConfig(
-            "No Claude Desktop config folder - check that Claude Desktop is installed".into(),
-        ));
-    }
-    let mut value = read_json_config(config_path)?;
-    if !value.is_object() {
-        return Err(OculpmError::InvalidConfig(
-            "The top level of claude_desktop_config.json is not a JSON object".into(),
-        ));
-    }
-    let obj = value.as_object_mut().expect("checked is_object above");
-    let servers = obj
-        .entry("mcpServers")
-        .or_insert_with(|| Value::Object(Map::new()));
-    let Some(servers) = servers.as_object_mut() else {
-        return Err(OculpmError::InvalidConfig(
-            "\"mcpServers\" in claude_desktop_config.json is not an object".into(),
-        ));
-    };
-    let mut key = desktop_server_key(root);
-    // 동명 폴더의 다른 프로젝트(또는 무관한 서버)가 이미 그 키를 쓰고 있으면
-    // 덮어쓰지 않고 루트 경로 해시 접미로 구분한다.
-    if servers
-        .get(&key)
-        .is_some_and(|e| !entry_is_ours_for_root(e, root))
-    {
-        let hash = blake3::hash(root.to_string_lossy().as_bytes()).to_hex();
-        key = format!("{key}-{}", &hash.as_str()[..6]);
-    }
-    // 폴더명이 바뀌어 키가 달라진 과거 엔트리(같은 루트)는 걷어낸다 — 멱등.
-    servers.retain(|k, entry| *k == key || !entry_is_ours_for_root(entry, root));
-    servers.insert(
-        key,
-        json!({
-            "command": binary.to_string_lossy(),
-            "args": ["--root", root.to_string_lossy()],
-        }),
-    );
-    write_json_config(config_path, &value)?;
-    desktop_status_at(config_path, root)
-}
-
-/// 해제 (멱등). 이 프로젝트의 키/루트 엔트리만 걷어낸다 — 다른 프로젝트의
-/// oculpm 엔트리와 남의 서버는 보존.
-pub fn desktop_unregister_at(
-    config_path: &Path,
-    root: &Path,
-) -> OculpmResult<DesktopRegistrationStatus> {
-    let mut value = read_json_config(config_path)?;
-    if let Some(obj) = value.as_object_mut() {
-        // 키 이름이 아니라 루트 일치로만 제거 — 동명 폴더의 다른 프로젝트가
-        // 같은 키를 쓰고 있어도 그 엔트리는 남의 것이다.
-        if let Some(servers) = obj.get_mut("mcpServers").and_then(Value::as_object_mut) {
-            servers.retain(|_, entry| !entry_is_ours_for_root(entry, root));
-            if servers.is_empty() {
-                obj.remove("mcpServers");
-            }
-        }
-        if config_path.exists() {
-            write_json_config(config_path, &value)?;
-        }
-    }
-    desktop_status_at(config_path, root)
-}
-
 pub fn status_with_binary(
     root: &Path,
     binary: Option<&Path>,
@@ -430,7 +268,6 @@ pub fn status_with_binary(
         binary_found: binary.is_some(),
         binary_path: binary.map(|b| b.to_string_lossy().to_string()),
         mcp_json_path: mcp_json_path(root).to_string_lossy().to_string(),
-        desktop_snippet: desktop_snippet(binary, root),
         foreign_servers: foreign,
     })
 }
@@ -531,173 +368,6 @@ mod tests {
             std::fs::read_to_string(root.join(MCP_JSON_REL)).unwrap(),
             "{ broken !!"
         );
-    }
-
-    #[test]
-    fn desktop_snippet_names_server_after_project_dir() {
-        let dir = TempDir::new().unwrap();
-        let root = dir.path();
-        let st = status_with_binary(root, None).unwrap();
-        assert!(!st.registered && !st.binary_found);
-        assert!(st.desktop_snippet.contains("oculpm-"));
-        assert!(st.desktop_snippet.contains("--root"));
-    }
-
-    #[test]
-    fn desktop_register_roundtrip_preserves_foreign_and_other_projects() {
-        let dir = TempDir::new().unwrap();
-        let root = dir.path().join("myproj");
-        std::fs::create_dir(&root).unwrap();
-        let binary = fake_binary(dir.path());
-        let config = dir.path().join("Claude").join("claude_desktop_config.json");
-        std::fs::create_dir(config.parent().unwrap()).unwrap();
-        std::fs::write(
-            &config,
-            r#"{ "mcpServers": {
-                 "notion": { "command": "npx", "args": ["notion-mcp"] },
-                 "oculpm-other": { "command": "/x/oculpm-mcp", "args": ["--root", "/other/proj"] }
-               }, "globalShortcut": "Cmd+K" }"#,
-        )
-        .unwrap();
-
-        let st = desktop_register_at(&config, &root, &binary).unwrap();
-        assert!(st.installed && st.registered);
-        assert_eq!(st.server_key, "oculpm-myproj");
-        assert_eq!(
-            st.foreign_servers, 1,
-            "다른 프로젝트의 oculpm 엔트리는 foreign 아님"
-        );
-
-        let v: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
-        assert_eq!(v["globalShortcut"], "Cmd+K", "미지의 최상위 키 보존");
-        assert_eq!(v["mcpServers"]["notion"]["command"], "npx");
-        assert_eq!(v["mcpServers"]["oculpm-other"]["args"][1], "/other/proj");
-        assert_eq!(v["mcpServers"]["oculpm-myproj"]["args"][0], "--root");
-
-        let st = desktop_unregister_at(&config, &root).unwrap();
-        assert!(!st.registered);
-        let v: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
-        assert!(v["mcpServers"].get("oculpm-myproj").is_none());
-        assert_eq!(
-            v["mcpServers"]["oculpm-other"]["args"][1], "/other/proj",
-            "다른 프로젝트 보존"
-        );
-    }
-
-    #[test]
-    fn desktop_register_cleans_stale_key_for_same_root() {
-        let dir = TempDir::new().unwrap();
-        let root = dir.path().join("renamed");
-        std::fs::create_dir(&root).unwrap();
-        let binary = fake_binary(dir.path());
-        let config = dir.path().join("Claude").join("claude_desktop_config.json");
-        std::fs::create_dir(config.parent().unwrap()).unwrap();
-        std::fs::write(
-            &config,
-            serde_json::to_string(&json!({ "mcpServers": { "oculpm-oldname": {
-                "command": "/x/oculpm-mcp", "args": ["--root", root.to_string_lossy()] } } }))
-            .unwrap(),
-        )
-        .unwrap();
-
-        desktop_register_at(&config, &root, &binary).unwrap();
-        let v: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
-        assert!(
-            v["mcpServers"].get("oculpm-oldname").is_none(),
-            "같은 루트의 옛 키 제거"
-        );
-        assert!(v["mcpServers"].get("oculpm-renamed").is_some());
-    }
-
-    #[test]
-    fn desktop_same_folder_name_projects_coexist() {
-        let dir = TempDir::new().unwrap();
-        let root_a = dir.path().join("work").join("app");
-        let root_b = dir.path().join("exp").join("app");
-        std::fs::create_dir_all(&root_a).unwrap();
-        std::fs::create_dir_all(&root_b).unwrap();
-        let binary = fake_binary(dir.path());
-        let config = dir.path().join("Claude").join("claude_desktop_config.json");
-        std::fs::create_dir(config.parent().unwrap()).unwrap();
-
-        let st_a = desktop_register_at(&config, &root_a, &binary).unwrap();
-        let st_b = desktop_register_at(&config, &root_b, &binary).unwrap();
-        assert!(st_a.registered && st_b.registered);
-        assert_eq!(st_a.server_key, "oculpm-app");
-        assert_ne!(
-            st_b.server_key, "oculpm-app",
-            "충돌 시 해시 접미 키: {}",
-            st_b.server_key
-        );
-        assert!(st_b.server_key.starts_with("oculpm-app-"));
-
-        // A 의 상태가 B 등록에 오염되지 않는다 (루트 기준 판정).
-        let st_a2 = desktop_status_at(&config, &root_a).unwrap();
-        assert!(st_a2.registered);
-        assert_eq!(st_a2.server_key, "oculpm-app");
-
-        // B 해제는 B 만 지운다.
-        desktop_unregister_at(&config, &root_b).unwrap();
-        let v: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
-        assert!(v["mcpServers"].get("oculpm-app").is_some(), "A 보존");
-        assert_eq!(v["mcpServers"].as_object().unwrap().len(), 1);
-        assert!(desktop_status_at(&config, &root_a).unwrap().registered);
-        assert!(!desktop_status_at(&config, &root_b).unwrap().registered);
-
-        // B 재등록은 멱등적으로 같은 해시 키를 되찾는다.
-        let st_b2 = desktop_register_at(&config, &root_b, &binary).unwrap();
-        assert_eq!(st_b2.server_key, st_b.server_key);
-    }
-
-    #[test]
-    fn desktop_register_refuses_when_config_dir_missing() {
-        let dir = TempDir::new().unwrap();
-        let root = dir.path();
-        let binary = fake_binary(root);
-        let config = dir
-            .path()
-            .join("no-such-dir")
-            .join("claude_desktop_config.json");
-
-        let st = desktop_status_at(&config, root).unwrap();
-        assert!(!st.installed && !st.registered);
-        assert!(desktop_register_at(&config, root, &binary).is_err());
-        assert!(!config.exists(), "설정 폴더를 창조하지 않는다");
-    }
-
-    #[test]
-    fn broken_desktop_config_is_never_overwritten() {
-        let dir = TempDir::new().unwrap();
-        let root = dir.path();
-        let binary = fake_binary(root);
-        let config = dir.path().join("Claude").join("claude_desktop_config.json");
-        std::fs::create_dir(config.parent().unwrap()).unwrap();
-        std::fs::write(&config, "{ broken !!").unwrap();
-
-        assert!(desktop_status_at(&config, root).is_err());
-        assert!(desktop_register_at(&config, root, &binary).is_err());
-        assert!(desktop_unregister_at(&config, root).is_err());
-        assert_eq!(std::fs::read_to_string(&config).unwrap(), "{ broken !!");
-    }
-
-    /// Windows 경로(`\`)가 JSON 으로 오가도 루트 판정이 맞는다 — 문자열은
-    /// serde 가 이스케이프한다. 세 OS 러너가 같은 문자열로 돈다.
-    #[test]
-    fn desktop_register_roundtrips_windows_paths() {
-        let dir = TempDir::new().unwrap();
-        let config = dir.path().join("Claude").join("claude_desktop_config.json");
-        std::fs::create_dir(config.parent().unwrap()).unwrap();
-        let root = PathBuf::from(r"C:\Users\Kim Hyunbin\proj");
-        let binary = PathBuf::from(r"C:\Users\Kim Hyunbin\AppData\Local\Ocul-PM\oculpm-mcp.exe");
-
-        let st = desktop_register_at(&config, &root, &binary).unwrap();
-        assert!(st.registered);
-        let v: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
-        let entry = &v["mcpServers"][&st.server_key];
-        assert_eq!(entry["command"].as_str(), binary.to_str());
-        assert_eq!(entry["args"][1].as_str(), root.to_str());
-        assert!(desktop_status_at(&config, &root).unwrap().registered);
-        assert!(!desktop_unregister_at(&config, &root).unwrap().registered);
     }
 
     // ─── 사이드카 자리 (#integ-sidecar) ─────────────────────────────────────

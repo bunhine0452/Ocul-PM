@@ -3,7 +3,7 @@
 //!
 //! ## 무엇을 검증하나 — 정확히
 //!
-//! 사람이 cmd 에서 릴리스 exe 로 `ocul-pm config --help` 를 치는 상황의 출발 상태는
+//! 사람이 cmd 에서 릴리스 exe 로 `ocul-pm tools --help` 를 치는 상황의 출발 상태는
 //! 둘이다: (1) 프로세스에 콘솔이 없다(GUI 서브시스템) (2) 표준 핸들이 비어 있다
 //! (셸은 GUI 자식에게 표준 핸들을 넘기지 않는다). 이 테스트가 부르는 exe 는 **디버그
 //! 빌드**라 `windows_subsystem` 이 꺼진 콘솔 서브시스템이다 — 그대로 띄우면 부모
@@ -184,17 +184,19 @@ fn cli_output_reaches_the_parent_console_when_started_without_one() {
     let child = console.spawn_without_std_handles(&mut cmd);
     wait_exit(child, "cmd /c echo");
 
-    // stdout 경로 — `config --help` 는 사용법을 stdout 에 찍고 0 으로 끝난다.
+    // stdout 경로 — 에이전트 CLI 의 `tools --help` 는 사용법을 stdout 에 찍고 0 으로
+    // 끝난다 (`config` 서브커맨드는 4.0 에서 선언적 설정과 함께 걷었다).
     let mut cmd = Command::new(app_exe());
-    cmd.args(["config", "--help"]);
+    cmd.args(["tools", "--help"]);
     let child = console.spawn_without_std_handles(&mut cmd);
-    let help_code = wait_exit(child, "ocul-pm config --help");
+    let help_code = wait_exit(child, "ocul-pm tools --help");
 
-    // stderr 경로 — 명령 없는 `config` 는 사용법을 stderr 에 찍고 2 로 끝난다.
+    // stderr 경로 — 값 없는 `--project` 는 사용 오류를 stderr 에 찍고 1 로 끝난다
+    // (프로젝트 판정 전에 끝나므로 작업 폴더와 무관하다).
     let mut cmd = Command::new(app_exe());
-    cmd.args(["config"]);
+    cmd.args(["tools", "--project"]);
     let child = console.spawn_without_std_handles(&mut cmd);
-    let bare_code = wait_exit(child, "ocul-pm config");
+    let bare_code = wait_exit(child, "ocul-pm tools --project");
 
     let screen = console.screen_text();
     drop(console);
@@ -203,11 +205,15 @@ fn cli_output_reaches_the_parent_console_when_started_without_one() {
         !screen.contains(control),
         "대조군이 찍혔다 — 콘솔 없는 자식이라는 조건이 성립하지 않는다:\n{screen}"
     );
-    assert_eq!(help_code, Some(0), "config --help 종료 코드");
-    assert_eq!(bare_code, Some(2), "config (명령 없음) 종료 코드");
-    let usage_lines = screen.matches("usage: ocul-pm config").count();
+    assert_eq!(help_code, Some(0), "tools --help 종료 코드");
+    assert_eq!(bare_code, Some(1), "tools --project (값 없음) 종료 코드");
     assert_eq!(
-        usage_lines, 2,
-        "stdout(--help)·stderr(명령 없음) 두 번의 사용법이 부모 콘솔에 찍혀야 한다:\n{screen}"
+        screen.matches("usage: oculpm <tool>").count(),
+        1,
+        "stdout(--help) 의 사용법이 부모 콘솔에 찍혀야 한다:\n{screen}"
+    );
+    assert!(
+        screen.contains("--project needs a path"),
+        "stderr(사용 오류) 가 부모 콘솔에 찍혀야 한다:\n{screen}"
     );
 }

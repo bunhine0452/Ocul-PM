@@ -29,7 +29,6 @@ export const DEFAULT_STATE: WorkspaceState = {
   defaultTabUserOverride: false,
   oculpmInitCard: null,
   firstRecordArmed: false,
-  indexingProjectId: null,
   oculpmEnabled: false,
   oculpmStatus: null,
   currentSession: null,
@@ -52,8 +51,6 @@ export const DEFAULT_STATE: WorkspaceState = {
   entryReadWidth: 520,
   plannerHideDone: false,
   plannerView: "doc",
-  searchScope: "semantic",
-  searchRecent: [],
   aiActiveModel: null,
   sidebarCollapsed: false,
 };

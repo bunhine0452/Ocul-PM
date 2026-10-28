@@ -1,4 +1,5 @@
-//! 프로젝트 CRUD 와 개요 — 생성·목록·이름/외형 변경·삭제·overview 캐시.
+//! 프로젝트 CRUD — 생성·목록·이름/외형 변경·삭제 (LLM 개요 접근자는 4.0 에서 걷었다;
+//! 옛 `project_overviews` 행은 시작 탭 집계(`home.rs`)가 읽기만 한다).
 //!
 //! `db/mod.rs` 의 단일 `impl Db` 에서 갈라 나온 조각이다 — 순수 파일 이동이며
 //! 동작·시그니처 변경은 없다.
@@ -135,88 +136,6 @@ impl Db {
                 c.execute(
                     "UPDATE projects SET name = ?, updated_at = unixepoch() WHERE id = ?",
                     params![&name, id as i64],
-                )?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
-
-    pub async fn list_project_files(&self, project_id: u32) -> Result<Vec<(u32, String)>> {
-        let files = self
-            .conn
-            .call(move |c| {
-                let mut stmt = c.prepare("SELECT id, path FROM files WHERE project_id = ?")?;
-                let rows = stmt
-                    .query_map([project_id as i64], |r| {
-                        Ok((r.get::<_, i64>(0)? as u32, r.get::<_, String>(1)?))
-                    })?
-                    .collect::<rusqlite::Result<Vec<_>>>()?;
-                Ok(rows)
-            })
-            .await?;
-        Ok(files)
-    }
-
-    // ---------- Project Overview (G2) ----------
-
-    /// Fetches the stored overview for a project. Returns `None` when the row
-    /// does not exist yet; callers can then decide whether to trigger
-    /// `generate_project_overview`.
-    pub async fn get_project_overview(&self, project_id: u32) -> Result<Option<ProjectOverview>> {
-        let overview = self
-            .conn
-            .call(move |c| {
-                c.query_row(
-                    "SELECT project_id, identity, stack_json, overview_md,
-                            source_signature, generated_at, generated_by_model
-                     FROM project_overviews WHERE project_id = ?1",
-                    params![project_id as i64],
-                    project_overview_from_row,
-                )
-                .optional()
-            })
-            .await?;
-        Ok(overview)
-    }
-
-    /// Inserts or updates a project overview row. Used by both LLM-driven
-    /// generation and manual user edits (in the manual case, pass
-    /// `source_signature=None` to disable auto-regeneration).
-    #[allow(clippy::too_many_arguments)]
-    pub async fn upsert_project_overview(
-        &self,
-        project_id: u32,
-        identity: Option<String>,
-        stack_json: Option<String>,
-        overview_md: Option<String>,
-        source_signature: Option<String>,
-        generated_at: Option<u32>,
-        generated_by_model: Option<String>,
-    ) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute(
-                    "INSERT INTO project_overviews (
-                        project_id, identity, stack_json, overview_md,
-                        source_signature, generated_at, generated_by_model
-                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-                     ON CONFLICT(project_id) DO UPDATE SET
-                        identity = excluded.identity,
-                        stack_json = excluded.stack_json,
-                        overview_md = excluded.overview_md,
-                        source_signature = excluded.source_signature,
-                        generated_at = excluded.generated_at,
-                        generated_by_model = excluded.generated_by_model",
-                    params![
-                        project_id as i64,
-                        identity,
-                        stack_json,
-                        overview_md,
-                        source_signature,
-                        generated_at.map(|v| v as i64),
-                        generated_by_model,
-                    ],
                 )?;
                 Ok(())
             })

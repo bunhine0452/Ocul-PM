@@ -11,12 +11,6 @@ fn main() {
     // 돌기 전에 분기해야 한다 (창·플러그인·DB 를 전혀 만들지 않는다).
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
-        // 선언적 설정 CLI (#config-cli) — 같은 실행 파일, GUI 없음. PTY 호스트와
-        // 같은 이유로 tauri 빌더보다 먼저 갈라진다 (창·플러그인을 만들지 않는다).
-        if a == "config" {
-            attach_console_for_cli();
-            ocul_pm_lib::config::cli::run(args.collect());
-        }
         // 에이전트 CLI (플랜 `session-shim-cli`) — 앱 이름으로 들어온 호출에서만
         // **도구 이름과 정확히 일치**할 때 갈라진다 (macOS 가 붙이는 `-psn_…`
         // 으로 앱이 헤드리스로 뜨면 사용자는 아이콘을 눌렀는데 아무것도 안 뜨는
@@ -49,7 +43,7 @@ fn main() {
 ///
 /// Windows 릴리스 exe 는 GUI 서브시스템(`windows_subsystem = "windows"`)이라
 /// cmd·PowerShell 이 띄워도 콘솔을 받지 못한다. 표준 핸들이 비어 있고 Rust 는 빈
-/// 핸들로의 쓰기를 **조용히 성공**으로 삼키므로, 사람이 `ocul-pm config --help` 를
+/// 핸들로의 쓰기를 **조용히 성공**으로 삼키므로, 사람이 `ocul-pm tools --help` 를
 /// 치면 아무것도 안 나온다. 그래서 CLI 분기 직전에 부모(셸)의 콘솔에 붙는다.
 /// macOS·Linux 에서는 아무것도 하지 않는다.
 fn attach_console_for_cli() {

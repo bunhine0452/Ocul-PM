@@ -108,7 +108,7 @@ check_glibc_floor() { # 설명 ELF...
     report+=("$(basename "$f")=GLIBC_${max:-없음}")
     if [ -n "$max" ] && [ "$(printf '%s\n2.35\n' "$max" | sort -V | tail -1)" != "2.35" ]; then worst=1; fi
     if objdump -T "$f" 2>/dev/null | grep -q 'UND.*__isoc23_'; then
-      report+=("$(basename "$f") 가 __isoc23_* 를 밖에서 찾는다(glibc_compat 미링크)")
+      report+=("$(basename "$f") 가 __isoc23_* 를 밖에서 찾는다(glibc 2.38+ 에서 빌드된 사전 빌드 정적 라이브러리)")
       worst=1
     fi
   done

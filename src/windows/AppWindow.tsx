@@ -16,7 +16,6 @@ import type { Project } from "@/lib/bindings";
 import { BootSplash } from "@/components/BootSplash";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateBanner } from "@/components/UpdateBanner";
-import { EmbeddingModelBanner } from "@/components/EmbeddingModelBanner";
 import { ShortcutCheatsheet } from "@/components/ShortcutCheatsheet";
 import { StartWindow } from "@/features/start/StartWindow";
 import ProjectWindow from "@/windows/ProjectWindow";
@@ -133,7 +132,6 @@ export default function AppWindow({
 
       {/* 창당 하나면 되는 것들. */}
       <UpdateBanner />
-      <EmbeddingModelBanner />
       <ShortcutCheatsheet />
     </div>
   );

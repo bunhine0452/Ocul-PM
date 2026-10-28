@@ -64,7 +64,7 @@ async fn a_watched_project_can_be_recycled_and_emptied_while_watching() {
     let writer = Arc::new(IndexWriter::new(root.clone(), resolver.clone()));
     let cfg = fast_config();
     let actor = SessionActor::spawn(1, resolver, writer.clone(), cfg.session.clone(), None);
-    let watcher = ProjectWatcher::start(1, root.clone(), actor.clone(), writer, cfg, None)
+    let watcher = ProjectWatcher::start(1, root.clone(), actor.clone(), cfg, None)
         .await
         .unwrap();
     sleep(Duration::from_millis(150)).await;

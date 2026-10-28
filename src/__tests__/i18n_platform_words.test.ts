@@ -33,7 +33,8 @@ const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1
 
 describe("variant table shape", () => {
   it("has variants at all (the table is not silently empty)", () => {
-    expect(variantKeys.length).toBeGreaterThan(20);
+    // 4.0 에서 화면이 다섯으로 줄며 변형 키도 11개가 됐다 — 문턱은 「비지 않았다」만 본다.
+    expect(variantKeys.length).toBeGreaterThan(5);
   });
 
   it.each(variantKeys)("%s has a base key, an English twin and the same placeholders", (key) => {

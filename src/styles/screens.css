@@ -83,12 +83,6 @@
    {#unify-toolbar-vocab}) — 테두리로 묶고 안쪽 곡률을 0 으로 지우던 자기
    문법이었는데, 세그먼트는 이미 동심원 규격을 가진 프리미티브다. */
 
-/* --- Search (PR-UI 5) --- */
-/* `.search-hero`(720px 가운데 열) + `.search-big`(46px 카드)은 2026-09-09
-   {#layout-search-toolbar} 에서 지웠다. 46px 그림자 카드는 웹 랜딩의 관용구고,
-   이 앱에서 검색 필드의 규격은 이미 `.search-box`(30px, primitives.css)였다 —
-   일지가 그것을 쓰고 있었고 검색 화면만 자기 문법을 갖고 있었다. */
-.search-scope { display: flex; align-items: center; gap: var(--space-3); }
 .scope-chip {
   height: 26px; padding: 0 var(--space-5); border-radius: var(--radius-s);
   font-size: var(--fs-3); font-weight: var(--fw-label); background: var(--bg-card); border: 1px solid var(--border-card);
@@ -97,69 +91,6 @@
   /* 좁은 창 방어 (2026-07-20): 칩 라벨이 한 글자씩 세로로 꺾이지 않게. */
 }
 .scope-chip.on { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
-
-.search-results { max-width: var(--read-wide); margin: 0 auto; }
-.sresult { margin-bottom: var(--space-5); }
-.sresult-head {
-  display: flex; align-items: center; gap: var(--space-4); padding: 11px var(--space-6); border-bottom: 1px solid var(--sep);
-  appearance: none; -webkit-appearance: none; border-left: none; border-right: none; border-top: none;
-  background: transparent; font-family: var(--font); text-align: left; width: 100%; color: var(--text); cursor: pointer;
-}
-.sresult-path { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); }
-
-.sresult-lines { margin-left: auto; font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); }
-.sym-kind { font-size: var(--fs-1); font-weight: var(--fw-bold); text-transform: var(--caps-transform); letter-spacing: var(--caps-track); color: var(--text-3);
-  background: var(--bg-inset); border-radius: var(--radius-xs); padding: 1px var(--space-2); margin-left: var(--space-3); }
-.score { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-2); color: var(--text-3); }
-.score-bar { width: 42px; height: 5px; background: var(--bg-inset); border-radius: var(--radius-2xs); overflow: hidden; }
-.score-bar > i { display: block; height: 100%; background: var(--accent); }
-.scode { font-family: var(--mono); font-size: var(--fs-3); line-height: var(--lh-body); padding: var(--space-4) var(--space-6); overflow-x: auto; color: var(--text-2); white-space: pre; }
-
-/* ── 검색 업그레이드 (2026-08-16) ──────────────────────────── */
-/* 스니펫/심볼 이름 안 매치 하이라이트 */
-mark.s-hit {
-  background: color-mix(in srgb, var(--accent) 26%, transparent);
-  color: inherit;
-  border-radius: var(--radius-2xs);
-  padding: 0 1px;
-}
-/* 최근 검색 칩 줄 (검색 히어로 아래) */
-/* 최근 검색 — 예전엔 가운데 정렬된 히어로 열의 마지막 줄이었다. 히어로가
-   사라지면서 이제 본문의 첫 줄이라, 결과 목록과 같은 왼쪽 선에 선다. */
-.search-recent {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-}
-.search-recent-label { font-size: var(--fs-2); color: var(--text-3); font-weight: var(--fw-strong); }
-/* 결과 헤더 줄 (개수 + 우측 컨트롤) */
-.search-results-bar { margin-bottom: var(--space-5); display: flex; align-items: center; gap: var(--space-4); }
-.search-kinds { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.scope-chip.sm { height: 22px; padding: 0 var(--space-4); font-size: var(--fs-2); }
-/* 정확 검색 — 파일 그룹 카드 안의 개별 히트 블록 */
-.sresult-hit { border-top: 1px solid var(--sep); }
-.sresult-hit:first-of-type { border-top: none; }
-.sresult-hit-bar { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-6) 0; }
-.sresult-hit-bar .lnk {
-  border: none; background: none; padding: 0; cursor: pointer;
-  font-family: var(--font); font-size: var(--fs-2); font-weight: var(--fw-strong); color: var(--accent-text);
-}
-.sresult-hit-bar .lnk:hover { text-decoration: underline; }
-/* 라인 점프 아이콘 버튼 — 카드 헤더/히트 바 공용 */
-.sresult-open {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; margin-left: var(--space-2); border-radius: var(--radius-s);
-  border: none; background: transparent; color: var(--text-3); cursor: pointer;
-}
-.sresult-open:hover { background: var(--bg-hover); color: var(--accent-text); }
-/* 심볼 행 — 펼침 버튼이 헤더 전체를 차지하고 열기 버튼만 우측 분리 */
-.sresult-symrow {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-4);
-  padding: 11px 0 11px var(--space-6); border: none; background: transparent;
-  font-family: var(--font); text-align: left; color: var(--text); cursor: pointer;
-}
-.sresult-symrow .sresult-lines { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* --- Terminal — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 톤) ---
    2026-07-30: 하드코딩 다크(#101014/#16161c/#26262e)를 전부 걷어내고 테마

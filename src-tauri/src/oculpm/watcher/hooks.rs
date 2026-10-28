@@ -1,10 +1,9 @@
 //! Claude Code 훅 인박스 (PR-CI0) — `.oculpm/hooks/claude-events.jsonl` 을
-//! 오프셋부터 소비해 SessionActor 정밀 신호로 바꾸고, 세션 종료 시 옵인
-//! 일지 자동 초안(PR-CI1)을 fire-and-forget 으로 띄운다.
+//! 오프셋부터 소비해 SessionActor 정밀 신호로 바꾼다. (세션 종료 시의 옵인 일지
+//! 자동 초안 PR-CI1 은 4.0 에서 앱 안 LLM 호출과 함께 걷었다.)
 
 use crate::db::Db;
 use crate::oculpm::claude_hooks::{self, HookSignal};
-use crate::oculpm::spec::Session;
 
 use super::handle::WatcherInner;
 
@@ -74,8 +73,6 @@ impl WatcherInner {
         if events.is_empty() {
             return;
         }
-        // PR-CI1 — AgentEnded 시 초안 생성에 넘길 (finalize 직전) 세션 스냅샷.
-        let mut pending_draft: Option<(Session, Option<String>, String)> = None;
         let mut open = self.hook_open_sessions.lock().await;
         for ev in &events {
             tracing::info!(
@@ -95,15 +92,6 @@ impl WatcherInner {
                     }
                 }
                 HookSignal::AgentEnded => {
-                    // PR-CI1 — finalize 명령보다 먼저 질의해 세션 id/시작 시각을
-                    // 확보한다 (actor 는 mpsc 순서대로 처리하므로 이 질의는
-                    // 아직 Active 상태를 본다). 옵인 off / 헤드리스면 스킵.
-                    if self.auto_journal_draft && self.app_handle.is_some() {
-                        if let Ok(Some(sess)) = self.session.get_current_session().await {
-                            pending_draft =
-                                Some((sess, ev.transcript_path.clone(), ev.session_id.clone()));
-                        }
-                    }
                     if let Err(e) = self.session.hook_agent_ended(&ev.session_id) {
                         tracing::warn!(target: "oculpm::watcher", error = ?e, "hook_agent_ended send failed");
                     }
@@ -112,61 +100,5 @@ impl WatcherInner {
             }
         }
         drop(open);
-        if let Some((sess, transcript_path, claude_session_id)) = pending_draft {
-            self.spawn_journal_draft(sess, transcript_path, claude_session_id);
-        }
-    }
-
-    /// PR-CI1 — fire-and-forget 일지 자동 초안. 옵인·과금은 호출부에서 걸렀고,
-    /// 여기서는 단일 인플라이트(try_lock)만 보장한다. 실패는 로그로 삼킨다 —
-    /// 초안 실패가 watcher 를 멈추면 안 된다 (reconcile 동형).
-    fn spawn_journal_draft(
-        &self,
-        session: Session,
-        transcript_path: Option<String>,
-        claude_session_id: String,
-    ) {
-        let Some(handle) = self.app_handle.clone() else {
-            return;
-        };
-        let Ok(guard) = self.draft_lock.clone().try_lock_owned() else {
-            tracing::info!(
-                target: "oculpm::watcher",
-                project_id = self.project_id,
-                "journal draft already in flight — skipped"
-            );
-            return;
-        };
-        let project_id = self.project_id;
-        let root = self.root.clone();
-        let index_writer = self.index_writer.clone();
-        let redact = self.redact_patterns.clone();
-        tauri::async_runtime::spawn(async move {
-            let _guard = guard;
-            match crate::oculpm::journal_draft::draft_for_session(
-                handle,
-                project_id,
-                root,
-                index_writer,
-                redact,
-                session,
-                transcript_path,
-                claude_session_id,
-            )
-            .await
-            {
-                Ok(outcome) => {
-                    tracing::info!(
-                        target: "oculpm::watcher",
-                        project_id,
-                        ?outcome,
-                        "[FLOW] journal draft outcome"
-                    );
-                }
-                Err(e) => {
-                    tracing::warn!(target: "oculpm::watcher", project_id, error = %e, "journal draft failed");
-                }
-            }
-        });
     }
 }
