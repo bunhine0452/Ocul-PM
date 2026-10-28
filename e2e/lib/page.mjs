@@ -25,7 +25,14 @@ export async function waitFor(wd, script, args = [], { timeout = 20_000, interva
   }
 }
 
-/** CSS 로 찾은 n 번째 **보이는** 요소를 실제 클릭. */
+/**
+ * CSS 로 찾은 n 번째 **보이는** 요소를 실제 클릭.
+ *
+ * 누르기 전에 요소를 뷰포트 **가운데**로 스크롤한다. WebDriver 는 요소가 뷰포트 밖이면
+ * 가장자리에 맞춰 스크롤하는데, 그러면 아래 가장자리에 걸린 요소가 오른쪽 아래의
+ * 토스트와 겹쳐 `element click intercepted` 가 난다 — v3.17.0 릴리스 run 에서
+ * 설정 「표시」 탭의 언어 버튼이 직전 단계의 「새 기록 … 열기」 토스트에 가려졌다.
+ */
 export async function clickCss(wd, css, index = 0, opts = {}) {
   const ref = await waitFor(
     wd,
@@ -34,7 +41,22 @@ export async function clickCss(wd, css, index = 0, opts = {}) {
     [css, index],
     { desc: `${css}[${index}] 찾기`, ...opts },
   );
+  await wd.execute("arguments[0].scrollIntoView({ block: 'center', inline: 'nearest' });", [ref]);
   await wd.click(elementId(ref));
+}
+
+/**
+ * 토스트가 전부 사라질 때까지 기다린다 — 액션이 달린 토스트는 15초를 산다.
+ * 토스트는 오른쪽 아래에 고정이라, 그 자리의 버튼을 누르는 단계 앞에 부른다.
+ * 닫기 버튼을 대신 누르지 않는 이유: 그 클릭 자체가 다른 요소에 가로막힐 수 있다.
+ */
+export function waitNoToasts(wd, opts = {}) {
+  return waitFor(wd, "return document.querySelectorAll('.fixed.bottom-4 .pointer-events-auto').length === 0;", [], {
+    timeout: 20_000,
+    interval: 500,
+    desc: "토스트가 사라짐",
+    ...opts,
+  });
 }
 
 /** 페이지 오류 수집기 — 이후 화면마다 새로 쌓인 것만 떼어 본다. */

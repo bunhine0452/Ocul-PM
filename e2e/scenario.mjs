@@ -16,6 +16,7 @@ import {
   sleep,
   stubFolderPicker,
   waitFor,
+  waitNoToasts,
   waitScreenReady,
 } from "./lib/page.mjs";
 import {
@@ -296,9 +297,14 @@ export async function runScenario(ctx) {
     }
   });
 
-  await report.step("영어 모드 전환 (설정 → 모양 → English)", async () => {
+  await report.step("영어 모드 전환 (설정 → 표시 → English)", async (rec) => {
     await clickCss(wd, "nav.sidebar .side-foot .nav-util--icon", 1);
     await waitFor(wd, "return document.querySelectorAll('.cfg-choices .cfg-choice').length >= 3;", [], { desc: "설정 — 언어 선택" });
+    // 직전 단계(사이드카 일지)의 「열기」 토스트가 오른쪽 아래에 15초 남는다 — 언어 버튼이
+    // 그 자리까지 내려오면 클릭이 가로막힌다 (v3.17.0 run, Windows·Linux 27건 연쇄 실패).
+    const t0 = Date.now();
+    await waitNoToasts(wd);
+    rec.notes.push(`토스트 소거 대기 ${Date.now() - t0}ms`);
     await clickCss(wd, ".cfg-choices .cfg-choice", 2);
     await waitFor(wd, "return !!document.querySelector('nav.sidebar') && document.querySelector('nav.sidebar').innerText.includes(arguments[0]);", [dict.en("nav.today")], {
       desc: "사이드바가 영어로",
