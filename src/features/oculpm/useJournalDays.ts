@@ -45,7 +45,7 @@ function dayLabel(workday: string, todayKey: string): string {
 
 /** Group a flat entry list (all-period query result) by workday, newest day
  *  first, newest entry first within a day. */
-function groupByWorkday(list: JournalEntrySummary[], todayKey: string): JournalDay[] {
+export function groupByWorkday(list: JournalEntrySummary[], todayKey: string): JournalDay[] {
   const byDay = new Map<string, JournalEntrySummary[]>();
   for (const e of list) {
     const arr = byDay.get(e.workday);
