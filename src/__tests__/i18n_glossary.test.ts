@@ -74,9 +74,6 @@ describe("복사 확인은 한 형태다", () => {
   const PURE = [
     "common.copied",
     "disc.pathCopied",
-    "today.honesty.copied",
-    "today.standup.copiedAi",
-    "today.standup.copiedPlain",
   ];
 
   it.each(PURE)("%s 가 「복사됨」으로 끝난다", (key) => {

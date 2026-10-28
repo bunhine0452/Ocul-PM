@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
 
-import { SettingsProvider } from "@/contexts/SettingsContext";
-import { CoreModelSeededCard } from "@/features/today/CoreModelSeededCard";
 import { coreModelTarget, DEFAULTS, entriesToSettings, KEYS } from "@/lib/settings";
 
 // 배경 작업 모델 슬롯 (Osaurus 벤치마크 라운드 Phase 0, Decision 2).
@@ -11,8 +9,7 @@ import { coreModelTarget, DEFAULTS, entriesToSettings, KEYS } from "@/lib/settin
 //  1. `coreModelTarget` 은 백엔드 `core_model::resolve` 와 **같은 판정**이다 —
 //     미설정이면 대화 모델로 조용히 대체하지 않는다. 대체하면 "몰랐는데
 //     과금됐다" 를 막으려던 게이트가 무의미해진다.
-//  2. 1회 시드는 조용히 일어나지 않는다 — 표식이 있으면 카드가 뜨고, 닫으면
-//     표식이 비워져 다시 뜨지 않는다.
+//  2. (1회 시드 안내 카드는 4.0 오늘 화면 재설계에서 걷혔다.)
 
 const settingsEntries = vi.hoisted(() => ({ current: [] as Array<[string, string]> }));
 const setCalls = vi.hoisted(() => ({ current: [] as Array<[string, string]> }));
@@ -82,33 +79,5 @@ describe("coreModelTarget", () => {
     expect(DEFAULTS.coreProvider).toBe("");
     expect(DEFAULTS.coreModel).toBe("");
     expect(coreModelTarget(DEFAULTS)).toBeNull();
-  });
-});
-
-describe("1회 시드 안내 카드", () => {
-  it("표식이 없으면 뜨지 않는다", async () => {
-    render(
-      <SettingsProvider>
-        <CoreModelSeededCard />
-      </SettingsProvider>,
-    );
-    await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
-  });
-
-  it("표식이 있으면 시드된 값과 함께 한 번 뜨고, 닫으면 표식을 비운다", async () => {
-    settingsEntries.current = [[KEYS.coreModelSeeded, "anthropic:claude-sonnet-4-6"]];
-    render(
-      <SettingsProvider>
-        <CoreModelSeededCard />
-      </SettingsProvider>,
-    );
-
-    const card = await screen.findByRole("status");
-    expect(card.textContent).toContain("anthropic:claude-sonnet-4-6");
-
-    fireEvent.click(screen.getByRole("button", { name: "닫기" }));
-    await waitFor(() =>
-      expect(setCalls.current).toContainEqual([KEYS.coreModelSeeded, ""]),
-    );
   });
 });
