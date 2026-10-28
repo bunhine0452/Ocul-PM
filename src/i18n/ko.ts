@@ -1519,5 +1519,5 @@ export const ko = {
   // 성공은 대화 id 로 귀속된 일지뿐이다. 기록 ≠ 검증.
   // 이어하기 카드 (플랜 first-record-loop Phase 2) — 다음 세션의 시작점.
   // 원장이 증명하는 것은 "포함됨" 까지 — 참조·도움은 모른다고 적는다.
-  "ws.newEntriesBurst": "일지 여러 건이 한꺼번에 들어왔어요 — 작업 일지 화면에서 보세요",  "term.shellPending": "셸 통합 켜짐 — 이 세션은 아직 신호가 없어요 (다음 프롬프트부터 인식해요)",
+  "ws.newEntriesBurst": "일지 여러 건이 한꺼번에 들어왔어요 — 작업 일지 화면에서 보세요",
 } as const;
