@@ -129,13 +129,9 @@ const TESTS = new Set([
   "__tests__/acp_conversation_seams.test.tsx",
   "__tests__/acp_identity_row.test.tsx",
   "__tests__/i18n_english_screens.test.tsx",
-  // 첫 기록 카드 — 상태 이름·픽스처 제목이 한국어 검사 재료다 (first-record-loop).
-  "__tests__/first_record_card.test.tsx",
-  "__tests__/first_record_model.test.ts",
   // SECURITY.md 「외부 리뷰 이력」 표 픽스처 — 「반영」·「다음 릴리스」 는 파서가 읽는 한국어 문서 형식이다.
   "__tests__/bump_version.test.ts",
   "__tests__/journal_toast_gate.test.ts",
-  "__tests__/resume_card.test.tsx",
   "__tests__/greenfield_empty_draft.test.tsx",
   "__tests__/shell_acp_view_no_today_fallback.test.tsx",
   "__tests__/acp_journal_gate_notice.test.tsx",
@@ -297,11 +293,9 @@ const TESTS = new Set([
   // bug-hunt C4 (2026-09-22) — 시작 탭의 설정 오버레이. 한국어 테스트 이름뿐이다.
   "__tests__/settings_without_workspace.test.tsx",
   "__tests__/today_activity.test.tsx",
-  "__tests__/today_journal_missing.test.tsx",
-  "__tests__/today_plugin_dismiss.test.tsx",
-  "__tests__/today_ring_scale.test.ts",
   "__tests__/term_match.test.ts",
-  "__tests__/today_v2.test.tsx",
+  // 4.0 오늘 화면 — 일지·계획 픽스처 제목과 한국어 테스트 이름이 검사 재료다.
+  "__tests__/today_v4.test.tsx",
   "__tests__/token_estimate.test.ts",
   "__tests__/tools_v2.test.tsx",
   "__tests__/trace_preview.test.ts",

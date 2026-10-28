@@ -34,6 +34,7 @@ import type {
   JournalEntrySummary,
   JournalSearchFilters,
   JournalSearchPage,
+  WorkdayBrief,
   WorkdayComparison,
   AppError,
   ManualEntryDraft,
@@ -56,7 +57,6 @@ import type {
   OculpmSessionStarted,
   PromiseScorecard,
   Velocity,
-  WorkdayBrief,
 } from "@/lib/bindings";
 
 /**
@@ -345,6 +345,16 @@ export const oculpmApi = {
     unwrap<AgentDetection[]>(
       "oculpm_agents_detect",
       commands.oculpmAgentsDetect(projectId),
+    ),
+
+  /**
+   * 워크데이 묶음 한 번 — 일지 버킷 · 라인 증감 · 고유 파일 수 · 총 일지 수 (v2 U12).
+   * 오늘 화면은 `[workday]` 하나만 넘긴다.
+   */
+  workdayBrief: (projectId: number, workdays: string[], focusWorkday: string | null) =>
+    unwrap<WorkdayBrief>(
+      "oculpm_workday_brief",
+      commands.oculpmWorkdayBrief(projectId, workdays, focusWorkday),
     ),
 
   /** 워크데이 하나의 정직성 감사 — 세션 전부를 IPC 1회에 (Phase 3). */

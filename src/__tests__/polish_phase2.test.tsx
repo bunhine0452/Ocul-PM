@@ -35,7 +35,6 @@ vi.mock("@/lib/bindings", () => ({
   events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),
 }));
 
-import { FirstRunCard } from "@/features/today/FirstRunCard";
 import { DiffEntryFooter } from "@/features/diff/DiffEntryFooter";
 
 afterEach(() => {
@@ -189,39 +188,6 @@ describe("요청 버스 — 활성화·색인은 프로젝트 탭이 받는다",
     expect(reindex).toHaveBeenCalledTimes(1);
   });
 });
-
-describe("첫 활성화 카드 — 쓴 것을 그대로 나열한다", () => {
-  it("config · AGENTS.md · .gitignore 줄이 각각 나오고, 버튼이 동작한다", () => {
-    const onDismiss = vi.fn();
-    const onNavigate = vi.fn();
-    const { getByText, getByRole } = render(
-      <FirstRunCard
-        info={{ createdDirs: [".oculpm"], wroteConfig: true, wroteGitignore: true, agentFiles: ["AGENTS.md"], at: 1 }}
-        onDismiss={onDismiss}
-        onNavigate={onNavigate}
-      />,
-    );
-    expect(getByText(ko["today.firstRun.title"])).toBeInTheDocument();
-    expect(getByText(/AGENTS\.md/)).toBeInTheDocument();
-    expect(getByText(/\.gitignore/)).toBeInTheDocument();
-    fireEvent.click(getByRole("button", { name: ko["today.firstRun.viewChanges"] }));
-    expect(onNavigate).toHaveBeenCalledWith("diff");
-    fireEvent.click(getByRole("button", { name: ko["today.firstRun.dismiss"] }));
-    expect(onDismiss).toHaveBeenCalledTimes(1);
-  });
-
-  it("gitignore 를 안 건드렸으면 그 줄은 없다", () => {
-    const { queryByText } = render(
-      <FirstRunCard
-        info={{ createdDirs: [], wroteConfig: true, wroteGitignore: false, agentFiles: [], at: 1 }}
-        onDismiss={() => {}}
-        onNavigate={() => {}}
-      />,
-    );
-    expect(queryByText(/\.gitignore/)).toBeNull();
-  });
-});
-
 
 // ─── Phase 3 — 성능: 공유 시계 · 색인 진행률 스토어 ───────────────────────
 

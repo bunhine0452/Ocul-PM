@@ -89,6 +89,7 @@ vi.mock("@/lib/bindings", () => {
               });
           if (prop === "ruleCandidates" || prop === "skillCandidates") return () => ok([]);
           if (prop === "planRecentUpdates" || prop === "journalMissingSignals") return () => ok([]);
+          if (prop === "todayDigest") return () => ok({ plans: [], needs_user: [], blocked: [], journal_plan: [] });
           if (prop === "dbHealth")
             return () => ok({ db_path: "", schema_version: 0, page_count: 0, integrity_ok: true });
           return () => ok(null);
@@ -108,6 +109,9 @@ const EMPTY_BY_METHOD: Record<string, unknown> = {
   branchStory: null,
   listSessions: [],
   listJournalEntries: { entries: [], sessions: [] },
+  // 4.0 오늘 — 일지가 몇 건 있는 하루로 그려야 「확인할 것」·「오늘 한 일」 머리가 선다.
+  workdayBrief: { days: [], lines_added: 0, lines_removed: 0, files_touched: 0, open_plan_items: [], total_entries: 5 },
+  compareWorkday: { workday: "20260911", sessions: [], unrecorded_total: 0 },
   // journal-scale-round {#hotspot-card} — HotspotCard 는 배열을 기대한다
   // (기본 폴백 `{ entries: [], sessions: [], items: [] }` 로는 `rows.map`
   // 에서 터진다).
