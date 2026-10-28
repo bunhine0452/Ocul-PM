@@ -1,6 +1,6 @@
 ---
 name: oculpm-journal
-description: ocul-pm recording spec (journal format, planner glyphs/log, discussion docs) for projects with .oculpm/. Use when finishing a unit of work and the oculpm MCP tools are unavailable — prefer journal_write/plan_update when visible.
+description: ocul-pm recording spec (journal format, planner glyphs/log) for projects with .oculpm/. Use when finishing a unit of work and the oculpm MCP tools are unavailable — prefer journal_write/plan_update when visible.
 ---
 
 # ocul-pm 기록 규격 (풀 스펙)
@@ -68,15 +68,9 @@ block 에 한 줄 append (기존 행 수정 금지):
 <!-- oculpm:plan-log end -->
 ```
 
-- 항목은 한 줄 (`- [ ] 내용 {#id}` — `{#id}` 를 둘째 줄로 넘기지 말 것).
+- 항목은 한 줄 (`- [ ] 내용 {#id}` — `{#id}` 를 둘째 줄로 넘기지 말 것). 셀 안의 `|` 는 `\|`.
+- 확인 명령을 돌렸으면 메모를 `판정 ✓ <결과 끝 줄>` 또는 `판정 ✗ <결과 끝 줄>` 로 시작한다
+  (en: `verdict ✓ …` / `verdict ✗ …`) — 시작 훅이 그 플랜의 「마지막 판정」으로 싣는다.
+- 큰 결정은 그 plan 의 `## 결정` 섹션에 `### Decision N — 제목 {#id}` 블록으로 잠근다.
 - `status:` 가 `active` 가 아닌 plan(`done`/`archived`)은 절대 수정 금지 — 새 plan 을 만든다.
-- 새 plan frontmatter: `oculpm_plan: v1` + `id`(파일명과 동일 kebab) + `title` + `status: active` + `created`/`updated` + `owner`.
-
-## 3. 문제 해결 문서 (요청 시에만)
-
-사용자가 "옵션 비교/큰 계획을 정리하자"고 명시적으로 요청할 때만
-`.oculpm/discussion/<slug>/discussion.md` 를 만든다: frontmatter
-`oculpm_discussion: v1` + id/title/status(open)/created/updated/owner, 본문은
-`## 문제 정의` (필수·최상단) → `### 방안 {#opt-id}` → `## 토의 / 메모` managed
-block 표(append only) → 결론 시 `## 결론` + status: resolved. 진척 추적은 플래너의
-일 — discussion 에 실행 로그를 쌓지 말 것.
+- 새 plan: frontmatter `oculpm_plan: v1` + `id`(파일명과 동일 kebab) + `title` + `status: active` + `created`/`updated` + `owner` → `**완료 조건:** …` · `**확인 명령:** …` 한 줄씩 → `## Phase {#id}` → 항목 → 빈 plan-log 블록.
