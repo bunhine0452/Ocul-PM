@@ -246,11 +246,10 @@ const TESTS = new Set([
   "__tests__/oculpm_live.test.tsx",
   "__tests__/oculpm_settings_subtabs.test.tsx",
   "__tests__/osc_shell.test.ts",
-  "__tests__/plan_board.test.tsx",
-  "__tests__/plan_body_upgrade.test.tsx",
-  "__tests__/plan_hover_card.test.tsx",
   "__tests__/plan_list.test.ts",
   "__tests__/plan_meta.test.ts",
+  // 4.0 계획 화면 — 계획·항목 픽스처 제목과 한국어 테스트 이름이 검사 재료다.
+  "__tests__/planner_v4.test.tsx",
   "__tests__/plugin_bundles.test.tsx",
   "__tests__/plugin_docs_sync.test.ts",
   "__tests__/plugin_skills_sync.test.ts",

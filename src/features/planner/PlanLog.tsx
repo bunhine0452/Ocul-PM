@@ -1,32 +1,39 @@
 import { useEffect, useState } from "react";
 
+import { planApi } from "@/api/plan";
 import { ChevronRight } from "@/components/Icons";
 import { agentLabel } from "@/features/today/agentColor";
-import { useDensity } from "@/hooks/useDensity";
 import { useT } from "@/i18n";
-import type { PlanItemUpdateDto } from "@/lib/bindings";
-import { planApi } from "@/api/plan";
+import type { PlanDecisionDto, PlanItemUpdateDto } from "@/lib/bindings";
 
 /**
- * 「변경 로그 N행」 — 플랜 문서 끝의 plan-log 표 (시안 Planner).
+ * 「갱신 기록 N줄 · 결정 M」 — 계획 문서 끝의 plan-log 와 결정, 한 줄로 접힌 채 시작한다.
  *
- * 간단 밀도에선 한 줄로 접힌 채 시작하고 전문은 표로 펼쳐진다. 행은 항목별 이력과 같은
- * 투영(`oculpm_plan_item_updates`)이고 플랜 단위로 한 번 읽는다 (`plan_log`).
- * 못 읽으면 「모름」 — 0행과 같은 얼굴을 하지 않는다.
+ * 행은 항목별 이력과 같은 투영(`oculpm_plan_item_updates`)이고 계획 단위로 한 번
+ * 읽는다 (`plan_log`). 못 읽으면 「모름」 — 0줄과 같은 얼굴을 하지 않는다.
  */
-export function PlanLog({ projectId, planId, revision }: { projectId: number; planId: string; revision: string }) {
+export function PlanLog({
+  projectId,
+  planId,
+  revision,
+  decisions,
+}: {
+  projectId: number;
+  planId: string;
+  /** 계획이 바뀐 신호 — 다시 읽는다. */
+  revision: string;
+  decisions: PlanDecisionDto[];
+}) {
   const { t } = useT();
-  const { density } = useDensity();
   const [rows, setRows] = useState<PlanItemUpdateDto[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const [open, setOpen] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setFailed(false);
     void Promise.resolve()
       .then(() => planApi.log(projectId, planId))
       .then((res) => {
-        if (!cancelled) setRows(res);
+        if (!cancelled) setRows(res ?? []);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -36,32 +43,46 @@ export function PlanLog({ projectId, planId, revision }: { projectId: number; pl
     };
   }, [projectId, planId, revision]);
 
-  const count = rows?.length ?? 0;
   return (
-    <details className="pln-log" open={density === "pro" || open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+    <details className="plv-log">
       <summary>
-        <ChevronRight size={11} className="nav-section-chev" aria-hidden="true" />
-        <b>{failed ? t("plan.log.unknown") : t("plan.log.title", { n: count })}</b>
-        <span>{t("plan.log.cols")}</span>
-        <span className="hint">{t("plan.log.hint")}</span>
+        <ChevronRight size={11} className="plv-log-chev" aria-hidden="true" />
+        {failed ? t("plan.log.unknown") : t("plan.log.summary", { n: rows?.length ?? 0, m: decisions.length })}
       </summary>
-      {rows && rows.length > 0 ? (
-        <table className="pln-log-table">
-          <tbody>
-            {rows.slice().reverse().map((r, i) => (
-              <tr key={`${r.ts}-${r.item_id}-${i}`}>
-                <td className="mono">{r.ts.replace("T", " ").slice(0, 16)}</td>
-                <td className="mono">#{r.item_id}</td>
-                <td>{agentLabel(r.agent_id)}</td>
-                <td className="mono">{r.from_status ?? "·"} → {r.to_status ?? "·"}</td>
-                <td className="pln-log-note">{r.note ?? ""}</td>
-                <td className="mono">{r.journal_ref ? r.journal_ref.split("/").pop() : ""}</td>
-              </tr>
+      {decisions.length > 0 ? (
+        <section className="plv-log-sec" aria-label={t("plan.log.decisions")}>
+          <h3>{t("plan.log.decisions")}</h3>
+          <ul className="plv-decisions">
+            {decisions.map((d) => (
+              <li key={d.decision_id}>
+                <b>{d.title}</b>
+                {d.body ? <p>{d.body}</p> : null}
+              </li>
             ))}
+          </ul>
+        </section>
+      ) : null}
+      {rows && rows.length > 0 ? (
+        <table className="plv-log-table">
+          <tbody>
+            {rows
+              .slice()
+              .reverse()
+              .map((r, i) => (
+                <tr key={`${r.ts}-${r.item_id}-${i}`}>
+                  <td className="mono">{r.ts.replace("T", " ").slice(0, 16)}</td>
+                  <td className="mono">#{r.item_id}</td>
+                  <td>{agentLabel(r.agent_id)}</td>
+                  <td className="mono">
+                    {r.from_status ?? "·"} → {r.to_status ?? "·"}
+                  </td>
+                  <td className="plv-log-note">{r.note ?? ""}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
       ) : rows ? (
-        <p className="pln-log-empty">{t("plan.log.empty")}</p>
+        <p className="plv-log-empty">{t("plan.log.empty")}</p>
       ) : null}
     </details>
   );
