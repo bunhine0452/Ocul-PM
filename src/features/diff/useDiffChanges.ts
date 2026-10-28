@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
-import type { ChangeGroup, ImpactReport } from "@/lib/bindings";
+import type { ChangeGroup } from "@/lib/bindings";
 import { toAppError } from "@/api/invoke";
 import { diffApi } from "@/api/diff";
 import { gitApi } from "@/api/git";
@@ -46,8 +46,7 @@ export interface DiffChanges {
   retryList: () => void;
 
   groups: ChangeGroup[] | null;
-  impact: ImpactReport | null;
-  /** 곁들이(그룹핑·영향 분석)의 실패 — 목록 자체는 멀쩡하므로 가리지 않는다. */
+  /** 곁들이(일지 묶음)의 실패 — 목록 자체는 멀쩡하므로 가리지 않는다. */
   enrichError: string | null;
   retryEnrich: () => void;
 
@@ -151,14 +150,13 @@ export function useDiffChanges(projectId: number): DiffChanges {
   // plan items) that recorded them. `null` until loaded / on error → the file
   // list falls back to the flat view.
   const [groups, setGroups] = useState<ChangeGroup[] | null>(null);
-  // 곁들이(그룹핑·영향 분석) 조회의 실패 (2026-09-04). 실패하면 `null` 로 접혀
+  // 곁들이(일지 묶음) 조회의 실패 (2026-09-04). 실패하면 `null` 로 접혀
   // 목록이 평면으로 **조용히** 되돌아갔다 — "어느 일지에도 안 묶인 변경"과
   // 구별되지 않는다. 목록 자체는 멀쩡하므로 가리지 않고 카드로만 알린다.
   const [enrichError, setEnrichError] = useState<string | null>(null);
   const [enrichNonce, setEnrichNonce] = useState(0);
-  // GR4 — change impact: files that (transitively) import a changed file, found
-  // by reverse-dependency BFS. Flags review-worthy files the diff doesn't show.
-  const [impact, setImpact] = useState<ImpactReport | null>(null);
+  const retryList = useCallback(() => setListNonce((n) => n + 1), []);
+  const retryEnrich = useCallback(() => setEnrichNonce((n) => n + 1), []);
 
   const pathKey = changes.map((c) => c.path).join("\n");
   // 최신 목록을 효과 안에서 읽기 위한 창 — 효과는 경로 **집합**(pathKey)이
@@ -183,28 +181,6 @@ export function useDiffChanges(projectId: number): DiffChanges {
         if (cancelled) return;
         setGroups(null);
         setEnrichError(tError(toAppError(e)));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId, pathKey, enrichNonce]);
-
-  useEffect(() => {
-    if (changesRef.current.length === 0) {
-      setImpact(null);
-      return;
-    }
-    let cancelled = false;
-    const paths = changesRef.current.map((c) => c.path);
-    diffApi
-      .changeImpact(projectId, paths)
-      .then((data) => {
-        if (!cancelled) setImpact(data);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setImpact(null);
-        setEnrichError((prev) => prev ?? tError(toAppError(e)));
       });
     return () => {
       cancelled = true;
@@ -246,11 +222,10 @@ export function useDiffChanges(projectId: number): DiffChanges {
     hasLastCommit,
     listLoading,
     listError,
-    retryList: () => setListNonce((n) => n + 1),
+    retryList,
     groups,
-    impact,
     enrichError,
-    retryEnrich: () => setEnrichNonce((n) => n + 1),
+    retryEnrich,
     toggleVerified,
   };
 }

@@ -1,44 +1,9 @@
-import type { ChangeGroup, ChangePlanRef } from "@/lib/bindings";
-import type { RecentChange } from "@/lib/recentChangesStore";
-
-// 변경 diff 왼쪽 목록의 순수 모델. 백엔드가 준 `ChangeGroup[]` 을 화면이 그대로
-// 그릴 수 있는 형태(제목 정리 · 필터 · 접힘 · 진행도)로 옮긴다. 렌더와 분리해
-// 두는 이유: 접힘/필터 규칙이 j/k 이동 순서와 같은 소스여야 하는데, 그 계약을
+// 변경 화면의 순수 모델 (4.0) — 변경 파일을 「일지에 있음」 / 「기록 없음」 둘로 가른다.
+// 렌더와 분리해 두는 이유: j/k 이동 순서가 목록에 보이는 순서와 같은 소스여야 하는데, 그 계약을
 // 컴포넌트 안에 두면 테스트할 수가 없다.
 
-export interface PlanChip {
-  planId: string;
-  title: string;
-  items: string[];
-}
-
-/** Collapse plan refs to one chip per plan. The backend returns one
- *  ChangePlanRef per advanced *item*, so an entry that moved many items of the
- *  same plan would otherwise render the (identical) plan title once per item —
- *  e.g. 11 look-alike rows. We keep insertion order and stash the item titles
- *  for the chip's tooltip + a `·N` count. */
-export function collapsePlanRefs(refs: ChangePlanRef[]): PlanChip[] {
-  const byPlan = new Map<string, PlanChip>();
-  for (const pr of refs) {
-    const e = byPlan.get(pr.plan_id);
-    if (e) e.items.push(pr.item_title);
-    else
-      byPlan.set(pr.plan_id, {
-        planId: pr.plan_id,
-        title: cleanTitle(pr.plan_title),
-        items: [pr.item_title],
-      });
-  }
-  return [...byPlan.values()];
-}
-
-/** Month/day for a change-group header (entries may span days). */
-export function groupDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? ""
-    : d.toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
-}
+import type { ChangeGroup } from "@/lib/bindings";
+import type { RecentChange } from "@/lib/recentChangesStore";
 
 /**
  * 일지·플랜 제목에서 마크다운 마커를 걷어낸다. 제목은 파일에 적힌 그대로라
@@ -56,130 +21,68 @@ export function cleanTitle(raw: string): string {
     .trim();
 }
 
-/** One entry-bucket of the file list, ready to render. */
-export interface GroupView {
-  /** Stable identity for the collapsed-set + React key. */
-  key: string;
-  entryPath: string | null;
-  entryType: string | null;
-  /** Cleaned entry title; empty when there's nothing to show. */
-  title: string;
-  /** Files with no journal entry behind them. */
-  untracked: boolean;
-  /** No grouping available at all (flat fallback) — render without a header. */
-  headerless: boolean;
-  /** 월·일 — 바로 위 그룹과 같은 날이면 빈 문자열(중복 제거). */
-  date: string;
-  plans: PlanChip[];
-  /** Files to render — already filtered. */
-  files: string[];
-  /** File count before the filter (what the header badge reports). */
-  total: number;
-  /** How many of `total` are marked reviewed. */
-  reviewed: number;
-  collapsed: boolean;
+export interface ChangeBuckets {
   /**
-   * 일지가 지금 내용에 대해 **확인됐는가** (`verified_by_user && !verified_stale`)
-   * — 미추적 묶음·평면 목록은 `null` (토글 없음). 확인 뒤 본문이 바뀐 일지는
-   * 여기서 `false` 라 토글이 꺼진 채로 그려지고, 누르면 다시 묶는다.
+   * 묶음 정보가 있는가. `false` 면(아직 오는 중이거나 조회가 실패했다) 어느 파일도 「기록 없음」 이라고
+   * 말하지 않는다 — 모르는 것을 단언하면 이 화면의 약속(믿지 말고 보라)이 거짓이 된다.
    */
-  verified: boolean | null;
-  /** 확인 뒤 본문이 바뀌었다 ({#reviewed-hash}) — 토글의 설명이 「다시 검토」가 된다. */
-  stale: boolean;
+  known: boolean;
+  /** 어느 일지에도 없는 파일 — 최근 변경이 위. */
+  unrecorded: string[];
+  /** 일지에 있는 묶음 (최신 일지가 위, 백엔드 순서) — 현재 변경 목록에 남은 파일만. */
+  groups: ChangeGroup[];
 }
 
-/** 그룹이 이만큼보다 많아지면 처음 열 때 알아서 접는다 (하나만 펼친 채로). */
-export const AUTO_FOLD_FROM = 2;
+/** `changes` 는 오래된 것이 앞이다 (`mergeChanges`) — 보여 줄 때는 뒤집어 최근이 위. */
+export function splitChanges(groups: ChangeGroup[] | null, changes: readonly RecentChange[]): ChangeBuckets {
+  if (!groups) return { known: false, unrecorded: [], groups: [] };
+  const present = new Set(changes.map((c) => c.path));
+  const rank = new Map(changes.map((c, i) => [c.path, i] as const));
+  const recorded: ChangeGroup[] = [];
+  let unrecorded: string[] = [];
+  for (const g of groups) {
+    const files = g.files.filter((p) => present.has(p));
+    if (g.entry_path == null) {
+      unrecorded = files;
+    } else if (files.length > 0) {
+      recorded.push({ ...g, files });
+    }
+  }
+  unrecorded = [...unrecorded].sort((a, b) => (rank.get(b) ?? 0) - (rank.get(a) ?? 0));
+  return { known: true, unrecorded, groups: recorded };
+}
 
-interface BuildArgs {
-  groups: ChangeGroup[] | null;
-  changes: RecentChange[];
-  /** Raw filter text; matched case-insensitively against the whole path. */
-  filter: string;
-  collapsed: ReadonlySet<string>;
-  reviewed: ReadonlySet<string>;
+/** 화면에 보이는 순서의 파일 경로들 — j/k 이동이 따른다. 펼친 묶음의 파일만 센다. */
+export function visiblePaths(
+  buckets: ChangeBuckets,
+  changes: readonly RecentChange[],
+  open: ReadonlySet<string>,
+): string[] {
+  if (!buckets.known) return changes.map((c) => c.path).reverse();
+  return [
+    ...buckets.unrecorded,
+    ...buckets.groups.flatMap((g) => (open.has(groupKey(g)) ? g.files : [])),
+  ];
 }
 
 export function groupKey(g: ChangeGroup): string {
   return g.entry_path ?? "__untracked";
 }
 
+/** 에이전트에게 붙여 넣을 「이 변경을 일지로 남겨 달라」 요청에 싣는 파일 수의 상한. */
+const REQUEST_FILE_CAP = 40;
+
 /**
- * `ChangeGroup[]` → 렌더 가능한 뷰. 규칙 둘:
- * - 필터가 걸려 있으면 접힘은 무시한다 (접힌 그룹 안의 일치 항목이 사라지면
- *   필터가 거짓말을 하는 셈이라). 일치가 0 인 그룹은 아예 빠진다.
- * - 그룹 정보가 없으면(`groups === null`) 헤더 없는 그룹 하나로 접는다 —
- *   기존 평면 목록과 같은 순서(최신 변경이 위).
+ * 「기록 요청 복사」 가 클립보드에 넣는 글. 문장은 호출자가 i18n 으로 넘기고(`intro`·`more`),
+ * 여기서는 파일 줄을 붙이는 것만 한다 — 영어 모드에 한국어가 새지 않게.
  */
-export function buildGroupViews({
-  groups,
-  changes,
-  filter,
-  collapsed,
-  reviewed,
-}: BuildArgs): GroupView[] {
-  const q = filter.trim().toLowerCase();
-  const match = (p: string) => (q ? p.toLowerCase().includes(q) : true);
-  const countReviewed = (paths: string[]) => paths.filter((p) => reviewed.has(p)).length;
-
-  if (!groups) {
-    const all = changes
-      .slice()
-      .reverse()
-      .map((c) => c.path);
-    const files = all.filter(match);
-    return [
-      {
-        key: "__flat",
-        entryPath: null,
-        entryType: null,
-        title: "",
-        untracked: false,
-        headerless: true,
-        date: "",
-        plans: [],
-        files,
-        total: all.length,
-        reviewed: countReviewed(all),
-        collapsed: false,
-        verified: null,
-        stale: false,
-      },
-    ];
-  }
-
-  const out: GroupView[] = [];
-  // 같은 날짜가 연달아 반복되면 뒤쪽은 지운다 — 대부분의 일지가 오늘 것이라
-  // `8. 20.` 이 그룹마다 붙어 좁은 제목 폭만 갉아먹는다.
-  let lastDate = "";
-  for (const g of groups) {
-    const files = g.files.filter(match);
-    if (q && files.length === 0) continue;
-    const key = groupKey(g);
-    const date = g.created_at ? groupDate(g.created_at) : "";
-    const showDate = date && date !== lastDate ? date : "";
-    if (date) lastDate = date;
-    out.push({
-      key,
-      entryPath: g.entry_path,
-      entryType: g.entry_type,
-      title: g.entry_title ? cleanTitle(g.entry_title) : "",
-      untracked: g.entry_path == null,
-      headerless: false,
-      date: showDate,
-      plans: collapsePlanRefs(g.plan_refs),
-      files,
-      total: g.files.length,
-      reviewed: countReviewed(g.files),
-      collapsed: q ? false : collapsed.has(key),
-      verified: g.verified_by_user == null ? null : g.verified_by_user && !g.verified_stale,
-      stale: (g.verified_by_user && g.verified_stale) ?? false,
-    });
-  }
-  return out;
-}
-
-/** j/k 이동이 따르는 순서 — 화면에 실제로 보이는 행만, 위에서 아래로. */
-export function visiblePathsOf(views: GroupView[]): string[] {
-  return views.flatMap((v) => (v.collapsed ? [] : v.files));
+export function recordRequestText(
+  files: readonly string[],
+  intro: string,
+  more: (n: number) => string,
+): string {
+  const shown = files.slice(0, REQUEST_FILE_CAP);
+  const lines = shown.map((p) => `- ${p}`);
+  if (files.length > shown.length) lines.push(`- ${more(files.length - shown.length)}`);
+  return `${intro}\n\n${lines.join("\n")}`;
 }

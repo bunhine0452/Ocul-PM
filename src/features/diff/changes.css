@@ -1,0 +1,79 @@
+/* ============================================================
+   changes.css — 변경 화면 (4.0): 왼쪽 340px 목록 + 오른쪽 diff
+
+   목록은 예외부터다: 「기록 없음」(어느 일지에도 없는 변경)이 먼저 서고, 그다음 「일지에 있음」이
+   일지별로 묶인다. 오른쪽은 기록 없는 파일을 골랐을 때만 배너가 diff 위에 선다.
+   diff 렌더러(PatchView)와 +N/−M(.diff-stat)은 일지 상세와 같은 것을 쓴다.
+   ============================================================ */
+
+.chg-split { flex: 1; min-height: 0; display: flex; outline: none; }
+
+.chg-list {
+  width: 340px; max-width: 45%; flex: none; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+  border-right: 1px solid var(--sep); background: var(--bg-window);
+}
+/* 묶음 머리 — 칩 하나 + 개수. 스크롤 중 붙는다 (불투명이 아니면 행이 비친다). */
+.chg-bh {
+  position: sticky; top: 0; z-index: var(--z-sticky);
+  display: flex; align-items: center; gap: var(--space-3);
+  margin: 0; padding: var(--space-5) var(--space-6) var(--space-2);
+  background: var(--bg-window);
+  font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2);
+}
+.chg-item {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  width: 100%; margin: 0; padding: var(--space-3) var(--space-6);
+  appearance: none; -webkit-appearance: none; border: none;
+  border-bottom: 1px solid var(--sep); background: transparent;
+  font-family: var(--font); color: var(--text); text-align: left; cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.chg-item:hover { background: var(--bg-hover); }
+.chg-item[aria-current="true"] { background: var(--bg-active); }
+.chg-item:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+/* 묶음 안의 파일 — 일지 행보다 한 단 들어간다. */
+.chg-item.nested { padding-left: var(--space-8); background: var(--bg-content); }
+.chg-item.nested:hover { background: var(--bg-hover); }
+.chg-item.nested[aria-current="true"] { background: var(--bg-active); }
+.chg-r1 { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.chg-ti { flex: 1; min-width: 0; font-size: var(--fs-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chg-count { flex: none; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.chg-meta { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chg-ok { color: var(--ok-text); font-weight: var(--fw-strong); }
+.chg-warn { color: var(--warn-text); font-weight: var(--fw-strong); }
+.chg-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--text-3)); flex: none; }
+/* 경로 — 디렉터리부터 줄어들고 파일명은 온전히 남는다. */
+.chg-name { display: flex; align-items: baseline; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); }
+.chg-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
+.chg-base { flex: none; }
+
+/* ── 오른쪽 ───────────────────────────────────────────────────────────────── */
+.chg-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-card); outline: none; }
+.chg-banner {
+  display: flex; align-items: center; gap: var(--space-4);
+  margin: var(--space-5) var(--space-6) 0; padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-m); background: var(--warn-soft);
+}
+.chg-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.chg-banner-text b { font-weight: var(--fw-strong); }
+.chg-banner-text span { font-size: var(--fs-3); color: var(--text-2); }
+.chg-fh {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--sep);
+}
+.chg-fname { min-width: 0; font-family: var(--mono); font-size: var(--fs-4); font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chg-sp { flex: 1; }
+
+/* 바닥줄 — 이 파일을 적은 일지의 검증 (DiffEntryFooter). 일지가 말한 것과 바뀐 것을 한 화면에서 붙여 본다. */
+.diff-entry-foot {
+  display: flex; align-items: center; gap: var(--space-3); min-height: var(--ctl-5); padding: 0 var(--space-4);
+  border-top: 1px solid var(--sep); background: var(--bg-inset); font-size: var(--fs-2); color: var(--text-2);
+}
+.diff-entry-foot[data-evidence="on"] > svg { color: var(--ok-text); }
+.diff-entry-foot[data-evidence="off"] > svg { color: var(--warn-text); }
+.def-label { font-weight: var(--fw-bold); white-space: nowrap; }
+.def-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.def-fill { flex: 1; }
+.diff-entry-foot .btn.ok { color: var(--ok-text); border-color: var(--ok); }
