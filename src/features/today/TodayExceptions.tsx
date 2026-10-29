@@ -22,6 +22,7 @@ import type { ExceptionKind, TodayException, TodaySplit } from "./todayModel";
 
 const PILL: Record<ExceptionKind, { key: I18nKey; tone: string }> = {
   waiting: { key: "today.check.kind.waiting", tone: "warn" },
+  hookWaiting: { key: "today.check.kind.waiting", tone: "warn" },
   verdict: { key: "today.check.kind.verdict", tone: "danger" },
   evidence: { key: "today.check.kind.evidence", tone: "warn" },
   unrecorded: { key: "today.check.kind.unrecorded", tone: "warn" },
@@ -33,6 +34,7 @@ const PILL: Record<ExceptionKind, { key: I18nKey; tone: string }> = {
 
 const PRIMARY: Record<ExceptionKind, I18nKey> = {
   waiting: "today.check.openTerminal",
+  hookWaiting: "today.check.dismissWaiting",
   verdict: "today.check.openOutput",
   evidence: "today.check.diff",
   unrecorded: "today.check.viewChanges",
@@ -56,6 +58,16 @@ function useRowText(ex: TodayException): { title: string; meta: string; mono: bo
       return {
         title: s.status?.msg || word,
         meta: [s.label, s.status?.msg ? word : "", s.status ? whenLabel(s.status.since) : ""].filter(Boolean).join(" · "),
+        mono: false,
+      };
+    }
+    case "hookWaiting": {
+      // 바깥 터미널 — 앱 안에서 갈 곳이 없으니 무엇을 기다리는지와 언제부터인지만.
+      const w = ex.item;
+      const word = w.kind === "permission" ? t("terminal.state.permission") : t("terminal.state.idle");
+      return {
+        title: w.message || word,
+        meta: [t("today.check.outsideTerminal"), w.message ? word : "", whenLabel(w.since)].filter(Boolean).join(" · "),
         mono: false,
       };
     }

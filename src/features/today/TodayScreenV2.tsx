@@ -171,6 +171,8 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
         case "waiting":
           requestTermFocus(ex.session.id);
           return onNavigate("terminal");
+        case "hookWaiting":
+          return void hooksApi.dismissWaiting(projectId, ex.item.session_id).catch(() => {});
         case "verdict":
           return openPlan(ex.plan.plan_id);
         case "evidence":

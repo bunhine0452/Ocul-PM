@@ -154,6 +154,9 @@ use crate::commands::{
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status,
     claude_plugin_status,
+    // 바깥 터미널의 Claude 기다림 (Notification 훅, #notify-hook)
+    claude_waiting,
+    claude_waiting_dismiss,
     // 코드 화면 — 파일 조작 (.oculpm/planner/ide-completion.md #file-ops-backend)
     // 코드 화면 — 일지 연동 + HEAD 비교 (ide-completion #agent-diff)
     // 코드 화면 — 로컬 히스토리 (docs/20260902_vscode-borrows/06-local-history.md)
@@ -425,6 +428,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // v3-record-integrity {#mcp-missing-visible} — 기록 도구 부착 결과
             // PR-CI0 — Claude Code 훅 브리지
             claude_hooks_status,
+            claude_waiting,
+            claude_waiting_dismiss,
             // H3b — "일지 없이 끝난 세션" 신호 (Today 카드)
             journal_missing_signals,
             // first-record-loop — 첫 기록 원장 (Today 첫 기록 카드)
@@ -475,6 +480,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 앱 안 터미널 — 어디서든 세션 · 상태가 바뀜 / 도는 세션이 있는 창을 닫으려 함
             crate::commands::terminal::TermSessionsChanged,
             crate::commands::terminal::TermCloseAsked,
+            // 바깥 터미널의 Claude 기다림이 바뀜 — 오늘이 다시 읽고 창이 뒤면 알린다
+            crate::oculpm::claude_waiting::ClaudeWaitingChanged,
             // 도움말 › 처음 쓰는 법 — 포커스된 창이 안내 모달을 연다
             crate::menu::TourRequested,
         ])
@@ -618,6 +625,7 @@ pub fn run() {
             // 창 → 프로젝트 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowProjects::default());
             app.manage(crate::terminal::TermSessions::default());
+            app.manage(crate::oculpm::claude_waiting::ClaudeWaitingState::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
 

@@ -4,6 +4,7 @@
 
 use crate::db::Db;
 use crate::oculpm::claude_hooks::{self, HookSignal};
+use crate::oculpm::claude_waiting;
 
 use super::handle::WatcherInner;
 
@@ -72,6 +73,29 @@ impl WatcherInner {
 
         if events.is_empty() {
             return;
+        }
+        // 바깥 터미널의 Claude 가 사람을 기다린다 (Notification 훅, #notify-hook).
+        if let Some(handle) = &self.app_handle {
+            use tauri::Manager;
+            if let Some(state) = handle.try_state::<claude_waiting::ClaudeWaitingState>() {
+                let now = chrono::Utc::now().to_rfc3339();
+                // 이벤트를 **모두** 반영한다 — 첫 변화에서 멈추면(`any`) 뒤의 해제가 빠진다.
+                let changed = state.0.lock().is_ok_and(|mut all| {
+                    let table = all.entry(self.project_id).or_default();
+                    let mut changed = false;
+                    for ev in &events {
+                        changed |= claude_waiting::apply_waiting(table, ev, &now);
+                    }
+                    changed
+                });
+                if changed {
+                    use tauri_specta::Event;
+                    let _ = claude_waiting::ClaudeWaitingChanged {
+                        project_id: self.project_id,
+                    }
+                    .emit(handle);
+                }
+            }
         }
         let mut open = self.hook_open_sessions.lock().await;
         for ev in &events {

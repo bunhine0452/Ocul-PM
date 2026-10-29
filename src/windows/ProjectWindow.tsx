@@ -26,7 +26,7 @@ import { toast } from "@/lib/toast";
 import { DeepLinkSheet } from "@/features/deeplink/DeepLinkSheet";
 import { openNavFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
 import { UI_V2_VIEWS } from "@/contexts/uiV2View";
-import { setAlertProjectName } from "@/features/terminal/attention";
+import { setAlertProjectName, useHookWaitingAlerts } from "@/features/terminal/attention";
 import { SendToClaudeHost } from "@/features/terminal/SendToClaudeHost";
 import { useTermCloseGuard } from "@/features/terminal/useTermCloseGuard";
 
@@ -236,6 +236,7 @@ export default function ProjectWindow({
 
   const closeGuard = useTermCloseGuard(projects);
   useEffect(() => setAlertProjectName(projectName), [projectName]);
+  useHookWaitingAlerts(projectId);
 
   return (
     <>
