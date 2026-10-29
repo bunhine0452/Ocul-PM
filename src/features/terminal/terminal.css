@@ -1,45 +1,47 @@
 /* ============================================================
-   terminal.css — 터미널 (4.0 다시): 왼쪽 세션 목록 한 칸 + 터미널.
-   작업 일지(.jl-col)와 같은 꼴 — 목록 칸은 창 바탕, 선택은 면(--bg-active).
+   terminal.css — 터미널 (4.0 다시). 세션이 하나면 터미널만, 둘 이상이면 위 탭 줄
+   (화면 검사 #term-col — 왼쪽 목록 칸이 일지 · 계획의 목록 칸과 두 겹이었다).
    터미널 면은 `--term-bg`(= 콘텐츠 바탕) 라 화면과 이어진다. 색은 tokens.css 의 --term-*.
    ============================================================ */
 
-.tm-split { flex: 1; min-height: 0; display: flex; }
-
-.tm-col {
-  width: 240px; max-width: 35%; flex: none; min-height: 0;
-  display: flex; flex-direction: column; overflow-y: auto;
-  border-right: 1px solid var(--sep); background: var(--bg-window);
-}
-.tm-list { margin: 0; padding: var(--space-2) 0; list-style: none; }
+.tm-split { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .tm-empty { margin: 0; padding: var(--space-5) var(--space-6); font-size: var(--fs-3); color: var(--text-2); }
 
-.tm-item { display: flex; align-items: center; gap: var(--space-1); padding-right: var(--space-3); }
-.tm-item.is-active { background: var(--bg-active); }
-.tm-item:not(.is-active):hover { background: var(--bg-hover); }
+/* 둘 이상이면 위 탭 줄 (화면 검사 #term-col). 고른 탭은 면(--bg-active). */
+.tm-tabs {
+  flex: none; display: flex; gap: var(--space-1); overflow-x: auto;
+  padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--sep); background: var(--bg-window);
+}
+.tm-tab { flex: none; display: flex; align-items: center; border-radius: var(--radius-s); max-width: 280px; }
+.tm-tab.is-active { background: var(--bg-active); }
+.tm-tab:not(.is-active):hover { background: var(--bg-hover); }
 .tm-pick {
-  flex: 1; min-width: 0;
-  display: grid; grid-template-columns: 8px minmax(0, 1fr); column-gap: var(--space-3); row-gap: 2px; align-items: center;
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-6);
-  border: 0; background: transparent; color: var(--text);
-  font: inherit; text-align: left; cursor: pointer;
+  min-width: 0; display: flex; align-items: center; gap: var(--space-3);
+  height: var(--ctl-4); padding: 0 var(--space-2) 0 var(--space-4);
+  border: 0; background: transparent; color: var(--text); font: inherit; cursor: pointer;
 }
 .tm-pick:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
-.tm-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-2); }
+.tm-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-2); }
 .tm-dot.is-live { background: var(--ok); }
 /* 안의 프로그램이 내 손을 기다린다(OSC 7501 blocked) — 초록(실행 중)과 갈라 본다. */
 .tm-dot.is-wait { background: var(--warn); }
-.tm-name { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tm-meta { grid-column: 2; font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-name { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); white-space: nowrap; }
+.tm-meta { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tm-rec { color: var(--ok-text); }
-/* 기다리는 까닭 — 프로그램이 붙인 한 줄(「approve Write: …」). 두 줄까지. */
-.tm-msg {
-  grid-column: 2; font-size: var(--fs-3); color: var(--text);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+/* 닫기는 탭을 가리킬 때만 — 탭 줄이 × 로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */
+.tm-close { flex: none; margin-right: var(--space-1); opacity: 0; }
+.tm-tab:hover .tm-close, .tm-tab.is-active .tm-close, .tm-close:focus-visible { opacity: 1; }
+
+/* 예외 한 줄 — 내 손을 기다리는 까닭(「approve Write: …」) · 끝난 하나뿐인 세션. */
+.tm-note {
+  flex: none; display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-6); border-bottom: 1px solid var(--sep);
+  font-size: var(--fs-3); color: var(--text-2);
 }
-/* 닫기는 줄을 가리킬 때만 — 목록이 × 로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */
-.tm-close { flex: none; opacity: 0; }
-.tm-item:hover .tm-close, .tm-item.is-active .tm-close, .tm-close:focus-visible { opacity: 1; }
+.tm-note.is-wait { background: var(--warn-soft); color: var(--warn-text); }
+.tm-note-word { flex: none; font-weight: var(--fw-strong); }
+.tm-note-msg { min-width: 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-note-sp { flex: 1; }
 
 /* 터미널 면 — xterm 이 이 칸을 채운다(FitAddon). 여백은 칸 안쪽에 두어 글자가 테두리에 붙지 않게. */
 .tm-pane { flex: 1; min-width: 0; min-height: 0; position: relative; background: var(--term-bg); }

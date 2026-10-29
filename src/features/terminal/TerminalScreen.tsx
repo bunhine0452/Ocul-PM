@@ -109,6 +109,8 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
   }, [add]);
 
   const shortcut = isMac() ? kbd("⌘T") : kbd("⌘⇧T");
+  const current = sessions.find((s) => s.id === active) ?? null;
+  const currentWaiting = current != null && current.alive && needsMe(current.status);
   return (
     <>
       <Toolbar title={t("nav.terminal")}>
@@ -119,18 +121,21 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
         </button>
       </Toolbar>
       <div className="tm-split">
-        <div className="tm-col" role="region" aria-label={t("terminal.listAria")}>
-          {sessions.length === 0 ? <p className="tm-empty">{t("terminal.empty")}</p> : null}
-          <ul className="tm-list">
+        {sessions.length === 0 ? <p className="tm-empty">{t("terminal.empty")}</p> : null}
+        {sessions.length > 1 ? (
+          // 둘 이상이면 위 탭 줄 — 왼쪽 목록 칸은 일지 · 계획 목록 칸과 두 겹이었다 (화면 검사 #term-col).
+          <div className="tm-tabs" role="tablist" aria-label={t("terminal.listAria")}>
             {sessions.map((s) => {
               const n = records.get(s.id) ?? 0;
               const waiting = s.alive && needsMe(s.status);
               return (
-                <li key={s.id} className={"tm-item" + (s.id === active ? " is-active" : "")}>
+                <div key={s.id} className={"tm-tab" + (s.id === active ? " is-active" : "")}>
                   <button
                     type="button"
+                    role="tab"
                     className="tm-pick"
-                    aria-current={s.id === active ? "true" : undefined}
+                    aria-selected={s.id === active}
+                    title={waiting && s.status?.msg ? s.status.msg : undefined}
                     onClick={() => setActive(s.id)}
                   >
                     <span
@@ -147,7 +152,6 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
                         </span>
                       ) : null}
                     </span>
-                    {waiting && s.status?.msg ? <span className="tm-msg">{s.status.msg}</span> : null}
                   </button>
                   <button
                     type="button"
@@ -157,11 +161,24 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
                   >
                     <X size={13} />
                   </button>
-                </li>
+                </div>
               );
             })}
-          </ul>
-        </div>
+          </div>
+        ) : null}
+        {current && (sessions.length > 1 ? currentWaiting && current.status?.msg : currentWaiting || !current.alive) ? (
+          // 세션 하나면 칸이 없다 — 내 손을 기다리거나 끝났을 때만 한 줄 (예외만 보인다).
+          <div className={"tm-note" + (currentWaiting ? " is-wait" : "")} role="status">
+            <span className="tm-note-word">{sessionWord(t, current)}</span>
+            {currentWaiting && current.status?.msg ? <span className="tm-note-msg">{current.status.msg}</span> : null}
+            <span className="tm-note-sp" />
+            {sessions.length === 1 && !current.alive ? (
+              <button type="button" className="btn ghost sm" onClick={() => closeTerm(current.id)}>
+                {t("terminal.closeAria", { name: current.label })}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <div className="tm-pane" ref={paneRef} />
       </div>
     </>
