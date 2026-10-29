@@ -392,8 +392,8 @@ export const ko = {
   "journal.limited": "전체 {total}건 중 {loaded}건 표시",
   "journal.loadMorePage": "{n}건 더 불러오기",
   "journal.noMatch": "조건에 맞는 일지가 없어요. (전체 기간 검색됨)",
-  "journal.empty":
-    "일지는 에이전트가 AGENTS.md 규칙을 읽고 직접 써요. 이미 커밋한 작업이 있다면 지난 커밋에서 첫 일지를 만들 수도 있어요.",
+  "journal.empty": "일지는 에이전트가 쓰고, 이미 커밋한 작업은 지난 커밋에서 만들 수 있어요.",
+  "journal.emptyRecent": "최근 14일에는 일지가 없어요.",
   "journal.written": "일지를 작성했어요: {title}",
   "journal.day.today": "오늘",
   "journal.day.yesterday": "어제",
@@ -481,8 +481,8 @@ export const ko = {
   "diff.viewSplit": "나란히",
   // 왜 못 누르는지 ({#fix-disabled-reason}).
   "diff.blockedNoFile": "왼쪽에서 파일을 먼저 고르세요",
-  "diff.emptyWorking": "커밋되지 않은 변경이 없어요. 마지막 커밋에서 무엇이 바뀌었는지는 아래 버튼으로 볼 수 있어요.",
-  "diff.emptyBranch": "이 브랜치엔 아직 변경이 없어요. 에이전트가 파일을 고치거나 직접 저장하면 여기 나타나요.",
+  "diff.emptyWorking": "커밋되지 않은 변경이 없어요.",
+  "diff.emptyBranch": "이 브랜치엔 아직 변경이 없어요.",
   "diff.changedFiles": "변경된 파일",
   "diff.opAdded": "새 파일",
   "diff.opDeleted": "삭제됨",
@@ -539,7 +539,7 @@ export const ko = {
   "plan.judge.pass": "✓ 통과",
   "plan.judge.fail": "✗ 실패",
   "plan.judge.notRun": "아직 안 돌렸어요",
-  "plan.nextRow.label": "다음",
+  "plan.nextRow.label": "다음 할 일",
   "plan.nextRow.run": "터미널에서 실행",
   "plan.nextRow.untilDone": "끝까지 (/goal)",
   "plan.nextRow.untilDoneTitle": "새 터미널에서 claude 를 띄우고 /goal 로 이 계획의 완료 조건 · 확인 명령을 넘겨요. 조건이 참이 될 때까지 Claude Code 가 이어서 해요",
@@ -557,7 +557,7 @@ export const ko = {
   "plan.log.rows": "이력 {n}줄",
   "plan.log.decisionCount": "결정 {n}",
   "plan.log.decisions": "결정",
-  "plan.emptyAgents": "계획은 에이전트가 세워요. 터미널에서 Claude Code 에 하고 싶은 일을 말하거나 /oculpm:inception 으로 시작하면 계획 파일을 만들어요.",
+  "plan.emptyAgents": "Claude Code 에 하고 싶은 일을 말하면 계획이 생겨요.",
   "plan.error": "문제가 발생했어요",
   // 왜 못 누르는지 ({#fix-disabled-reason}) — `disabled` 는 포커스도 마우스도
   // 안 받아 이 문장들이 도달하지 않는다. `blocked()` 가 나른다 (lib/blocked.ts).
@@ -740,9 +740,6 @@ export const ko = {
 
   // ── v3-surface / firstrun ────────────────────────────────────────────────
   // 첫 5분의 화면이 아직 일어나지 않은 일을 말하지 않게 하는 문구들.
-  "journal.emptyTitle": "아직 일지가 한 건도 없어요",
-  "plan.emptyTitle": "아직 계획이 없어요",
-  "diff.emptyTitle": "볼 변경이 없어요",
 
   // ── v3-surface / activity ──────────────────────────────
   // 활동 어휘 15낱말 — 에이전트가 한 일을 우리 말로 부른다.

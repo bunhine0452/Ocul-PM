@@ -199,6 +199,7 @@ vi.mock("@/lib/bindings", async (importOriginal) => {
 
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { t } from "@/i18n";
 
 function renderJournal(props: Partial<React.ComponentProps<typeof JournalScreenV2>> = {}) {
   const onOpenDiff = vi.fn();
@@ -325,16 +326,16 @@ describe("작업 일지 — 목록", () => {
 
   it("빈 일지는 첫날 안내와 지난 커밋에서 가져오기를 보인다", async () => {
     const { findByText, getByText } = renderJournal();
-    expect(await findByText(/아직 일지가 한 건도 없어요/)).toBeInTheDocument();
+    // 문장 하나 · 버튼 하나 (화면 검사 #empty-one).
+    expect(await findByText(t("journal.empty"))).toBeInTheDocument();
     expect(getByText("git 히스토리에서 가져오기")).toBeInTheDocument();
   });
 
   it("최근 창이 비어도 '이전 기록 더 보기' 로 전체 기간에 닿는다", async () => {
     fixtures.byWorkday["20260531"] = [];
     fixtures.allPeriod = [summary({ relative_path: "old", workday: "20260101", title: "예전 일지" })];
-    const { findByText, getByText } = renderJournal();
-    await findByText(/아직 일지가 한 건도 없어요/);
-    fireEvent.click(getByText(/이전 기록 더 보기/));
+    const { findByText } = renderJournal();
+    fireEvent.click(await findByText(/이전 기록 더 보기/));
     expect(await findByText("예전 일지")).toBeInTheDocument();
   });
 

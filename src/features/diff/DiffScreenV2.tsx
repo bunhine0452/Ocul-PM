@@ -3,7 +3,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { Toolbar } from "@/components/Toolbar";
-import { ExternalLinkIcon, GitBranchIcon, Loader } from "@/components/Icons";
+import { ExternalLinkIcon, Loader } from "@/components/Icons";
 import { fileOpenApi } from "@/api/fileOpen";
 import { errorDetail, toAppError } from "@/api/invoke";
 import { oculpmApi } from "@/api/oculpm";
@@ -203,8 +203,6 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               /* 직전 커밋으로 가는 길을 글이 아니라 버튼으로 (v3-surface). */
               <EmptyState
                 density="rich"
-                icon={GitBranchIcon}
-                title={t("diff.emptyTitle")}
                 actions={
                   list.hasLastCommit ? (
                     <button className="btn primary sm" onClick={() => list.pinBaseline("last_commit")}>

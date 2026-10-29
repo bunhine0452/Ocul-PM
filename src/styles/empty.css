@@ -32,7 +32,7 @@
   padding: var(--space-6);
 }
 
-/* 화면 전체 — 아이콘·제목·설명·행동. */
+/* 화면 전체 — 문장 하나 · 버튼 하나, 여백만 넓다 (화면 검사 #empty-one). */
 .es--rich {
   display: flex;
   flex-direction: column;
@@ -50,16 +50,6 @@
 .es--rich.es--start {
   align-items: flex-start;
   margin: 0;
-}
-
-.es-ico {
-  color: var(--text-2);
-}
-
-.es-title {
-  font-size: var(--fs-4);
-  font-weight: var(--fw-strong);
-  color: var(--text);
 }
 
 .es-desc {

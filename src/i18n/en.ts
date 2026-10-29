@@ -390,8 +390,8 @@ export const en: Record<keyof typeof ko, string> = {
   "journal.limited": "Showing {loaded} of {total}",
   "journal.loadMorePage": "Load {n} more",
   "journal.noMatch": "No entries match. (searched all time)",
-  "journal.empty":
-    "Agents write entries after reading AGENTS.md. If you already have commits, you can seed the first ones from them.",
+  "journal.empty": "Your agent writes entries, and work you already committed can become one from past commits.",
+  "journal.emptyRecent": "No entries in the last 14 days.",
   "journal.written": "Entry written: {title}",
   "journal.day.today": "Today",
   "journal.day.yesterday": "Yesterday",
@@ -476,8 +476,8 @@ export const en: Record<keyof typeof ko, string> = {
   "diff.viewUnified": "Unified",
   "diff.viewSplit": "Split",
   "diff.blockedNoFile": "Pick a file on the left first",
-  "diff.emptyWorking": "No uncommitted changes. What the last commit changed is one button away.",
-  "diff.emptyBranch": "No changes on this branch yet. Edits — an agent's or your own — show up here as soon as they land.",
+  "diff.emptyWorking": "No uncommitted changes.",
+  "diff.emptyBranch": "No changes on this branch yet.",
   "diff.changedFiles": "Changed files",
   "diff.opAdded": "Added",
   "diff.opDeleted": "Deleted",
@@ -533,7 +533,7 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.judge.pass": "✓ Passed",
   "plan.judge.fail": "✗ Failed",
   "plan.judge.notRun": "Not run yet",
-  "plan.nextRow.label": "Next",
+  "plan.nextRow.label": "Next up",
   "plan.nextRow.run": "Run in terminal",
   "plan.nextRow.untilDone": "To the end (/goal)",
   "plan.nextRow.untilDoneTitle": "Starts claude in a new terminal and hands this plan's done-when and check command to /goal. Claude Code keeps going until the condition holds",
@@ -551,7 +551,7 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.log.rows": "{n} history {n|line|lines}",
   "plan.log.decisionCount": "{n} {n|decision|decisions}",
   "plan.log.decisions": "Decisions",
-  "plan.emptyAgents": "Plans are written by your agent. Tell Claude Code in the terminal what you want, or start with /oculpm:inception, and it writes the plan file.",
+  "plan.emptyAgents": "Tell Claude Code what you want to do and a plan appears.",
   "plan.error": "Something went wrong",
   "plan.confirmDoneTitle": "Complete without a verifying entry",
   "plan.confirmDoneBody1": "has no",
@@ -725,9 +725,6 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.project_not_found": "Couldn't find the project — it may have been removed from the list.",
 
   // ── v3-surface / firstrun ────────────────────────────────────────────────
-  "journal.emptyTitle": "Not one entry yet",
-  "plan.emptyTitle": "No plan yet",
-  "diff.emptyTitle": "Nothing to diff",
 
   // ── v3-surface / activity ──────────────────────────────
   "entry.openInEditor": "Open file",
