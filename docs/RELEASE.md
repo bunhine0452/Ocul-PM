@@ -74,7 +74,7 @@ CI 는 내가 쓴 테스트만 봅니다. v3.2.0 · v3.8.0 · v3.9.0 의 결함�
 node scripts/bump-version.mjs 2.48.0 [--title-ko "…" --title-en "…"] [--dry-run]
 ```
 
-아래 표와 §4 의 6곳은 이 스크립트가 고치는 자리의 목록입니다 (손으로 고칠 때의 대조표이자, 자리가 늘면 스크립트와 `src/__tests__/bump_version.test.ts` 도 함께 늘립니다). 변경 이력 `<li>`·bento·FAQ·CHANGELOG·README 는 사람이 씁니다.
+아래 표와 §4 의 6곳은 이 스크립트가 고치는 자리의 목록입니다 (손으로 고칠 때의 대조표이자, 자리가 늘면 스크립트와 `src/__tests__/bump_version.test.ts` 도 함께 늘립니다). 변경 이력 `<li class="rel">`·작은 것들 목록·FAQ·CHANGELOG·README 는 사람이 씁니다.
 
 | 파일 | 위치 |
 | --- | --- |
@@ -105,7 +105,7 @@ node scripts/bump-version.mjs 2.48.0 [--title-ko "…" --title-en "…"] [--dry-
 
 ## 4. landing/ — **ko·en 각각** 버전 문자열 6곳 + 생성물 재빌드 + 새 기능 표면
 
-버전 문자열: `softwareVersion`(JSON-LD) · `nav-ver` 배지 · `ap-new` NEW 배지 · **다운로드 버튼 2곳**(히어로와 CTA — 둘 다 `vX.Y.Z 받기`) · CTA `eyebrow`. 변경사항 `<li>` 는 새로 **추가**하는 것이라 이 수에 들지 않습니다 (v2.15.0 에서 이 문서가 5곳이라고 적어 둔 탓에 버튼 하나를 놓칠 뻔했습니다 — 아래 grep 이 실제 심판입니다).
+버전 문자열: `softwareVersion`(JSON-LD) · `nav-ver` 배지 · `ap-new` 줄(히어로 아래 「새 판 vX.Y.Z — 제목」) · **다운로드 버튼 2곳**(히어로와 마지막 — 둘 다 `vX.Y.Z 받기`) · 마지막 판 줄 `cta-ver`. 2026-10-30 리디자인 뒤로 첫 페이지는 `home.css` 를 쓰고, 「변경 이력」 은 최근 네 판만 `<li class="rel">` 로 싣는다(전체는 `/changelog`). 변경사항 `<li>` 는 새로 **추가**하는 것이라 이 수에 들지 않습니다 (v2.15.0 에서 이 문서가 5곳이라고 적어 둔 탓에 버튼 하나를 놓칠 뻔했습니다 — 아래 grep 이 실제 심판입니다).
 
 **영문 랜딩(`landing/en/index.html`)도 같은 6곳을 갖습니다.** 이 문서가 오래 `landing/index.html` 만 적어 두어, 영문 페이지가 옛 버전에 멈출 뻔했습니다 (v2.40.0 에서 확인). `build.mjs` 는 위키·changelog·privacy 만 굽고 **en/index.html 은 손으로 고치는 면**입니다.
 
@@ -130,7 +130,7 @@ node landing/wiki-src/build.mjs
 
 - JSON-LD `featureList` 에 한 줄
 - 눈에 띄는 기능이면 FAQ 항목 (SEO 표면)
-- 벤토 그리드 셀 — 그리드는 6칸이므로 `c-span2` 3개 = 한 줄로 맞춰 넣습니다
+- 첫 페이지의 「다섯 화면과, 손에 붙는 작은 것들」(`dl.facts`) 에 한 줄 — 두 칸 정의 목록이라 짝수로 맞추면 고르다. 히어로의 실제 화면(`landing/shots/v4/{ko,en}/*.webp`)은 앱 하네스로 다시 찍는다(2026-10-30 일지)
 - 플러그인 커맨드·MCP 도구·스킬이 바뀌었으면 `landing/plugin.html` 도. **버전 배지**(`v2.30.0`)가 그 페이지에 있고 `cargo test --test plugin_manifest` 가 앱 버전과의 동기를 강제합니다 (제3자 스킬 카탈로그는 4.0 에서 스킬·규칙 화면과 함께 걷었습니다)
 - 영문 랜딩(`landing/en/index.html`)의 대응 항목 — 한국어만 고치고 두고 오기 쉽습니다
 - **기존 FAQ 가 거짓이 되지 않는지** 확인합니다. 새 항목을 더하는 것보다 이쪽이 먼저입니다 — v2.15.0 에서 「자동완성이 필요하면 외부 에디터로」라고 적힌 답변이 바로 그 자동완성을 넣는 릴리스와 충돌했습니다. 같은 문장이 JSON-LD 와 `<details>` **두 곳**에 있으니 둘 다 고칩니다

@@ -8,7 +8,7 @@
 <meta name="keywords" content="AI PM, AI 프로젝트 매니저, AI project manager, ai pm tool, Ocul, Ocul-PM, 코딩 에이전트, AI 코딩 에이전트, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, 작업 일지, 개발 일지, dev journal, agent work log, 코드 변경 추적, 코드 변경 일지, AI 페어 프로그래밍 기록, vibe coding 관리, Claude Code 작업 기록, Cursor 변경 추적, 확인 명령, 판정, 완료 조건, Claude Code 플러그인, AI 개발 도구, 로컬 우선, local-first, macOS 개발 도구, 개발 생산성, English UI, 영어 지원" />
 <meta name="author" content="Ocul" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
-<meta name="theme-color" content="#0f5b43" />
+<meta name="theme-color" content="#121514" />
 <link rel="canonical" href="https://oculpm.com/" />
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/en" />
@@ -34,7 +34,8 @@
 <meta name="twitter:image" content="https://oculpm.com/og.png" />
 
 <link rel="icon" href="icon.svg" />
-<link rel="stylesheet" href="landing.css" />
+<link rel="preload" href="/fonts/pretendard-landing.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="home.css" />
 
 <!-- Structured data: SoftwareApplication -->
 <script type="application/ld+json">
@@ -88,7 +89,7 @@
     {
       "@type": "Question",
       "name": "다음 세션은 지난 작업을 어떻게 이어받나요?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Claude Code 플러그인의 SessionStart 훅이 최근 계획의 완료 조건 · 확인 명령 · 마지막 판정 · 미완 항목과 마지막 작업 일지 3건을 시작 컨텍스트에 싣습니다 — 네트워크 없이, 프로젝트의 .oculpm/ 만 읽어서. 앱의 계획 화면에서는 [프롬프트 복사](오늘 화면에서는 c)가 다음 항목을 잡는 프롬프트를, [until-done 으로 복사]가 판정이 통과할 때까지 이어 가는 프롬프트를 클립보드에 담아 터미널의 에이전트에 붙여 넣게 합니다." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Claude Code 플러그인의 SessionStart 훅이 최근 계획의 완료 조건 · 확인 명령 · 마지막 판정 · 미완 항목과 마지막 작업 일지 3건을 시작 컨텍스트에 싣습니다 — 네트워크 없이, 프로젝트의 .oculpm/ 만 읽어서. 앱의 계획 화면에서는 [터미널에서 실행]이 앱 안 터미널의 새 세션에서 claude 가 다음 항목부터 잇게 하고, [끝까지 (/goal)]는 완료 조건 · 확인 명령을 Claude Code 의 /goal 로 넘깁니다." }
     },
     {
       "@type": "Question",
@@ -210,346 +211,218 @@
 </script>
 </head>
 <body>
+<a class="skip" href="#main">본문으로 건너뛰기</a>
 
-<!-- ══════════ 네비 ══════════ -->
-<nav class="nav">
+<header class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="icon.svg" alt="" width="22" height="22" />Ocul</a>
+    <a class="brand" href="/"><img src="icon.svg" alt="" width="24" height="24" />Ocul</a>
     <span class="nav-ver" data-version>v4.1.0</span>
-    <div class="nav-links">
-      <a href="#acts">기능</a>
+    <nav class="nav-links" aria-label="사이트">
+      <a href="#screens">화면</a>
       <a href="/wiki">위키</a>
       <a href="#updates">변경 이력</a>
-      <a href="#faq">FAQ</a>
       <a href="/plugin">플러그인</a>
       <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
-    </div>
+    </nav>
+    <span class="nav-spacer"></span>
     <a class="nav-lang" href="/en" hreflang="en">English</a>
-    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">다운로드</a>
+    <a class="btn primary nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">내려받기</a>
   </div>
-</nav>
-
-<!-- ══════════ 히어로 ══════════ -->
-<header class="hero">
-  <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v4.1.0 — Claude 와 주고받기, 이름은 Ocul</a>
-  <h1 class="reveal on">AI와 어제 어디까지 작업했는지,<br /><span class="g">오늘 다시 설명하지 마세요.</span></h1>
-  <p class="hero-sub reveal on">
-    <b>Ocul</b> 은 에이전트가 한 일을 사람이 <b>3분 안에 믿고, 다음을 결정</b>하게 하고,
-    에이전트는 어떤 일이든 <b>판정부터 깔고</b> 시작하게 합니다. 일지·diff·계획이 그 증거이고,
-    판정은 에이전트의 말이 아니라 확인 명령의 결과 끝 줄입니다. <b>로컬-우선.</b> 계정도, 서버도, 텔레메트리도 없고 — 앱은 LLM 을 부르지 않습니다.
-  </p>
-  <div class="hero-ctas reveal on">
-    <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v4.1.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
-    </a>
-  </div>
-  <p class="dl-os reveal on" data-dl-os>
-    <span class="beta">베타</span>
-    <a data-asset="_x64-setup.exe" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Windows x64</a>
-    <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
-    <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
-  </p>
-  <p class="hero-fine">매일 AI 로 개발하는 사람을 위한 앱입니다 · Claude Code 사용자는 <a href="/plugin">플러그인 두 줄</a>로도 시작할 수 있습니다</p>
-  <p class="hero-ph reveal on">
-    <a href="https://www.producthunt.com/products/ocul-pm?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ocul-pm" target="_blank" rel="noreferrer">
-      <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1237239&amp;theme=dark" alt="Ocul — Product Hunt 에서 보기" width="250" height="54" loading="lazy" />
-    </a>
-  </p>
-  <figure class="hero-shot reveal">
-    <video src="demo.mp4" poster="demo-poster.jpg" width="1512" height="950" autoplay muted loop playsinline preload="metadata" aria-label="Ocul 데모 — 에이전트에게 변경을 시키면 작업 일지가 저절로 쌓이는 28초"></video>
-    <figcaption><b>3.x 화면.</b> 「delete 명령을 추가해」 한 줄 — 에이전트가 고치고, 일지가 저절로 쌓입니다. 4.0 의 앱 안 터미널은 윗줄의 탭 하나(⌘5)로 작아졌고, 여러분의 터미널에서 돌려도 같은 기록이 남습니다. 서버 없음.</figcaption>
-  </figure>
 </header>
 
-<!-- ══════════ 한 왕복 ══════════ -->
-<section class="loop" id="loop">
-  <div class="sec-head">
-    <span class="eyebrow reveal">작업 · 일지와 판정 · 이어하기</span>
-    <h2 class="reveal">기능 목록 대신,<br />왕복 하나.</h2>
-    <p class="reveal">평소 쓰는 프로젝트에서 그대로 해 보세요. 이 왕복이 되면 이 앱은 제 몫을 한 것입니다. <b>약속은 이 왕복이 전부</b>입니다 — 에이전트는 당신의 터미널에서 돌고, 앱은 기록 · 증거 · 계획만 보여 줍니다.</p>
-  </div>
-  <ol class="loop-steps">
-    <li class="loop-step reveal">
-      <span class="num">01 · 작업</span>
-      <h3>평소처럼 시킵니다.</h3>
-      <p>터미널의 Claude Code 에 평소 하던 대로. 앱에서 폴더를 고르고 기록을 켜면 <b>AGENTS.md</b> 가 심어지고,
-      플러그인 두 줄이면 훅과 기록 도구까지 붙습니다.</p>
-    </li>
-    <li class="loop-step reveal d1">
-      <span class="num">02 · 일지와 판정</span>
-      <h3>일지가 앱에 섭니다.</h3>
-      <p>작업이 끝나면 에이전트가 일지를 남기고, 몇 초 안에 작업 일지와 오늘 화면에 뜹니다. 검증 칸에 돌린 명령과
-      <b>결과 끝 줄</b>이 없으면 오늘 화면 「확인할 것」에 서고, 계획의 확인 명령 결과는 <b>「판정 ✓|✗」</b> 한 줄로 남아 계획 화면의 마지막 판정이 됩니다.</p>
-    </li>
-    <li class="loop-step reveal d2">
-      <span class="num">03 · 이어하기</span>
-      <h3>다음 대화가 이어받습니다.</h3>
-      <p>다음 날 새 대화를 열면 훅이 최근 계획의 <b>완료 조건 · 확인 명령 · 마지막 판정</b> · 미완 항목과 마지막 일지 3건을 <b>시작 컨텍스트</b>에 싣습니다.
-      [터미널에서 실행]이 앱 안 터미널의 새 세션에서 <code>claude</code> 가 다음 항목부터 잇게 하고, [끝까지 (/goal)]는 판정이 통과할 때까지 이어 갑니다.
-      어제를 다시 설명하지 않습니다.</p>
-    </li>
-  </ol>
-  <p class="loop-note reveal">릴리스마다 사람이 확인하는 경로는 <b>터미널의 Claude Code + oculpm 플러그인</b>입니다. Codex · Cursor · Gemini CLI 는 규칙 파일로 1 · 2 단계가 되고, Codex 는 플러그인 훅도 있습니다.</p>
-</section>
-
-<!-- ══════════ 문제 제기 ══════════ -->
-<section class="gap">
-  <h2 class="reveal">어제, 에이전트는 3,000줄을 고쳤습니다.</h2>
-  <div class="gap-nums reveal" aria-hidden="true">
-    <span><span class="n">3,000</span><span class="lbl">에이전트가 고친 줄</span></span>
-    <span class="vs">vs</span>
-    <span><span class="n dim">0</span><span class="lbl">당신이 설명할 수 있는 줄</span></span>
-  </div>
-  <p class="reveal">코드는 그 어느 때보다 빨라졌는데, 오늘 아침 새 대화의 첫 10분은 어제를 다시 설명하는 데 씁니다.
-  속도를 얻고 기억을 잃는 것 — 에이전트 시대의 트레이드오프를 Ocul 이 끊습니다.</p>
-</section>
-
-<!-- ══════════ 왜 결과가 좋아지나 ══════════ -->
-<section class="sec" id="why" style="padding-top: 0;">
-  <div class="sec-head">
-    <span class="eyebrow reveal">에이전트에게서 최선을 끌어내는 다섯 원칙</span>
-    <h2 class="reveal">잘 쓰는 법은 알려져 있습니다.<br />문제는 매 세션 잊는다는 것.</h2>
-    <p class="reveal">Anthropic 의 Claude Code 안내서 · Simon Willison 의 에이전트 공학 패턴 · Sonar 의 2026 개발자 조사 · METR 의 생산성 실측이 같은 다섯 줄을 말합니다. 그리고 그 다섯은 <b>/clear 한 번에 사라집니다</b>. Ocul 은 그 다섯 질문이 세션 경계를 넘어 <b>사라지지 않는 자리</b>입니다 — Rieseberg 가 말한 고도 · 깊이 · 범위 그대로.</p>
-  </div>
-  <div class="bento">
-    <div class="cell c-span2 reveal"><span class="cell-tag">① 코드 전에 완료 조건</span><h3>목표의 목표를 적는다</h3><p>"사양을 먼저 쓰고 그것으로 빌드한다" — Anthropic. 플랜마다 <b>완료 조건</b> 한 줄이 있고, 시작 훅이 매 세션 <b>항목보다 먼저</b> 싣습니다. 에이전트는 할 일이 아니라 결과를 받고 시작합니다.</p></div>
-    <div class="cell c-span2 reveal d1"><span class="cell-tag">② 통과/실패를 내는 것</span><h3>확인 명령을 준다</h3><p>"돌리면 pass 나 fail 이 나오는 것을 주라" — Anthropic. 플랜의 <b>확인 명령</b>을 돌린 결과는 <code>판정 ✓|✗ &lt;결과 끝 줄&gt;</code> 로 남고, 시작 훅과 계획 화면이 같은 규칙으로 <b>마지막 판정</b>을 읽습니다. 항목이 다 닫혀도 판정이 통과해야 끝.</p></div>
-    <div class="cell c-span2 reveal d2"><span class="cell-tag">③ 주장이 아니라 출력</span><h3>증거 없는 일지는 앞으로</h3><p>"'테스트 다 통과' 한 줄은 거의 아무것도 말해 주지 않는다" — Anthropic. 검증 칸에 <b>명령과 그 결과 끝 줄</b>이 없는 일지는 오늘 화면 「확인할 것」에 서고, 일지 상세가 「주장이에요」 라고 짚습니다.</p></div>
-    <div class="cell c-span2 reveal"><span class="cell-tag">④ 초록이어도 돌려 본다</span><h3>판정은 네가 아닌 것이</h3><p>"테스트가 통과해도 서버가 뜬다는 뜻은 아니다" — Willison. 규칙 템플릿 v20 은 확인 명령이 없으면 <b>그것부터 만들고</b>, 초록이어도 가능하면 실제로 띄워 한 번 써 보라고 합니다. 실패도 error 일지로 남깁니다.</p></div>
-    <div class="cell c-span2 reveal d1"><span class="cell-tag">⑤ 바깥 심판</span><h3>레드팀과 하루 한 줄</h3><p>개발자 96% 가 AI 코드를 믿지 않으면서 48% 만 늘 확인합니다(Sonar 2026). <code>/oculpm:redteam</code> 이 합류 전 반례를 찾고, 오늘 화면 맨 위 한 줄이 <b>바깥 심판 증거</b>가 있는 일지 비율을 매일 보여 줍니다 — 목표는 숫자로, 97%(METR: 느낌 ≠ 실측).</p></div>
-    <div class="cell c-span2 reveal d2"><span class="cell-tag">못 주는 것</span><h3>야망 자체</h3><p>더 큰 질문을 던지는 것은 사람의 몫입니다. Ocul 은 완료 조건을 <b>대신 만들지 않고</b> 판정을 <b>대신 내리지 않습니다</b> — 묻고 짚되 막지 않습니다. 그 선을 넘으면 모델이 스스로를 심판하는 상태가 됩니다.</p></div>
-  </div>
-</section>
-
-<!-- ══════════ 3막 ══════════ -->
-<section class="sec" id="acts">
-  <div class="sec-head">
-    <span class="eyebrow reveal">오늘 · 작업 일지 · 계획 · 변경 · 설정</span>
-    <h2 class="reveal">다섯 면이 전부입니다.<br />예외만 보여 줍니다.</h2>
-    <p class="reveal">화면의 크기는 에이전트가 한 양이 아니라 <b>사람이 볼 것</b>에 비례합니다.
-    하루 3건 쓰는 사람과 60건 쓰는 사람이 모드 없이 같은 화면을 씁니다. 아래 그림은 다시 찍는 중인 3.x 화면입니다.</p>
-  </div>
-
-  <!-- Act 1 — 오늘 · 작업 일지 -->
-  <div class="act">
-    <div class="act-copy reveal">
-      <span class="num">01 · 오늘 · 작업 일지</span>
-      <h3>볼 것만 펼칩니다.</h3>
-      <p>에이전트가 일을 마치는 순간, 일지는 <b>이미 쓰여 있습니다.</b> 오늘 화면은 그중
-      <b>사람이 볼 것만</b> 「확인할 것」으로 펼치고, 증거가 선 일은 계획별로 한 줄에 접습니다.</p>
-      <ul>
-        <li><b>확인할 것</b> — 판정 실패 · 명령 증거 없는 일지 · 어느 일지에도 없는 변경 · 막힘 · 사람 몫 결정 · 플러그인 새 판</li>
-        <li><b>하루 한 줄</b> — 기록 · 바깥 심판 증거와 그 비율 · 세션 · 확인할 것</li>
-        <li><b>작업 일지</b> — 검증 상자(돌린 명령과 결과 끝 줄) · 파일별 인라인 diff · 일지 검색(/)</li>
-      </ul>
+<main id="main">
+<section class="hero" aria-labelledby="hero-h">
+  <div class="wrap">
+    <h1 id="hero-h">AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요.</h1>
+    <p class="lede">에이전트가 일을 끝낼 때마다 <b>무엇을 했고 무엇으로 확인했는지</b>가 일지로 남고, 다음 대화는 그걸 이어받아 시작합니다. Ocul 은 그중 사람이 볼 것만 펼칩니다.</p>
+    <div class="ctas">
+      <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+        <span class="lg">v4.1.0 받기</span><span class="sub">macOS · 무료</span>
+      </a>
+      <button class="cmd two" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Claude Code 플러그인 설치 명령 두 줄 복사"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">두 줄 복사</span></button>
     </div>
-    <div class="act-media stack">
-      <figure class="reveal">
-        <img src="shots/en/02-journal.jpg" alt="작업 일지 (3.x 화면) — 에이전트·모델별로 분류된 일지 목록" width="1600" height="1004" loading="lazy" />
-        <figcaption>3.x 화면 — 사이드바의 검색 · 터미널 · 에이전트 등은 4.0 에서 걷었습니다.</figcaption>
+    <div class="subrow">
+      <p class="os" data-dl-os>Windows · Linux 는 베타
+        <a data-asset="_x64-setup.exe" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Windows x64</a>
+        <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
+        <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
+      </p>
+      <a class="whatsnew" href="#updates"><span class="ap-new">새 판</span>&nbsp; v4.1.0 — Claude 가 기다리면 알고, 앱에서 답합니다</a>
+    </div>
+
+    <div class="stage" id="screens" data-app>
+      <figure class="app">
+        <div class="app-bar">
+          <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="proj" aria-hidden="true">ai-pm</span>
+          <div role="tablist" aria-label="Ocul 의 다섯 화면">
+            <button class="tab" role="tab" id="t-today" aria-controls="s-today" aria-selected="true" data-tab="today">오늘 <span class="n">4</span></button>
+            <button class="tab" role="tab" id="t-journal" aria-controls="s-journal" aria-selected="false" tabindex="-1" data-tab="journal">작업 일지</button>
+            <button class="tab" role="tab" id="t-planner" aria-controls="s-planner" aria-selected="false" tabindex="-1" data-tab="planner">계획</button>
+            <button class="tab" role="tab" id="t-diff" aria-controls="s-diff" aria-selected="false" tabindex="-1" data-tab="diff">변경 <span class="n">3</span></button>
+            <button class="tab" role="tab" id="t-terminal" aria-controls="s-terminal" aria-selected="false" tabindex="-1" data-tab="terminal">터미널</button>
+          </div>
+          <span class="app-find" aria-hidden="true">찾기 ⌘K</span>
+        </div>
+        <div class="app-body">
+          <div class="screen on" role="tabpanel" id="s-today" aria-labelledby="t-today">
+            <img src="shots/v4/ko/today.webp" width="1180" height="676" alt="오늘 화면. 먼저 볼 것 넷: Claude 가 물어요, Claude 가 기다려요, 확인 명령 실패, 일지 없는 변경. 그 아래 검증 없이 끝난 일지 다섯 건과 다음 할 일." />
+            <button class="hot" type="button" data-answer="그대로 두기" style="left:24.66%;top:22.04%;width:6.53%;height:3.85%" aria-label="Claude 의 질문에 「그대로 두기」로 답하기"></button>
+            <button class="hot" type="button" data-answer="바꾸기" style="left:31.69%;top:22.04%;width:4.49%;height:3.85%" aria-label="Claude 의 질문에 「바꾸기」로 답하기"></button>
+            <span class="hint" style="left:37.4%;top:21.5%" aria-hidden="true">눌러서 Claude 에게 답해 보세요</span>
+            <span class="sent" style="left:24.5%;top:21.4%;width:59.4%"><span>답을 보냈어요:</span><span data-answer-echo>그대로 두기</span></span>
+          </div>
+          <div class="screen" role="tabpanel" id="s-journal" aria-labelledby="t-journal">
+            <img src="shots/v4/ko/journal.webp" width="1180" height="676" loading="lazy" alt="작업 일지 화면: 왼쪽 목록과, 일지 「보이는 이름은 Ocul」 의 본문: 업데이트 경로 검토, 바꾼 것, 그대로 둔 것." />
+          </div>
+          <div class="screen" role="tabpanel" id="s-planner" aria-labelledby="t-planner">
+            <img src="shots/v4/ko/planner.webp" width="1180" height="676" loading="lazy" alt="계획 화면: 완료 조건, 마지막 결과(확인 명령 실패: 1 failed · 71 passed), 단계별 항목." />
+          </div>
+          <div class="screen" role="tabpanel" id="s-diff" aria-labelledby="t-diff">
+            <img src="shots/v4/ko/diff.webp" width="1180" height="676" loading="lazy" alt="변경 화면: 일지 없는 파일 셋이 맨 위에, 「Claude 에게 맡기기」 버튼과 줄 단위 diff." />
+          </div>
+          <div class="screen term" role="tabpanel" id="s-terminal" aria-labelledby="t-terminal">
+            <p><span class="g">➜</span>  <b>ai-pm</b> <span class="dim">git:(main)</span> claude "$OCULPM_PROMPT"</p>
+            <p class="box">✻ Welcome to <b>Claude Code</b></p>
+            <p>&gt; 계획 ocul-next 의 다음 항목: 보이는 이름은 Ocul — 설치 이름은 그대로</p>
+            <p><span class="g">⏺</span> 메뉴 · 창 제목 · 문구 14곳을 고쳤어요. 설치 이름(productName)은 그대로 둡니다.</p>
+            <p><span class="g">⏺</span> Bash(pnpm test &amp;&amp; cargo test --locked)</p>
+            <p>  ⎿  <span class="ok">Tests 944 passed · test result: ok. 1153 passed</span></p>
+            <p><span class="g">⏺</span> oculpm - ask_user (MCP)(question: "Windows 시작 메뉴의 이름도 Ocul 로 바꿀까요?")</p>
+            <p class="waiting dim">  ⎿  Ocul 의 오늘 화면에서 답을 기다리는 중…</p>
+            <p class="later" style="--d:0ms">  ⎿  answer: "<span data-answer-echo>그대로 두기</span>"  <span class="dim">(Ocul 오늘 화면에서)</span></p>
+            <p class="later" style="--d:160ms"><span class="g">⏺</span> <span data-answer-reply>알겠어요. Windows 시작 메뉴 이름은 Ocul-PM 그대로 둡니다.</span></p>
+            <p class="later" style="--d:320ms"><span class="g">⏺</span> oculpm - journal_write (MCP)(title: "보이는 이름은 Ocul — 설치 이름은 그대로")</p>
+            <p class="later" style="--d:480ms"><span class="g">⏺</span> oculpm - plan_update (MCP)(rename-visible → done, "판정 ✓ Tests 944 passed")</p>
+          </div>
+        </div>
       </figure>
-      <figure class="reveal d1">
-        <img src="shots/en/01-today.jpg" alt="Today (3.x 화면)" width="1600" height="1004" loading="lazy" />
-        <figcaption>3.x 의 오늘 화면 — 4.0 은 카드 대신 「확인할 것」 한 목록입니다.</figcaption>
-      </figure>
+      <div class="ask-m" aria-label="Claude 가 물어요">
+        <span class="k">Claude 가 물어요</span>
+        <p class="q">Windows 시작 메뉴의 이름도 Ocul 로 바꿀까요? 바꾸면 옛 판 옆에 하나 더 깔릴 수 있어요.</p>
+        <div class="ans"><button class="btn" type="button" data-answer="그대로 두기">그대로 두기</button><button class="btn" type="button" data-answer="바꾸기">바꾸기</button></div>
+        <p class="tip">답을 누르면 위 창의 터미널에서 Claude 가 그 답을 받습니다.</p>
+        <p class="done">답을 보냈어요: <span data-answer-echo>그대로 두기</span>. 위 창의 터미널에서 이어집니다.</p>
+      </div>
+      <p class="app-cap"><span data-cap aria-live="polite"><b>오늘</b>사람이 볼 것만 위로 올라옵니다. Claude 의 질문과 기다림, 실패한 판정, 일지 없는 변경.</span><span class="demo">실제 앱 화면 · 이 저장소의 일지로 채운 데모</span></p>
     </div>
-  </div>
-
-  <!-- Act 2 — 계획 · 변경 -->
-  <div class="act flip">
-    <div class="act-copy reveal">
-      <span class="num">02 · 계획 · 변경</span>
-      <h3>믿지 마십시오. 판정을 보십시오.</h3>
-      <p>계획 화면은 제목 바로 아래 <b>완료 조건 · 확인 명령 · 마지막 판정</b>. 변경 화면은 커밋하기 전에
-      <b>로컬 diff</b> 를 줄 단위로 — 어느 일지에도 없는 파일이 먼저 섭니다.</p>
-      <ul>
-        <li><b>마지막 판정</b> — 판정이 없으면 「아직 안 돌렸어요」, 실패면 오늘 화면 맨 위로</li>
-        <li><b>Claude 에게 맡기기</b> — 일지 없는 변경을 앱 안 터미널의 claude 에게 기록해 달라고</li>
-        <li><b>전부 로컬</b> — 앱은 LLM 을 부르지 않고, 화면은 바깥 호스트에 닿지 않습니다</li>
-      </ul>
-    </div>
-    <div class="act-media stack">
-      <figure class="reveal">
-        <img src="shots/en/03-diff.jpg" alt="변경 diff (3.x 화면) — 에이전트가 만든 변경의 줄 단위 로컬 diff" width="1600" height="1004" loading="lazy" />
-        <figcaption>3.x 의 변경 화면 — 커밋 전에, 앱 안에서.</figcaption>
-      </figure>
-    </div>
-  </div>
-
-</section>
-
-<!-- ══════════ 나머지 기능 그리드 ══════════ -->
-<section class="sec" style="padding-top: 0;">
-  <div class="sec-head">
-    <span class="eyebrow reveal">그리고 이것뿐</span>
-    <h2 class="reveal">덜어낸 만큼<br />남은 것이 단단합니다.</h2>
-  </div>
-  <div class="grid">
-    <div class="cell c-span2 reveal"><span class="cell-tag">마지막 판정</span><h3>심판이 뭐라 했나</h3><p>확인 명령의 결과를 <code>판정 ✓|✗ &lt;결과 끝 줄&gt;</code> 한 줄로. 시작 훅과 계획 화면이 <b>같은 규칙</b>으로 읽어, 다음 세션도 사람도 같은 판정을 봅니다.</p></div>
-    <div class="cell c-span2 reveal d1"><span class="cell-tag">/oculpm:inception</span><h3>판정부터 깔고 시작</h3><p>「그다음 무엇이 일어나야 하나」 → 깊이 네 질문 → 분야의 방법 → 어려운 숫자 목표 → <b>지금 빨간 확인 명령</b>이 첫 항목인 계획.</p></div>
-    <div class="cell c-span2 reveal d2"><span class="cell-tag">/oculpm:next</span><h3>잡고, 통과할 때까지</h3><p>잡은 항목을 <b><code>[~]</code> 로 먼저 선점</b>해 병렬 세션이 같은 일을 잡지 않습니다. <code>until-done</code> 이면 판정이 통과할 때까지 이어 갑니다.</p></div>
-    <div class="cell c-span2 reveal"><span class="cell-tag">일지 없는 변경</span><h3>적지 않은 파일을 짚습니다</h3><p>어느 일지에도 없는 파일이 변경 화면 맨 위에. <b>[Claude 에게 맡기기]</b>가 그 목록으로 앱 안 터미널의 claude 에 기록을 부탁합니다.</p></div>
-    <div class="cell c-span2 reveal d1"><span class="cell-tag">창 하나 = 프로젝트 하나</span><h3>탭 대신 OS 의 창</h3><p><b>⌘O</b> 최근 프로젝트, <b>⇧⌘N</b> 새 창, <b>⌘W</b> 창 닫기. 이미 열린 프로젝트를 고르면 그 창이 앞으로 옵니다.</p></div>
-    <div class="cell c-span2 reveal d2"><span class="cell-tag">⌘K · ⌃Tab · ⌥⌘1~9</span><h3>윗줄까지 가지 않고</h3><p>⌘K 로 화면 · 프로젝트 · 일지 · 계획을 찾고, <b>⌃Tab</b> 으로 화면을 돌고, 두 손가락 쓸기로 뒤로 · 앞으로, <b>⌥⌘1~9</b> 로 다른 프로젝트 창. 오늘 화면은 <b>j/k · v · r</b> 로 끝납니다.</p></div>
-    <div class="cell c-span2 reveal"><span class="cell-tag">LLM 0</span><h3>생각은 에이전트가</h3><p>앱 안 요약 · 롤업 · AI 갱신 · API 키를 걷었습니다. 앱은 <b>증거를 결정적으로</b> 보여 주고, 화면은 바깥 호스트에 닿지 않습니다.</p></div>
-    <div class="cell c-span2 reveal d1"><span class="cell-tag">/plugin 두 줄</span><h3>Claude Code 플러그인</h3><p>앱 없이도 시작할 수 있습니다 — 훅 브리지 · MCP 도구 8종 · 커맨드 넷이 두 줄로 설치됩니다.</p></div>
-    <div class="cell c-span2 reveal"><span class="cell-tag">OSC 7501 · Notification 훅</span><h3>Claude 가 기다리면 압니다</h3><p>앱 안 터미널이든 밖이든, Claude 가 사람을 기다리면 오늘 화면 맨 위에 한 줄, 창이 뒤에 있으면 OS 알림. 프로젝트 목록은 프로젝트마다 <b>내 차례 · 새 소식 · 실행 중 N</b>.</p></div>
-    <div class="cell c-span2 reveal d1"><span class="cell-tag">ask_user</span><h3>Claude 가 묻고, 앱에서 답합니다</h3><p>Claude 가 MCP 도구로 질문을 띄우면 오늘 화면에서 고르거나 써서 답합니다. 답은 그대로 그 Claude 에게 돌아갑니다 — 터미널을 보고 있지 않아도.</p></div>
-    <div class="cell c-span2 reveal d2"><span class="cell-tag">Claude 에게 보내기 · /goal</span><h3>앱에서 Claude 에게</h3><p>일지 · 계획 항목 · 변경 파일을 맥락으로 붙여 도는 claude 세션에 넣습니다. 계획의 <b>「끝까지」</b> 는 완료 조건 · 확인 명령을 <code>/goal</code> 로 넘깁니다.</p></div>
-    <div class="cell c-span2 reveal d2"><span class="cell-tag">확인의 효력</span><h3>확인 뒤 바뀌면 다시 묻습니다</h3><p>확인 표시는 그때 본문의 <b>지문</b>과 함께 남습니다. 에이전트가 뒤에 고치면 확인된 것으로 세지 않고, 다시 읽고 누르면 지금 내용에 묶입니다.</p></div>
   </div>
 </section>
 
-
-<!-- ══════════ 변경 이력 ══════════ -->
-<section class="sec updates" id="updates">
-  <div class="sec-head">
-    <span class="eyebrow reveal">Changelog</span>
-    <h2 class="reveal">매주 조금씩, 꾸준히.</h2>
-    <p class="reveal">이 앱은 자기 자신으로 개발됩니다 — 아래 이력 전부가 Ocul 의 작업 일지에서 나왔습니다.</p>
+<section class="sec" id="loop" aria-labelledby="loop-h">
+  <div class="wrap">
+    <h2 id="loop-h">어제를 다시 설명하지 않는 하루.</h2>
+    <p class="intro">기능 목록보다 이 왕복 하나가 이 앱의 전부입니다. 평소 쓰는 프로젝트에서 그대로 해 보세요.</p>
+    <ol class="day">
+      <li class="step">
+        <h3><time>어제 18:40</time>평소처럼 시킵니다.</h3>
+        <p>터미널의 Claude Code 에 하던 대로. 폴더에서 기록을 켜면 <code>AGENTS.md</code> 가 심어지고, 플러그인 두 줄이면 훅과 기록 도구가 붙습니다.</p>
+        <div class="artifact" aria-hidden="true"><p>&gt; 앱 이름을 Ocul 로 바꿔 줘. 설치 이름은 그대로.</p><p><span class="g">⏺</span> Bash(pnpm test)</p><p>  ⎿  <span class="ok">Tests 944 passed</span></p></div>
+      </li>
+      <li class="step">
+        <h3><time>18:41</time>일지와 판정이 남습니다.</h3>
+        <p>끝나면 에이전트가 일지를 남기고 몇 초 안에 앱에 섭니다. 확인 명령의 결과는 판정 한 줄로 계획에 붙습니다.</p>
+        <img class="shot" src="shots/v4/ko/step-journal.webp" width="450" height="108" loading="lazy" alt="작업 일지의 머리: 기능 추가, 10월 30일 01:08, Claude Code · Opus 5.5, 제목 「보이는 이름은 Ocul — 설치 이름은 Ocul-PM 그대로」, 파일로 열기와 Claude 에게 보내기 버튼." />
+      </li>
+      <li class="step">
+        <h3><time>오늘 09:02</time>다음 대화가 이어받습니다.</h3>
+        <p>새 대화를 열면 시작 훅이 계획의 완료 조건 · 확인 명령 · 마지막 판정과 최근 일지 3건을 먼저 싣습니다. 앱의 계획 화면에도 같은 판정이 섭니다.</p>
+        <img class="shot" src="shots/v4/ko/step-verdict.webp" width="330" height="110" loading="lazy" alt="계획 화면의 마지막 결과: 통과, 어제 11:05 Claude Code, test result: ok. 1158 passed; 0 failed." />
+      </li>
+    </ol>
+    <p class="loop-note">Codex · Cursor · Gemini CLI 도 프로젝트의 <code>AGENTS.md</code> 를 읽고 같은 규칙으로 일지를 남깁니다. 사람이 릴리스마다 확인하는 경로는 터미널의 Claude Code 와 oculpm 플러그인입니다.</p>
   </div>
-  <ul class="update-points">
-    <li class="reveal"><b>v4.1.0 — Claude 와 주고받기, 이름은 Ocul</b> · 보이는 이름이 <b>Ocul</b> 이 됐습니다(설치된 앱 · 내려받는 파일 · 데이터 폴더 · 플러그인은 이름이 그대로라 업데이트가 같은 자리에 깔립니다). 앱 안 터미널이 Claude 의 상태 신호(OSC 7501)로 <b>일하는 중 · 기다림 · 끝남</b>을 알아, 기다리면 오늘 「먼저 볼 것」 맨 위에 한 줄과 OS 알림 — 앱 밖 터미널의 Claude 도 플러그인 Notification 훅으로 같습니다. 새 MCP 도구 <code>ask_user</code> 로 <b>Claude 가 묻고 앱에서 답합니다</b>. 일지 · 계획 항목 · 변경 파일의 「Claude 에게 보내기」, 계획의 「끝까지」 는 <code>/goal</code> 로. ⌃Tab 화면 순환 · 두 손가락 쓸기 · ⌥⌘1~9 프로젝트 창, 첫 실행의 「처음 쓰는 법」. 프로젝트 목록에는 프로젝트마다 「내 차례 · 새 소식 · 실행 중 N」, 무언가 도는 창을 닫으면 먼저 묻습니다. 화면을 다시 봐서 한 개념 한 이름 · 12px 아래 글자 없음 · 빈 화면 한 모양. <b>확인 날 없이</b> 낸 판입니다.</li>
-    <li class="reveal"><b>v4.0.0 — 다섯 면, 예외만</b> · 앱이 <b>오늘 · 작업 일지 · 계획 · 변경 · 설정</b> 다섯 면이 됐고, 사이드바 없이 창 위 한 줄에 섭니다. 앱 안 <b>터미널</b>은 작게 돌아와 「다음」 을 새 세션의 <code>claude</code> 로 바로 엽니다. 코드 의미검색(앱 DB 의 절반이던 색인) · 앱 안 LLM · 자동화 · 논의 · 스킬 · 브랜치 화면 · 메뉴바 트레이 · 테마 프리셋 · 밀도 토글 · 탭을 실측 근거로 걷었고, 일지·계획 파일은 하나도 지우지 않습니다. 오늘 화면은 <b>판정 실패 · 증거 없음 · 기록 없는 변경 · 막힘 · 결정 필요</b>만 펼치고 증거가 선 일은 한 줄로 접습니다 — 하루 3건이든 60건이든 같은 화면. 계획의 끝은 항목이 아니라 <b>마지막 판정</b>(확인 명령의 결과 끝 줄)이고, 세션 시작 컨텍스트도 같은 줄을 읽습니다. 창 하나 = 프로젝트 하나, 앱은 LLM 을 부르지 않고 화면은 바깥에 닿지 않습니다. 규칙 템플릿 v20 과 <code>/oculpm:inception</code> · <code>/oculpm:next until-done</code> 은 어떤 프로젝트든 <b>판정부터</b> 깔게 합니다.</li>
-    <li class="reveal"><b>v3.17.0 — 첫 실행부터 터미널까지, 시안 그대로</b> · 프로젝트 없는 시작 탭은 <b>「에이전트가 일하는 폴더를 추가하세요」</b> 한 가지 행동, 폴더를 넣으면 오늘 화면에 <b>세 단계 시트</b>(규칙 파일 → 플러그인 → 첫 작업). 시작 탭 머리는 「오늘 어디서부터?」 — 1위 프로젝트의 최근 일지 셋과 <b>「이 맥락으로 이어서 작업」</b>, 행마다 증거 · 미기록 · 다음 할 일(모르는 값은 —). 오늘 머리의 <b>숫자 셋</b>과 ③ 칼럼의 이어하기, 일지의 사람 확인 줄 · 다음 행동 줄 · 「증거 없음」 필터, 변경의 <b>일지별 묶기</b>, 플래너의 사용자 몫 필 · 변경 로그, 브랜치 영수증의 바깥 심판(CI 는 <b>「이 앱은 몰라요」</b>), 논의 선택지 카드와 「결정」 상자, 터미널(베타)의 <b>결과 끝 줄 바 · ⇧⌘J 검증 칸으로</b> · 에러 일지 초안 · 한 줄로 접히는 도크, 설정 「표시」의 밀도 카드 · 베타 화면 숨기기 · 단축키 힌트. <b>같은 날 둘째 판, 확인 날 없이</b> 냈고 Windows·Linux 가 다시 실립니다.</li>
-    <li class="reveal"><b>v3.16.0 — 초보부터 심화까지 같은 앱</b> · 모든 화면 툴바 오른쪽 끝의 <b>「간단 / 전문」</b> 토글(⌘.)로 같은 화면의 접힘·행 높이·힌트만 달라집니다. 기본은 간단. 사이드바는 <b>등급 그대로 세 단</b> — 핵심 넷은 항상, 도구·베타는 접힌 채 시작해 그 화면이 열리면 저절로 펼쳐집니다(숨김이 아니라 접힘, ⌘번호·⌘K 는 늘 닿음). 오늘 화면은 <b>세 질문</b>(무엇을 했나 · 믿을 수 있나 · 다음은) 세 칼럼과 「더 보기」. 일지 상세는 <b>증거 카드</b>가 제목 바로 아래, 플래너 머리글은 <b>완료 조건 → 확인 명령 → 항목</b>이고 항목이 전부 닫힌 열린 플랜에는 「항목 완료 ≠ 목표 달성」 띠. <b>확인 날 없이 낸 판</b>입니다.</li>
-    <li class="reveal"><b>v3.15.1 — 기록을 믿을 수 있게</b> · 설정의 플러그인 블록이 <b>「깔린 판 · 앱이 든 판」</b>을 보여 주고, 프로젝트의 Claude Code 플러그인이 앱보다 낮으면 오늘 화면에 <code>/plugin update</code> 카드가 섭니다(만든 기기에서조차 3.3.0 으로 다섯 주 멈춰 「이어하기」가 비어 있었습니다). 일지 행에 <b>「증거 있음」</b> 방패 배지 — 검증 칸의 명령 증거(83%)를 사람 확인(1%)과 다른 사실로. 플래너 위에 <b>닫힌 플랜의 미완 받은함</b>(잠긴 플랜 20개의 63건), 「이 플랜으로」가 활성 플랜 「이월」 단계에 옮깁니다. 같은 모델의 30가지 표기가 <b>한 이름</b>으로, 파일 목록 없이 쓴 일지는 git 이 채웁니다. 규격을 어긴 일지(<code>type: fix</code>, 따옴표 없는 경로)도 읽고, 증분 색인의 유령 행 경합을 닫았습니다. ACP 어댑터 0.97.0. <b>확인 날 없이 낸 판</b>입니다 — 실기기 확인 4건은 플랜에 빚으로 남겼습니다.</li>
-    <li class="reveal"><b>v3.14.0 — 터미널은 한 줄로, 마크다운은 노션처럼</b> · 코드 화면의 <code>.md</code> 와 논의 문서가 <b>글이 그려진 채로</b> 열리고, <code>/</code> 로 제목·할 일·표·코드 블록을 넣습니다(경로 줄의 「리치 / 원문」 으로 오갑니다). 편집기가 표 칸을 맞추거나 목록 기호를 바꾸면 에이전트와 같이 쓰는 파일에 diff 소음이 생기므로, <b>손대지 않은 블록은 원문 그대로</b> 저장하고 고친 블록만 새로 씁니다 — 저장소의 마크다운 전부를 열고 닫아 한 글자도 안 바뀌는 것을 확인했습니다. 에이전트가 열린 파일을 고쳐 충돌 띠가 뜨면 <b>「바뀐 곳 비교」</b> 로 겹쳐 본 뒤 고르고, 바깥에서 지워진 파일은 <b>「다시 만들기」</b> 로 살립니다. 터미널 화면은 위 세 줄을 <b>「터미널 / 세션」 한 줄</b>로 합치고 글자 크기·줄 간격을 <code>Aa</code> 메뉴로 옮겼으며, 흐르는 색 선과 깜빡임을 걷어 상태를 멈춘 점과 글자로 말합니다.</li>
-    <li class="reveal"><b>v3.13.7 — 리눅스 판이 돌아왔습니다</b> · 리눅스 파일 감시가 새 폴더 안에서 곧바로 생긴 파일을 놓쳐(실측 200건 중 70~87%), 에이전트의 오늘 첫 일지가 화면에 안 떴습니다 — v3.13.6 이 리눅스 판 없이 나간 이유입니다. 이제 새 폴더를 직접 훑습니다. 셸을 쥔 프로세스가 사라진 터미널도 먹통 대신 「다시 시작」을 띄웁니다.</li>
-    <li class="reveal"><b>v3.13.6 — 덜어내고 가벼워졌습니다</b> · 쓰임에 비해 표면이 컸던 주변 기능 다섯 — 모바일 연동(베타)·코드 화면 디버거·코드 맵·원격 테마 갤러리·VS Code 확장 — 을 걷었습니다. 앱은 이제 네트워크에서 아무것도 듣지 않습니다. 파일을 지울 때마다 감시가 목록 전체를 훑던 것을 고쳤고(실측 16초 → 8ms), 기본 모델·Tauri·SQLite·어댑터를 지금 판으로 올렸습니다.</li>
-    <li class="reveal"><b>v3.13.5 — 업데이트 뒤에도 터미널에서 데스크탑 폴더가 열립니다</b> · 셸을 붙든 보조 프로세스가 업데이트를 건너 살아남는 동안 실행 파일이 지워져, macOS 가 데스크탑·문서 폴더 접근을 막았습니다 — 새 터미널마다 <code>getcwd: Operation not permitted</code>. 이제 앱 데이터에 복제해 둔 앱(같은 서명, APFS 복제라 디스크를 더 쓰지 않음)에서 떠서 업데이트 뒤에도 권한이 남습니다.</li>
-    <li class="reveal"><b>v3.13.4 — 터미널 맨 아랫줄이 잘리지 않습니다</b> · 터미널이 가장자리 여백까지 쓸 수 있는 높이로 세어 <b>한 줄쯤 더</b> 잡았고, 그 마지막 줄이 잘렸습니다. v3.13.2 부터 Claude Code 가 입력창을 맨 아래 줄에 그리면서 입력창 아래가 살짝 잘려 보였습니다. 이제 여백 안쪽만 세어 마지막 줄까지 보입니다.</li>
-    <li class="reveal"><b>v3.13.2 — 좁은 터미널에서 받은 답도 넓게 보입니다</b> · 작업일지 옆 좁은 터미널에서 받은 Claude Code 의 답은 그 폭으로 줄바꿈돼 남아, 터미널 화면으로 돌아와 위로 올리면 같은 글이 좁게 한 번, 넓게 한 번 보였습니다. 이제 내장 터미널이 Claude Code 를 <b>fullscreen 모드</b>로 띄워, 폭이 바뀔 때마다 대화를 지금 폭으로 다시 그립니다 — 옆에서는 잘리지 않고, 돌아오면 좁을 때 받은 답까지 넓게 보입니다. 스크롤은 휠 · <code>PgUp</code>, 검색은 <code>Ctrl+O</code>, 터미널 선택은 <code>⌥</code>+드래그. 새로 연 터미널부터 적용되고, 셸 설정의 <code>CLAUDE_CODE_NO_FLICKER=0</code> 으로 끌 수 있습니다.</li>
-    <li class="reveal"><b>v3.13.1 — 터미널을 줄였다 키워도 덜 망가집니다</b> · 도크를 최소 크기 가까이 끌면 터미널이 <b>두 칸 폭까지 접혀</b> 스크롤백이 잘리고, Claude Code 가 그 폭으로 다시 찍은 줄은 넓혀도 펴지지 않았습니다. 이제 20칸 · 4줄 밑으로는 크기를 그대로 두고, <b>도크 · 분할 손잡이를 끄는 동안에는 셸에 크기를 알리지 않다가 손을 뗄 때 한 번만</b> 알립니다(좁힌 채로 쓰는 동안 찍힌 줄은 Claude Code 가 직접 끊은 것이라 그대로입니다). 안 보이는 터미널은 15초 뒤 그래픽 메모리를 놓고, 앱을 끌 때마다 나던 종료 오류로 언어 서버가 남던 것을 고쳤습니다. 의미 검색은 비어 쌓이던 벡터 자리를 다져 실측 사본에서 128ms → 13ms 가 됐고, 지운 폴더의 파일과 늦게 만든 <code>.gitignore</code> 가 검색 색인과 어긋나던 것도 고쳤습니다.</li>
-    <li class="reveal"><b>v3.13.0 — 플랜을 claude.ai 보드로, Notion 은 걷었습니다</b> · Claude Code 에서 <code>/oculpm:board</code> 한 줄이면 활성 플랜과 항목 상태가 claude.ai 의 <b>비공개 보드</b> 한 장으로 올라가고, 다시 부르면 갱신됩니다 — 폰이나 다른 기기에서 진행을 봅니다. 원본은 그대로 <code>.oculpm/planner/</code> 이고, 올릴 내용은 앱이 만들며 <b>시크릿처럼 보이는 문구는 가린 뒤</b> 올립니다. 에이전트가 플랜을 읽을 때도 같은 마스킹을 지납니다. <b>Notion 연동은 걷었습니다</b> — 업데이트 뒤 남은 토큰을 키체인에서 지우고, 나가는 연결은 다섯 갈래가 됐습니다. 코드 검색은 표·레코드 파일과 큰 데이터 파일을 더 색인하지 않고, 같은 파일의 청크가 겹쳐 쌓이던 것(실측 17.8%)을 고쳤습니다.</li>
-    <li class="reveal"><b>v3.12.0 — 터미널의 그림 경로, 올리면 바로 보입니다</b> · 내장 터미널의 Claude Code 가 그림을 만들고 <code>› [image] /private/tmp/…/x.png (1.9MB)</code> 처럼 경로만 남기면, 그 그림을 보려고 Finder 로 숨은 임시 폴더를 찾아가야 했습니다. 이제 <b>경로에 잠깐 올리면 그림·이름·크기가 카드로 뜨고, 누르면 크게 열립니다</b>. 터미널이 좁아 경로가 두 줄로 갈라져도 어느 줄에 올리든 같은 그림입니다. 프로젝트 밖이어도 되지만 <b>진짜 그림만</b> 엽니다 — 이름만 <code>.png</code> 인 다른 파일·폴더·16MB 넘는 파일은 이유와 함께 거절하고, 그림은 앱 안에서만 그립니다. 새로 연 터미널부터 적용됩니다.</li>
-    <li class="reveal"><b>v3.11.0 — 저장소 코드는 신뢰한 뒤에만</b> · <b>앱 안 Claude Code · Codex 도 이 기기에서 프로젝트를 신뢰한 뒤에만 시작합니다</b> — 앱 안 에이전트는 저장소의 <code>.claude/settings.json</code> 훅과 <code>.mcp.json</code> 서버를 그대로 실행하는데, 터미널의 CLI 와 달리 폴더를 믿는지 묻지 않았습니다. 이제 「이 프로젝트를 신뢰할까요?」 를 먼저 묻고 실행될 수 있는 설정 파일을 보여 줍니다(언어 서버와 같은 신뢰라 v3.10 에서 켠 프로젝트는 그대로). 오늘 · 변경 화면의 자동 git 이 <code>.git/config</code> 의 fsmonitor · 필터 · 외부 diff 와 훅을 따르던 것, 플러그인 설치가 미리 본 것과 다른 번들을 받을 수 있던 것, 휴대폰 연결로 <code>.env</code> 를 읽던 길도 막았습니다. <b>창을 열 때 이미 일어난 일을 놓치지 않습니다</b> — 이미 돌던 세션 · 탭의 바쁜 점 · 자동화 「실행 중」 · 언어 서버 상태가 새 창에서 틀리게 보이던 것을 고쳤고, 탭을 닫거나 앱을 끄면 언어 서버와 디버거도 내립니다. 데이터베이스를 못 열면 설명 없이 꺼지는 대신 이유를 보이고 「새로 시작」 을 묻습니다.</li>
-    <li class="reveal"><b>v3.10.1 — 「신뢰하고 켜기」 가 이제 뜹니다</b> · v3.10.0 부터 언어 서버는 프로젝트를 신뢰한 뒤에만 뜨는데, 그것을 알리는 상태줄 칩이 편집기를 막 열었을 때 나타나지 않아 자동완성 · 진단이 이유 없이 꺼진 것처럼 보였습니다. 이제 <code>.rs</code> · <code>.ts</code> · <code>.py</code> · <code>.go</code> 파일을 열면 편집기 아래 상태줄에 「언어 서버 꺼짐 · 신뢰하고 켜기」 가 서고, 한 번 누르면 켜집니다.</li>
-    <li class="reveal"><b>v3.10.0 — 신뢰한 뒤에만 도는 언어 서버, 다시 만든 논의 편집기</b> · 코드 화면의 언어 서버는 읽기 도구가 아닙니다 — rust-analyzer 는 저장소의 <code>build.rs</code> · 매크로와 그 저장소가 고른 툴체인을 실행해서, 남의 저장소에서 파일 하나를 여는 것만으로 그 코드가 돌 수 있었습니다. 이제 언어 서버는 <b>이 기기에서 프로젝트를 신뢰한 뒤에만</b> 뜹니다(상태줄 「신뢰하고 켜기」, 설정에서 거두기). <b>AI 패널이 근거로 싣는 코드 조각</b>도 보내기 전에 가리고, <code>.env</code> · 키 · 자격 증명 파일은 <code>.gitignore</code> 와 상관없이 색인하지 않으며, 앱이 꺼진 사이 지운 파일은 켤 때 색인에서 걷습니다. 배경 자동화의 허락은 그때 본 스위치 · 지시문에 묶여 나중에 바뀌면 다시 묻습니다. 그리고 <b>논의 편집기를 다시 만들었습니다</b> — 쓰는 동안 자동완성이 뜨지 않고, 넓은 창에서 문장이 잘려 보이던 것 · 다른 화면에 다녀오면 초안이 사라지던 것을 고쳤으며, 가운데 칼럼 · 섹션 개요 · 상태줄 · 섹션 단위 나란히 보기를 갖췄습니다.</li>
-    <li class="reveal"><b>v3.9.0 — 프로젝트 경계를 끝까지, 화면 머리는 작게</b> · v3.8.0 이 막은 링크는 <code>.oculpm/</code> 안과 편집기 저장뿐이었습니다. 두 번째 외부 리뷰가 그 빈자리를 짚었고, 다시 훑자 더 큰 자리가 나왔습니다 — <b>프로젝트를 열 때마다 맞춰 쓰는 규칙 파일과 <code>.gitignore</code></b> 가 링크면 그 대상의 내용이 프로젝트로 복사되거나(<code>AGENTS.md → ~/.zshrc</code>) 홈의 전역 Claude 지침에 써졌습니다(<code>.claude → ~/.claude</code>). 이제 링크인 자리는 건드리지 않고 이유를 보여 주며, 외부 편집기 · 미리보기 · 변경 화면 · 색인 · 로컬 히스토리도 링크를 끝까지 풀어 확인합니다. <b>마스킹이 꺼지던 길 둘</b>(깨진 설정 파일 · 릴리스 노트 초안의 CHANGELOG 표본)도 막았습니다. 그리고 <b>화면 머리가 작아졌습니다</b> — 높이 52 → 44px, 제목 17 → 14px, 판 모서리 20 → 12px. 편집기 우클릭 메뉴 · 자동완성이 편집면보다 크게 뜨던 것도 바로잡았습니다.</li>
-    <li class="reveal"><b>v3.8.0 — 남의 저장소를 열어도 안전하게</b> · 외부 보안 리뷰가 짚은 것을 코드에서 하나씩 다시 확인하고 고쳤습니다. <b>저장소 설정만으로는 배경 AI 작업이 돌지 않습니다</b> — 자동 화해·일지 초안·스케줄·감시는 저장소에 실려 오는 설정이라, 남의 저장소를 추가하면 그 사람이 켜 둔 것이 내 키로 돌았습니다. 이제 이 기기에서 허락해야 돕니다(설정에서 직접 켜거나 오늘 화면의 카드에서). <b>비밀 마스킹이 넓어지고 설정으로 끌 수 없습니다</b> — 토큰·JWT·개인키·접속 문자열·<code>.env</code> 꼴 비밀 줄을 늘 가리고, 배경 모델에 보내기 전에도 가립니다. 저장소에 심어 둔 <b>심볼릭 링크</b>가 저장을 프로젝트 밖으로 돌리던 길도 막았습니다. <b>앱 화면에 CSP</b>를 켰습니다 — 앱에 든 파일만 실행하고 원격 이미지를 불러오지 않으며, 릴리스마다 Windows·Linux 실제 앱으로 모든 화면의 위반 0건과 정책이 걸려 있는지를 확인합니다. 그 밖에 어댑터는 버전·해시가 고정된 목록대로만 설치하고, 위험한 권한 모드는 한 번 더 묻고, 플러그인 미리보기가 MCP 서버가 실행할 명령을 보여 주고, Notion 연결이 브라우저 기록에 토큰을 남기지 않습니다.</li>
-    <li class="reveal"><b>v3.7.0 — 세션 화면을 걷고, 끊긴 곳을 잇다</b> · <b>「세션」(에이전트 간 협업) 화면을 걷었습니다</b> — 화면 하나, 설정의 외부 HTTP 문, 에이전트용 도구 일곱 개, 모든 프로젝트의 AGENTS.md 에 실리던 규칙 한 절이 쓰임에 비해 컸습니다. 사이드바 「에이전트」 는 Claude Code · Codex 두 갈래, MCP 도구는 일곱 개로 줄었습니다. <b>연결만 안 돼 있던 기능 둘</b> — 편집기에서 이름을 바꾸거나 옮긴 파일의 중단점이 사라지던 것(옮기는 장치는 있었는데 아무도 부르지 않았습니다), 일지 기록 파일을 고쳐 놓고도 알림이 뜰 수 없던 것. <b>지운 프로젝트의 기록이 데이터베이스에 남던 것</b>도 이제 함께 지우고, 이미 남은 약 1만 행은 업데이트가 걷습니다. 로그에 경고가 두 줄씩 적히던 것, 설정에 새던 내부 작업명(「W4 dogfooding fix」)과 반쪽 영어까지.</li>
-    <li class="reveal"><b>v3.6.0 — Windows · Linux 베타</b> · <b>Windows 10 2004+ · 11(x64)과 Linux x64(AppImage · deb)에서도 씁니다.</b> 만드는 사람에게 두 OS 기기가 없어서, 릴리스마다 CI 러너가 설치 → 실행 → 열다섯 화면 · 터미널 한글 · 일지 기록 · <b>앱 안 업데이트(한 판 낮은 설치본 → 새 판 → 재시작, 서명이 틀리면 거절)</b>까지 돌려 보고 통과한 OS 만 싣습니다 — macOS 업데이트는 이 과정과 떨어져 있습니다. Windows 는 무서명 베타(SmartScreen 「추가 정보 → 실행」)이고 VC++ 런타임이 없으면 설치 파일이 먼저 깝니다. 업데이트가 터미널 세션을 끊지 않는 것도 맥과 같습니다. 모든 OS 에서: <b>계획 문서 편집이 엉뚱한 줄을 건드리던 결함</b>(제목 속 <code>{#…}</code> 가 id 를 가로챔 · 앵커 단계에 항목을 더하면 단계가 하나 더 생김 · 단계 이름 「결정」 으로 결정 섹션이 지워질 수 있던 길)을 고쳤고, Claude Code · Codex 어댑터를 올렸습니다(0.81.0 · 1.13.0).</li>
-    <li class="reveal"><b>v3.5.0 — 닿지 않던 링크와 지운 뒤의 잔해</b> · <b>눌러도 아무 일이 없던 링크들.</b> 터미널의 하이퍼링크(<code>gh</code>·에이전트 TUI 가 내는 것)와 편집기 본문의 URL 을 ⌘클릭하면 브라우저가 열리는 대신 아무 일도 일어나지 않았습니다 — 웹뷰에서 막히는 브라우저 기본 동작에 걸려 있었고, 편집기 쪽은 로그조차 남지 않았습니다. 이제 밖으로 나가는 링크는 전부 한 통로로 모입니다. <b>한글을 칠 때마다 터미널이 지웠다 다시 쓰고 있었습니다</b> — 음절 확정마다 지움 문자와 같은 글자의 재전송이 났고, 그 왕복이 진단을 정상 입력마다 울려 로그를 주 4MB 채웠습니다(트레이스 150건 전수 집계로 글자 유실은 없음을 확인). <b>프로젝트를 지워도 흔적이 창에 남던 것</b> — 지운 프로젝트의 탭이 번호로 남아 누르면 실패했고, 삭제가 데이터베이스 재구축을 기다려 앱이 몇 초 굳었습니다. 그 밖에 확인 대화상자 리디자인(<b>Enter 가 곧 확인</b>), 시작 탭에서 연 설정 네 곳의 크래시, 프로젝트 밖을 가리키는 심볼릭 링크가 트리에서 평범한 파일로 보이던 것.</li>
-    <li class="reveal"><b>v3.4.0 — 첫 기록 확인과 이어하기</b> · <b>첫 일지가 남았는지를 이제 그 대화 단위로 확인합니다.</b> 총 일지 수는 백필로도 옆 대화로도 오르는 숫자라 방금 돌린 에이전트가 기록했는지 말하지 못했습니다. 일지 0건 프로젝트에 「첫 기록」 카드가 서고 준비 → 진행 중 → 그 대화의 첫 일지 → 기록 없이 끝남 → 귀속 불명을 대화 id 로 판정합니다(기록 ≠ 검증이라고 스스로 말합니다). <b>다음 세션이 지난 작업을 이어받습니다</b> — 플러그인의 SessionStart 훅이 활성 계획 뒤에 마지막 작업 일지 3건을 시작 컨텍스트에 싣고 원장 한 줄을 남기며, 오늘 화면의 「이어하기」 카드가 같은 자료와 어느 대화에 포함됐는지를 보여 줍니다. <b>일지 700건의 찾기·잇기·묶기</b> — <code>journal_search</code> 가 SQLite 캐시와 관련도 랭킹으로(132→25ms), 검색 화면 「일지」 스코프, 관련 후보 제안과 1클릭 잇기, 태그 사전·정리 시트, 주간 요약 층, 핫스팟·속도 카드, 미검토 대기함, 계획 로그 분리. 그 밖에 숨은 프로젝트 탭으로 새던 터미널 ⌘D 와 새 일지 토스트의 「열기」.</li>
-    <li class="reveal"><b>v3.3.0 — 감독관의 오탐과 닮은꼴 계획</b> · <b>앱을 두 개 띄운 순간 멀쩡한 감시가 끊겼다 되살아나기를 반복했습니다.</b> 락이 새 인스턴스로 넘어갈 때마다 감독관이 즉시 깨어나 방금 심은 프로브를 「먹통」으로 읽었습니다(로그에 2분간 52번). 인계 웨이크는 락을 놓는 일만 하고, 심은 지 20초가 안 된 프로브는 판정하지 않습니다. <b>계획이 라운드마다 하나씩 늘던 것</b> — <code>plan_create</code> 는 제목·id 가 겹치는 활성 계획이 있으면 만들지 않고 그 id·제목·hash 를 돌려줘 항목을 더하도록 권합니다(<code>allow_similar</code> 로 통과). 그 밖에 오늘 화면 머리글의 조사 공백, git 저장소가 아닌 프로젝트의 브랜치 화면이 오류 카드였던 것, 검색 빈 상태의 아이콘·제목.</li>
-    <li class="reveal"><b>v3.2.2 — 한국어 파일명과 열일곱 가지 조용한 결함</b> · <b>한국어 파일명이 git 을 지나며 8진수 이스케이프로 깨졌습니다.</b> 백필 일지의 <code>files_touched</code>, 브랜치 화면의 파일 귀속, 일지 변경 diff 캡처(감싼 머리글을 못 알아봐 그 파일의 diff 가 빠졌습니다)가 전부 실제 파일명으로 돌아옵니다. <b>손으로 고친 <code>config.toml</code> 에 키 하나가 빠지면 프로젝트가 통째로 무효가 되던 것</b>은 빠진 값을 기본값으로 채워 넘어갑니다. 그 밖에 비밀 마스킹이 겹치는 매치의 꼬리를 남기던 것, 비ASCII 세션 id 에 색인이 멎던 것, 설정 화면이 열 때마다 config 를 되쓰던 것, 늦은 응답이 새 화면을 덮던 것, 메뉴바 팝오버의 부분 실패·정렬, 탭 × 두 번 누름 — 열일곱 건.</li>
-    <li class="reveal"><b>v3.2.1 — 메뉴바 클릭과 지운 폴더</b> · <b>macOS 27 에서 메뉴바 아이콘을 누르면 상태 팝오버 대신 「열기 / 종료」 메뉴가 떴습니다.</b> 이 OS 는 상태 아이템에 메뉴가 붙어 있으면 왼쪽 클릭까지 시스템이 가로챕니다 — 메뉴를 오른쪽 클릭 순간에만 붙였다 떼도록 바꿔 왼쪽 클릭은 팝오버, 오른쪽 클릭은 메뉴입니다. 그리고 <b>앱을 켜 둔 채 Finder 에서 프로젝트 폴더를 지우면 빈 폴더가 되살아나던 것</b> — 삭제가 만든 파일 이벤트를 워처가 활동으로 읽어 세션을 열고, 그 기록이 <code>.oculpm/index/</code> 를 다시 만들었습니다. 루트가 사라지면 이벤트를 버리고 아무것도 다시 만들지 않습니다.</li>
-    <li class="reveal"><b>v3.2.0 — 확인은 내용에 묶입니다</b> · <b>일지의 「확인」이 스위치가 아니라 약속이 됩니다.</b> 확인 표시는 확인한 그 본문의 지문과 함께 남고, 그 뒤 에이전트가 본문을 고치면 <b>「확인 뒤 내용이 변경됐어요 · 다시 검토」</b>가 서며 「검증됨만」 필터에서 빠집니다. 같은 분·종류·제목으로 두 프로세스가 쓴 일지가 서로를 덮던 것(8프로세스 재현에서 24건 중 3건 생존)을 배타적 생성으로 막았고, 진단 탭에 <b>워처 계측</b>(브랜치 전환 3.6초 중 실제 처리 32ms)이 생겼습니다. 지원 에이전트는 코드에서 읽은 <b>네 등급</b>으로, 배포는 태그 커밋의 CI 통과와 서명·공증·업데이터 서명 검증을 <b>통과한 것만 공개</b>합니다. 안쪽에서는 800줄 넘는 파일 상위 7개를 나눴습니다(37 → 26).</li>
-    <li class="reveal"><b>v3.1.1 — macOS 27 메뉴바 아이콘 복구</b> · <b>macOS 27 로 올리면 메뉴바에서 Ocul-PM 아이콘이 사라졌습니다.</b> 접힘(<code>«</code>) 뒤로 간 것도 아니고 그냥 없었습니다. macOS 27 은 상태 아이템을 프로세스의 기동 시점 신원에 묶는데, 이 앱은 메모리 튜닝(유휴 645MB → 38MB)을 걸려고 기동 직후 자기 자신을 다시 띄우고 있어 「아까 그 앱」으로 인정받지 못했습니다. 같은 튜닝을 번들이 프로세스 생성 시점에 넣어 주도록 바꿔 다시 띄우지 않고, 아이콘은 제자리입니다. Claude Code 어댑터는 0.77.0.</li>
-    <li class="reveal"><b>v3.1.0 — 조용히 죽던 것들이 말합니다</b> · <b>설치본이 하루 넘게 돌면 2GB 를 넘게 먹던 것</b> — 9월 12일에 고친 네 커밋(임베딩 아레나 2.2GB → 940MB · 유휴 시 모델 내려놓기)이 3.0 에 실리지 않았었습니다. 3.1.0 이 싣습니다. 지원 종료된 기본 모델이 3주 동안 조용히 실패하던 것은 토스트와 설정 경고로, Claude Code 안에서 oculpm 도구가 두 벌로 보이던 것은 플러그인 쪽을 휴면시켜 잡았습니다.</li>
-    <li class="reveal"><b>v3.0.1 — 일지 열람 스크롤 복구</b> · <b>작업 일지를 열면 스크롤이 안 되고 첫 화면 아래가 잘려 있었습니다.</b> 좁은 창에서 본문과 diff 를 위아래로 쌓으려던 flex 줄바꿈이, 넓은 창에서는 읽는 칸을 본문 길이만큼 늘려 놓고 있었습니다 — 본문이 짧은 일지에서만 멀쩡해 보여 3.0.0 검수를 지나쳤습니다. 두 칸에 높이를 못 박아 고쳤습니다.</li>
-    <li class="reveal"><b>v3.0.0 — 눈으로 본 것만 내보냅니다</b> · <b>3.0 은 새 기능이 아니라 검수입니다.</b> 2.42 부터 2.48 까지 일곱 번의 릴리스가 화면을 다시 그리고 편집기를 갈고 확장을 붙이는 동안 「하네스로는 봤고 실기기로는 안 봤다」가 플랜에 <b>스물한 줄</b> 쌓였습니다. 그 스물한 줄을 라이트/다크 × 프리셋 5종 × 6화면으로 찍고 탭 드래그·PTY 생존·혼합 DPI·마법사·영어 모드를 손으로 눌러 갚았습니다. 그 길에 잡힌 것: <b>Claude Code·Codex 화면 위에 「오늘 현황」 툴바가 하나 더 얹혀 있었고</b>(라우터가 살려 두는 화면 둘을 모르는 화면으로 보고 뒤에 오늘 화면을 붙였습니다), <b>마법사를 열었다 닫기만 해도 「새 프로젝트」 초안이 남아</b> 「새 프로젝트 시작하기」와 둘로 보였고, ACP 두 화면엔 제목이 없었습니다. 그리고 사용량 카드에 <b>신원 줄</b>(「Claude Max · 구독 계정」, 로그아웃이면 「로그인 필요」 pill), <b>컨텍스트 압축이 제 모양으로</b>(「128k → 42k 토큰 (−67%) · 수동 · 2.3초」), 영어 모드 15화면 스위트와 영문 스크린샷 재촬영, 회색 버튼 이유 없음 <b>0곳</b>.</li>
-    <li class="reveal"><b>v2.48.0 — 편집기는 VS Code, 기록은 그 옆에</b> · <b>「VS Code 급 편집기」를 앱 안에 또 만드는 대신 반대로 갔습니다.</b> VS Code 확장 <code>oculpm.ocul-pm</code> 이 <b>사이드바에 오늘 일지와 활성 플랜</b>을 띄우고, 에이전트가 일지를 쓰면 <b>1초 안에</b> 거기 뜹니다. 플랜 항목 체크박스를 누르면 <code>.md</code> 가 바뀌고 앱 플래너가 같이 바뀌는데, 파일은 확장이 직접 고치지 않고 앱에 든 <code>oculpm-mcp</code> 를 통해서만 써서 잠금·갱신 로그·동시 편집 보호가 그대로입니다. Copilot 에이전트 모드에는 <code>journal_write</code>·<code>plan_update</code> 도구가 그대로 보이고, 일지의 「편집기로 열기」는 VS Code 사이드바의 그 일지로, VS Code 의 「Ocul-PM 에서 열기」는 앱의 그 일지로 갑니다(<code>oculpm://open</code> 이 버리던 <code>entry</code> 를 이제 씁니다). 설정 &gt; 통합에 「VS Code 확장」 행이 서고, 마켓 링크 둘(VS Code 마켓플레이스 · Open VSX)이 브라우저 위임으로 연결 목록에 올랐습니다. 확장은 VS Code 1.101 이상, 앱 없이는 읽기 전용, <b>네트워크를 쓰지 않습니다</b>. <i>이 확장은 이후 걷었습니다.</i></li>
-    <li class="reveal"><b>v2.47.0 — 카드 무더기를 원장으로</b> · <b>플래너·작업 일지·시작 탭·계획 레일이 같은 크기의 카드를 늘어놓고 있었습니다</b> — 카드 열네 장이 같은 무게로 서면 눈은 위계 대신 패턴을 읽습니다. 플래너는 <b>한 장의 시트</b>(단계 스트립 · 상태 마크 · 세 열 행)와 <b>보드 보기</b>(끌어서 상태 변경)가 됐고, 막힌 항목이 둘인 계획이 「진척 100%」로 찍히던 셈을 고쳤습니다. 작업 일지는 <b>시각 · 종류색 척추 · 제목</b>의 원장이고 열면 본문이 읽는 칸입니다. 시작 탭은 사령탑 밴드 + 시간대 원장, 사이드바는 활자 머리·섹션 척추·발 한 줄이며 <b>좁은 창에서 설정 본문이 사라지던 버그</b>를 고쳤습니다. 편집기에는 <b>⌘P 빠른 열기 · git 상태 색과 A/M/D 배지 · 심볼 브레드크럼 · ⌥Z 줄바꿈 · ⌘B</b> 가 붙고 검은 띠였던 미니맵을 고쳤습니다. 터미널은 <b>⌘J 도크와 화면을 오가면 옛 대화가 찌부러지던 것</b>을 스크롤백을 찍힌 폭 그대로 재생해 고쳤고, 페인마다 머리띠·최근 명령 핍·키캡 상태바가 섰습니다. 회색 버튼 59곳이 더 이유를 말합니다.</li>
-    <li class="reveal"><b>v2.46.0 — 편집기가 VS Code 의 그 편집기가 됐습니다</b> · <b>앱 안의 코드 편집기 알맹이를 Monaco 로 갈았습니다</b> — VS Code 가 쓰는 바로 그 에디터입니다. 접기 · 괄호 짝 강조 · 자동 닫기 · 선택 감싸기 · <b>여러 커서</b>(⌥클릭 · ⌥⇧드래그 열 선택 · ⌘D) · <b>파일 안 찾기·바꾸기</b>(⌘F · ⌥⌘F) · 미니맵 · 스티키 스크롤 · 괄호 쌍 색칠 · 들여쓰기 가이드가 한꺼번에 생겼고, 언어 서버가 아는 의미로 다시 칠하는 <b>시맨틱 강조</b>가 얹혔습니다. <b>⌘K</b> 로 고칠 곳을 고르고 말로 시키면 그 자리에서 고쳐 쓰는데, 조각마다 켜고 끄며 검토할 수 있고(전부 끄면 원문 그대로) 그렇게 들어온 편집은 작업 일지와 판 목록에 <b>「에이전트가 썼다」</b>로 남습니다. <b>회고·문서 화면은 걷어냈습니다</b> — 이미 써 둔 <code>.oculpm/retro/*.md</code> 는 지우지 않습니다. 그리고 화면마다 반 단씩 어긋나 있던 글자·여백·곡률 약 1,900곳, 설정 여는 길 셋, 말투 700곳을 한 벌로 모았습니다.</li>
-    <li class="reveal"><b>v2.45.2 — 아무리 허용해도 다시 묻던 권한</b> · <b>업데이트를 받은 뒤로 화면 기록 권한이 아무리 허용해도 다시 물었습니다.</b> 터미널을 쥐고 있는 것은 앱과 별개의 프로세스인데(업데이트가 셸을 죽이지 않게 일부러 그렇게 만들었습니다), 한 번 뜨면 재부팅 전까지 <b>업데이트 전의 실행파일로</b> 계속 돕니다. 그 실행파일은 이미 디스크에 없으니 macOS 가 설치된 앱으로 알아보지 못했고, 승인은 <code>/Applications</code> 앞으로 적히는데 요청은 사라진 쪽에서 와 매칭될 수 없었습니다. 이제 <b>터미널을 하나도 쥐고 있지 않은</b> 옛 프로세스는 앱이 붙을 때 조용히 갈아 치웁니다 — 돌고 있는 셸이 하나라도 있으면 손대지 않습니다.</li>
-    <li class="reveal"><b>v2.45.1 — 떴다 사라지던 창</b> · <b>앱 안 터미널에서 일하는 동안 ocul-pm 창이 툭 떴다가 몇 초 뒤 저절로 사라졌습니다</b> — 진짜로 앱이 한 벌 더 뜬 것이었습니다. 터미널이 에이전트에게 쥐여 주는 <code>oculpm</code> 명령이 <b>모르는 낱말</b>을 받으면(설정에 남은 옛 줄 하나, 오타 하나면 충분했습니다) 명령 대신 앱을 통째로 실행했고, 부른 쪽이 몇 초 뒤 타임아웃으로 죽이면 창도 함께 사라졌습니다. 이제 그 이름으로 불린 호출은 <b>낱말이 무엇이든 명령으로 끝나고</b>, 모르는 낱말에는 창 대신 사용법을 돌려줍니다. 경로를 앞에 적은 <code>--project</code> 가 조용히 무시되던 것도 함께 고쳤습니다.</li>
-    <li class="reveal"><b>v2.45.0 — 받아서 바로 연다</b> · <b>앱을 열려고 터미널을 켜야 했습니다</b> — 내려받은 <code>.dmg</code> 를 열면 macOS 가 「손상되었기 때문에 열 수 없습니다」라고 막았고, 실제 손상이 아니라 격리 표시일 뿐인데 <code>xattr -dr com.apple.quarantine</code> 한 줄을 직접 쳐야 풀렸습니다. 이제 <b>Apple Developer ID 서명 + 공증(notarization)</b> 을 마친 빌드가 나갑니다. <b>스킬이 언제 걸리는지를 앱이 답합니다</b> — 지금까지 답은 스킬이 스스로 쓴 소개 한 줄이었는데, 상세가 「언제 걸리나」를 본문보다 먼저 말하고 실제로 걸렸을 때 <b>어떤 말이 그걸 불렀는지</b>까지 원장이 인용합니다. <b>작업 일지 감시의 「끄기」는 60초짜리 거짓말이었습니다</b> — 감독관이 워처 없는 프로젝트를 먹통으로 보고 되살렸기 때문입니다. 이제 사용자가 멈춘 것과 죽은 것을 구별하고 수명까지 화면이 말합니다. <b>오늘 화면의 「변경된 파일」이 파일 수가 아니라 손댄 횟수</b>를 세어 최대 105% 부풀어 있었고, 활동 링은 눈금이 아니라 벽이라 최근 26일 중 22일이 상한에 붙어 구별되지 않았습니다 — 둘 다 고치고 <b>「지금 하는 일」</b>을 새로 넣었습니다(모를 때는 지어내지 않습니다). <b>미완 항목이 남은 계획은 완료로 닫히지 않습니다.</b> 보이지 않는 곳으로는 <code>target/</code> 에 5,000개가 쏟아져도 감시 큐에 1건만 남고, 프로젝트를 닫을 때 최대 4.3초 멈추던 잠금을 풀었고, 첫 화면이 26.5KB 가벼워졌습니다(−9.2%).</li>
-    <li class="reveal"><b>v2.44.1 — 글자를 글자로 센다</b> · <b>한글이 섞인 링크와 24KB 넘는 한국어 README 가 앱을 그 자리에서 멈춰 세울 수 있었습니다</b> — 네 자리에서 글자가 아니라 <b>바이트</b>를 세다가, 여러 바이트로 된 글자 한가운데를 자르면 죽었습니다. <code>oculpm://</code> 딥링크는 <b>웹페이지의 링크 한 줄</b>로 일어날 수 있는 일이었고, 「프로젝트 개요」는 이 저장소에서 마침 1바이트 차이로 비켜가 있었습니다. 딥링크·Notion 연동·「정의로 이동」·개요가 같은 코드를 복사해 쓰고 있었고 이제 한 자리로 모였습니다. <b>설치 마법사에서 ESC 로 닫으면 그때까지 쓴 것이 사라졌습니다</b> — 닫기는 초안을 저장하는데 ESC 만은 <b>화면이 처음 열렸을 때의 빈 초안</b>을 저장하고 있었습니다. <b>오늘 화면의 활동 링이 바쁜 날마다 똑같은 모양</b>이던 것도 고쳤습니다: 둥근 획 끝이 넘겨 칠하는 만큼을 셈에 넣지 않아 안쪽 링이 102% 를 칠했고, 줄 변화 7,500 을 넘는 날은 전부 닫힌 원이었습니다 — 이제 반지름마다 각각 잘려 포화한 날에도 <b>함께 멈춘 동심원 셋</b>으로 읽힙니다. <b>AI 패널의 첫 글자</b>는 계획·일지를 한꺼번에 읽어 오면서 빨라졌습니다(메시지마다 최대 여덟 왕복이 줄줄이 이어지던 것). 보이지 않는 곳으로는 <b>Notion 연결의 일회용 확인 값을 진짜 난수로</b>, 플러그인 설치가 <b>심볼릭 링크를 타고 폴더 밖에 쓰던 것</b>을 차단, 웹뷰의 「아무 경로나 열기」 권한 제거.</li>
-    <li class="reveal"><b>v2.44.0 — 화면이 한 일을 제 이름으로 부른다</b> · <b>에이전트가 일지를 써도 화면은 그걸 「명령 실행」이라 불렀습니다</b> — 앱이 터미널에 심어 둔 기록 도구로 일지를 남기는데, 대화 화면에는 터미널 아이콘과 셸 한 줄만 떴습니다. 이 제품의 핵심 동작이 <b>화면 어휘에 아예 없었습니다</b>. 이제 도구 호출을 <b>15가지 우리 말</b>로 옮겨 「일지 기록」·「계획 갱신」·「에이전트 원장」으로 뜨고, 읽고·고치고·찾는 일은 한 줄로 접되 <b>승인 대기·오류·기록 관련 일은 절대 접지 않습니다</b>. 줄을 펼치면 <b>에이전트가 실제로 주고받은 원본</b>이 맨 아래에 늘 있고, 셸 명령을 <b>잘못 읽느니 그냥 명령으로 그립니다</b>. 「돌고 있다」와 「모른다」도 구별합니다(15초 넘게 신호가 없으면 「실행 중 · 신호 없음」). <b>사이드바가 17줄에서 15줄로</b> — Claude Code·Codex·세션이 「에이전트」 한 줄로 모이고 논의·문서는 참고로 내려가며, <b>Diff→변경 · 코드 검색→검색 · 코드→편집기</b>로 이름이 바뀌고 ⌘번호가 다시 매겨집니다(⌘1 오늘·⌘2 일지·⌘4 플래너는 그대로, 바뀐 것은 한 번 안내). <b>새 「브랜치」 화면</b>이 사흘 걸린 브랜치의 일지·계획·커밋·바뀐 파일을 한 좌표로 묶고 <b>기록률</b>과 아직 일지 없는 변경을 보여 줍니다(마크다운 내보내기, 새로 저장하는 것 없음). <b>처음 5분이 사실만 말합니다</b> — 마법사가 아직 안 만든 것을 만들었다 하지 않고, 켜지지 않은 자동화를 자동이라 하지 않으며, 플러그인 미설치를 알리고, 첫날 비는 화면 아홉이 <b>무엇을 하면 채워지는지</b> 말하고, 정직성 패널에서 <b>그 자리에서 일지로 남깁니다</b>(유일한 선택지가 과금 모델 호출이던 카드도 무료 경로를 앞에). <b>같은 코드가 화면마다 다른 색이던 것</b>도 한 팔레트로 모아 테마 5종을 전부 따르고(편집기 포함), <b>설정 검색</b>이 생겼습니다.</li>
-    <li class="reveal"><b>v2.43.0 — 기록이 진짜로 남는다</b> · <b>앱이 「일지 없이 끝난 세션」을 잘못 셌습니다</b> — 배달 게이트·미기록 신호·오늘 카드 세 곳이 전부 <b>프로젝트 전체의 가장 최근 일지 시각</b> 하나에 기대고 있어, 터미널을 여러 개 띄우면 셋이 한꺼번에 틀렸습니다: 옆 대화가 일지를 쓰면 내 미기록이 가려지고, 반대로 <b>옆 대화가 고친 파일을 내가 고친 것으로 읽어</b> 아무것도 안 한 대화를 붙잡았습니다. 먼저 세어 봤더니 신호 164줄은 세션이 아니라 <b>세션 조각</b> 수였고(대화 하나가 최대 11번), 고유 대화 117개 중 <b>정말 빠뜨린 것은 2건</b>이었습니다 — 어떤 대화는 일지를 55번 쓰고도 미기록으로 찍혔습니다. 이제 판정이 한 곳에만 있고 세 곳이 같은 함수를 부르며, <b>앱 안 Claude Code·Codex 대화도 셉니다</b>(턴이 끝날 때 판정하고, 기록하면 알림이 스스로 사라집니다). <b>지난 대화를 이어 열면 기록 도구가 통째로 사라지던 것</b>도 고쳤고, 안 붙었으면 이제 화면이 어디를 찾았는지까지 말합니다. <b>0건일 때 숨던 카드가 0을 말합니다</b> — 정말 깨끗한 주와 가려진 주가 똑같아 보이던 자리입니다. 자동화에는 <b>어느 프로바이더로 보내는지</b>가 이름으로 붙고(로컬이면 안 붙습니다) 단계마다 조건이 생겨 빈 요약을 성공이라 하지 않습니다. <b>기기 밖으로 나가는 연결을 저장소가 직접 세어</b> 문서가 실제보다 적게 적고 있던 것을 정정했습니다. <b>사이드바가 화면 아래에서 잘리던 것</b>과 여러 세션이 같은 계획을 동시에 고칠 때 한쪽이 사라지던 것도 함께.</li>
-    <li class="reveal"><b>v2.42.0 — 구조가 하중을 견디게</b> · <b>큰 붙여넣기 한 번이 열려 있는 모든 터미널을 끊었습니다</b> — 도구를 호출 중인 에이전트 창처럼 입력을 당장 읽지 않는 터미널에 수백 KB 를 붙여넣으면 터미널 호스트 전체가 멈췄다가 10초 뒤 연결이 통째로 버려졌습니다(평범한 셸은 64MB 도 1.7초에 삼킵니다). 이제 <b>터미널마다 제 입력 줄</b>을 갖습니다. <b>글자 크기 슬라이더</b>는 끄는 동안 설정을 매 프레임 저장했고(짧은 드래그 한 번 = 저장 20번·재렌더 20번, 창 수만큼 곱해짐), 이제 <b>놓을 때 한 번</b> 저장합니다 — 다른 슬라이더 여덟 개도 같습니다. <b>터미널 탭을 하나 고를 때마다 16개 화면이 전부 다시 그려지던 것</b>도 멈췄습니다. <b>프로젝트 색인이 6.4초 동안 앱을 붙잡던 것</b>을 별도 스레드로 내렸고, <b>브랜치를 바꿀 때 쏟아지는 파일 변경</b>(체크아웃 한 번에 1,058건)에 상한을 두되 놓친 것은 조용히 잃지 않고 만회합니다. 프로젝트를 닫아도 <b>색인과 파일 히스토리가 계속 돌던 것</b>이 멈추고, 프로젝트 하나를 여는 동안 다른 프로젝트가 멈추던 병목도 풀렸습니다. 그리고 <b>설정 저장이 실패해도 저장된 것처럼 보이던 것</b> — 이제 사유와 함께 말합니다.</li>
-    <li class="reveal"><b>v2.41.0 — 오류부터</b> · <b>⌘W 가 돌고 있는 에이전트를 묻지 않고 죽였습니다</b> — 이상한 건 <b>같은 ⌘W 가 한 층 위(탭)에서는 물었다</b>는 점입니다. 판정은 이미 있었고 페인 층에서만 안 불렀습니다. <b>"검사 실패"와 "깨끗함"이 구별되지 않던 것</b>도 고쳤습니다: 정직성 감사와 「일지 없이 끝난 세션」 카드가 조회에 실패하면 조용히 사라졌고, <b>변경 화면</b>은 git 조회 실패 네 자리를 "변경 없음"으로 위장했습니다 — 이제 <b>아직 모름 · 못 물어봄 · 정말 없음</b>을 나눠 말합니다. <b>화면 하나가 넘어져도 앱이 통째로 넘어지지 않고</b>, <b>한국어 문장이 어절 한가운데서 꺾이지 않습니다</b>(조판 규칙이 앱 전체에 한 번도 없었습니다). 다크·고대비에서 <b>거의 안 보이던 표시들</b>(플래너 체크·<span class="mono">A/M/D</span> 배지·토글 손잡이, 대비 1.98:1 · 고대비 1.43:1)을 고쳤고, <b>같은 대화에 두 번 물으면 앞의 답이 갈 곳을 잃던 것</b>과 <b>창을 닫으면 영원히 「생각 중」이던 것</b>을 닫았습니다. 일지 537건에서 <b>검색이 한 글자에 멈추지 않습니다</b>. 그리고 <b>게이트 셋</b>을 새로 놓았습니다 — 코드 검사기(없었는데 그걸 끄는 주석은 33개 있었습니다)·컴파일러 버전 고정·의존성 817개 보안 검사(<b>켜자마자 실제 취약점 넷</b>이 나왔습니다).</li>
-    <li class="reveal"><b>v2.40.0 — 넷을 띄우면 넷으로 보인다</b> · 터미널을 넷으로 쪼개 에이전트를 넷 띄워도 앱은 <b>세션 하나만</b> 보고 있었습니다 — 훅은 대화마다 다른 id 를 들고 오는데 그 값이 문 앞에서 버려졌습니다. 이제 작업 세션이 <b>참여한 대화를 전부 기록</b>하고(트레이가 「대화 4」로 말합니다), <b>일지가 어느 대화의 것인지</b> 적습니다. 터미널마다 <b>색을 고르고</b>(카드 우클릭 — 왼쪽 띠와 터미널 테두리가 함께 물듭니다), 카드가 <b><span class="mono">2/4 실행 중</span></b> 이라 말하며 <b>레일을 접어도</b> 그 수가 아이콘에 남습니다. <b>Codex 가 제 아이콘</b>을 갖습니다. 코드 트리에서는 파일을 <b>끌어서 옮기고</b>(접힌 폴더는 머물면 열립니다) 여럿을 함께 잡고 되돌리며, 키보드만으로도 같은 이동을 합니다 — 이름을 바꾸면 <b>열려 있던 탭과 미저장 편집이 따라옵니다</b>. 그리고 Today 카드에 갇혀 있던 협업 상태가 <b>「세션」 화면</b>으로 나왔습니다: 이름이 전부 <span class="mono">claude-code-term-&lt;pid&gt;</span> 라 구별이 안 되던 것을 <b>별명·등록 이름·표면·잡은 구역·마지막 활동</b>을 겹쳐 풉니다.</li>
-    <li class="reveal"><b>v2.39.1 — Codex 등록은 머신 하나, 프로젝트는 세션이 정한다</b> · 다른 프로젝트에서 일하던 Codex 가 <b>이 프로젝트에 일지를 쓰는</b> 버그를 고쳤습니다. <span class="mono">~/.codex/config.toml</span> 은 머신 전역이라 거기 적힌 MCP 서버는 <b>모든 세션에 실리는데</b>, v2.39.0 은 거기에 프로젝트를 박아 등록했습니다. 이제 항목은 하나이고 <b>루트를 박지 않습니다</b> — 어느 프로젝트인지는 Codex 세션이 열린 폴더가 정합니다. 옛 항목은 <b>「프로젝트 고정됨」</b> 배지로 경로를 짚고 「다시 등록」 한 번에 고쳐지며, 기록 서버 자체도 <b>남의 프로젝트에 쓰기를 거부</b>합니다 (지금 도는 자리와 다른 추적 프로젝트를 가리키면 아예 뜨지 않습니다).</li>
-    <li class="reveal"><b>v2.39.0 — Codex 를 식구로, 계획은 짧게</b> · 여태 Codex 와의 연결은 <span class="mono">AGENTS.md</span> 한 장뿐이었고, 기록 도구를 붙이려면 Claude 용 플러그인을 억지로 물려야 했습니다 — 그 안의 Claude 전용 경로 변수 때문에 <b>시작 자체가 실패</b>했습니다. 이제 설정 → 연동에서 <b>Codex MCP 서버를 등록</b>합니다(<span class="mono">~/.codex/config.toml</span> 에만 쓰고 Claude 의 플러그인·<span class="mono">.mcp.json</span> 은 건드리지 않으며, 손으로 적은 주석과 다른 서버는 그대로). <b>Codex 전용 플러그인</b>도 두 줄이면 깔립니다. 그리고 화면이 <b>「마켓플레이스 없음」</b>을 짚습니다 — Codex 는 첫 실행에 Claude 설정을 임포트하면서 활성 플러그인 목록만 옮겨 오는데, 마켓플레이스가 안 따라오면 <b>조용히 로드에 실패</b>하기 때문입니다. 플래너는 <b>계획이 쌓여도 목록이 짧습니다</b>: 완료가 12개를 넘으면 월별로 접히고, 한 섹션 10행 뒤 「N개 더 보기」로 잇고, <b>완료 묶음을 헤더 버튼 하나로 통째 보관</b>합니다(레일 폭·좌우도 고를 수 있습니다). 터미널을 열 때마다 셸 변수 200줄이 쏟아지던 문제도 고쳤습니다.</li>
-    <li class="reveal"><b>v2.38.0 — 누구와 일할지 고르고, 받은 것을 가린다</b> · v2.37.0 이 서로를 보게 했다면 이번엔 <b>함께 일할 세션을 직접 묶습니다</b> — 묶은 세션끼리만 말하고 일을 넘기고, 묶이지 않은 세션은 보이기만 합니다(<b>파일 구역 선점은 묶든 안 묶든 막습니다</b> — 같은 파일은 친하든 아니든 부딪히니까요). <b>남이 쓴 텍스트는 데이터</b>라는 것도 문장이 아니라 기구가 됐습니다: 다른 에이전트의 메시지·검색된 코드·일지가 짝 태그 안에서 이스케이프돼 <b>본문이 무엇을 적든 프롬프트 경계를 위조하지 못합니다</b>(전에는 "지시로 따르지 말 것"이라는 한 줄이 방어의 전부였습니다). <b>원장은 손을 탄 것을 말합니다</b> — 태스크 기록의 줄마다 앞 줄의 지문을 실어 고쳐지거나 지워진 흔적이 화면에 섭니다. <b>「모른다」를 「없다」로 말하지도 않습니다</b>: 세션 생존에 「판정 불가」가 셋째 상태로 생겨, 모름이 죽음으로 흘러 <b>살아 있는 세션의 작업 구역을 뺏던</b> 길이 닫혔습니다. 그리고 <b>세션이 자기를 증명합니다</b> — 여태 자칭이던 <span class="mono">agent.id</span> 에 토큰이 붙고, 아닌 참여자에게는 「자칭」 표가 섭니다(막지 않고 보이게만). MCP 를 못 쓰는 에이전트도 터미널에서 <span class="mono">oculpm</span> 으로 같은 기록 도구를 부릅니다. 스킬·규칙 화면에는 <b>「근거 일지 N건」</b>이 붙습니다.</li>
-    <li class="reveal"><b>v2.37.0 — 에이전트가 여럿일 때 서로를 안다</b> · 한 프로젝트에 에이전트가 둘 이상 붙는 순간부터 <b>서로를 모른 채 같은 파일을 고쳤습니다.</b> 이제 앱 안의 Claude Code·Codex 와 터미널 CLI 세션이 서로를 보고(Today 의 <b>함께 일하는 중</b> — 혼자일 때는 카드가 아예 안 뜹니다), <b>고칠 파일 구역을 미리 잡습니다</b>: 다른 에이전트가 같은 곳을 잡으려 하면 누가 언제까지 쥐고 있는지 알려주며 막습니다 — 부딪힌 뒤 수습이 아니라 <b>부딪히기 전에</b>. <b>작업을 넘기면</b> 받은 쪽 카드에 서고 사람이 눌러야 시작되며, 끝나면 반드시 종료가 남고 수행자가 사라지면 기한이 대신 닫습니다(넘긴 쪽이 영영 기다리지 않도록). <b>받은 메시지는 데이터이지 지시가 아닙니다</b> — 승인 없이는 실행 0, 상한을 넘으면 자르지 않고 거절, 시크릿은 일지와 같은 길로 마스킹, 첨부는 프로젝트 안 상대 경로만. 다른 기계·클라우드의 에이전트를 위한 <b>외부 문</b>도 열 수 있는데 <b>기본은 닫혀 있고</b> 열어도 <span class="mono">127.0.0.1</span> 에만, 토큰은 켤 때마다 새로 만들어 저장하지 않습니다.</li>
-    <li class="reveal"><b>v2.36.0 — 컨텍스트 예산이 정직해집니다</b> · 「걸려 있는 것」은 스킬·규칙·메모리만 셌는데, Claude Code 는 여러분이 만든 <b>에이전트와 커맨드의 이름·설명도 매 세션 통째로</b> 실어 보냅니다 — 119KB 라고 나오던 세션의 진짜 값이 149KB 였던 이유입니다. 예산 바에 그 조각이 서고, 항상 로드와 따로 그립니다(<b>줄이는 방법이 달라서</b> — 규칙은 범위를 좁히고, 표면은 파일을 지워야 줍니다). 조건부 규칙의 <b>「paths 2」 배지가 숨기던 것</b>도 드러납니다: 그 2개가 「모든 .ts」와 「모든 .tsx」면 프런트 한 줄만 고쳐도 통째로 딸려오는데, 이제 배지가 <span class="mono">paths 2 · 1,847개 파일</span> 이라 말하고 프로젝트의 30% 이상을 무는 규칙엔 <b>「사실상 상시」</b>가 붙습니다. <b>실어 놓고 「따르지 않는다」고 적어 둔 규칙</b>도 짚어 줍니다 — 싣는 데 한 번, 무효로 만드는 문장에 또 한 번 값을 치르는 자리라, 어느 문서의 어떤 문장이 부정하는지 그대로 인용합니다(앱은 아무것도 고치지 않습니다). 그리고 <b>「한 번도 안 걸렸다」가 더 이상 잘못이라는 뜻이 아닙니다</b>: 시작할 프로젝트가 없어서, <span class="mono">EVALS.md</span> 가 없어서, 「요청할 때만 쓴다」고 적어 둬서 조용한 스킬에 설명을 고쳐 쓰면 <b>안 맞는 자리에 끼어드는 스킬</b>이 됩니다 — 제안은 진짜 설명 문제에만 나가고, 나머지는 이유와 근거를 달아 따로 섭니다.</li>
-    <li class="reveal"><b>v2.35.0 — 업데이트해도 터미널이 죽지 않습니다 (이번엔 진짜로) · Claude Code 세션 id</b> · 터미널을 소유한 프로세스가 앱보다 오래 사는 이유는 하나입니다 — 업데이트 재시작을 건너 그 안에서 돌던 셸을 살리기 위해서. 그런데 v2.34.0 이 그 프로세스와 <b>만나는 자리의 이름을 바꾸면서</b> 업데이트한 앱이 옛 자리를 못 보게 됐고, 하던 세션이 끊겼습니다. 이제 <b>자리는 바뀌지 않고</b>, 앱이 옛 자리까지 찾아가 거기 살아 있는 프로세스를 <b>그대로 이어받습니다</b> — 버전이 달라 뜻이 어긋나면 앱이 옛 뜻에 맞춰 줍니다(갈아치우지 않습니다). 그리고 <b>세션을 쥔 프로세스를 서둘러 내리는 길을 전부 없앴습니다</b>: 앱이 「내려가라」고 말하는 자리가 하나도 없고, 아무도 붙지 않은 채 셸을 쥔 프로세스의 유예는 3시간 하나뿐입니다(그 사이 앱이 돌아오면 처음부터 다시 셉니다). 함께, <b>Claude Code 대화의 세션 id 가 화면에 섭니다</b> — 앱 안의 대화는 Claude Code 자신의 것이라 id 만 있으면 터미널에서 <span class="mono">claude --resume &lt;id&gt;</span> 로 그대로 이어 열 수 있습니다. 상단바에 지금 보는 대화의 id 가, 지난 대화 목록에는 줄마다 하나씩 — 누르면 <b>전체 id 가 복사</b>되고(화면에는 앞 8 자), 커서를 올리면 칠 명령이 그대로 보입니다.</li>
-    <li class="reveal"><b>v2.34.1 — 업데이트가 남긴 옛 터미널 프로세스를 앱이 스스로 걷습니다</b> · 터미널을 소유한 프로세스는 앱 업데이트를 <b>넘어 살아남습니다</b> — 셸이 재시작에 죽지 않게 하려고 그렇게 만들었습니다. v2.34.0 이 그 자리(소켓)에 버전을 붙이면서 <b>옛 버전에서 올라온 프로세스에는 아무도 붙지 않게</b> 됐는데, 그 옛 빌드는 스스로 내려갈 줄 몰라 아무도 보지 않는 셸을 쥔 채 남았습니다. 이제 앱이 시작할 때 그 자리를 한 번 확인하고 세션을 제대로 끝내고 내려가게 합니다 — <b>누를 것도, 터미널에 칠 것도 없습니다.</b> 앞으로 생기는 같은 상황은 프로세스 자신이 정리합니다. 함께: 로컬 히스토리의 판 하나가 다른 판을 가리던 것(신원이 밀리초 시각이라 같은 밀리초에 들어온 두 판이 겹쳤습니다 — 한 판을 열면 다른 판이 나오고 용량 정리가 둘을 함께 지웠습니다).</li>
-    <li class="reveal"><b>v2.34.0 — 코드 화면이 하루 종일 켜 두는 편집기가 됐습니다 (VS Code 에서 가져온 일곱)</b> · 저장하면 <b>후행 공백과 마지막 줄이 정리</b>되고, 저장을 잊어도 지연·포커스 상실 시 <b>알아서 저장</b>됩니다 — diff 가 이 앱의 제품이라 저장이 만드는 노이즈는 비싸서 둘 다 <b>기본 꺼짐</b>이고, 자동 저장은 커서가 있는 줄을 건드리지 않습니다. 트리에서 한 번 누른 파일은 기울임 <b>미리보기 탭 한 자리</b>를 돌려 쓰고 더블클릭·첫 편집에 고정됩니다. <b>⇧⌘O 심볼 · ⌃G 줄</b> 이동은 목록을 오르내리는 동안 미리 뛰고 Esc 면 원래 줄로, <b>스티키 스크롤</b>은 지금 어느 함수 안인지 위에 남깁니다. <b>문제 패널</b>은 프로젝트 전체 진단을 파일별로 모아 에이전트가 무엇을 깨뜨렸는지 파일을 하나씩 열지 않게 합니다(빈 상태는 「문제 없음」이 아니라 <b>「아직 아는 문제 없음」</b>). 그리고 <b>커밋 사이의 시간이 남습니다</b> — 저장할 때마다, 에이전트가 파일을 고칠 때마다 판이 쌓이고 경로 줄의 시계에서 골라 겹쳐 보거나 되돌립니다(<code>.oculpm/</code> 안 · <code>.env*</code> 제외 · 파일당 50판). 함께 — svg 를 코드 옆에서 <b>저장 전 버퍼 기준</b>으로 그림으로 보고, 터미널은 프롬프트에 멈춘 셸을 「실행 중」으로 읽던 것과 업데이트를 넘어 살아남은 옛 프로세스가 <b>옛 답을 계속 돌려주던 것</b>, 그 프로세스가 아무도 붙지 않은 채 셸을 쥐고 남던 것을 고쳤습니다.</li>
-    <li class="reveal"><b>v2.33.0 — 화면에서 「AI 가 만든 티」를 걷어냈습니다 · 터미널·일지·Claude Code 의 조용한 결함들</b> · 반짝이(✨) 아이콘 29곳은 <b>그 자리의 동작</b>을 말하는 아이콘으로, 오늘 현황의 색 상자 지표는 선화 하나와 <b>의미 있을 때만</b> 색으로, AI 패널의 가운데 히어로는 <b>프로젝트 이름 + 시작할 질문 목록</b>으로 바뀌었습니다. 유리 스크림·툴바는 불투명하게, 광택·색 안개·게이지 그라데이션은 단색으로. 설정·회고가 쓰던 기본 둥글기·그림자·상태색 125곳을 앱 토큰에 묶어 <b>테마 프리셋이 어느 화면에서도 온전히</b> 먹습니다. 함께 — 빠른 터미널이 <b>프로젝트를 가로질러 같은 셸을 나눠 쓰던 것</b>과 끝난 셸이 먹통으로 남던 것, 일지 검색이 <b>본문에서 찾아 준 항목을 화면이 버리던 것</b>, Claude Code 화면이 가만히 있을 때 <b>어댑터를 초당 수천 번</b> 두들기던 것과 탭을 옮기면 남의 모델·권한 모드가 보이던 것을 고쳤습니다.</li>
-    <li class="reveal"><b>v2.32.0 — 앱 안의 Claude Code 최신화 · 계획 수락의 「대화 비우기」</b> · 이 앱은 Claude Code 를 따로 깔라고 하지 않습니다 — AI 패널이 쓰는 어댑터가 <b>실행 파일을 함께 들고 오기</b> 때문입니다. 그 어댑터를 올리면서 <b>안에 든 Claude Code 도 25 패치만큼 새것</b>이 됐습니다(앱을 새로 켜면 알아서 받아 둡니다 — 누를 버튼은 없습니다). 대화 <b>제목이 커서를 따라다니지 않습니다</b> — 예전에는 AI 가 제목을 붙이기 전까지 마지막 지시문이 곧 제목이라 대화를 이어 갈수록 탭 이름이 계속 바뀌었는데, 이제 대화 내용을 보고 한 번 지어 붙이고 그대로 둡니다. <b>노력 수준은 모델마다 기억</b>되어 모델을 바꿔도 초기화되지 않습니다. 계획 모드를 마칠 때 계획만 들고 <b>새 대화로 이어 가는</b> 선택지가 생겼는데, 컨텍스트는 넉넉해지지만 지금까지 오간 이야기가 사라지고 되돌릴 수 없어서 옆의 「그냥 허용」과 <b>같은 버튼으로 두지 않았습니다</b> — 그 하나만 경고색이고, 무엇이 사라지는지 버튼 <b>위에</b> 적힙니다.</li>
-    <li class="reveal"><b>v2.31.0 — 링크 한 번으로 테마를 · 웹에 변경 이력과 개인정보</b> · <a href="/themes" style="color:inherit;text-decoration:underline"><b>테마 갤러리</b></a>가 생겼습니다 — 앱을 켜지 않고도 라이트·다크 미리보기를 보고, 「앱에서 가져오기」를 누르면 앱이 <b>확인 창</b>을 띄웁니다. <b>승인해야 실제로 받아오고</b>, 가져와도 지금 쓰는 테마는 그대로입니다(갤러리에 한 장 늘 뿐). 테마는 JSON 한 장이라 PR 로 기여할 수 있고, 저장소 테스트가 스키마·색 값·<b>본문 대비</b>를 검사합니다. 웹에 <a href="/changelog" style="color:inherit;text-decoration:underline"><b>전체 변경 이력</b></a>과 <a href="/privacy" style="color:inherit;text-decoration:underline"><b>개인정보 원장</b></a>이 생겼습니다 — 「전부 로컬」을 주장 대신 <b>목록</b>으로 적었습니다: 나가는 연결은 <b>다섯</b>(LLM 요청·업데이트 확인·GitHub 조회·임베딩 모델 최초 1회·Notion 옵인)이고, 사용 통계와 크래시 리포트는 <b>수집하지 않습니다</b>. 위키에 <b>자동화 2분 가이드</b>가 한국어·영어로 추가됐고, 플러그인 문서는 제3자 스킬 25종의 <b>고정된 커밋</b>과 원문 링크를 보여 주는 카탈로그가 됐습니다.</li>
-    <li class="reveal"><b>v2.30.0 — 지난 대화를 들여옵니다 · 설정을 한 장으로 · 끊겨도 이어갑니다</b> · Claude 같은 도구에서 내보낸 <b>대화 파일</b>을 열어 이 프로젝트와 관련된 것만 골라 작업 일지로 옮깁니다. 목록을 훑는 것까지는 <b>전부 오프라인·무과금</b>이고, 고른 대화에만 배경 모델이 붙습니다 — <b>원본 날짜 그대로</b> 그 날의 폴더에 들어가고, 같은 파일을 두 번 열어도 이미 들여온 것은 「들여옴」으로 표시된 채 다시 과금되지 않습니다(목록에서 <b>사라지지는 않습니다</b>). 들여온 기록은 <b>「검토 안 함」</b> — 다른 곳의 대화를 모델이 옮겨 적은 것이니 읽기 전까지는 초안입니다. 그리고 규칙·스킬·자동화·앱 설정을 <b>YAML 한 장</b>으로 내보내 저장소에 올리고, 동료의 문서를 열면 <b>무엇이 달라지는지 먼저 보여 준 뒤</b> 적용합니다(API 키는 담기지 않습니다. 적용 뒤 다시 계산해 남은 것이 있으면 「일부만 적용됨」이라고 말합니다). <b>Claude 플러그인 번들</b>도 통째로 들여옵니다 — <b>손으로 고친 파일은 절대 덮어쓰지 않고</b> 충돌로 보고하며, 이행하지 않는 선언은 숨기지 않고 적습니다. 처음 켜면 <b>언어·모양·첫 프로젝트</b>를 한 번 묻고, <b>업데이트가 껐던 창은 업데이트가 되돌립니다</b>. 네트워크가 끊겨도 조용히 잘못되지 않습니다 — 폴백이 답하면 <b>그 답변에 배지</b>가 붙고(그 한 번뿐, 설정은 그대로), 못 닿는 프로바이더는 <b>사라지지 않고 흐려지며</b>, 자동화는 실패가 아니라 <b>연기</b>되어 연결되면 따라잡습니다. 한 창에 프로젝트를 여럿 열었을 때 <b>탭을 가로질러 새던 아홉 곳</b>(「미기록 변경」·색인 진행률·플래너 ▶실행이 남의 터미널로 가던 것)과 <b>터미널 리사이즈</b>로 글자가 깨지던 문제도 고쳤습니다.</li>
-    <li class="reveal"><b>v2.29.0 — 매번 같은 것을 다시 읽지 않습니다 · 과거는 물었을 때만</b> · 여태 AI 패널은 질문 하나마다 <b>계획 전체·최근 일지·작업 규칙</b>을 통째로 다시 실어 보냈습니다 — 「이 함수 이름 뭐가 좋을까」 같은 질문에도요. 이제 대화 시작 때 <b>무엇이 있는지 목록만</b> 한 번 싣고 본문은 필요할 때 꺼내며, 그 목록은 대화가 끝날 때까지 <b>한 글자도 바뀌지 않습니다</b>(앞부분이 고정돼야 모델 쪽 캐시가 삽니다). 과거 기록은 <b>회상 신호</b>가 있는 질문에만 붙습니다 — 「지난주에 뭐 했지」·「내가 뭐라고 했지」·「계획 어디까지 했지」. 판정은 한/영 신호어 사전이라 <b>AI 를 부르지 않고</b>, 상한(약 800토큰)을 넘으면 관련도 낮은 것부터 <b>통째로</b> 뺍니다(반쪽 기록을 넣지 않습니다). 그리고 <b>규칙을 더 이상 자르지 않습니다</b> — 예전엔 2,500자로 잘라 넣었고 그 절단이 한 번은 「시크릿 금지」 조항을 통째로 삼켰습니다. 이제 절대 잊으면 안 되는 <b>세 줄</b>만 항상 남고 나머지는 <b>잘리지 않은 전문</b>이 필요할 때 옵니다(<code>/rules</code>·<code>/plan</code>·<code>/journal</code>·<code>/skill</code> 로 직접 밀어 넣을 수도 있습니다). 자주 쓰인 기록은 관련도가 오르고 안 쓰이면 <b>30일 반감기</b>로 흐려집니다. 설정에는 <b>컨텍스트</b> 탭이 생겨 항상 따라가는 지시(전역·프로젝트별)·이번 대화가 받는 목록 원문·마지막 회상 예산·관련도 순 후보(개별 「잊기」)를 보여 줍니다.</li>
-    <li class="reveal"><b>v2.28.0 — 색을 직접 만들어 주고받습니다 · 프로젝트마다 다른 색</b> · 여태 테마는 앱에 박힌 다섯 벌이 전부였습니다. 이제 <b>설정 → 모양</b>에서 만들고 <code>.json</code> 으로 내보내고 가져옵니다 — 내장 다섯 벌도 같은 형식이라 「복제해서 편집」으로 바로 출발합니다. 별도의 미리보기 상자는 없습니다: 색을 하나 바꾸면 <b>그 순간 앱 전체</b>가 그 색이 되고, <b>바꾸지 않은 색은 건드리지 않습니다</b>(배경만 다섯 줄 적은 테마도 온전한 테마입니다). 강조 계열을 하나도 지정하지 않은 테마는 <b>고른 강조색을 그대로 두고</b>, macOS 라면 「시스템 강조색 따르기」로 OS 색을 그대로 입힙니다. 프로젝트 편집에서 테마를 묶으면 <b>그 프로젝트를 보고 있는 창만</b> 그 색으로 그려집니다 — 저장소를 여럿 열어 두고 어디 있는지 헷갈리던 것을 색이 해결합니다. 가져온 파일은 원래 식별자를 버리고 새로 발급받고, 이름이 겹치면 <b>묻습니다</b>(덮어쓸지 · 사본으로 둘지). 테마가 칠할 수 있는 것은 정해진 색 목록뿐이라 파일에 다른 무엇이 적혀 있어도 화면에 새지 않습니다.</li>
-    <li class="reveal"><b>v2.27.0 — 손이 멎으면 알아서 기록합니다 · 누가 시켰는지 보입니다</b> · 지난 버전의 자동화는 시계만 봤습니다. 이제 <b>작업 폴더를 감시</b>해 변경이 멎고 정해진 시간이 지나면 일지 초안을 남기거나 계획을 갱신합니다 — 기다릴 시간은 여섯 단계(빠름 0.2초 ~ 확장 10분). 자동 일지 초안이 여태 Claude Code 종료 훅에서만 생겨 Cursor·에디터 직접 편집이 흔적 없이 사라지던 것을 <b>두 번째 경로</b>가 메웁니다(같은 구간을 두 번 적지 않게 자리를 예약하고, 진 쪽은 어느 경로가 이겼는지 남깁니다). 감시가 자기 쓰기를 다시 보는 <b>증폭 루프</b>는 원인 제외·최소 간격·하루 상한 셋으로 막습니다. 그리고 기록이 여섯 곳에서 오는데 전부 같은 카드이던 것이 <b>출처 배지</b>로 갈립니다 — 일지·오늘·회고에 붙고, 일지 화면엔 출처 필터 줄이(한 종류뿐이면 그리지 않습니다). 대화 목록의 각 줄은 <b>「실행 중…」·「입력을 기다립니다」</b>를 말하고 <b>열지 않고 중단</b>됩니다. 진단에는 자동화 다섯 줄(배경 모델·스케줄·감시·오늘 실행/상한·최근 실패)과 <b>발동</b> 구역이 생겨 최근 7일 실제 발동과 <b>한 번도 안 걸린 규칙</b>을 세웁니다.</li>
-    <li class="reveal"><b>v2.26.0 — 정해진 시각에 스스로 돌아봅니다 · 스킬·규칙이 한 화면으로 · 무관한 규칙을 짚어 줍니다</b> · 여태 기록은 전부 누군가 손을 움직여야 생겼습니다. 이제 설정 → <b>자동화</b>에 「매주 금 17시에 이번 주 커밋과 미결 항목을 요약해라」 같은 지시문을 걸어 두면 앱이 그 시각에 스스로 돌립니다 — 빈도 여덟 가지, 예시 세 개(주간 요약·아침 브리핑·월간 회고)를 꺼진 채로 내밉니다. 배경에서 도는 일에는 <b>따로 고른 모델</b>을 쓰고, 고르지 않으면 오류 없이 조용히 건너뜁니다("몰랐는데 돈이 나갔다"를 구조로 막습니다). 실행 기록에는 성공만이 아니라 <b>건너뜀·버림·실패가 사유와 함께</b> 남고, 맥이 자고 있었으면 딱 한 번만 따라잡습니다. 스킬·규칙 다섯 탭은 <b>세 구역 한 화면</b>이 됐습니다 — 컨텍스트 예산 바 · 발동 많은 순 통합 목록(30일 0회는 접힌 「휴면」으로) · 제안 인박스. 규칙은 일지·diff·터미널 블록·Today·⌘K 에서 <b>사건이 난 자리에서</b> 만들고, 이 프로젝트와 <b>무관한 규칙</b>은 두 신호(맞는 파일 0개 · 감지되지 않은 스택)로 짚어 범위 좁히기·정리를 제안합니다. 코드 화면 파일 트리도 ⟳ 없이 스스로 최신이 됩니다.</li>
-    <li class="reveal"><b>v2.25.0 — 떼어낸 창을 다시 붙입니다 · 처음 켠 날을 설명합니다 · 진단 닥터</b> · 지난 버전에서 탭을 끌면 진짜 창이 되어 손을 따라오게 됐는데, <b>한 번 놓은 창은 돌아올 길이 없었습니다</b> — 그 창의 탭을 다시 끌면 꽂힐 자리까지 그려 놓고 손을 놓으면 아무 일도 없었습니다. 이제 탭이 하나뿐인 창은 <b>창째로 손에 들리고</b> 다른 창의 탭 줄에 놓으면 합쳐집니다(크롬과 같습니다). 프로젝트를 추가할 때 앱이 저장소에 만든 것(<code>.oculpm/</code>·<code>AGENTS.md</code> 규칙·<code>.gitignore</code>)을 <b>첫 화면이 설명하고</b> 커밋을 권합니다. 설정 → 진단에 <b>닥터 아홉 줄</b>(감시·잠금·어댑터·API 키·색인·셸 통합·훅·MCP)이 서고 문제는 그 자리에서 고칩니다. 명령이 도는 터미널이나 대답 중인 에이전트가 있는 탭은 <b>닫기 전에 한 번 물어봅니다</b>. 색인이 없는 프로젝트에서 검색·코드 맵이 「결과 없음」 대신 <b>「색인 없음 + 만들기」</b>라고 말하고, <b>⌘/</b> 로 단축키 전체를 봅니다. 첫 화면 코드 덩어리는 <b>538KB → 268KB</b>, 하루치 요약 왕복은 Today 17→5·일지 30→4 로 줄었습니다.</li>
-    <li class="reveal"><b>v2.24.0 — 탭이 진짜 창으로 떨어져 나옵니다 · 규칙이 걸리는지 보입니다 · 색인이 열 배 가벼워졌습니다</b> · 떼어내는 동안 손에 들린 것은 창 안에 갇힌 그림자라 커서가 창 밖으로 나가면 가장자리에 멈췄습니다. 이제 탭이 줄을 벗어나는 <b>그 순간 진짜 창</b>이 되어 화면 밖으로도 다른 앱 위로도 따라오고, 다른 창의 탭 줄에 겨누면 꽂힐 자리가 보입니다 — 크롬과 같습니다. 스킬·규칙 항목마다 <b>「30일 N회」 / 「안 걸림」</b> 배지가 붙어 정성껏 쓴 규칙이 실제로 읽히는지, 매 세션 몇 KB 를 먹는지 처음으로 보입니다(Claude Code 대화 기록을 이 컴퓨터 안에서 셉니다). <code>git init</code> 을 안 한 프로젝트에서 <code>node_modules</code> 가 색인되고 압축 파일 한 줄이 수백 번 복제돼 DB 가 558MB 까지 부풀던 것을 걷어내고(실측 382MB), 설정 → 진단에 <b>용량과 「압축」</b>이 생겼습니다. 터미널을 닫으면 vim·ssh·claude 까지 <b>진짜로 끝나고</b> 앱을 꺼도 어댑터가 고아로 남지 않습니다. 일지 상세의 <b>「검증」</b> 토글과 관련 일지 칩으로 검토 고리가 닫힙니다.</li>
-    <li class="reveal"><b>v2.23.1 — 끌면 손을 따라옵니다 · 접힌 목록을 다시 그렸습니다</b> · 세션을 가장자리로 끌 때도 탭을 다른 창으로 옮길 때도 정작 <b>끌리는 것 자체는 제자리</b>에 있었습니다 — 손은 움직이는데 물체는 가만히 있고 옆 것들만 툭툭 자리를 바꾸니 뻑뻑하게 끌렸습니다. 이제 세션은 이름표가 <b>손끝에 붙어 따라오고</b>, 창 탭은 크롬처럼 손을 따라 미끄러집니다. 「여기에 놓입니다」 표시도 커서보다 늦게 오지 않게 곧바로 붙습니다. 나뉜 화면 <b>사이 틈에 놓아도</b> 가장 가까운 쪽으로 붙고(한가운데=취소는 그대로), 끄는 동안 살아 있는 터미널을 매번 다시 그리지 않아 <b>화면이 무거워지지 않습니다</b>. 접힌 세션 목록은 <b>아이콘 하나</b>로 읽히고 상태는 모서리의 작은 점으로 얹힙니다 — 평상시에는 그리지 않습니다.</li>
-    <li class="reveal"><b>v2.23.0 — 어느 에이전트가 기다리는지 · 명령마다 자리를 갖습니다</b> · Claude Code 를 서너 개 띄우면 어느 창이 <b>내 대답을 기다리는지</b> 하나씩 눌러 봐야 알았습니다. 이제 에이전트가 사람을 부르면 그 세션이 노랗게 서고 목록 위에 「N개가 기다립니다」가 뜹니다 — 벨은 확실, 「20초째 조용하다」는 <b>추정이라고 적습니다</b>. 터미널에는 <b>명령 블록</b>이 생겼습니다: 명령마다 왼쪽에 상태 막대(성공 초록·실패 빨강), 오른쪽 띠에 <b>실패 지점이 점으로</b>, <b>⌘↑/⌘↓</b> 로 명령 사이 점프, 긴 출력을 볼 땐 어느 명령의 출력인지 맨 위에 고정됩니다. 상태 막대를 누르면 복사·프롬프트 채우기와 함께 <b>「일지로 남기기」·「플래너에 붙이기」</b> — 일지는 명령줄·종료코드·걸린 시간·출력 끝 40줄이 채워진 채 열립니다. <b>다시 실행 버튼은 일부러 없습니다</b>(눈으로 확인하지 않은 명령을 바로 돌리지 않게 채우기만 합니다).</li>
-    <li class="reveal"><b>v2.22.0 — 터미널이 세로 세션 목록으로 · 끌어서 나란히 · 탭을 창 사이로</b> · 터미널의 가로 탭 줄을 <b>세로 세션 목록</b>으로 바꿨습니다 — 다섯 개가 넘으면 이름이 뭉개지고 상태를 실을 자리가 없었기 때문입니다. 카드 한 장에 상태·에이전트·경과 시간·마지막 명령이 함께 실리고, 실행 중이거나 실패한 화면은 위 가장자리에 색 띠를 두릅니다. <b>세션을 끌어 화면 가장자리에 놓으면 그 자리에 갈라져</b> 둘이 나란히 서고(손잡이 ⠿ 로 자리를 바꾸거나 독립 세션으로 빼냅니다), 탭은 <b>다른 창의 탭 줄에 떨어뜨려 합칠 수 있습니다</b> — 지금까지 떼어내기만 되고 되돌릴 길이 없었습니다. 끌지 않고 <b>우클릭</b>(키보드는 Shift+F10)으로도 같은 일을 합니다. 탭이 아홉 개째부터 잘려 사라지던 것도 고쳤습니다.</li>
-    <li class="reveal d1"><b>v2.21.1 — 줄번호와 코드가 겹치지 않습니다</b> · 코드 화면에서 긴 줄을 보려고 옆으로 밀면 <b>코드가 줄번호 위로 겹쳐</b> 지나갔습니다. 줄번호 칸은 가로로 스크롤해도 제자리에 남아야 하는데 그 칸에 바탕색이 빠져 있어, 흘러가는 코드가 숫자 밑으로 비쳐 둘이 뒤엉킨 채 읽혔습니다 — 화면 밖으로 나가는 긴 줄이 있는 파일에서만 나타나던 증상입니다. 이제 줄번호 칸이 편집면과 같은 바탕을 깔아 코드가 그 뒤로 지나갑니다. 테마·색 프리셋을 바꿔도 색이 어긋나지 않습니다.</li>
-    <li class="reveal d1"><b>v2.21.0 — Finder 에서 끌어다 놓고 ⌘V 로 넣습니다</b> · 스크린샷 한 장, 참고용 PDF, 받아 둔 폴더를 프로젝트에 넣으려면 앱을 나가 Finder 에서 복사해 오고 돌아와야 했습니다. 이제 <b>Finder 에서 코드 트리로 끌어다 놓으면</b> 그 폴더로 들어옵니다 — 끌고 다니는 동안 <b>어느 폴더에 놓일지가 밝게 표시</b>되고, 놓으면 그 폴더가 펼쳐지며 어디에 들어갔는지 알려 줍니다. Finder 에서 ⌘C 로 복사한 뒤 앱에서 <b>⌘V</b> 를 눌러도 같습니다(폴더도 됩니다). 같은 이름이 있어도 <b>덮어쓰지 않고</b> <span class="mono">note-2.txt</span> 로 붙고, 심볼릭 링크는 따라가지 않으며, 한 번에 너무 많은 양(2,000개 · 512MB)은 거기까지만 넣고 잘렸다고 알립니다. 에디터 안의 ⌘V 는 종전대로 글자 붙여넣기입니다.</li>
-    <li class="reveal d1"><b>v2.20.0 — 코드 화면에서 이미지·PDF 를 봅니다</b> · 지금까지 <span class="mono">.png</span> 든 <span class="mono">.pdf</span> 든 「미리볼 수 없는 파일입니다」 한 줄이 전부라, 에이전트가 남긴 화면 캡처 하나를 보려고 Finder 로 나가야 했습니다. 이제 파일 트리에서 누르면 그림은 <b>투명한 부분이 드러나는 체크무늬</b> 위에 뜨고 <b>창 맞춤 ↔ 실제 크기</b>를 오갑니다(원본 해상도·용량 표기). PDF 는 문서 그대로 넘겨 봅니다 — 편집기의 2MB 제한과 무관하게 <b>16MB 까지</b>. 열 수 없는 파일 위에서 누른 ⌘S 가 앞 파일 내용을 그 경로에 쓰려 들던 것도 막았습니다. 화면 낭독기에 무음이던 Today 활동 링이 「일지 N건 · 파일 N개 · +N/−N 줄」을 읽어 주고, 반대로 마우스가 스칠 때마다 소리 내어 알리던 말풍선은 멈췄습니다. 저장소에는 자동 검사가 생겨 올라오는 모든 변경이 타입·테스트·린트·빌드를 통과해야 합니다.</li>
-    <li class="reveal d1"><b>v2.19.0 — 터미널이 업데이트를 견딥니다 · 코드 화면에 전역 검색</b> · 업데이트가 앱을 재시작하는 순간 터미널 안의 셸 — 그 안에서 돌던 Claude Code 세션까지 — 이 통째로 사라졌습니다. 이제 터미널 세션은 <b>앱과 분리된 프로세스</b>가 쥐고 있어, 재시작 뒤에도 탭이 스크롤백·실행 중이던 프로그램까지 <b>하던 그 자리 그대로</b> 되살아납니다. 그리고 코드 화면에 <b>⇧⌘F 프로젝트 전역 검색·치환</b>이 생겼습니다 — 대소문자·단어 단위·정규식으로 <b>디스크의 현재 내용</b>을 찾고, 결과를 누르면 그 매치가 선택된 채 열리며, 한 곳·한 파일·전체 치환(정규식 $1 지원)까지 됩니다. 미저장 편집이 있는 파일은 덮어쓰는 대신 건너뛰고 알립니다.</li>
-    <li class="reveal d1"><b>v2.18.0 — 폰에서도 열립니다 · 모바일 연동 (베타)</b> · 맥을 떠나면 에이전트가 뭘 했는지 볼 수 없던 것이 풀렸습니다. 설정 → 모바일에서 서버를 켜고 폰으로 QR 를 찍으면, <b>같은 Tailscale 네트워크 안의 폰 브라우저</b>에서 오늘 일지 · 플래너 · 논의 · AI 대화가 열립니다 — 일지를 읽고 쓰고, 플랜을 체크하고, 맥에 설정한 AI 에게 물으면 답이 실시간으로 흐릅니다. 홈 화면에 추가하면 앱처럼 쓰고, 데스크톱 테마·액센트가 폰에 그대로 실립니다. <b>데이터는 여전히 맥을 떠나지 않습니다</b> — 서버는 Tailscale 사설망에만 열리고, 6자리 코드 1회 페어링 토큰으로만 접근하며, API 키는 맥 키체인에만 머뭅니다. 베타라 검색·회고·코드 화면은 아직 데스크톱 전용입니다.</li>
-    <li class="reveal d1"><b>v2.17.0 — 실시간 갱신이 스스로 낫습니다</b> · 에이전트가 일지·계획을 고쳐도 화면이 안 따라오고 <b>우클릭 새로고침을 해야만 보이던 것</b>을 고쳤습니다 — 파일 감시가 소리 없이 죽는 두 갈래를 막고, 앱이 <b>1분마다 감시가 실제로 이벤트를 받는지 점검</b>해 먹통이면 그 자리에서 되살립니다. 앱을 두 개 띄우면 나중 창이 영영 읽기 전용이 되던 것도 <b>「가장 최근에 연 창이 주인」</b> 규칙으로 풀렸습니다. 플래너·회고의 ▶실행은 터미널이 이미 보이면 <b>화면을 옮기지 않고 그 자리에</b> 프리필하고, 대화 중인 에이전트에게는 <b>프롬프트를 붙여넣어</b> 맥락을 지킵니다. 코드 화면은 ⌘W 로 탭을 닫고 ⌃Tab 으로 오가고 ⇧⌘T 로 되살리는 <b>키보드 탭</b>이 됐고, 사이드바는 논의 · Diff · AI 대화로 이름을 바로잡고 <b>AI 섹션</b>을 분리했습니다.</li>
-    <li class="reveal d1"><b>v2.16.0 — 탭·분할·디버거, 에이전트가 바꾼 코드가 편집기 안에 보입니다</b> · 여러 파일을 <b>탭</b>으로 열고 <b>좌우로 나눠</b> 같이 봅니다. 트리 우클릭으로 만들고 이름 바꾸고 드래그로 옮기며, 삭제는 <b>휴지통</b>으로 가 되돌릴 수 있습니다. ⇧F12 참조 찾기 · 아웃라인 · ⌘K 프로젝트 전체 심볼 · 시그니처 힌트 · 선택 영역 포맷 · git 거터로 LSP 창구가 완성됐고, <b>중단점을 찍고 한 줄씩 실행하는 디버거</b>(Rust · Python · Go)가 들어왔습니다. 경로 줄의 비교 버튼은 <b>마지막 커밋 이후 에이전트가 바꾼 부분을 본문 사이에</b> 그대로 보여주고 — 지워진 줄은 빨간 블록, 덩어리별 되돌리기 — 일지 배지에서 <b>이 파일을 고친 작업 일지</b>를 골라 그 작업의 변경만 겹쳐 봅니다. 파일마다 확장자별 아이콘(TS 사각형·파이썬 뱀·Rust 기어)이 붙고, 무시된 파일도 트리에 흐리게 보입니다. 문제 해결 화면은 서식 툴바와 규격 블록 삽입, 문서 단계에 맞는 <b>프롬프트 복사</b>가 붙은 편집기로 다시 태어났습니다.</li>
-    <li class="reveal d1"><b>v2.15.0 — 「코드」 화면이 IDE 가 됐습니다</b> · 지금까지 코드 화면은 글자를 보여주고 저장해 주는 곳이었습니다. 이제 <b>타이핑하는 동안 자동완성</b>이 뜨고, 틀린 곳에 <b>붉은 밑줄</b>이 그어지고, 이름 위에 올리면 타입과 설명이 나옵니다. F12·⌘클릭으로 정의한 자리로 건너뛰고, 심볼 이름을 바꾸면 그것을 쓰는 <b>모든 파일이 함께</b> 바뀝니다. Rust · TypeScript/JavaScript · Python · Go 에서 동작하며, 각 언어 도구가 컴퓨터에 없으면 <b>없다고 말해 줍니다</b>. VS Code 포크가 아니라 표준 LSP 를 직접 붙인 것입니다. 함께 — 코드 트리에 <b>점으로 시작하는 파일</b>(<span class="mono">.oculpm/</span> · <span class="mono">.github/</span>)이 보이고, 에이전트가 고친 <b>계획·논의가 화면에 즉시</b> 반영되며, 플러그인이 <b>과거 일지를 검색</b>해 「그 파일을 예전에 왜 건드렸는지」를 작업 시작 전에 찾습니다. 사용 설명서(위키)도 화면·개념 11쪽이 채워지고 영문판이 함께 나갑니다.</li>
-    <li class="reveal d1"><b>v2.14.1 — Today 가 열리지 않던 것</b> · Today 를 열 때마다 붉은 상자에 <span class="mono">no such column: f.lines_added</span> 만 남고 <b>화면이 통째로 비던</b> 문제입니다. v2.14.0 이 링의 「라인 변화」를 채우려고 저장소에 더한 칸이, 앱이 <b>예전에 이미 써 버린 번호와 겹치는 바람에</b> 일부 기기에서 만들어지지 않은 채 남았습니다. 이제 앱이 켜질 때 저장소 모양을 스스로 대조해 빠진 칸을 채웁니다 — 기록은 건드리지 않고 칸만 되살리므로 잃는 것은 없고, 앞으로 같은 어긋남이 다른 칸에서 나도 같은 방식으로 조용히 낫습니다.</li>
-    <li class="reveal d1"><b>v2.14.0 — 대화 여러 개를 나란히, 그리고 정직성 감사의 오탐을 끝내다</b> · 탭은 예전에도 여러 개 열렸지만 한 대화가 답하는 동안 다른 대화에 친 말은 <b>줄을 서서 기다렸습니다</b> — 보낸 말이 어디로 갈지를 「지금 보고 있는 탭」이 정했기 때문입니다. 이제 말이 향할 대화를 직접 짚습니다. A 가 답하는 중에 새 대화를 열어 곧바로 말을 걸 수 있고, <b>승인 카드도 대화마다 따로</b> 서서 한 대화를 ESC 로 멈출 때 옆 대화의 승인이 함께 거절되지 않습니다. 그리고 <b>정직성 감사</b> — 하루 60개가 「기록 안 함 · 심각」으로 뜨는데 진짜는 3개였습니다. 앱이 세션에 붙이는 이름표와 에이전트가 일지에 적는 이름표가 다른 방언이라 두 집합이 영원히 안 겹쳤기 때문입니다. 판정을 <b>하루 단위 커버리지</b>로 바꿔 방언과 무관하게 맞추고, 세션이 닫힌 뒤에 쓰인 일지도 제 세션으로 귀속시켜 늘 0 이던 대조 숫자를 살렸습니다. 함께: 다른 탭에 갔다 오면 <b>잘린 채 굳던 터미널</b>, 일지가 쌓일수록 무너지던 <b>변경 파일 목록</b>(그룹 접기 · 파일명이 남는 경로 · 필터), Today 링의 <b>「라인 변화」가 늘 0</b> 이던 것, 2단 배치 아래로 드러나던 빈 배경, 프로젝트 탭마다 따로 접히던 사이드바.</li>
-    <li class="reveal d1"><b>v2.13.5 — 스페이스 뒤 앞 음절, 그리고 재발을 끝내기 위한 진단</b> · 「안녕」 뒤에 스페이스를 치면 <b>「안녕 녕」</b>이 되던 문제를 v2.13.3 에서 고쳤지만 두 갈래가 남아 있었습니다 — 확정과 잔여물 사이에 <b>빈 입력이 한 번 끼면</b> 걸러낼 근거가 지워졌고, 잔여물이 <b>띄어쓰기까지 끌고 오면</b> 검사가 시작조차 되지 않았습니다. 두 갈래 모두 막았습니다. 여기에 더해 <b>정식 빌드에서도 입력 흐름이 메모리에 조용히 쌓이고</b>, 터미널에서 <b>⌃⌥⇧I</b> 를 누르면 그 직전 기록이 로그로 저장됩니다 — 기록을 켜면 앱이 느려져 문제 자체가 사라지던 종류라, 진단이 재현을 방해하지 않도록 만들었습니다.</li>
-    <li class="reveal d1"><b>v2.13.4 — Claude Code 화면의 세 가지</b> · <b>「새로운 세션」을 눌러도 위쪽 탭 줄에 아무 것도 안 뜨던 것</b>을 고쳤습니다 — 세션은 첫 마디를 보낼 때 만들어지므로 그전까지 탭에 실릴 것이 없었습니다. 이제 점선으로 두른 임시 탭이 그 자리에 생기고 첫 마디와 함께 진짜 탭이 됩니다. <b>대화 제목이 방금 보낸 마지막 지시문을 따라다니던 것</b>도 고쳤습니다 — 진짜 제목이 붙기 전까지 첫 마디를 지킵니다. 사용량 카드의 <b>「무엇이 기여했나」</b>는 카드를 넓히고 비율은 막대·숫자로, 목록은 칩으로 정리해 이제 잘리지 않고 읽힙니다.</li>
-    <li class="reveal d1"><b>v2.13.3 — 스페이스 뒤 앞 음절이 다시 찍히던 것</b> · 「안녕」 뒤에 스페이스를 치면 <b>「안녕 녕」</b>이 되던 문제입니다. 스페이스로 조합이 확정되면 앱이 입력 버퍼를 비우는데, 입력기가 아직 그 글자를 붙들고 있으면 <b>비워진 버퍼에 다시 올립니다</b> — 앱이 이걸 새로 친 글자로 착각해 흘렸습니다. 바로 앞 버전에서 고친 스페이스 문제와 증상은 닮았지만 <b>원인이 정반대</b>(그건 너무 일찍, 이건 너무 늦게)였습니다. 개발용 빌드는 진단 로그 때문에 느려 이 틈이 닫혀 있어 <b>정식 빌드에서만</b> 나타났습니다.</li>
-    <li class="reveal d2"><b>v2.13.2 — 한글을 치다 스페이스를 누르면 앞 글자가 반복되던 것</b> · 「안뜨」 뒤에 스페이스를 치면 <b>「안뜨뜬」처럼 직전 글자가 남고 띄어쓰기는 사라지던</b> 문제입니다. 천천히 치면 멀쩡하고 <b>문장을 빠르게 쓸 때만</b> 나타났습니다. 한글 입력기가 「글자를 고쳐 쓰라」고 알려주는 신호는 키를 누른 시점보다 <b>최대 0.24초까지 늦게</b> 오는데, 그 사이 먼저 나간 띄어쓰기를 뒤늦은 고쳐 쓰기가 지워버린 타이밍 경합이 원인이었습니다. 함께 「코드」 화면의 저장도 손봤습니다 — CRLF 줄바꿈 보존, 프로젝트 밖 파일이 열리던 바로가기 차단, ⌘S 한 번에 저장이 두 번 나가던 것.</li>
-    <li class="reveal d3"><b>v2.13.1 — 터미널에서 한글이 두 번 찍히던 것</b> · 터미널의 Claude Code 에 한글을 길게 쓰다 오타를 지우면 지운 글자가 화면에 남아 <b>「차」가 「ㅊ차」로</b>, 백스페이스를 두 번 누르면 <b>「호」가 「하ㅎ호」로</b> 불어났습니다. 한글 입력기에서 조합 중인 백스페이스는 글자를 지우는 키가 아니라 <b>음절을 한 단계 되돌리는 입력기 동작</b>인데, 앱이 이것을 「입력이 끝났다」로 잘못 읽어 조합 상태를 버린 것이 원인이었습니다. 짧은 셸 명령에서는 거의 드러나지 않고 <b>한글 문장을 길게 칠 때</b> 상시로 나타나던 증상입니다.</li>
-    <li class="reveal d2"><b>v2.13.0 — 새 「코드」 화면: 앱 안에서 코드를 바로 열어 보고 고칩니다</b> · 검색·코드맵이 가리키는 파일을 보려고 에디터로 나가던 왕복의 끝 — 파일 트리에서 열면 <b>문법 하이라이트(12개 언어)와 함께 바로 편집</b>되고 <span class="mono">⌘S</span> 로 저장합니다. 검색 결과·코드 맵에는 <b>「코드 화면에서 열기」</b> 버튼이 생겨 해당 줄로 점프합니다. 에이전트가 같은 파일을 고치면: 저장 순간 디스크가 바뀌어 있으면 <b>덮어쓰지 않고 배너로 선택</b>(디스크 버전 / 내 버전)을 묻고, 열어 둔 파일이 밖에서 바뀌면 편집 전이면 조용히 최신화, 편집 중이면 배너. <b>저장 안 한 편집은 화면을 옮겨도 남고</b> 트리에 초록 점으로 표시됩니다.</li>
-    <li class="reveal d2"><b>v2.12.0 — 변경 diff · 코드 맵 · 코드 검색, 셋 다 한 단계 위로</b> · 사진이 바뀌면 diff 가 깨진 문자 나열 대신 <b>이전/현재 이미지를 나란히</b> 보여줍니다 — 체커보드 밑판 위에 크기 변화와 함께 (다른 바이너리는 크기 카드). 거터엔 <b>실제 파일 줄 번호</b>와 <span class="mono">+12 −4</span> 요약. 코드 맵은 <b>플로팅 엣지 + 방향 화살표</b>(A → B: A 가 B 를 사용)로 관계선 스파게티를 걷어내고, 언어 색이 스며든 카드와 「허브」 태그로 다시 그렸습니다. 코드 검색은 <b>파일별 그룹 · 매치 형광펜 · 에디터 해당 줄로 점프</b> · 최근 검색어 · 결과 더 보기까지 — 결과가 코드로 이어집니다.</li>
-    <li class="reveal d2"><b>v2.11.0 — 에이전트가 고치는 내용이 보인다, 블라인드 승인의 끝</b> · Claude Code 가 파일을 편집하면 그 <b>변경(diff)이 도구 카드에 그대로</b> 그려집니다 — 지운 줄은 빨강, 넣은 줄은 초록, 줄에는 <span class="mono">+12 −3</span> 규모. 승인 카드에는 <b>실행될 명령·바뀔 내용이 카드 안에</b> 실려 제목만 보고 허용을 누르던 일이 끝났습니다. 승인 대기는 <b>사이드바 배지</b>로 알리고, <b>한글 조합 중 Enter 가 문장을 전송하던 버그</b>도 고쳤습니다. 입력창 자동 확장 · ↑/↓ 지시 되부르기 · 파일 드래그&amp;드롭 · 턴 영수증("도구 7 · 파일 3 · 1분 12초") · 답변 복사 · 죽은 프로세스 감지와 「다시 연결」까지 — 대화면의 마찰을 한꺼번에 걷어냈습니다.</li>
-    <li class="reveal d2"><b>v2.10.3 — 더블클릭은 창 크기만, 그리고 빈 화면의 끝</b> · 창 위쪽 <b>빈 곳을 더블클릭</b>하면 창 크기 조절과 함께 <b>새 탭이 하나씩 늘어나던</b> 문제를 고쳤습니다 — 그 자리는 곧 타이틀바라 더블클릭은 창 크기만 조절해야 합니다(새 탭은 <span class="mono">+</span> · <span class="mono">⌘T</span>). 프로젝트를 열기 전 <b>시작 탭의 설정 → ocul-pm</b> 으로 들어가면 <b>창 전체가 하얗게 비어</b> 재시작밖에 길이 없던 것도 고쳤습니다. 나아가 화면 한 조각에서 오류가 나도 <b>그 조각에만 갇히고</b> 그 자리에 「다시 시도」가 뜹니다 — 다른 탭과 탭 줄은 그대로 쓸 수 있어, 무엇이 잘못되든 앱을 다시 켜는 것으로 몰리지 않습니다.</li>
-    <li class="reveal d2"><b>v2.10.2 — 도크는 오른쪽에도, 분리 창은 끌어서 이동</b> · 자리 바꾸기 버튼이 <b>아래 → 왼쪽 → 오른쪽</b> 으로 한 바퀴 돕니다(세로 두 자리는 폭을 함께 기억). 떼어낸 터미널 창은 타이틀바가 없는 모양이라 창을 잡는 자리를 앱이 직접 내줘야 하는데 그게 빠져 있어 <b>창을 아예 움직일 수 없었습니다</b> — 이제 탭 줄의 빈 곳을 끌면 따라옵니다. 그리고 <b>macOS 창 분할 단축키(⌃⌥←→↑↓)</b> 가 이 앱에서만 안 되던 문제: 그건 시스템 전역 키가 아니라 「창」 메뉴 안 <b>「이동 및 크기 조절」</b> 항목의 단축키인데, <span class="mono">⌘W</span> 를 되찾으려 메뉴를 직접 구성하면서 어느 것이 창 메뉴인지 알려 주지 않아 그 항목이 아예 없었습니다.</li>
-  </ul>
-  <details>
-    <summary>지난 이력 더 보기</summary>
-    <ul class="update-points">
-      <li class=""><b>v2.10.1 — 어느 화면에서나 터미널</b> · 셸을 보려면 터미널 화면으로 들어가야 했고, 일지나 플래너를 보려면 다시 나와야 했습니다. 이제 <b>⌘J</b> 로 지금 보고 있는 화면 위에 터미널이 열립니다. 붙이는 자리는 <b>아래</b>(가로로 넓게) 또는 <b>왼쪽</b>(세로로 길게) 중에 고르고, 경계를 끌어 크기를 맞춥니다. <b>창으로 떼어내도 셸은 끊기지 않고</b> 스크롤백까지 따라옵니다. 설정 → 모양에서 <b>터미널 글자 크기를 px 로</b> 정하고 실제 글꼴 미리보기로 확인합니다. 함께: <b>Claude Code 의 할 일 목록</b>이 보이고 앱 안 Claude Code 가 <b>작업 일지를 직접 씁니다</b>, 사용 한도·인증 실패·<b>모델 폴백</b>이 대화에 기록으로 남습니다, 부팅 화면이 앱 아이콘이 그려지는 모션으로 바뀌었습니다.</li>
-      <li class=""><b>v2.10.0 — Claude Code 를 앱 안에서 직접 구동</b> · 사이드바에 새 화면 <b>Claude Code</b>. 여기서 시키면 진짜 <span class="mono">claude</span> 가 앱 안에서 파일을 고치고 도구를 쓰고 승인을 구합니다(Agent Client Protocol). 도구 호출·권한 승인이 대화 안 <b>카드</b>로 오고, 상단바는 <b>세션 탭</b> 줄이 됩니다. <b>Effort · 권한 모드</b>를 한 트랙에서 고르고, 최상위 단계 <b>울트라코드</b>는 설정이 아니라 프롬프트 키워드입니다. 이미지 붙여넣기, 모델 전환 구분선, 위젯형 <span class="mono">/usage</span> 도 함께. CLI 자신의 화면에만 사는 기능(<span class="mono">/remote-control</span> 등)은 진짜 터미널 탭에서 <span class="mono">claude</span> 를 띄우는 <b>터미널 탈출구</b>로 처리합니다. 업데이트해도 대화가 안 끊기고, 기존 구독 로그인을 그대로 씁니다.</li>
-      <li class=""><b>v2.9.0 — 창과 탭</b> · 한 창이 <b>프로젝트 여러 개를 탭</b>으로 뭅니다. 끌어서 순서를 바꾸고 창 밖으로 <b>떼어내면 새 창</b>이 됩니다. 프로젝트마다 화면·필터 상태를 따로 기억하고 <b>터미널 세션은 프로젝트에 묶여</b> 탭이 창을 옮겨도 끊기지 않습니다. <b>⌘T</b> 새 탭(=시작 탭) · <b>⌘W</b> 탭 닫기 · <b>⇧⌘N</b> 새 창. 시작 화면은 <b>등록된 프로젝트 전부를 한 격자</b>로 다시 짰고, 프로젝트마다 <b>색 8종·아이콘 10종</b>을 고릅니다. 상단바는 이제 <b>추적 중인 프로젝트 전부</b>를 감지합니다 — 그동안 탭을 열지 않은 프로젝트는 일지를 남겨도 놓치고 있었습니다.</li>
-      <li class=""><b>v2.8.5 — 영어 지원</b> · 설정에서 화면 언어를 고르면 <b>12개 화면 전체</b>가 영어로 바뀝니다. 화면 문구뿐 아니라 <b>오류 메시지</b>와 AI 가 쓰는 작업 일지·회고·플래너 항목, 새 프로젝트에 심기는 기록 규칙까지 함께 따라갑니다. 화면 언어와 <b>AI 작성 언어는 따로</b> 고를 수 있고 — 화면은 영어, 일지는 한국어가 가능합니다 — <b>이미 기록된 문서는 다시 쓰지 않습니다</b>. ⌘K 팔레트는 양쪽 언어로 모두 찾힙니다.</li>
-      <li class=""><b>v2.8.4 — Pretendard 서체 · 화면 전환 속도</b> · 본문 서체를 <b>Pretendard</b>(애플고딕을 모델로 한 한글 서체)로 바꾸고, 그동안 <b>지정한 굵기대로 그려지지 않던 96군데</b>를 바로잡았습니다. 서체 파일은 7개 2.7MB → 1개 2.0MB. 변경 diff 화면은 코드 색칠 데이터를 <b>열 때만</b> 불러오도록 바꿔 프로젝트 진입 직후 로드량이 절반 아래로(266KB→125KB), 첫 코드 인덱싱도 기록을 묶어 처리해 빨라졌습니다.</li>
-      <li class=""><b>v2.8.3 — 터미널 붙여넣기 수정</b> · 내장 터미널에 붙여넣은 내용이 <b>두 번 들어가던</b> 문제를 고쳤습니다. 중복만이 아니라 두 번째 사본은 줄바꿈이 날것으로 전달돼 <b>각 줄이 명령으로 실행될 수</b> 있었습니다.</li>
-      <li class=""><b>v2.8.2 — 터미널 한국어 수정</b> · 내장 터미널에서 <b>한글만 영문보다 크게</b> 보이던 문제(폰트 자간 정보를 터미널 격자에 맞춰 재생성 — 글자 크기는 그대로, 용량은 440KB→279KB)와, 한글 입력기가 켜져 있을 때 <b>영문·스페이스가 두 번 입력</b>되던 문제를 고쳤습니다. 스페이스가 <span class="mono">NBSP</span>로 셸에 전달되던 것도 함께.</li>
-      <li class=""><b>v2.8.1 — 프로젝트 관리 화면</b> · 등록된 프로젝트를 <b>평면 표</b>로 펼쳐 이름 변경·제거·추가를 한자리에서. 체크박스로 <b>여러 개를 한 번에 제거</b>하고, 폴더의 <span class="mono">.oculpm</span>·<span class="mono">AGENTS.md</span> 삭제 여부는 따로 고릅니다(기본 꺼짐). 첫 화면이 접어 둔 조용한 프로젝트도 여기선 전부 보입니다.</li>
-      <li class=""><b>v2.8.0 — 스킬 샵</b> · 프로젝트 스택을 감지(매니페스트 기반, LLM 0)해 <b>검증된 제3자 스킬 25종</b>(MIT·커밋 고정 사본)을 추천 — 검색·미리보기 후 원클릭 설치. 배달 게이트가 "코드 변경 있는데 일지 없음"을 세션당 1회 잡아 에이전트에게 일지를 시킵니다.</li>
-      <li class=""><b>v2.7.0 — 벤토 콕핏 홈</b> · 첫 화면의 <b>이어서 일하기</b> 타일이 다음 할 일·최근 기록·14일 활동 추이·마지막 에이전트를 한눈에. 일지 없이 끝난 세션은 Today 가 알려줍니다.</li>
-      <li class=""><b>v2.6.0 — 회고도 Claude Code 가</b> · 회고 화면 [Claude Code 로] 버튼 = 프롬프트 프리필→세션이 회고 파일 작성. 반복 태그는 <b>스킬 후보</b>로 승격 제안, <span class="mono">project_init</span> 로 앱 없이 새 프로젝트 추적 시작.</li>
-      <li class=""><b>Claude Code 플러그인</b> — <span class="mono">/plugin</span> 두 줄이면 훅 브리지 · MCP 도구 7종 · 스킬 5종이 전 프로젝트에. 앱이 없어도 기록이 시작됩니다.</li>
-      <li class=""><b>▶실행 디스패치</b> — 플랜 항목을 누르면 항목+연결 일지+갱신 지시가 조립된 프롬프트가 터미널에 프리필. Enter 한 번으로 실세션이 그 항목을 잡습니다.</li>
-      <li class=""><b>3단계 계획 + project-inception</b> — 하위 작업 중첩(부모 상태는 자동 롤업), 아이디어는 웹 리서치→근거 실린 대화로 사양을 확정해 설계 산출물 4종으로 시드.</li>
-      <li class=""><b>에이전트 토큰 60% 다이어트</b> — 상시 주입 규칙이 ≈2,900→≈1,150 토큰. 준수를 담보하던 규칙은 전부 유지.</li>
+</section>
+
+<section class="sec" id="why" aria-labelledby="why-h">
+  <div class="wrap">
+    <h2 id="why-h">잘 쓰는 법은 알려져 있습니다. 문제는 매 세션 잊는다는 것.</h2>
+    <p class="intro">Anthropic 의 안내서, Simon Willison 의 에이전트 공학 패턴, Sonar 의 2026 조사, METR 의 실측이 같은 다섯 줄을 말합니다. Ocul 은 그 다섯이 <b>/clear 한 번에 사라지지 않는 자리</b>입니다.</p>
+    <table class="principles">
+      <thead><tr><th scope="col">원칙</th><th scope="col">출처</th><th scope="col">Ocul 의 자리</th></tr></thead>
+      <tbody>
+        <tr><td>코드 전에 완료 조건</td><td>「사양을 먼저 쓰고 그것으로 빌드한다」<cite>Anthropic</cite></td><td>계획마다 완료 조건 한 줄. 시작 훅이 매 세션 항목보다 먼저 싣습니다.</td></tr>
+        <tr><td>통과 · 실패를 내는 것을 준다</td><td>「pass 나 fail 이 나오는 것을 주라」<cite>Anthropic</cite></td><td>확인 명령의 결과가 <code>판정 ✓|✗</code> 한 줄로. 항목이 다 닫혀도 판정이 통과해야 끝입니다.</td></tr>
+        <tr><td>주장이 아니라 출력</td><td>「‘테스트 다 통과’ 한 줄은 거의 아무것도 말해 주지 않는다」<cite>Anthropic</cite></td><td>돌린 명령과 결과 끝 줄이 없는 일지는 오늘 화면 위로 섭니다.</td></tr>
+        <tr><td>판정은 네가 아닌 것이</td><td>「테스트가 통과해도 서버가 뜬다는 뜻은 아니다」<cite>Simon Willison</cite></td><td>규칙 템플릿이 확인 명령부터 만들게 하고, 실패도 일지로 남기게 합니다.</td></tr>
+        <tr><td>바깥 심판</td><td>개발자 96% 가 AI 코드를 믿지 않으면서 48% 만 늘 확인한다. 빨라졌다는 느낌은 실측과 다르다.<cite>Sonar 2026 · METR</cite></td><td><code>/oculpm:redteam</code> 이 합류 전에 반례를 찾습니다.</td></tr>
+        <tr class="limit"><td>못 주는 것: 야망 자체</td><td></td><td>완료 조건을 대신 만들지 않고, 판정을 대신 내리지 않습니다. 묻고 짚되 막지 않습니다.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="facts-h">
+  <div class="wrap">
+    <h2 id="facts-h">다섯 화면과, 손에 붙는 작은 것들.</h2>
+    <dl class="facts">
+      <div><dt>Claude 가 기다리면 압니다</dt><dd>앱 안 터미널이든 밖이든, 오늘 화면 맨 위에 한 줄. 창이 뒤에 있으면 OS 알림이 옵니다.</dd></div>
+      <div><dt>Claude 에게 보내기와 /goal</dt><dd>일지 · 계획 항목 · 변경 파일을 맥락으로 붙여 claude 세션에 넣습니다. 계획의 「끝까지」는 완료 조건을 <code>/goal</code> 로 넘깁니다.</dd></div>
+      <div><dt>창 하나가 프로젝트 하나</dt><dd><kbd>⌘O</kbd> 로 최근 프로젝트, <kbd>⌥⌘1</kbd>~<kbd>9</kbd> 로 열린 창. 프로젝트 목록이 내 차례 · 새 소식 · 실행 중을 보여 줍니다.</dd></div>
+      <div><dt>윗줄까지 가지 않고 오갑니다</dt><dd><kbd>⌃Tab</kbd> 으로 화면을 돌고, 두 손가락 쓸기로 뒤로 · 앞으로, <kbd>⌘K</kbd> 로 무엇이든 찾습니다.</dd></div>
+      <div><dt>확인은 내용에 묶입니다</dt><dd>확인 표시는 그때 본문의 지문과 함께 남고, 에이전트가 뒤에 고치면 다시 묻습니다.</dd></div>
+      <div><dt>앱은 LLM 을 부르지 않습니다</dt><dd>요약도 API 키도 없습니다. 생각은 에이전트가 하고, 앱은 증거를 그대로 보여 줍니다.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="sec" id="local" aria-labelledby="local-h">
+  <div class="wrap local">
+    <div>
+      <h2 id="local-h">기록은 당신 프로젝트의 폴더 하나에 있습니다.</h2>
+      <p class="intro">사람이 읽는 마크다운으로. 코드와 함께 커밋되고, 앱이 없어도 읽히고, 앱을 지워도 남습니다.</p>
+      <p class="nones">계정도, 서버도, 텔레메트리도 없습니다. 기기를 떠나는 것은 업데이트 확인과 당신이 연 링크뿐입니다. <a href="/privacy">전체 목록 보기</a></p>
+    </div>
+    <pre class="tree" aria-label=".oculpm 폴더 구조"><span class="g">.oculpm/</span>
+├─ journal/   <span class="dim">에이전트가 남긴 일지 · 날짜별 .md</span>
+├─ planner/   <span class="dim">계획 · 완료 조건 · 확인 명령 · 판정</span>
+└─ agents/    <span class="dim">기록 규칙 · 일지 규격</span>
+AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</span></pre>
+  </div>
+</section>
+
+<section class="sec" id="plugin" aria-labelledby="plugin-h">
+  <div class="wrap">
+    <h2 id="plugin-h">앱 없이, 플러그인 두 줄로 먼저 시작해도 됩니다.</h2>
+    <div class="plugin">
+      <button class="cmd" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM"><code>/plugin marketplace add bunhine0452/Ocul-PM</code><span class="copy">복사</span></button>
+      <button class="cmd" type="button" data-copy="/plugin install oculpm@oculpm"><code>/plugin install oculpm@oculpm</code><span class="copy">복사</span></button>
+    </div>
+    <p class="plugin-note">훅 · MCP 도구 8종 · 커맨드 넷이 모든 프로젝트에 붙습니다. 일지와 계획은 <code>.oculpm/</code> 에 쌓이고, 앱은 나중에 깔아도 그대로 읽습니다. Codex 는 <code>codex plugin add oculpm-codex@oculpm</code>. <a href="/plugin">플러그인 전체 문서</a></p>
+  </div>
+</section>
+
+<section class="sec" id="updates" aria-labelledby="updates-h">
+  <div class="wrap">
+    <h2 id="updates-h">이 앱은 이 앱으로 만들어집니다.</h2>
+    <p class="intro">이 저장소의 <b>일지 932건 · 계획 89개 · 릴리스 133개</b>가 Ocul 로 쌓였습니다. 아래 이력도 그 일지에서 나왔습니다.</p>
+    <ul class="releases">
+      <li class="rel"><span class="ver">v4.1.0</span><div><h3>Claude 와 주고받기, 이름은 Ocul</h3><p>Claude 가 기다리면 알고, 앱에서 답하고, 앱에서 보냅니다. ⌃Tab · ⌥⌘1~9 로 오가고, 처음 쓰는 법이 생겼습니다.</p></div></li>
+      <li class="rel"><span class="ver">v4.0.0</span><div><h3>다섯 면, 예외만</h3><p>오늘 화면은 판정 실패 · 증거 없는 일지 · 기록 없는 변경만 펼칩니다. 앱은 LLM 을 부르지 않고, 창 하나가 프로젝트 하나입니다.</p></div></li>
+      <li class="rel"><span class="ver">v3.17.0</span><div><h3>첫 실행부터 터미널까지</h3><p>시안 열일곱 장을 전부 옮긴 판. 첫 실행의 한 가지 행동, 일지의 사람 확인 줄, 변경의 일지별 묶기.</p></div></li>
+      <li class="rel"><span class="ver">v3.15.1</span><div><h3>기록을 믿을 수 있게</h3><p>일지마다 「증거 있음」 등급, 플러그인 판 확인, 같은 모델의 서른 가지 표기를 한 이름으로.</p></div></li>
     </ul>
-  </details>
-  <p class="updates-more"><a href="/changelog">전체 변경 이력 →</a> · <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a></p>
+    <p class="more"><a href="/changelog">전체 변경 이력</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스</a></p>
+  </div>
 </section>
 
-<!-- ══════════ 로컬-우선 ══════════ -->
-<section class="sec manifesto">
-  <div class="sec-head">
-    <span class="eyebrow reveal">Local-first</span>
-    <h2 class="reveal">당신의 데이터는,<br />어디에 있습니까?</h2>
-  </div>
-  <div class="nones reveal">
-    <span class="none"><b>없음</b><span>계정</span></span>
-    <span class="none"><b>없음</b><span>서버</span></span>
-    <span class="none"><b>없음</b><span>텔레메트리</span></span>
-  </div>
-  <p class="sec-head reveal" style="margin-bottom: 32px;">전부 당신 프로젝트의 폴더 하나에 있습니다 — 사람이 읽는 마크다운으로.<br />앱을 지워도 기억은 남습니다. <b>당신의 것이니까요.</b></p>
-  <div class="tree reveal" role="img" aria-label=".oculpm 폴더 구조">
-<b>.oculpm/</b>
-├─ journal/    <i>작업 일지 — 날짜·분류별 .md</i>
-├─ planner/    <i>살아있는 계획 .md — 완료 조건 · 확인 명령 · 판정</i>
-└─ agents/     <i>에이전트 기록 규칙 · 일지 규격</i></div>
-</section>
-
-<!-- ══════════ FAQ ══════════ -->
-<section class="sec" id="faq" style="padding-top: 40px;">
-  <div class="sec-head">
-    <span class="eyebrow reveal">FAQ</span>
-    <h2 class="reveal">자주 묻는 질문</h2>
-  </div>
-  <div class="faq-list reveal">
-    <details><summary>누구를 위한 앱인가요?</summary><p>매일 AI 코딩 에이전트로 개발하고, 다음 날 새 대화에 어제 맥락을 다시 설명하는 게 귀찮은 사람입니다. Claude Code 가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다 — 위 <a href="#loop">왕복 하나</a>가 그것입니다. 어쩌다 한 번 쓰는 사람에게는 이 왕복이 필요 없을 수 있고, 그래도 괜찮습니다 — 앱은 무료이고 데이터는 프로젝트 폴더의 마크다운이라 언제든 그만둘 수 있습니다.</p></details>
-    <details><summary>설치할 때 macOS 경고가 뜨나요?</summary><p>v2.45.0 부터 뜨지 않습니다. Apple Developer ID 로 서명하고 공증(notarization)까지 마친 빌드라, <code>.dmg</code> 를 열어 Applications 로 끌어다 놓고 그냥 실행하면 됩니다. 그전 버전은 서명이 없어 macOS 가 「손상되었기 때문에 열 수 없습니다」로 막았고 — 실제 손상이 아니라 내려받은 파일에 붙는 격리 표시였습니다 — 터미널에서 <code>xattr -dr com.apple.quarantine</code> 을 직접 쳐야 했습니다.</p></details>
+<section class="sec" id="faq" aria-labelledby="faq-h">
+  <div class="wrap">
+    <h2 id="faq-h">자주 묻는 질문</h2>
+    <div class="faq">
+    <details><summary>누구를 위한 앱인가요?</summary><p>매일 AI 코딩 에이전트로 개발하고, 다음 날 새 대화에 어제 맥락을 다시 설명하는 게 귀찮은 사람입니다. Claude Code 가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다 — 위 <a href="#loop">하루 한 왕복</a>가 그것입니다. 어쩌다 한 번 쓰는 사람에게는 이 왕복이 필요 없을 수 있고, 그래도 괜찮습니다 — 앱은 무료이고 데이터는 프로젝트 폴더의 마크다운이라 언제든 그만둘 수 있습니다.</p></details>
+    <details><summary>Ocul 은 무엇인가요?</summary><p>AI 코딩 에이전트와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저(AI PM)입니다. 에이전트가 한 일을 사람이 <b>3분 안에 믿고 다음을 결정</b>하게 하고, 에이전트는 어떤 일이든 <b>판정부터 깔고</b> 시작하게 합니다. 에이전트가 남긴 일지 · diff · 계획 가운데 사람이 볼 것만 펼치고, 판정은 에이전트의 말이 아니라 확인 명령의 결과 끝 줄로 읽습니다. 앱은 LLM 을 부르지 않습니다.</p></details>
+    <details><summary>다음 세션은 지난 작업을 어떻게 이어받나요?</summary><p>Claude Code 플러그인의 SessionStart 훅이 최근 계획의 <b>완료 조건 · 확인 명령 · 마지막 판정</b> · 미완 항목과 마지막 작업 일지 3건을 시작 컨텍스트에 싣습니다 — 네트워크 없이, 프로젝트의 .oculpm/ 만 읽어서. 앱의 계획 화면에서는 <b>[터미널에서 실행]</b>이 앱 안 터미널의 새 세션에서 <code>claude</code> 가 다음 항목부터 잇게 하고, <b>[끝까지 (/goal)]</b>는 완료 조건 · 확인 명령을 Claude Code 의 <code>/goal</code> 로 넘깁니다.</p></details>
     <details><summary>「마지막 판정」은 무엇인가요?</summary><p>계획의 확인 명령을 <b>실제로 돌린 결과</b>입니다. 에이전트가 그 결과를 plan-log 메모에 <code>판정 ✓ 418 passed</code> · <code>판정 ✗ 2 failed</code> 처럼 한 줄로 남기면, 플러그인의 시작 훅과 앱의 계획 화면이 <b>같은 규칙</b>(<code>^(판정|verdict) (✓|✗)</code>)으로 그 줄을 읽습니다. 계획 화면은 제목 바로 아래 완료 조건 · 확인 명령 · 마지막 판정을 두고, 판정이 실패면 오늘 화면 「확인할 것」 맨 위에 섭니다. <b>항목이 다 닫혀도 판정이 통과해야 끝</b>입니다 — 「됐다」는 에이전트의 말이 아니라 결과 끝 줄이 정합니다.</p></details>
+    <details><summary>무엇이 제 컴퓨터 밖으로 나가나요?</summary><p><b>둘</b>뿐입니다. ① <b>업데이트 확인</b> — 앱 시작과 수동 확인 시 GitHub 릴리스 파일 한 장. 목적지는 설정에 고정돼 있고 서명을 검증합니다. ② <b>여러분이 누른 링크</b> — 앱이 보내는 것이 아니라 OS 의 기본 브라우저가 엽니다. 4.0 의 앱은 <b>LLM 을 부르지 않고</b>(API 키를 받지도 않습니다), 화면(웹뷰)은 <b>바깥 호스트에 닿지 않으며</b>, 임베딩 모델도 내려받지 않습니다. 절대 안 나가는 것: 일지 · 계획 · <code>.oculpm/</code> 파일 · 소스 코드. <b>사용 통계와 크래시 리포트는 수집하지 않습니다</b> — 분석 SDK 가 앱에 없습니다. 이 목록은 저장소의 테스트가 빌드에서 지키고, 전체 목록과 직접 세는 법은 <a href="/privacy">개인정보 페이지</a>에.</p></details>
+    <details><summary>앱 없이 Claude Code 플러그인만으로도 쓸 수 있나요?</summary><p>네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 8종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다.</p></details>
+    <details><summary>Windows · Linux 에서도 쓸 수 있나요?</summary><p>네, 베타로 제공합니다. Windows 는 10 2004(빌드 19041) 이상 · 11 의 x64 설치 파일(<code>.exe</code>), Linux 는 x64 AppImage 와 deb 입니다. Linux 는 glibc 2.35 이상(Ubuntu 22.04 · Debian 12 이후)과 libEGL · libGLESv2 가 필요하고, AppImage 는 FUSE 2 가 있어야 합니다. Windows 빌드는 코드 서명이 없어 처음 실행할 때 SmartScreen 이 「Windows의 PC 보호」 를 띄웁니다 — 「추가 정보 → 실행」 을 누르면 됩니다. Visual C++ 런타임이 없는 PC 에서는 설치 파일이 먼저 깔아 줍니다. Windows 설치본과 AppImage 는 앱 안에서 자동 업데이트되고, deb 는 새 <code>.deb</code> 로 업데이트합니다. 매 릴리스 CI 러너에서 설치와 실제 앱 E2E 를 통과한 빌드만 올라가며, 통과하지 못한 버전에는 그 OS 파일이 없습니다. 실제 PC 에서의 확인이 쌓이면 베타를 뗍니다.</p></details>
+    <details><summary>Ocul-PM 과 Ocul 은 같은 앱인가요?</summary><p>네. 4.1 부터 앱 안에 보이는 이름이 <b>Ocul</b> 입니다. 설치된 앱(<code>Ocul-PM.app</code>) · 내려받는 파일 · 데이터 폴더 · 플러그인 <code>oculpm</code> · 프로젝트의 <code>.oculpm/</code> 은 이름이 그대로라, 업데이트는 같은 자리에 깔리고 기록은 그대로 이어집니다.</p></details>
+    <details class="faq-more"><summary>질문 17개 더 보기</summary>
+    <details><summary>설치할 때 macOS 경고가 뜨나요?</summary><p>v2.45.0 부터 뜨지 않습니다. Apple Developer ID 로 서명하고 공증(notarization)까지 마친 빌드라, <code>.dmg</code> 를 열어 Applications 로 끌어다 놓고 그냥 실행하면 됩니다. 그전 버전은 서명이 없어 macOS 가 「손상되었기 때문에 열 수 없습니다」로 막았고 — 실제 손상이 아니라 내려받은 파일에 붙는 격리 표시였습니다 — 터미널에서 <code>xattr -dr com.apple.quarantine</code> 을 직접 쳐야 했습니다.</p></details>
     <details><summary>하루에 일지가 60건이면 오늘 화면이 넘치지 않나요?</summary><p>넘치지 않습니다. 4.0 의 원칙은 <b>「예외만 보여 준다」</b>입니다. 오늘 화면은 사람이 볼 것 — 판정 실패 · 명령 증거 없는 일지 · 어느 일지에도 없는 변경 · 막힌 항목 · 사람 몫 결정 · 플러그인 새 판 — 만 펼치고, 증거가 다 선 일은 계획별로 <b>한 줄에 접습니다</b>. 하루 3건 쓰는 사람과 60건 쓰는 사람이 모드 없이 같은 화면을 씁니다. 3.x 의 간단/전문 밀도 토글은 그래서 걷었습니다.</p></details>
     <details><summary>에이전트가 일지를 안 쓰고 끝나면 앱이 알아채나요?</summary><p>네. 플러그인 훅이 대화가 끝날 때마다 판정하고, 코드를 고쳤는데 일지가 없으면 <b>턴을 한 번 막아</b> 기록하라고 말합니다(대화당 한 번). <b>v2.43.0 부터 그 판정이 대화 단위</b>입니다 — 예전에는 프로젝트 전체의 가장 최근 일지 시각 하나로 봤기 때문에, 터미널을 여러 개 띄우면 옆 대화의 일지가 내 누락을 가리고 반대로 옆 대화의 편집이 내 것으로 읽혔습니다. 이제 <b>근거가 없으면 「모른다」고 말합니다</b> — 모름을 미기록으로 뭉뚱그리지 않습니다. 다만 <b>여러 대화가 동시에 살아 있으면 게이트는 침묵합니다</b> — 누구의 편집인지 확정할 수 없을 때 엉뚱한 대화를 붙잡느니 말하지 않는 쪽을 골랐고, 그 경우에도 「모름」으로 원장에 남습니다. 앱 쪽에서는 오늘 화면이 일지 없이 끝난 대화와 어느 일지에도 없는 변경을 <b>「확인할 것」</b>으로 짚습니다.</p></details>
-    <details><summary>무엇이 제 컴퓨터 밖으로 나가나요?</summary><p><b>둘</b>뿐입니다. ① <b>업데이트 확인</b> — 앱 시작과 수동 확인 시 GitHub 릴리스 파일 한 장. 목적지는 설정에 고정돼 있고 서명을 검증합니다. ② <b>여러분이 누른 링크</b> — 앱이 보내는 것이 아니라 OS 의 기본 브라우저가 엽니다. 4.0 의 앱은 <b>LLM 을 부르지 않고</b>(API 키를 받지도 않습니다), 화면(웹뷰)은 <b>바깥 호스트에 닿지 않으며</b>, 임베딩 모델도 내려받지 않습니다. 절대 안 나가는 것: 일지 · 계획 · <code>.oculpm/</code> 파일 · 소스 코드. <b>사용 통계와 크래시 리포트는 수집하지 않습니다</b> — 분석 SDK 가 앱에 없습니다. 이 목록은 저장소의 테스트가 빌드에서 지키고, 전체 목록과 직접 세는 법은 <a href="/privacy">개인정보 페이지</a>에.</p></details>
     <details><summary>일지에 확인 표시를 한 뒤 에이전트가 내용을 고치면 어떻게 되나요?</summary><p><b>v3.2.0</b> 부터 확인 표시는 확인한 그 본문의 <b>지문</b>과 함께 남습니다. 그 뒤 본문이 바뀌면 그 일지는 더 이상 확인된 것으로 세지 않고, 명령 증거가 없는 일지라면 오늘 화면 <b>「확인할 것」</b>에 다시 섭니다. 다시 읽고 확인함을 누르면 지금 내용에 다시 묶입니다. 3.2.0 이전에 확인해 둔 일지는 지문이 없으므로 <b>그대로 인정</b>합니다 — 소급해서 흔들지 않습니다. 지문은 <code>.oculpm/</code> 의 일지 파일 머리말(<code>verified_hash</code>)에 적히므로 앱 없이도 읽을 수 있습니다.</p></details>
     <details><summary>앱이 AI 를 부르지 않는다면, 요약이나 보고서는 어떻게 만드나요?</summary><p><b>터미널의 에이전트에게 시킵니다.</b> 4.0 에서 앱 안 LLM(요약 · 스탠드업 · 주간 롤업 · 릴리스 노트 초안 · 계획 AI 갱신)을 전부 걷었습니다 — 가장 많이 쓰던 저장소에서도 주간 롤업이 0건이었습니다. 생각은 에이전트가 하고, 앱은 증거를 <b>결정적으로</b> 보여 줍니다. 에이전트는 MCP 도구 <code>journal_search</code> · <code>journal_read</code> 로 쌓인 일지를 찾아 읽을 수 있고, 앱은 에이전트에게 붙여 넣을 프롬프트(다음 항목 · until-done · 기록 요청)를 만들어 클립보드에 담습니다.</p></details>
     <details><summary>3.x 의 검색 · 논의 · 브랜치 · 스킬 화면은 어디 갔나요?</summary><p><b>4.0 에서 걷었습니다.</b> 앱은 오늘 · 작업 일지 · 계획 · 변경 · 설정 다섯 면만 남았습니다. 근거는 실측입니다 — 코드 의미 검색의 색인이 앱 DB 837MB 중 358MB 였고(에이전트는 자기 grep 이 있습니다), 논의 문서는 12개 프로젝트 합쳐 18건, 자동화는 한 번도 돌지 않았습니다. 일지 검색은 작업 일지 화면(<code>/</code>)이 맡고, 큰 결정은 계획의 <code>## 결정</code> 블록으로, 스킬은 플러그인이 맡습니다. <b>여러분의 <code>.oculpm/</code> 파일(논의 문서 포함)은 지우지 않습니다.</b> 업데이트 뒤 첫 실행에 옛 색인 표를 지우며, 지우기 전에 <code>ocul-pm.db.bak-v42</code> 사본을 남깁니다. 전체 표는 저장소의 <code>docs/PROMISE.md</code> 에 있습니다.</p></details>
@@ -557,43 +430,40 @@
     <details><summary>테마 색을 바꿀 수 있나요?</summary><p>설정 → 표시에서 <b>밝게 · 어둡게 · 시스템</b>(OS 를 따름)을 고르고 글자 크기를 정합니다. 3.x 의 테마 파일 · 프리셋 다섯 벌 · 프로젝트별 테마는 4.0 에서 걷었습니다 — 저장해 둔 옛 테마 설정은 「시스템」 으로 읽습니다.</p></details>
     <details><summary>내가 쓴 일지와 AI 가 쓴 일지를 구분할 수 있나요?</summary><p>네. 기록마다 <b>출처 배지</b>가 붙습니다 — 직접(앱에서 사람이 작성) · 에이전트(Claude Code 등이 기록 규칙대로) · MCP · 백필(git 이력에서 복원) 등이고, 3.x 의 자동 초안 · 스케줄 · 감시 · 들여옴 일지도 그 배지 그대로 읽힙니다. 새 필드를 만들지 않고 일지 파일에 이미 적혀 있는 세션 id 와 에이전트 id 에서 결정론적으로 읽습니다.</p></details>
     <details><summary>프로젝트를 여러 개 동시에 열 수 있나요?</summary><p>네, <b>창을 여러 개</b> 엽니다. 4.0 부터 창 하나가 프로젝트 하나입니다 — 3.x 의 크롬식 탭과 떼어내기는 걷었고, 프로젝트 사이는 OS 의 창 전환으로 오갑니다. <b>⌘O</b> 로 최근 프로젝트를 열고(이미 열린 프로젝트면 그 창이 앞으로 옵니다), <b>⇧⌘N</b> 은 새 시작 창, <b>⌘W</b> 는 창 닫기, <b>⌥⌘1~9</b> 는 목록을 열지 않고 열린 프로젝트 창으로 갑니다. 윗줄의 프로젝트 이름(▾)은 프로젝트마다 「내 차례 · 새 소식 · 실행 중 N」 을 보여 줍니다. 프로젝트마다 화면·필터 상태를 따로 기억하고, macOS 에서는 마지막 창을 닫아도 앱이 남아 독을 누르면 다시 열립니다.</p></details>
-    <details><summary>Ocul 은 무엇인가요?</summary><p>AI 코딩 에이전트와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저(AI PM)입니다. 에이전트가 한 일을 사람이 <b>3분 안에 믿고 다음을 결정</b>하게 하고, 에이전트는 어떤 일이든 <b>판정부터 깔고</b> 시작하게 합니다. 에이전트가 남긴 일지 · diff · 계획 가운데 사람이 볼 것만 펼치고, 판정은 에이전트의 말이 아니라 확인 명령의 결과 끝 줄로 읽습니다. 앱은 LLM 을 부르지 않습니다.</p></details>
-    <details><summary>Ocul-PM 과 Ocul 은 같은 앱인가요?</summary><p>네. 4.1 부터 앱 안에 보이는 이름이 <b>Ocul</b> 입니다. 설치된 앱(<code>Ocul-PM.app</code>) · 내려받는 파일 · 데이터 폴더 · 플러그인 <code>oculpm</code> · 프로젝트의 <code>.oculpm/</code> 은 이름이 그대로라, 업데이트는 같은 자리에 깔리고 기록은 그대로 이어집니다.</p></details>
     <details><summary>Claude 가 사람에게 물어야 할 때 앱에서 답할 수 있나요?</summary><p>네. Claude Code 플러그인의 MCP 도구 <code>ask_user</code> 가 질문을 <b>오늘 화면</b>에 띄우고, 고르거나 쓴 답을 그대로 Claude 에게 돌려줍니다(25분 안). Claude 가 터미널에서 사람을 기다리면 — 앱 안 터미널이든 앱 밖 터미널이든 — 오늘 화면 맨 위에 <b>「Claude 가 기다려요」</b> 가 서고, 창이 뒤에 있으면 OS 알림이 옵니다.</p></details>
     <details><summary>어떤 AI 코딩 에이전트와 함께 쓸 수 있나요?</summary><p>「지원」 한 마디에 약속 셋이 섞여 있어 등급으로 나눕니다. ① <b>규칙 호환</b> — 규칙 파일만 심고, 일지는 모델이 규칙을 지키는 만큼 남습니다: Gemini CLI · Cursor · GitHub Copilot · Windsurf · Cline · aider · Zed · Antigravity · pi (AGENTS.md 를 읽는 에이전트라면 무엇이든 이 등급). ② <b>구조화 기록</b> — 에이전트가 oculpm MCP 기록 도구를 부릅니다. ③ <b>세션 관측</b> — 훅으로 시작·종료를 받고 일지 없이 끝난 대화를 가려냅니다: Claude Code · Codex (각자의 플러그인으로, ② 포함). 에이전트는 여러분의 터미널에서 돌고, 앱 안에서 구동하던 등급은 2026-10-28 에 화면과 함께 걷었습니다. 등급별 근거와 실측 검증 시점은 <a href="/wiki/agents">위키의 등급표</a>에 있습니다.</p></details>
     <details><summary>폰이나 태블릿에서도 쓸 수 있나요?</summary><p>앱은 데스크톱 전용입니다. v2.18.0 에 베타로 넣었던 모바일 연동(Tailscale 사설망 안의 폰 브라우저)은 걷어냈습니다 — 표면이 컸는데 쓰임이 그에 못 미쳤습니다. v3.13.0 의 claude.ai 보드 스킬(<code>/oculpm:board</code>)도 2026-10-28 에 걷었습니다. 밖에서 진행을 보려면 <code>.oculpm/planner/</code> 의 플랜 파일을 저장소와 함께 보세요 — 원본은 늘 그 마크다운입니다.</p></details>
     <details><summary>내 코드나 데이터가 외부로 나가나요?</summary><p>아니요. 모든 데이터는 프로젝트의 .oculpm/ 폴더와 로컬 SQLite 에 머뭅니다. 앱은 LLM 을 부르지 않고 화면은 바깥 호스트에 닿지 않습니다. 기기를 떠나는 것은 사용자가 시작한 둘뿐입니다 — ① 새 버전 확인, ② 사용자가 누른 링크(OS 브라우저가 엽니다).</p></details>
-    <details><summary>다음 세션은 지난 작업을 어떻게 이어받나요?</summary><p>Claude Code 플러그인의 SessionStart 훅이 최근 계획의 <b>완료 조건 · 확인 명령 · 마지막 판정</b> · 미완 항목과 마지막 작업 일지 3건을 시작 컨텍스트에 싣습니다 — 네트워크 없이, 프로젝트의 .oculpm/ 만 읽어서. 앱의 계획 화면에서는 <b>[프롬프트 복사]</b>(오늘 화면에서는 <code>c</code>)가 다음 항목을 잡는 프롬프트를, <b>[until-done 으로 복사]</b>가 판정이 통과할 때까지 이어 가는 프롬프트를 클립보드에 담아 터미널의 에이전트에 붙여 넣게 합니다.</p></details>
-    <details><summary>앱 없이 Claude Code 플러그인만으로도 쓸 수 있나요?</summary><p>네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 8종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다.</p></details>
     <details><summary>팀·회사 도입이나 제휴(파트너십)를 문의할 수 있나요?</summary><p>네. Ocul 은 로컬-우선이라 팀에 도입해도 코드와 기록이 밖으로 나가지 않습니다. 기업(Enterprise) 도입, 팀 단위 도입, 제휴·파트너십 제안은 <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">bunhine0452@gmail.com</a> 으로 보내 주세요 — 만든 사람이 직접 읽고 답합니다.</p></details>
     <details><summary>영어(English)도 지원하나요?</summary><p>네. 설정 → 표시에서 화면 언어를 한국어 · English 중에 고르면 화면 전체와 오류 메시지가 함께 바뀝니다. 에이전트가 쓰는 일지의 언어는 화면 언어와 별개이고, 이미 기록된 문서는 다시 쓰지 않습니다.</p></details>
     <details><summary>지금 다운로드할 수 있나요?</summary><p>네. GitHub Releases 에서 무료로 받을 수 있습니다 — macOS(Apple Silicon)와, 베타인 Windows(x64) · Linux(x64, AppImage · deb)입니다. 한 번 설치하면 이후 버전은 앱 안에서 자동으로 업데이트됩니다(Linux deb 는 패키지 관리자로). Intel 맥 빌드는 아직 없습니다.</p></details>
-    <details><summary>Windows · Linux 에서도 쓸 수 있나요?</summary><p>네, 베타로 제공합니다. Windows 는 10 2004(빌드 19041) 이상 · 11 의 x64 설치 파일(<code>.exe</code>), Linux 는 x64 AppImage 와 deb 입니다. Linux 는 glibc 2.35 이상(Ubuntu 22.04 · Debian 12 이후)과 libEGL · libGLESv2 가 필요하고, AppImage 는 FUSE 2 가 있어야 합니다. Windows 빌드는 코드 서명이 없어 처음 실행할 때 SmartScreen 이 「Windows의 PC 보호」 를 띄웁니다 — 「추가 정보 → 실행」 을 누르면 됩니다. Visual C++ 런타임이 없는 PC 에서는 설치 파일이 먼저 깔아 줍니다. Windows 설치본과 AppImage 는 앱 안에서 자동 업데이트되고, deb 는 새 <code>.deb</code> 로 업데이트합니다. 매 릴리스 CI 러너에서 설치와 실제 앱 E2E 를 통과한 빌드만 올라가며, 통과하지 못한 버전에는 그 OS 파일이 없습니다. 실제 PC 에서의 확인이 쌓이면 베타를 뗍니다.</p></details>
+    </details>
+    </div>
   </div>
 </section>
 
-<!-- ══════════ CTA ══════════ -->
-<section class="cta" id="download">
-  <span class="eyebrow reveal">v4.1.0 — 지금 다운로드 · macOS · Windows · Linux (베타)</span>
-  <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
-  <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
-  <div class="hero-ctas reveal">
-    <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v4.1.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
-    </a>
-    <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
-    <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>
+<section class="close" id="download" aria-labelledby="close-h">
+  <div class="wrap">
+    <h2 id="close-h">시작하는 데 필요한 것은, 없습니다.</h2>
+    <p class="intro">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
+    <div class="ctas">
+      <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+        <span class="lg">v4.1.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+      </a>
+      <a class="btn" href="/plugin">플러그인으로 시작</a>
+      <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>
+    </div>
+    <p class="os" data-dl-os>Windows · Linux 는 베타
+      <a data-asset="_x64-setup.exe" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Windows x64</a>
+      <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
+      <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
+    </p>
+    <p class="cta-ver">v4.1.0 — macOS · Windows · Linux(베타)</p>
   </div>
-  <p class="dl-os reveal" data-dl-os>
-    <span class="beta">베타</span>
-    <a data-asset="_x64-setup.exe" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Windows x64</a>
-    <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
-    <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
-  </p>
-  <p class="fine reveal">빨리 가는 개발자는 많습니다. <b>기억하며 가는 개발자가, 멀리 갑니다.</b></p>
 </section>
+</main>
 
-<!-- ══════════ 푸터 ══════════ -->
 <footer class="footer">
   <div class="footer-inner">
     <span>© 2026 Ocul</span>
@@ -603,57 +473,107 @@
     <a href="/privacy">개인정보</a>
     <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
     <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">피드백</a>
-    <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업·제휴 문의</a>
     <a href="https://ko-fi.com/beachcombers" target="_blank" rel="noreferrer">후원</a>
+    <a href="https://www.producthunt.com/products/ocul-pm" target="_blank" rel="noreferrer">Product Hunt</a>
     <a href="/en" hreflang="en">English</a>
     <span class="footer-spacer"></span>
-    <span>로컬-우선 · 계정 없음 · 텔레메트리 없음</span>
+    <span>로컬 우선 · 계정 없음 · 텔레메트리 없음</span>
   </div>
 </footer>
 
 <script>
-  // 스크롤 리빌 — reduced-motion 이면 CSS 가 이미 꺼 둔다.
   (function () {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) { if (e.isIntersecting) e.target.classList.add("on"); });
-    }, { threshold: 0.12 });
-    document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
-  })();
-</script>
-
-<!-- Keep the nav version badge in sync with the latest GitHub release, so it
-     never goes stale between landing edits. Falls back to the hardcoded
-     data-version text if the API is unreachable / rate-limited. -->
-<script>
-  (function () {
+    var L = document.documentElement.lang === "en" ? "en" : "ko";
+    var CAP = {
+      ko: {
+        today: "<b>오늘</b>사람이 볼 것만 위로 올라옵니다. Claude 의 질문과 기다림, 실패한 판정, 일지 없는 변경.",
+        journal: "<b>작업 일지</b>에이전트가 남긴 일지. 무엇을 했고 무엇으로 확인했는지, 바뀐 파일의 diff 까지.",
+        planner: "<b>계획</b>완료 조건과 확인 명령, 마지막 판정. 항목이 다 닫혀도 판정이 통과해야 끝입니다.",
+        diff: "<b>변경</b>어느 일지에도 없는 변경이 먼저 섭니다. 「Claude 에게 맡기기」 한 번이면 기록을 부탁합니다.",
+        terminal: "<b>터미널</b>이 폴더에서 claude 를 엽니다. 일하는 중인지, 기다리는지 앱이 압니다."
+      },
+      en: {
+        today: "<b>Today</b>Only what needs you rises to the top: Claude's questions and waits, failed verdicts, changes no entry mentions.",
+        journal: "<b>Work Journal</b>The entries your agent leaves: what it did, how it checked, and the diff of every file.",
+        planner: "<b>Plan</b>Done condition, check command, last verdict. A plan ends when the verdict passes, not when the boxes do.",
+        diff: "<b>Diff</b>Changes no entry mentions come first. One click on “Ask Claude” asks for the entry.",
+        terminal: "<b>Terminal</b>Opens claude in this folder. The app knows whether it's working or waiting for you."
+      }
+    };
+    var REPLY = {
+      ko: { "그대로 두기": "알겠어요. Windows 시작 메뉴 이름은 Ocul-PM 그대로 둡니다.", "바꾸기": "알겠어요. 시작 메뉴 이름도 Ocul 로 바꾸고, 옛 판이 남지 않게 설치기를 고칠게요." },
+      en: { "Keep it": "Got it. The Windows Start menu keeps the name Ocul-PM.", "Rename it": "Got it. I'll rename the Start menu entry to Ocul and make the installer remove the old one." }
+    };
+    var app = document.querySelector("[data-app]");
+    var tabs = [].slice.call(document.querySelectorAll('[role="tab"]'));
+    var cap = document.querySelector("[data-cap]");
+    function select(name, focus) {
+      tabs.forEach(function (t) {
+        var on = t.getAttribute("data-tab") === name;
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        t.tabIndex = on ? 0 : -1;
+        if (on && focus) t.focus();
+        document.getElementById(t.getAttribute("aria-controls")).classList.toggle("on", on);
+      });
+      if (cap) cap.innerHTML = CAP[L][name];
+    }
+    tabs.forEach(function (t, i) {
+      t.addEventListener("click", function () { select(t.getAttribute("data-tab")); });
+      t.addEventListener("keydown", function (e) {
+        var to = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : null;
+        if (to === null) return;
+        e.preventDefault();
+        select(tabs[(to + tabs.length) % tabs.length].getAttribute("data-tab"), true);
+      });
+    });
+    [].forEach.call(document.querySelectorAll("[data-answer]"), function (b) {
+      b.addEventListener("click", function () {
+        var a = b.getAttribute("data-answer");
+        [].forEach.call(document.querySelectorAll("[data-answer-echo]"), function (el) { el.textContent = a; });
+        document.querySelector("[data-answer-reply]").textContent = REPLY[L][a];
+        app.classList.add("answered");
+        select("terminal");
+        var term = document.getElementById("s-terminal");
+        setTimeout(function () { term.scrollTop = term.scrollHeight; }, 800);
+        if (window.matchMedia("(max-width: 720px)").matches) {
+          var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          app.querySelector(".app").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+        }
+      });
+    });
+    [].forEach.call(document.querySelectorAll("[data-copy]"), function (b) {
+      var label = b.querySelector(".copy");
+      var before = label.textContent;
+      b.addEventListener("click", function () {
+        var done = function (ok) {
+          if (ok) b.setAttribute("data-copied", "");
+          label.textContent = ok ? (L === "en" ? "Copied" : "복사했어요") : (L === "en" ? "Copy it by hand" : "직접 복사해 주세요");
+          setTimeout(function () { b.removeAttribute("data-copied"); label.textContent = before; }, 1800);
+        };
+        try {
+          navigator.clipboard.writeText(b.getAttribute("data-copy")).then(function () { done(true); }, function () { done(false); });
+        } catch (e) { done(false); }
+      });
+    });
+    // 최신 릴리스로 판 표시와 OS 별 링크를 맞춘다 — 못 읽으면 적힌 값 그대로.
     try {
-      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
-        headers: { Accept: 'application/vnd.github+json' },
-      })
+      fetch("https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (!d || !d.tag_name) return;
-          var tag = String(d.tag_name).replace(/^v?/, 'v');
-          document.querySelectorAll('[data-version]').forEach(function (el) {
-            el.textContent = tag;
-          });
-          // OS 별 링크 — 최신 릴리스에 그 파일이 있으면 바로 받기, 없으면(그 버전에서 검증을
-          // 통과하지 못해 빠졌다) 이전 버전을 고를 수 있는 릴리스 목록으로.
+          var tag = String(d.tag_name).replace(/^v?/, "v");
+          [].forEach.call(document.querySelectorAll("[data-version]"), function (el) { el.textContent = tag; });
           var assets = d.assets || [];
-          document.querySelectorAll('[data-asset]').forEach(function (a) {
-            var suffix = a.getAttribute('data-asset');
-            var hit = assets.filter(function (x) {
-              return x.name.slice(-suffix.length) === suffix;
-            })[0];
-            a.href = hit ? hit.browser_download_url : 'https://github.com/bunhine0452/Ocul-PM/releases';
+          [].forEach.call(document.querySelectorAll("[data-asset]"), function (a) {
+            var suffix = a.getAttribute("data-asset");
+            var hit = assets.filter(function (x) { return x.name.slice(-suffix.length) === suffix; })[0];
+            a.href = hit ? hit.browser_download_url : "https://github.com/bunhine0452/Ocul-PM/releases";
           });
         })
-        .catch(function () { /* keep the static fallback */ });
-    } catch (e) { /* no fetch — keep the static fallback */ }
+        .catch(function () {});
+    } catch (e) {}
   })();
 </script>
-
-<!-- Vercel Web Analytics (static site). -->
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

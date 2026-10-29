@@ -13,7 +13,7 @@
  *   버전 파일 6 — package.json · src-tauri/tauri.conf.json · src-tauri/Cargo.toml ·
  *     plugin/oculpm/.claude-plugin/plugin.json · plugin/oculpm-codex/.codex-plugin/plugin.json ·
  *     .claude-plugin/marketplace.json(plugins[0])
- *   랜딩 ko·en 각 6 — JSON-LD softwareVersion · nav-ver · ap-new 줄 · 다운로드 버튼 2 · CTA eyebrow
+ *   랜딩 ko·en 각 6 — JSON-LD softwareVersion · nav-ver · ap-new 줄(「새 판」) · 다운로드 버튼 2 · 마지막 판 줄 cta-ver
  *
  *   SECURITY.md — 「외부 리뷰 이력」 의 「반영: 다음 릴리스」 를 이 버전으로 (있을 때만)
  *
@@ -135,14 +135,14 @@ export function bumpLanding(html, from, to, lang, title) {
   out = replaceExactly(out, new RegExp(`(<span class="nav-ver" data-version>)v${esc(from)}(</span>)`, "g"), `$1v${to}$2`, 1, `${lang} nav-ver`);
   out = replaceExactly(
     out,
-    new RegExp(`(<span class="ap-new">NEW</span>&nbsp; )v${esc(from)}( — )([^<]*)(</a>)`, "g"),
+    new RegExp(`(<span class="ap-new">[^<]*</span>&nbsp; )v${esc(from)}( — )([^<]*)(</a>)`, "g"),
     (_m, pre, dash, oldTitle, post) => `${pre}v${to}${dash}${title ?? oldTitle}${post}`,
     1,
     `${lang} ap-new`,
   );
   const button = lang === "ko" ? new RegExp(`(<span class="lg">)v${esc(from)}( 받기</span>)`, "g") : new RegExp(`(<span class="lg">Get )v${esc(from)}(</span>)`, "g");
   out = replaceExactly(out, button, `$1v${to}$2`, 2, `${lang} download buttons`);
-  out = replaceExactly(out, new RegExp(`(<span class="eyebrow reveal">)v${esc(from)}( — )`, "g"), `$1v${to}$2`, 1, `${lang} eyebrow`);
+  out = replaceExactly(out, new RegExp(`(<p class="cta-ver">)v${esc(from)}( — )`, "g"), `$1v${to}$2`, 1, `${lang} cta-ver`);
   return out;
 }
 
