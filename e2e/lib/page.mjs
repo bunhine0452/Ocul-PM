@@ -172,6 +172,8 @@ export function waitScreenReady(wd, timeout = 25_000) {
     `const main = document.querySelector('.content-main');
      if (!main) return false;
      if (main.querySelector(':scope > .toolbar[aria-hidden="true"]')) return false;
+     // 터미널은 캔버스에 그린다 — 세션 하나면 목록 칸이 없어(화면 검사 #term-col) 글자가 0 이다.
+     if (main.querySelector('.tm-pane .xterm')) return true;
      return (main.innerText || '').trim().length > 0;`,
     [],
     { timeout, desc: "화면 본문 렌더" },
