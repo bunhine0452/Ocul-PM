@@ -15,12 +15,13 @@ import type {
 // ─── 4.0 오늘 — 예외만 보여 준다 ─────────────────────────────────────────────
 //
 // 이 스위트가 무는 계약:
-//  1. 「확인할 것」의 일곱 종류가 각각 뜨고, 심각도 순서(판정 실패 → 증거 없음 →
-//     기록 없는 변경 → 막힘 → 결정 필요 → 플러그인 새 판)를 지킨다.
+//  1. 「먼저 볼 것」은 지금 손댈 다섯 종류(실패 → 일지 없는 변경 → 일지 없이 끝난 대화 → 막힘 →
+//     플러그인 새 판)만 심각도 순으로. 검증 없이 끝난 일지는 그 아래 한 묶음, 내 차례는 한 줄
+//     (화면 검사 {#today-split} · {#today-mine}).
 //  2. 비었으면 차분한 한 문단 — 못 읽은 것은 없다고 말하지 않는다.
 //  3. 증거가 다 선 묶음은 접힌다. 하루 60건이면 펼쳐진 것은 확인할 것뿐이고,
 //     3건이면 셋 다 보인다 — 같은 화면, 모드 없음.
-//  4. 「확인함」은 `oculpm_set_journal_verified` 를 부른다 (버튼 · v 키).
+//  4. 「읽음」은 `oculpm_set_journal_verified` 를 부른다 (버튼 · v 키), 「모두 읽음」은 _bulk 한 번.
 //  5. 키보드는 화면 안에서만 — j/k 이동, Enter 기본 동작, 입력칸 안에서는 무시.
 
 const WORKDAY = (() => {
@@ -88,6 +89,11 @@ vi.mock("@/lib/bindings", () => {
               return (_p: number, path: string, on: boolean) => {
                 fx.verifyCalls.push([path, on]);
                 return ok(null);
+              };
+            case "oculpmSetJournalVerifiedBulk":
+              return (_p: number, paths: string[], on: boolean) => {
+                for (const path of paths) fx.verifyCalls.push([path, on]);
+                return ok({ updated: paths.length, skipped: [] });
               };
             case "planDispatchPrompt":
               return (_p: number, planId: string, itemId: string) => {
@@ -182,6 +188,7 @@ function renderToday(onNavigate = vi.fn(), onOpenEntry = vi.fn()) {
 }
 
 const checkCard = () => screen.getByRole("region", { name: t("today.check.title") });
+const unreadCard = () => screen.getByRole("region", { name: t("today.unread.title") });
 const pills = () =>
   within(checkCard())
     .queryAllByRole("listitem")
@@ -203,7 +210,7 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("확인할 것 — 종류와 순서", () => {
-  it("일곱 종류가 각각 뜨고 심각도 순으로 선다", async () => {
+  it("먼저 볼 것은 지금 손댈 다섯 종류 — 검증 없는 일지는 아래 묶음, 내 차례는 한 줄", async () => {
     fx.entries = [entry(1, { type: "bug", evidence: 0, title: "새 폴더 감시 경합" }), entry(2)];
     fx.digest = digest({
       plans: [plan("a", { last_verdict: { passed: false, summary: "2 failed, 418 passed", ts: new Date().toISOString(), agent_id: "claude-code", item_id: "x" } })],
@@ -215,22 +222,25 @@ describe("확인할 것 — 종류와 순서", () => {
     fx.plugin = { installed: true, behind: true, installed_version: "3.3.0", bundled_version: "4.0.0", path: "/p", scope: "project" } satisfies ClaudePluginStatus;
     renderToday();
 
-    await waitFor(() => expect(pills()).toHaveLength(7));
+    await waitFor(() => expect(pills()).toHaveLength(5));
     expect(pills()).toEqual([
       t("today.check.kind.verdict"),
-      t("today.check.kind.evidence"),
       t("today.check.kind.unrecorded"),
       t("today.check.kind.unrecorded"),
       t("today.check.kind.blocked"),
-      t("today.check.kind.decision"),
       t("today.check.kind.plugin"),
     ]);
+    // 검증 없는 일지는 딱지 없이 아래 묶음에 — 이유는 묶음 머리가 말한다.
+    const unread = within(unreadCard()).getAllByRole("listitem");
+    expect(unread).toHaveLength(1);
+    expect(unread[0].querySelector(".chip")).toBeNull();
+    expect(within(unread[0]).getByText("새 폴더 감시 경합")).toBeInTheDocument();
+    // 내 차례는 행이 아니라 한 줄 — 계획 수와 항목 수만.
+    expect(screen.getByText(t("today.mine.line", { p: 1, n: 1 }))).toBeInTheDocument();
     const card = checkCard();
     // 판정 실패 행은 결과 끝 줄(에이전트의 말이 아니라)을 보여 준다.
     expect(within(card).getByText(/2 failed, 418 passed/)).toBeInTheDocument();
     expect(within(card).getByText(t("today.check.unrecordedTitle", { n: 2 }))).toBeInTheDocument();
-    // 사람 몫 머리표는 칩이 대신 말한다 — 제목에서 뗀다.
-    expect(within(card).getByText("v4.0.0 태그")).toBeInTheDocument();
     expect(within(card).getByText(/3\.3\.0 → 4\.0\.0/)).toBeInTheDocument();
   });
 
@@ -295,9 +305,10 @@ describe("확인할 것 — 동작", () => {
       plans: [plan("a", { last_verdict: { passed: false, summary: "", ts: new Date().toISOString(), agent_id: "codex", item_id: "x" } })],
     });
     const { container, onNavigate } = renderToday();
-    await waitFor(() => expect(pills()).toHaveLength(2));
+    await waitFor(() => expect(pills()).toHaveLength(1));
     const root = container.querySelector(".page.tdy") as HTMLElement;
-    const rows = within(checkCard()).getAllByRole("listitem");
+    // 두 칸의 행은 한 목록 — 먼저 볼 것 다음에 검증 없는 일지.
+    const rows = [...within(checkCard()).getAllByRole("listitem"), ...within(unreadCard()).getAllByRole("listitem")];
 
     fireEvent.keyDown(root, { key: "j" });
     expect(document.activeElement).toBe(rows[0]);
@@ -326,6 +337,14 @@ describe("확인할 것 — 동작", () => {
     expect(document.activeElement).toBe(input);
   });
 
+  it("「모두 읽음」 은 묶음의 일지를 한 번에 표시하고 묶음이 빠진다", async () => {
+    fx.entries = [entry(1, { type: "bug", evidence: 0, title: "하나" }), entry(2, { type: "feature", evidence: 0, title: "둘" })];
+    renderToday();
+    fireEvent.click(within(await screen.findByRole("region", { name: t("today.unread.title") })).getByRole("button", { name: t("today.unread.allRead") }));
+    await waitFor(() => expect(fx.verifyCalls.map(([, on]) => on)).toEqual([true, true]));
+    await waitFor(() => expect(screen.queryByRole("region", { name: t("today.unread.title") })).toBeNull());
+  });
+
   it("r 은 다음 항목을 앱 안 터미널에서 실행한다 (클립보드 경로는 걷었다)", async () => {
     fx.entries = [entry(1)];
     fx.digest = digest({
@@ -341,7 +360,7 @@ describe("확인할 것 — 동작", () => {
 });
 
 describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
-  it("하루 60건: 증거가 다 선 묶음은 접히고, 펼쳐진 것은 확인할 것뿐이다", async () => {
+  it("하루 60건: 묶음은 머리 한 줄로 접히고, 검증 없는 일지는 위 칸이 보여 준다", async () => {
     const all: JournalEntrySummary[] = [];
     for (let i = 0; i < 60; i++) {
       all.push(entry(i, i === 7 ? { type: "bug", evidence: 0, title: "새 폴더 감시 경합" } : i % 11 === 0 ? { verified_by_user: true, evidence: 0, type: "chore" } : {}));
@@ -356,28 +375,29 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
       ],
     });
     const { container } = renderToday();
-    await waitFor(() => expect(pills()).toEqual([t("today.check.kind.evidence")]));
+    // 남은 예외가 검증 없는 일지 하나뿐이면 「먼저 볼 것」 칸은 서지 않는다.
+    await waitFor(() => expect(within(unreadCard()).getAllByRole("listitem")).toHaveLength(1));
+    expect(screen.queryByRole("region", { name: t("today.check.title") })).toBeNull();
     // 「나머지 N건은 접었어요」 는 걷었다 — 9 와 44 처럼 단위가 다른 수가 나란히 섰다 (화면 검사 {#today-sum}).
     expect(screen.queryByText(/접었어요/)).toBeNull();
 
     const work = screen.getByRole("region", { name: t("today.work.title") });
-    const heads = within(work).getAllByRole("button", { expanded: true }).concat(within(work).getAllByRole("button", { expanded: false }));
+    const heads = within(work).queryAllByRole("button", { expanded: true }).concat(within(work).queryAllByRole("button", { expanded: false }));
     expect(heads).toHaveLength(3);
-    expect(within(work).getByRole("button", { name: /4\.0 덜어내기/, expanded: true })).toBeInTheDocument();
+    expect(within(work).getByRole("button", { name: /4\.0 덜어내기/, expanded: false })).toBeInTheDocument();
     expect(within(work).getByRole("button", { name: /크로스플랫폼 포팅/, expanded: false })).toBeInTheDocument();
     expect(within(work).getByRole("button", { name: new RegExp(t("today.work.outside")), expanded: false })).toBeInTheDocument();
     // 묶음 머리는 예외 수만 — 「검증 n · 없음 m」 은 검증 대상이 아닌 일지를 빼먹어 합이 안 맞았다.
     expect(work.querySelector(".tdy-ok")).toBeNull();
     expect(within(work).getByText(t("today.work.missing", { n: 1 }))).toBeInTheDocument();
-    // 펼쳐진 묶음도 볼 것만 — 일지 행은 증거 없는 하나뿐이다.
-    expect(container.querySelectorAll(".tdy-ent")).toHaveLength(1);
-    expect(within(work).getByText("새 폴더 감시 경합")).toBeInTheDocument();
+    // 같은 행을 두 번 세우지 않는다 — 검증 없는 일지는 위 칸에만.
+    expect(container.querySelectorAll(".tdy-ent")).toHaveLength(0);
+    expect(within(unreadCard()).getByText("새 폴더 감시 경합")).toBeInTheDocument();
 
     // 머리를 누르면 펼친다.
     fireEvent.click(within(work).getByRole("button", { name: /크로스플랫폼 포팅/ }));
-    expect(container.querySelectorAll(".tdy-ent")).toHaveLength(5);
-    // 「나머지 22건 보기」.
-    fireEvent.click(within(work).getByRole("button", { name: t("today.work.showRest", { n: 22 }) }));
+    expect(container.querySelectorAll(".tdy-ent")).toHaveLength(4);
+    fireEvent.click(within(work).getByRole("button", { name: /4\.0 덜어내기/ }));
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(27);
 
     // 시간순은 전부 한 줄씩.

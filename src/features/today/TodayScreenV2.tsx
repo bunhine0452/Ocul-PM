@@ -6,11 +6,11 @@
  * 선 일은 한 줄로 접히고, 판정(완료 조건이 참인가)은 에이전트의 말이 아니라 확인 명령의
  * 결과 끝 줄이다.
  *
- *   왼쪽   하루 한 줄 → 확인할 것 → 오늘 한 일
- *   오른쪽 지금 일하는 중 → 계획 → 다음
+ *   한 칼럼  하루 한 줄 → 먼저 볼 것 → 검증 없이 끝난 일지 → 다음 → 내 차례 한 줄
+ *            → 지금 일하는 중 → 오늘 한 일
  *
- * 키보드는 이 화면 안에서만 — j/k 확인할 것 이동 · Enter 기본 동작 · v 확인함 · c 다음
- * 프롬프트 복사. 전역 keydown 은 쓰지 않는다(화면 컨테이너가 받는다).
+ * 키보드는 이 화면 안에서만 — j/k 두 칸의 행 이동 · Enter 기본 동작 · v 읽음 · r 다음을
+ * 터미널에서. 전역 keydown 은 쓰지 않는다(화면 컨테이너가 받는다).
  */
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
@@ -33,10 +33,10 @@ import { openSettings } from "@/lib/settingsNav";
 import { toast } from "@/lib/toast";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { TodayExceptions } from "./TodayExceptions";
-import { LiveCard, NextCard } from "./TodaySide";
+import { LiveCard, MineLine, NextCard } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
 import { Num } from "./todayFormat";
-import { firstNext, type TodayException } from "./todayModel";
+import { firstNext, splitExceptions, type TodayException } from "./todayModel";
 import { useTodayExceptions } from "./useTodayExceptions";
 import { liveSessionsOf, useLiveSessions } from "./useLiveSessions";
 import "./today.css";
@@ -70,6 +70,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   const ws = useOptionalWorkspace();
   const today = useTodayExceptions(projectId, workday, oculpmReady);
   const { data, exceptions, error, refresh, markVerified } = today;
+  const split = exceptions ? splitExceptions(exceptions) : null;
   const { sessions } = useLiveSessions(projectId, workday, oculpmReady);
   const now = useMinuteTick(oculpmReady);
 
@@ -125,6 +126,26 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
     [projectId, markVerified, refresh, t],
   );
 
+  // 「모두 읽음」 — 한 번에 (`oculpm_set_journal_verified_bulk`). 실패하면 행을 되돌린다.
+  const verifyAll = useCallback(
+    async (list: JournalEntrySummary[]) => {
+      for (const e of list) markVerified(e.relative_path, true);
+      try {
+        await oculpmApi.setJournalVerifiedBulk(
+          projectId,
+          list.map((e) => e.relative_path),
+          true,
+        );
+        toast.info(t("today.unread.allReadDone", { n: list.length }));
+        refresh();
+      } catch (e) {
+        for (const x of list) markVerified(x.relative_path, false);
+        toast.destructive(t("today.check.verifyFailed", { error: tError(toAppError(e)) }));
+      }
+    },
+    [projectId, markVerified, refresh, t],
+  );
+
   const next = firstNext(data.digest ?? null);
   // 다음 항목을 앱 안 터미널에서 — 새 세션에 `claude "<프롬프트>"` (클립보드 경로는 걷었다).
   const runNext = useCallback(async () => {
@@ -170,7 +191,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
-    const rows = exceptions ?? [];
+    const rows = split?.rows ?? [];
     const cur = Math.min(active, rows.length - 1);
     if (e.key === "j" || e.key === "k") {
       if (rows.length === 0) return;
@@ -195,6 +216,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
 
   const entries = data.entries ?? [];
   const live = sessions ? liveSessionsOf(sessions, entries) : [];
+  const multiAgent = new Set(entries.map((e) => e.agent_id)).size > 1;
   const firstRun = data.totalEntries === 0;
 
   let body: ReactNode;
@@ -243,16 +265,19 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                 </div>
               ) : null}
               <TodayExceptions
-                exceptions={exceptions}
+                split={split}
                 entryCount={entries.length}
                 unrecordedKnown={data.unrecorded != null}
+                showAgent={multiAgent}
                 activeIndex={active}
                 setActiveIndex={setActive}
                 rowRefs={rowRefs}
                 onPrimary={runPrimary}
                 onVerify={(entry) => void verify(entry)}
+                onVerifyAll={(list) => void verifyAll(list)}
               />
               {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onRun={() => void runNext()} /> : null}
+              {split && split.mine.length > 0 ? <MineLine mine={split.mine} onOpen={openPlan} /> : null}
               <LiveCard sessions={live} now={now} />
               {/* 오늘 기록이 없으면 이 카드는 위 문단을 되풀이할 뿐이다. */}
               {entries.length > 0 && data.digest ? (

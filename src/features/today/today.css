@@ -67,6 +67,18 @@
 }
 .tdy-row-open:hover { text-decoration: underline; text-underline-offset: 2px; }
 .tdy-empty { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px 14px; }
+
+/* 검증 없이 끝난 일지 — 시각 · 제목 · 행에 올라가야 보이는 「읽음」(읽음은 묶음 머리에 하나 서 있다). */
+.tdy-time { flex: none; width: 40px; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tdy-unread .tdy-row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.tdy-row-quiet { opacity: 0; }
+.tdy-row:hover .tdy-row-quiet,
+.tdy-row:focus-within .tdy-row-quiet { opacity: 1; }
+
+/* 내 차례 — 카드가 아니라 조용한 한 줄. */
+.tdy-mine { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); margin: 0; padding: 0 2px; font-size: var(--fs-4); color: var(--text-2); }
+.tdy-link { padding: 0; border: 0; background: none; font: inherit; color: var(--accent-text); cursor: pointer; }
+.tdy-link:hover { text-decoration: underline; text-underline-offset: 2px; }
 .tdy-empty-ico { flex: none; margin-top: 1px; color: var(--accent); }
 
 /* ── 오늘 한 일 ────────────────────────────────────────────── */

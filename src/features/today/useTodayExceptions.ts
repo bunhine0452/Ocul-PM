@@ -22,7 +22,7 @@ import { useJournalEvents, useOculpmDataEvents } from "@/features/oculpm/useOcul
 import { tError } from "@/i18n/errors";
 import { safeUnlisten } from "@/lib/unlisten";
 import type { JournalEntrySummary, JournalMissingSignal, TodayDigest } from "@/lib/bindings";
-import { buildExceptions, workdayStartMs, type TodayException } from "./todayModel";
+import { buildExceptions, splitExceptions, workdayStartMs, type TodayException } from "./todayModel";
 
 interface Loaded<T> {
   value: T | undefined;
@@ -77,7 +77,7 @@ export interface TodayExceptionsResult {
   data: TodayData;
   /** `null` = 아직 모름(읽는 중이거나 일지·계획 집계를 못 읽음). */
   exceptions: TodayException[] | null;
-  /** 사이드바 배지 — `exceptions` 의 길이, 모르면 `null`. */
+  /** 윗줄 배지 — 「먼저 볼 것」 수(`splitExceptions(...).first`), 모르면 `null`. */
   count: number | null;
   /** 일지나 계획 집계를 못 읽은 이유. */
   error: string | null;
@@ -194,7 +194,7 @@ export function useTodayExceptions(
   return {
     data,
     exceptions,
-    count: exceptions ? exceptions.length : null,
+    count: exceptions ? splitExceptions(exceptions).first.length : null,
     error: brief.error ?? digest.error,
     refresh,
     markVerified,
