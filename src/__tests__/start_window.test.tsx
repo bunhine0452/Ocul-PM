@@ -153,7 +153,9 @@ describe("처음이라면 세 단계", () => {
     // 3. 연결 명령 — 두 줄(마켓플레이스 + 설치)을 한 번에 보여 준다.
     for (const line of CLAUDE_PLUGIN_INSTALL) expect(within(steps).getByText(line)).toBeInTheDocument();
 
-    // 남의 프로젝트 일지는 무시하고, 이 프로젝트의 첫 일지에 넘어간다.
+    // 남의 프로젝트 일지는 무시하고, 이 프로젝트의 첫 일지에 넘어간다. 구독은 「기록 켜짐」 이
+    // 그려진 **뒤의** 효과에서 걸린다 — 느린 러너(Windows CI)에서는 그 전에 쏘아 놓쳤다.
+    await waitFor(() => expect(fx.journalAdded.length).toBeGreaterThan(0));
     act(() => fx.journalAdded.forEach((cb) => cb(99)));
     expect(fx.adopt).not.toHaveBeenCalled();
     act(() => fx.journalAdded.forEach((cb) => cb(7)));
