@@ -6,48 +6,6 @@
 use super::*;
 
 impl Db {
-    /// 이 파일을 `files_touched` 로 만진 일지들 — 최신순.
-    ///
-    /// 코드 화면의 일지 칩이 부른다. 인덱스(`idx_oculpm_journal_files_lookup`)는
-    /// 일지→파일 방향뿐이지만 이 테이블은 프로젝트당 수천 행 규모라 풀 스캔도
-    /// 밀리초다 — 전용 인덱스는 필요해질 때.
-    pub async fn oculpm_journal_for_file(
-        &self,
-        project_id: u32,
-        file_path: String,
-        limit: u32,
-    ) -> Result<Vec<FileJournalEntry>> {
-        let lim = limit.clamp(1, 50) as i64;
-        let rows = self
-            .conn
-            .call(move |c| {
-                let mut stmt = c.prepare(
-                    "SELECT j.relative_path, j.title, j.type, j.agent_id, j.created_at, f.op
-                     FROM oculpm_journal_files f
-                     JOIN oculpm_journal j
-                       ON j.project_id = f.project_id AND j.relative_path = f.relative_path
-                     WHERE f.project_id = ?1 AND f.file_path = ?2
-                     ORDER BY j.created_at DESC
-                     LIMIT ?3",
-                )?;
-                let out = stmt
-                    .query_map(params![project_id as i64, file_path, lim], |r| {
-                        Ok(FileJournalEntry {
-                            journal_path: r.get(0)?,
-                            title: r.get(1)?,
-                            entry_type: r.get(2)?,
-                            agent_id: r.get(3)?,
-                            created_at: r.get(4)?,
-                            op: r.get(5)?,
-                        })
-                    })?
-                    .collect::<std::result::Result<Vec<_>, _>>()?;
-                Ok(out)
-            })
-            .await?;
-        Ok(rows)
-    }
-
     // ---------- Oculpm agent state (W4-PR4) ----------
     //
     // Per-adapter hash of the bytes we last wrote — drives the watcher's

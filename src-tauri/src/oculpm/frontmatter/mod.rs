@@ -29,18 +29,6 @@ use crate::oculpm::spec::{
 mod verified;
 pub use verified::verified_body_hash;
 
-/// Spec-defined required field names (`00-spec.md` §3.1). `agent.id` is
-/// validated separately because it lives one level deeper.
-pub const REQUIRED_FIELDS: &[&str] = &[
-    "schema_version",
-    "type",
-    "slug",
-    "status",
-    "created_at",
-    "session_id",
-    "language",
-];
-
 /// Result of parsing the frontmatter region of a journal markdown file.
 #[derive(Debug, Clone)]
 pub struct ParsedFrontmatter {

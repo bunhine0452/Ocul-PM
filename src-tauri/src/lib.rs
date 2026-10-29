@@ -150,12 +150,9 @@ use crate::commands::{
     apply_menu_language,
     // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
     check_cli_available,
-    claude_hooks_install,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status,
-    claude_hooks_uninstall,
     claude_plugin_status,
-    clear_all_data,
     // 코드 화면 — 파일 조작 (.oculpm/planner/ide-completion.md #file-ops-backend)
     // 코드 화면 — 일지 연동 + HEAD 비교 (ide-completion #agent-diff)
     // 코드 화면 — 로컬 히스토리 (docs/20260902_vscode-borrows/06-local-history.md)
@@ -205,7 +202,6 @@ use crate::commands::{
     oculpm_agents_check_master_ahead,
     oculpm_agents_check_master_upgrade,
     oculpm_agents_detect,
-    oculpm_agents_get_master_template,
     oculpm_agents_sync_active,
     // F5 — git-history backfill
     oculpm_backfill_from_git,
@@ -251,7 +247,6 @@ use crate::commands::{
     oculpm_tag_merge,
     oculpm_tag_stats,
     oculpm_update_entry_body,
-    oculpm_update_entry_meta,
     // journal-scale-round {#velocity} — 주당 일지 속도 + 플랜 완료 ETA
     oculpm_velocity,
     oculpm_watcher_start,
@@ -265,24 +260,16 @@ use crate::commands::{
     open_url,
     plan_apply_edit,
     plan_create,
-    plan_delete,
     // Planner Upgrade (PR-PLN 0/1/5) — file-based Plan read + write + AI/migration
     plan_dispatch_prompt,
     plan_get,
-    plan_item_history,
     plan_list,
     plan_locked_open,
     plan_log,
-    plan_migrate_goals,
-    plan_recent_updates,
-    plan_rename,
-    plan_set_status,
-    plan_set_status_bulk,
     // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
     quick_look_file,
     read_project_file,
     // W5 — action proposal apply-state
-    rename_project,
     // first-record-loop Phase 2 — 이어하기 자료 (Today 이어하기 카드)
     resume_digest,
     resume_dispatch_prompt,
@@ -315,35 +302,26 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             settings_get_all,
             settings_set_many,
             app_info,
-            clear_all_data,
             select_project_folder,
             list_projects,
             create_project,
             delete_project,
-            rename_project,
             // 컨텍스트 경제학 (Phase 5) — 회상 통계 · 프로젝트 지시문
             home_brief,
             // Planner Upgrade (PR-PLN 0/1) — file-based Plan read + write
             plan_list,
             plan_locked_open,
             plan_get,
-            plan_item_history,
             plan_log,
             plan_create,
             plan_apply_edit,
             plan_dispatch_prompt,
-            plan_migrate_goals,
-            plan_recent_updates,
             today_digest,
             term_open,
             term_write,
             term_resize,
             term_close,
             term_list,
-            plan_set_status,
-            plan_set_status_bulk,
-            plan_rename,
-            plan_delete,
             // M2-3 — Chat history
             // M5 — Window & File Operations
             open_devtools,
@@ -417,11 +395,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_workday_brief,
             oculpm_reindex_cache,
             oculpm_create_manual_entry,
-            oculpm_update_entry_meta,
             oculpm_coerce_entry_on_disk,
             oculpm_agents_sync_active,
             oculpm_agents_detect,
-            oculpm_agents_get_master_template,
             oculpm_agents_check_master_ahead,
             oculpm_agents_check_master_upgrade,
             oculpm_agents_apply_master_upgrade,
@@ -444,8 +420,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // v3-record-integrity {#mcp-missing-visible} — 기록 도구 부착 결과
             // PR-CI0 — Claude Code 훅 브리지
             claude_hooks_status,
-            claude_hooks_install,
-            claude_hooks_uninstall,
             // H3b — "일지 없이 끝난 세션" 신호 (Today 카드)
             journal_missing_signals,
             // first-record-loop — 첫 기록 원장 (Today 첫 기록 카드)

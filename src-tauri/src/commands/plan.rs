@@ -9,27 +9,21 @@ use std::path::{Path, PathBuf};
 
 use tauri::State;
 
-use crate::app_error::AppError;
 use crate::db::Db;
 use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::planner::dispatch::{
     build_dispatch_prompt, project_redact_patterns, shell_command_for,
 };
-use crate::oculpm::planner::lifecycle::set_plan_status;
 use crate::oculpm::planner::log_archive::archive_overflow;
 use crate::oculpm::planner::log_query::plan_log_rows;
-use crate::oculpm::planner::migrate::{
-    build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID,
-};
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{
     add_item, append_log_row, create_plan_skeleton, move_item, move_phase, remove_item,
-    remove_phase, rename_item, rename_phase, set_item_status_rolled, set_plan_title, LogRow,
+    remove_phase, rename_item, rename_phase, set_item_status_rolled, LogRow,
 };
 use crate::oculpm::planner::project::{
-    find_plan_path, planner_dir, slug_for, PlanActivityDto, PlanCache, PlanDetail,
-    PlanItemUpdateDto, PlanSummary,
+    find_plan_path, planner_dir, slug_for, PlanCache, PlanDetail, PlanItemUpdateDto, PlanSummary,
 };
 
 pub(super) async fn planner_root_of(db: &Db, project_id: u32) -> Result<PathBuf, String> {
@@ -61,22 +55,6 @@ pub async fn plan_get(
     PlanCache::new(&db).get(project_id, &root, &plan_id).await
 }
 
-/// Append-only attribution history for one item (who changed it, when,
-/// from→to, linked journal).
-#[tauri::command]
-#[specta::specta]
-pub async fn plan_item_history(
-    db: State<'_, Db>,
-    project_id: u32,
-    plan_id: String,
-    item_id: String,
-) -> Result<Vec<PlanItemUpdateDto>, String> {
-    let root = planner_root_of(&db, project_id).await?;
-    PlanCache::new(&db)
-        .item_history(project_id, &root, &plan_id, &item_id)
-        .await
-}
-
 /// 플랜 하나의 변경 로그 전체 — 플래너 「변경 로그 N행」 접힘 (UI 밀도 라운드 3).
 /// 항목 하나의 `plan_item_history` 와 같은 투영을 거친다 (`plan_get` 이 먼저 돌아
 /// 캐시를 채워 둔다).
@@ -88,20 +66,6 @@ pub async fn plan_log(
     plan_id: String,
 ) -> Result<Vec<PlanItemUpdateDto>, String> {
     plan_log_rows(&db, project_id, &plan_id).await
-}
-
-/// Recent plan activity across all plans — Today's "계획 업데이트" block.
-#[tauri::command]
-#[specta::specta]
-pub async fn plan_recent_updates(
-    db: State<'_, Db>,
-    project_id: u32,
-    limit: u32,
-) -> Result<Vec<PlanActivityDto>, String> {
-    let root = planner_root_of(&db, project_id).await?;
-    PlanCache::new(&db)
-        .recent_activity(project_id, &root, limit)
-        .await
 }
 
 // ─── write side (PR-PLN 1) ───────────────────────────────────────────────────
@@ -318,193 +282,9 @@ pub async fn plan_apply_edit(
     PlanCache::new(&db).get(project_id, &root, &plan_id).await
 }
 
-/// Set a plan's lifecycle status (`active` / `done` / `archived`). `done` and
-/// `archived` LOCK the plan: `plan_apply_edit` / `plan_ai_refresh` refuse to
-/// touch it and AGENTS.md tells external agents the same — so finished plans
-/// stay frozen and work moves to a new plan (Planner #1). Returns refreshed
-/// detail.
-///
-/// 미완 항목이 남은 플랜을 `done` 으로 닫는 전이는
-/// [`planner::lifecycle::set_plan_status`] 가 거부한다 — 이 커맨드가 그
-/// 문지기를 지나는 세 자리 중 하나다 (`{#done-transition-guard}`).
-///
-/// [`planner::lifecycle::set_plan_status`]: crate::oculpm::planner::lifecycle::set_plan_status
-#[tauri::command]
-#[specta::specta]
-pub async fn plan_set_status(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    plan_id: String,
-    status: String,
-) -> Result<Option<PlanDetail>, AppError> {
-    if !matches!(status.as_str(), "active" | "done" | "archived") {
-        return Err(AppError::new(
-            "unknown_plan_status",
-            format!("unknown plan status '{status}'"),
-        ));
-    }
-    let plan_lock = manager.plan_write_lock(project_id).await;
-    let _guard = plan_lock.lock().await;
-    let root = planner_root_of(&db, project_id).await?;
-    let path =
-        find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
-    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let new_md = set_plan_status(&md, &status, &date)?;
-    write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
-    Ok(PlanCache::new(&db).get(project_id, &root, &plan_id).await?)
-}
-
-/// Set the same lifecycle status on many plans at once — the rail's "묶어서
-/// 보관" (Planner 정리 라운드). One lock, N file writes, **one** reprojection:
-/// looping `plan_set_status` instead reparses every plan file N times, which is
-/// exactly the case that hurts (a project with 40+ finished plans).
-///
-/// Unknown ids are skipped, not fatal — the rail's list can lag a deletion on
-/// disk, and refusing the whole batch over one stale id is worse than archiving
-/// the rest. Returns how many files were actually rewritten.
-#[tauri::command]
-#[specta::specta]
-pub async fn plan_set_status_bulk(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    plan_ids: Vec<String>,
-    status: String,
-) -> Result<u32, AppError> {
-    if !matches!(status.as_str(), "active" | "done" | "archived") {
-        return Err(AppError::new(
-            "unknown_plan_status",
-            format!("unknown plan status '{status}'"),
-        ));
-    }
-    let plan_lock = manager.plan_write_lock(project_id).await;
-    let _guard = plan_lock.lock().await;
-    let root = planner_root_of(&db, project_id).await?;
-    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    // **먼저 전부 판정하고 그다음에 쓴다.** 문지기가 배치 한가운데서 거부하면
-    // 반은 쓰이고 반은 안 쓰인 상태가 남고, 사용자는 어느 쪽인지 알 길이 없다
-    // (`{#done-transition-guard}`). 없는 id 는 예전처럼 조용히 건너뛴다 —
-    // 레일 목록이 디스크의 삭제를 늦게 따라올 수 있고, 그 하나 때문에 나머지를
-    // 못 옮기는 편이 더 나쁘다.
-    let mut pending: Vec<(std::path::PathBuf, String)> = Vec::new();
-    for plan_id in &plan_ids {
-        let Some(path) = find_plan_path(&root, plan_id) else {
-            continue;
-        };
-        let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        let new_md = set_plan_status(&md, &status, &date)?;
-        if new_md == md {
-            continue;
-        }
-        pending.push((path, new_md));
-    }
-    let changed = pending.len() as u32;
-    for (path, new_md) in &pending {
-        write_atomic(path, new_md.as_bytes()).map_err(|e| e.to_string())?;
-    }
-    if changed > 0 {
-        PlanCache::new(&db).list(project_id, &root).await?;
-    }
-    Ok(changed)
-}
-
-/// Rename a plan (frontmatter `title:`). The plan `id` / filename stay the same
-/// so item attribution + references keep working. Returns refreshed detail.
-#[tauri::command]
-#[specta::specta]
-pub async fn plan_rename(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    plan_id: String,
-    title: String,
-) -> Result<Option<PlanDetail>, String> {
-    let t = title.trim();
-    if t.is_empty() {
-        return Err("Enter a title.".to_string());
-    }
-    let plan_lock = manager.plan_write_lock(project_id).await;
-    let _guard = plan_lock.lock().await;
-    let root = planner_root_of(&db, project_id).await?;
-    let path =
-        find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
-    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let new_md = set_plan_title(&md, t, &date);
-    write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
-    PlanCache::new(&db).get(project_id, &root, &plan_id).await
-}
-
-/// Delete a plan: remove its `.oculpm/planner/<id>.md` file and drop the cache
-/// rows (a full reproject from disk is the only cache writer, so listing after
-/// the unlink cleans up). Works regardless of lock state.
-#[tauri::command]
-#[specta::specta]
-pub async fn plan_delete(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    plan_id: String,
-) -> Result<(), String> {
-    let plan_lock = manager.plan_write_lock(project_id).await;
-    let _guard = plan_lock.lock().await;
-    let root = planner_root_of(&db, project_id).await?;
-    let path =
-        find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
-    std::fs::remove_file(&path).map_err(|e| e.to_string())?;
-    PlanCache::new(&db).list(project_id, &root).await?;
-    Ok(())
-}
-
 // ─── migration (PR-PLN 5) ────────────────────────────────────────────────────
 // (앱 안 LLM 의 「AI 갱신」 `plan_ai_refresh` 는 4.0 에서 걷었다 — 플랜 상태는
 // 에이전트가 `plan_update` 로 고친다.)
-
-/// One-time import of legacy `goals`/`subtasks` into `_imported.md`.
-#[tauri::command]
-#[specta::specta]
-pub async fn plan_migrate_goals(db: State<'_, Db>, project_id: u32) -> Result<PlanSummary, String> {
-    let root = planner_root_of(&db, project_id).await?;
-    std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
-    let path = root.join(format!("{IMPORTED_PLAN_ID}.md"));
-    if path.exists() {
-        return Err("_imported.md already exists (you can import only once).".to_string());
-    }
-    let goals = db
-        .list_goals(Some(project_id), None)
-        .await
-        .map_err(|e| e.to_string())?;
-    if goals.is_empty() {
-        return Err("There are no legacy goals to import.".to_string());
-    }
-    let mut import: Vec<ImportGoal> = Vec::new();
-    for g in &goals {
-        let subs = db.list_subtasks(g.id).await.map_err(|e| e.to_string())?;
-        import.push(ImportGoal {
-            title: g.title.clone(),
-            status: g.status.clone(),
-            progress: g.progress,
-            subtasks: subs
-                .iter()
-                .map(|s| ImportSubtask {
-                    title: s.title.clone(),
-                    done: s.done,
-                })
-                .collect(),
-        });
-    }
-    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let md = build_imported_md(&import, &date);
-    write_atomic(&path, md.as_bytes()).map_err(|e| e.to_string())?;
-
-    let summaries = PlanCache::new(&db).list(project_id, &root).await?;
-    summaries
-        .into_iter()
-        .find(|s| s.plan_id == IMPORTED_PLAN_ID)
-        .ok_or_else(|| "Imported, but it is missing from the projection".to_string())
-}
 
 // ─── IN2 — 플래너 디스패치 ───────────────────────────────────────────────────
 

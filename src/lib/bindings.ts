@@ -16,12 +16,10 @@ export const commands = {
 	settingsGetAll: () => typedError<([string, string])[], string>(__TAURI_INVOKE("settings_get_all")),
 	settingsSetMany: (entries: ([string, string])[]) => typedError<null, string>(__TAURI_INVOKE("settings_set_many", { entries })),
 	appInfo: () => typedError<AppInfo, string>(__TAURI_INVOKE("app_info")),
-	clearAllData: () => typedError<null, string>(__TAURI_INVOKE("clear_all_data")),
 	selectProjectFolder: () => typedError<string | null, string>(__TAURI_INVOKE("select_project_folder")),
 	listProjects: () => typedError<Project[], string>(__TAURI_INVOKE("list_projects")),
 	createProject: (name: string, rootPath: string) => typedError<number, string>(__TAURI_INVOKE("create_project", { name, rootPath })),
 	deleteProject: (projectId: number, deleteOculpm: boolean, deleteAgentsMd: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_project", { projectId, deleteOculpm, deleteAgentsMd })),
-	renameProject: (projectId: number, name: string) => typedError<null, string>(__TAURI_INVOKE("rename_project", { projectId, name })),
 	/**
 	 *  홈 화면이 마운트 때 1회 호출하는 단일 집계.
 	 * 
@@ -58,11 +56,6 @@ export const commands = {
 	check: string | null,
 } | null, string>(__TAURI_INVOKE("plan_get", { projectId, planId })),
 	/**
-	 *  Append-only attribution history for one item (who changed it, when,
-	 *  from→to, linked journal).
-	 */
-	planItemHistory: (projectId: number, planId: string, itemId: string) => typedError<PlanItemUpdateDto[], string>(__TAURI_INVOKE("plan_item_history", { projectId, planId, itemId })),
-	/**
 	 *  플랜 하나의 변경 로그 전체 — 플래너 「변경 로그 N행」 접힘 (UI 밀도 라운드 3).
 	 *  항목 하나의 `plan_item_history` 와 같은 투영을 거친다 (`plan_get` 이 먼저 돌아
 	 *  캐시를 채워 둔다).
@@ -95,10 +88,6 @@ export const commands = {
 	 *  (앱 관리·gitignore 영역)에 쓰고, 터미널 프리필용 한 줄 명령을 돌려준다.
 	 */
 	planDispatchPrompt: (projectId: number, planId: string, itemId: string) => typedError<DispatchPrompt, string>(__TAURI_INVOKE("plan_dispatch_prompt", { projectId, planId, itemId })),
-	/**  One-time import of legacy `goals`/`subtasks` into `_imported.md`. */
-	planMigrateGoals: (projectId: number) => typedError<PlanSummary, string>(__TAURI_INVOKE("plan_migrate_goals", { projectId })),
-	/**  Recent plan activity across all plans — Today's "계획 업데이트" block. */
-	planRecentUpdates: (projectId: number, limit: number) => typedError<PlanActivityDto[], string>(__TAURI_INVOKE("plan_recent_updates", { projectId, limit })),
 	/**  활성 플랜의 판정·다음 리프·사람 몫·막힘과 일지 → 계획 연결. LLM 0 · 네트워크 0. */
 	todayDigest: (projectId: number) => typedError<TodayDigest, string>(__TAURI_INVOKE("today_digest", { projectId })),
 	/**
@@ -111,70 +100,6 @@ export const commands = {
 	termClose: (id: number) => __TAURI_INVOKE<void>("term_close", { id }),
 	/**  이 창의 세션 목록 — 웹뷰가 다시 그려져도(새로고침) 남은 세션을 안다. */
 	termList: () => __TAURI_INVOKE<TermInfo[]>("term_list"),
-	/**
-	 *  Set a plan's lifecycle status (`active` / `done` / `archived`). `done` and
-	 *  `archived` LOCK the plan: `plan_apply_edit` / `plan_ai_refresh` refuse to
-	 *  touch it and AGENTS.md tells external agents the same — so finished plans
-	 *  stay frozen and work moves to a new plan (Planner #1). Returns refreshed
-	 *  detail.
-	 * 
-	 *  미완 항목이 남은 플랜을 `done` 으로 닫는 전이는
-	 *  [`planner::lifecycle::set_plan_status`] 가 거부한다 — 이 커맨드가 그
-	 *  문지기를 지나는 세 자리 중 하나다 (`{#done-transition-guard}`).
-	 * 
-	 *  [`planner::lifecycle::set_plan_status`]: crate::oculpm::planner::lifecycle::set_plan_status
-	 */
-	planSetStatus: (projectId: number, planId: string, status: string) => typedError<{
-	plan: PlanSummary,
-	items: PlanItemDto[],
-	phases: PlanPhaseDto[],
-	decisions: PlanDecisionDto[],
-	/**
-	 *  Non-fatal parse warnings (broken glyphs, missing ids, …). Surfaced so
-	 *  the UI never fails silently on a malformed plan.
-	 */
-	warnings: string[],
-	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
-	done_when: string | null,
-	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
-	check: string | null,
-} | null, AppError>(__TAURI_INVOKE("plan_set_status", { projectId, planId, status })),
-	/**
-	 *  Set the same lifecycle status on many plans at once — the rail's "묶어서
-	 *  보관" (Planner 정리 라운드). One lock, N file writes, **one** reprojection:
-	 *  looping `plan_set_status` instead reparses every plan file N times, which is
-	 *  exactly the case that hurts (a project with 40+ finished plans).
-	 * 
-	 *  Unknown ids are skipped, not fatal — the rail's list can lag a deletion on
-	 *  disk, and refusing the whole batch over one stale id is worse than archiving
-	 *  the rest. Returns how many files were actually rewritten.
-	 */
-	planSetStatusBulk: (projectId: number, planIds: string[], status: string) => typedError<number, AppError>(__TAURI_INVOKE("plan_set_status_bulk", { projectId, planIds, status })),
-	/**
-	 *  Rename a plan (frontmatter `title:`). The plan `id` / filename stay the same
-	 *  so item attribution + references keep working. Returns refreshed detail.
-	 */
-	planRename: (projectId: number, planId: string, title: string) => typedError<{
-	plan: PlanSummary,
-	items: PlanItemDto[],
-	phases: PlanPhaseDto[],
-	decisions: PlanDecisionDto[],
-	/**
-	 *  Non-fatal parse warnings (broken glyphs, missing ids, …). Surfaced so
-	 *  the UI never fails silently on a malformed plan.
-	 */
-	warnings: string[],
-	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
-	done_when: string | null,
-	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
-	check: string | null,
-} | null, string>(__TAURI_INVOKE("plan_rename", { projectId, planId, title })),
-	/**
-	 *  Delete a plan: remove its `.oculpm/planner/<id>.md` file and drop the cache
-	 *  rows (a full reproject from disk is the only cache writer, so listing after
-	 *  the unlink cleans up). Works regardless of lock state.
-	 */
-	planDelete: (projectId: number, planId: string) => typedError<null, string>(__TAURI_INVOKE("plan_delete", { projectId, planId })),
 	openDevtools: () => typedError<null, string>(__TAURI_INVOKE("open_devtools")),
 	/**
 	 *  프로젝트의 창을 연다 — I1 이 여기서 강제된다.
@@ -635,20 +560,6 @@ export const commands = {
 	 */
 	oculpmCreateManualEntry: (projectId: number, draft: ManualEntryDraft) => typedError<JournalEntry, AppError>(__TAURI_INVOKE("oculpm_create_manual_entry", { projectId, draft })),
 	/**
-	 *  Inline-edit one or both of `difficulty` / `status` on an existing entry.
-	 *  Same write-through semantics as `oculpm_set_journal_verified` — atomic
-	 *  file write then cache upsert — and returns the hydrated entry so the
-	 *  frontend's optimistic UI can resync to truth without a second fetch.
-	 * 
-	 *  Argument shape: send `null` for a field to leave it unchanged. To clear
-	 *  `difficulty`, send `Some(None)` (encoded over the wire as the JSON
-	 *  `null` *inside* a present object key); the frontend wrapper handles
-	 *  this distinction.
-	 */
-	oculpmUpdateEntryMeta: (projectId: number, relativePath: string, difficultyChange: {
-	value: Difficulty | null,
-} | null, status: "planned" | "in_progress" | "done" | "abandoned" | null) => typedError<JournalEntry, AppError>(__TAURI_INVOKE("oculpm_update_entry_meta", { projectId, relativePath, difficultyChange, status })),
-	/**
 	 *  F7a-B Unit B — apply the tz-offset coercion to the entry's on-disk
 	 *  frontmatter once (explicit user action). Only timestamps are written; the
 	 *  slug stays display-coerced (filename coupling). Returns the re-projected
@@ -669,14 +580,6 @@ export const commands = {
 	 *  default active set.
 	 */
 	oculpmAgentsDetect: (projectId: number) => typedError<AgentDetection[], AppError>(__TAURI_INVOKE("oculpm_agents_detect", { projectId })),
-	/**
-	 *  W4 dogfooding follow-up (2026-05-26) — return the project's master template
-	 *  text so the UI's "프롬프트 복사" action can paste it into a chat. Read-only;
-	 *  does not touch any adapter files. Separates the *file sync* concern (which
-	 *  `oculpm_agents_sync_active` already handles) from the *one-shot prompt
-	 *  delivery* concern that the user actually wants when clicking "복사".
-	 */
-	oculpmAgentsGetMasterTemplate: (projectId: number) => typedError<string, AppError>(__TAURI_INVOKE("oculpm_agents_get_master_template", { projectId })),
 	/**
 	 *  디스크의 템플릿이 이 앱 버전보다 **새로운가**. `Some` 이면 이 앱이 아직
 	 *  모르는 규칙이 템플릿에 들어 있다는 뜻이고, 화면은 그것을 「선언됐지만 아직
@@ -762,10 +665,6 @@ export const commands = {
 	oculpmPromiseScorecard: (projectId: number, days: number | null) => typedError<PromiseScorecard, string>(__TAURI_INVOKE("oculpm_promise_scorecard", { projectId, days })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
-	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
-	claudeHooksInstall: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_install", { projectId })),
-	/**  훅 제거 (우리 서명 엔트리만 — 사용자 훅·인박스 파일은 보존). */
-	claudeHooksUninstall: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_uninstall", { projectId })),
 	/**
 	 *  H3b — 플러그인 SessionEnd 훅이 남긴 "일지 없이 끝난 세션" 신호를 최근
 	 *  `days`일 범위로 반환한다 (읽기 전용, 최신 우선). 신호 파일이 없으면 빈
@@ -1218,17 +1117,6 @@ export type DiffSource =
 { source: "snapshots_unavailable" };
 
 export type Difficulty = "superhigh" | "high" | "medium" | "low" | "verylow";
-
-/**
- *  Wire wrapper so the frontend can express "set difficulty to None" vs
- *  "leave difficulty alone". Two-step Option unfolds to:
- *    - omitted / null → `None` (leave alone)
- *    - `{ value: null }` → `Some(None)` (clear)
- *    - `{ value: "high" }` → `Some(Some(High))` (set)
- */
-export type DifficultyChange = {
-	value: Difficulty | null,
-};
 
 export type DigestItem = {
 	plan_id: string,
@@ -2025,19 +1913,6 @@ export type OpenPlanItem = {
 	phase: string | null,
 	/**  todo | in_progress | blocked */
 	status: string,
-};
-
-/**  Recent plan activity across all plans — drives the Today "계획 업데이트" block. */
-export type PlanActivityDto = {
-	plan_id: string,
-	plan_title: string,
-	item_id: string,
-	item_title: string,
-	agent_id: string,
-	ts: string,
-	from_status: string | null,
-	to_status: string | null,
-	note: string | null,
 };
 
 export type PlanDecisionDto = {

@@ -269,26 +269,6 @@ fn deleting_the_file_keeps_its_versions() {
 }
 
 #[test]
-fn forget_and_clear_and_usage() {
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path();
-    write(root, "a.ts", "aaaa\n");
-    write(root, "b.ts", "bbbb\n");
-    capture(root, "a.ts", HistorySource::Agent, DEFAULT_MAX_ENTRIES);
-    capture(root, "b.ts", HistorySource::Agent, DEFAULT_MAX_ENTRIES);
-
-    assert!(history::usage_bytes(root) > 10, "meta + snap 을 함께 센다");
-
-    history::forget(root, "a.ts").unwrap();
-    assert!(history::list(root, "a.ts").is_empty());
-    assert_eq!(history::list(root, "b.ts").len(), 1);
-
-    history::clear_all(root).unwrap();
-    assert!(history::list(root, "b.ts").is_empty());
-    assert_eq!(history::usage_bytes(root), 0);
-}
-
-#[test]
 fn the_project_budget_evicts_the_oldest_but_leaves_every_file_one_version() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();

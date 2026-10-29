@@ -92,15 +92,3 @@ pub async fn app_info(app: tauri::AppHandle) -> Result<AppInfo, String> {
         version: env!("CARGO_PKG_VERSION").to_string(),
     })
 }
-
-#[tauri::command]
-#[specta::specta]
-pub async fn clear_all_data(db: State<'_, Db>) -> Result<(), String> {
-    // Cascade-delete every project's cache rows.
-    let projects = db.list_projects().await.map_err(|e| e.to_string())?;
-    for p in projects {
-        db.delete_project(p.id).await.map_err(|e| e.to_string())?;
-    }
-    db.settings_clear().await.map_err(|e| e.to_string())?;
-    Ok(())
-}

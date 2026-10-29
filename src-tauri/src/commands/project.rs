@@ -111,18 +111,6 @@ pub async fn delete_project(
     Ok(())
 }
 
-#[tauri::command]
-#[specta::specta]
-pub async fn rename_project(
-    db: State<'_, Db>,
-    project_id: u32,
-    name: String,
-) -> Result<(), String> {
-    db.rename_project(project_id, name)
-        .await
-        .map_err(|e| e.to_string())
-}
-
 async fn get_project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     let project = db
         .get_project(project_id)

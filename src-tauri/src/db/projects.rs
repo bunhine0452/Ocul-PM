@@ -129,17 +129,4 @@ impl Db {
             .await?;
         Ok(())
     }
-
-    pub async fn rename_project(&self, id: u32, name: String) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute(
-                    "UPDATE projects SET name = ?, updated_at = unixepoch() WHERE id = ?",
-                    params![&name, id as i64],
-                )?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
 }

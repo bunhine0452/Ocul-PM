@@ -20,7 +20,6 @@ pub mod lifecycle;
 /// plan-log 표의 이력 분리 — 넘친 행을 `<plan_id>.log.md` 로 (`{#plan-log-archive}`).
 pub mod log_archive;
 pub mod log_query;
-pub mod migrate;
 pub mod parse;
 pub mod paths;
 pub mod plan_edit;

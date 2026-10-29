@@ -134,15 +134,6 @@ fn preserves_unrelated_content() {
     assert!(res.md.contains("- [x] keep me {#keep}"));
 }
 
-#[test]
-fn set_plan_title_changes_title_and_bumps_updated() {
-    let md = create_plan_skeleton("p", "옛 제목", "user", "2026-06-01");
-    let out = set_plan_title(&md, "새 제목", "2026-06-15");
-    let p = parse_plan(&out, "p");
-    assert_eq!(p.frontmatter.title, "새 제목");
-    assert_eq!(p.frontmatter.updated.as_deref(), Some("2026-06-15"));
-}
-
 /// E2 — 항목 이동: 다른 단계 끝으로 · 다른 항목 앞으로 · 하위 동반 · 거절.
 #[test]
 fn move_item_between_phases_and_before_siblings() {
@@ -362,10 +353,6 @@ fn every_edit_keeps_a_crlf_plan_crlf() {
     };
     type Edit = Box<dyn Fn(&str) -> Result<String, String>>;
     let edits: Vec<(&str, Edit)> = vec![
-        (
-            "title",
-            Box::new(|m| Ok(set_plan_title(m, "새 제목", "2026-09-28"))),
-        ),
         (
             "rolled",
             Box::new(|m| set_item_status_rolled(m, "c1", ItemStatus::Done).map(|r| r.md)),

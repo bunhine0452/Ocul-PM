@@ -59,9 +59,6 @@ pub const SHIM_BIN: &str = "oculpm";
 /// 토큰 파일명 (심 디렉터리 안).
 pub const TOKEN_FILE: &str = "session.json";
 
-/// 심 디렉터리를 가리키는 환경변수 — 셸 통합이 PATH 에 붙일 때 읽는다.
-pub const ENV_SHIM_DIR: &str = "OCULPM_SHIM_DIR";
-
 /// 토큰 파일을 가리키는 환경변수. CLI 가 자기 신원을 찾는 1순위.
 pub const ENV_TOKEN: &str = "OCULPM_SESSION_TOKEN";
 
@@ -92,14 +89,6 @@ pub struct SessionShim {
 }
 
 impl SessionShim {
-    /// 자식에게 넘길 환경변수 — PATH 는 건드리지 않는다 (모듈 문서 참조).
-    pub fn env_pairs(&self) -> Vec<(String, String)> {
-        vec![
-            (ENV_SHIM_DIR.to_string(), self.dir.display().to_string()),
-            (ENV_TOKEN.to_string(), self.token_path.display().to_string()),
-        ]
-    }
-
     /// 우리가 직접 띄우는 자식용 — 주어진 PATH 앞에 심을 붙인다.
     pub fn prepend_path(&self, base: &str) -> String {
         let sep = if cfg!(windows) { ';' } else { ':' };

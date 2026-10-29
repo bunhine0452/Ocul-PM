@@ -191,59 +191,10 @@ async fn invariant_04_lock_guard_detects_second_acquirer() {
     // `first` drops at scope exit, releasing the lock.
 }
 
-// ─── #6 — legacy goal read/create round-trip via Db ────────────────────────
-//
-// The goals/subtasks tables are legacy (planner-unify moved the live Plan to
-// file-based `.oculpm/planner/*.md`). Exactly one command still reads them:
-// `plan_migrate_goals` (the one-time import), through `list_goals` +
-// `list_subtasks`. This test guards that read path stays reachable.
-//
-// The greenfield wizard's `generate_seed_goals` used to be the second reader —
-// it was deleted with the rest of the wizard commands, so it no longer belongs
-// in this note ({#w6-comment-stale}). `create_goal` is this test's own seeding
-// (the read path needs a row), and `get_goal` now has no production caller at
-// all — a candidate for the next orphan sweep, not something this test should
-// keep alive on its own. The write-side methods (update_goal / delete_goal /
-// *_subtask mutators) were orphaned after planner-unify and removed, so
-// they're no longer exercised here.
-
-#[tokio::test]
-async fn invariant_06_planner_goal_crud_roundtrip() {
-    let dir = tempfile::tempdir().unwrap();
-    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
-    let project_id = db
-        .create_project("planner".into(), dir.path().to_string_lossy().into_owned())
-        .await
-        .unwrap();
-
-    let g = db
-        .create_goal(
-            Some(project_id),
-            "ship 1.0".into(),
-            Some("dogfood".into()),
-            1,
-            None,
-        )
-        .await
-        .expect("create_goal");
-    assert_eq!(g.title, "ship 1.0");
-
-    let listed = db.list_goals(Some(project_id), None).await.unwrap();
-    assert!(listed.iter().any(|x| x.id == g.id));
-
-    let got = db.get_goal(g.id).await.unwrap();
-    assert_eq!(got.id, g.id);
-    assert_eq!(got.project_id, Some(project_id));
-
-    // subtask read path stays reachable (used by plan_migrate_goals).
-    let subs = db.list_subtasks(g.id).await.unwrap();
-    assert!(subs.is_empty());
-}
-
 // ─── #7 — project lifecycle ────────────────────────────────────────────────
 //
 // PR4/PR5 routinely poke at project tables (changelog ↔ project FK,
-// project ↔ workspace key). create / get / rename / list / delete must all
+// project ↔ workspace key). create / get / list / delete must all
 // stay reachable through the public Db surface.
 
 #[tokio::test]
@@ -258,10 +209,6 @@ async fn invariant_07_project_lifecycle_complete() {
     let got = db.get_project(pid).await.unwrap();
     assert_eq!(got.name, "orig");
     assert_eq!(got.root_path, "/tmp/p");
-
-    db.rename_project(pid, "renamed".into()).await.unwrap();
-    let got = db.get_project(pid).await.unwrap();
-    assert_eq!(got.name, "renamed");
 
     let listed = db.list_projects().await.unwrap();
     assert!(listed.iter().any(|p| p.id == pid));

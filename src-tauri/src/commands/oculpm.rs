@@ -25,9 +25,9 @@ use crate::oculpm::entry_diffs::EntryFileDiff;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
-    AgentSyncReport, BackfillReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning,
-    JournalEntry, JournalEntrySummary, ManualEntryDraft, OculpmConfig, OculpmInitReport,
-    OculpmIntegrityWarning, OculpmStatus, ReindexReport, Session, WorkdayComparison,
+    AgentSyncReport, BackfillReport, FileChangeEvent, IntegrityWarning, JournalEntry,
+    JournalEntrySummary, ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmIntegrityWarning,
+    OculpmStatus, ReindexReport, Session, WorkdayComparison,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -587,36 +587,6 @@ pub async fn oculpm_reindex_cache(
     Ok(manager.reindex_journal_cache(&db, project_id).await?)
 }
 
-/// Inline-edit one or both of `difficulty` / `status` on an existing entry.
-/// Same write-through semantics as `oculpm_set_journal_verified` — atomic
-/// file write then cache upsert — and returns the hydrated entry so the
-/// frontend's optimistic UI can resync to truth without a second fetch.
-///
-/// Argument shape: send `null` for a field to leave it unchanged. To clear
-/// `difficulty`, send `Some(None)` (encoded over the wire as the JSON
-/// `null` *inside* a present object key); the frontend wrapper handles
-/// this distinction.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_update_entry_meta(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    relative_path: String,
-    difficulty_change: Option<DifficultyChange>,
-    status: Option<EntryStatus>,
-) -> Result<JournalEntry, AppError> {
-    Ok(manager
-        .update_journal_entry_meta(
-            &db,
-            project_id,
-            relative_path,
-            difficulty_change.map(|c| c.value),
-            status,
-        )
-        .await?)
-}
-
 /// F7a-B Unit B — apply the tz-offset coercion to the entry's on-disk
 /// frontmatter once (explicit user action). Only timestamps are written; the
 /// slug stays display-coerced (filename coupling). Returns the re-projected
@@ -632,16 +602,6 @@ pub async fn oculpm_coerce_entry_on_disk(
     Ok(manager
         .coerce_journal_entry_timestamps_on_disk(&db, project_id, relative_path)
         .await?)
-}
-
-/// Wire wrapper so the frontend can express "set difficulty to None" vs
-/// "leave difficulty alone". Two-step Option unfolds to:
-///   - omitted / null → `None` (leave alone)
-///   - `{ value: null }` → `Some(None)` (clear)
-///   - `{ value: "high" }` → `Some(Some(High))` (set)
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct DifficultyChange {
-    pub value: Option<Difficulty>,
 }
 
 /// Write a manual journal entry from the user-authored draft. Validates
@@ -763,20 +723,6 @@ pub async fn oculpm_agents_detect(
     project_id: u32,
 ) -> Result<Vec<AgentDetection>, AppError> {
     Ok(manager.detect_agents(project_id).await?)
-}
-
-/// W4 dogfooding follow-up (2026-05-26) — return the project's master template
-/// text so the UI's "프롬프트 복사" action can paste it into a chat. Read-only;
-/// does not touch any adapter files. Separates the *file sync* concern (which
-/// `oculpm_agents_sync_active` already handles) from the *one-shot prompt
-/// delivery* concern that the user actually wants when clicking "복사".
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_agents_get_master_template(
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-) -> Result<String, AppError> {
-    Ok(manager.read_master_template(project_id).await?)
 }
 
 /// W4 dogfooding follow-up (2026-05-26) — return the absolute path to the

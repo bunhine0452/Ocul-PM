@@ -317,21 +317,6 @@ impl Db {
 
 // ---------- Row mapper ----------
 
-fn goal_from_row(r: &rusqlite::Row) -> rusqlite::Result<Goal> {
-    Ok(Goal {
-        id: r.get::<_, i64>(0)? as u32,
-        project_id: r.get::<_, Option<i64>>(1)?.map(|v| v as u32),
-        title: r.get(2)?,
-        description: r.get(3)?,
-        status: r.get(4)?,
-        priority: r.get(5)?,
-        due_date: r.get(6)?,
-        progress: r.get(7)?,
-        created_at: r.get::<_, i64>(8)? as u32,
-        updated_at: r.get::<_, i64>(9)? as u32,
-    })
-}
-
 // ---------- Types ----------
 
 #[derive(Debug, serde::Serialize, specta::Type)]
@@ -367,26 +352,6 @@ pub struct Project {
     pub icon: Option<String>,
     /// 색 id (`"amber"` 등) — hex 가 아니라 id 다.
     pub color: Option<String>,
-}
-
-/// v2 U7 (docs/20260706_v2/02-features-spec.md §2) — 팔레트 "go to anything"
-/// 히트 한 건. `id` 는 kind 별 라우팅 키: journal=relative_path,
-/// plan=plan_id, plan_item="plan_id#item_id".
-/// 코드 화면 — "이 파일을 고친 일지" 역조회 한 줄
-/// (`oculpm_journal_files` × `oculpm_journal`). 에디터 브레드크럼의 일지 칩이
-/// 소비한다: 에이전트가 이 파일에 무슨 일을 했는지가 편집 중에 보인다.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct FileJournalEntry {
-    /// 일지 캐시 키 (`20260823/Bugs/….md`) — 그대로 일지 화면 점프에 쓴다.
-    pub journal_path: String,
-    pub title: String,
-    /// bug | feature | error | refactor | chore.
-    pub entry_type: String,
-    pub agent_id: String,
-    /// RFC3339 (frontmatter created_at).
-    pub created_at: String,
-    /// 그 일지에서 이 파일에 한 일 — create | update | delete | rename | correct.
-    pub op: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
@@ -429,52 +394,6 @@ fn escape_like(q: &str) -> String {
         .replace('_', "\\_")
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct Goal {
-    pub id: u32,
-    pub project_id: Option<u32>,
-    pub title: String,
-    pub description: Option<String>,
-    pub status: String,
-    pub priority: i32,
-    pub due_date: Option<i32>,
-    pub progress: f64,
-    pub created_at: u32,
-    pub updated_at: u32,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct Subtask {
-    pub id: u32,
-    pub goal_id: u32,
-    pub title: String,
-    pub done: bool,
-    pub sort_order: u32,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct Conversation {
-    pub id: u32,
-    pub title: String,
-    pub provider: Option<String>,
-    pub model: Option<String>,
-    pub project_id: Option<u32>,
-    pub created_at: u32,
-    pub updated_at: u32,
-    pub last_message_at: Option<u32>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct ChatMessage {
-    pub id: u32,
-    pub conversation_id: u32,
-    pub role: String,
-    pub content: String,
-    pub provider: Option<String>,
-    pub model: Option<String>,
-    pub created_at: u32,
-}
-
 /// PR6.6 — `file_snapshots` row. `content` is raw bytes (1.0 ships
 /// uncompressed; zstd is a 1.1 candidate). Not exported via specta because no
 /// Tauri command returns it directly — `compute_diff` only consumes it
@@ -487,19 +406,6 @@ pub struct FileSnapshot {
     pub content: Vec<u8>,
     pub hash: String,
     pub captured_at: u32,
-}
-
-// (G3 Clarify/EditPrompt 타입은 감사 2026-07-16 에서 커맨드와 함께 은퇴.)
-
-// ---------- UI-5: ConversationAction (W5) ----------
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct ConversationAction {
-    pub id: u32,
-    pub conversation_id: u32,
-    pub message_index: u32,
-    pub status: String,
-    pub applied_at: u32,
 }
 
 /// 행이나 구조를 지우는 마이그레이션인가 — 그 앞에서만 사본을 뜬다.
