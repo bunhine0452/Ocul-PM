@@ -1,0 +1,20 @@
+/* 「Claude 에게 보내기」 대화상자 — 프로젝트 창마다 하나(터미널 덩어리 밖에 산다). */
+.send { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-7); }
+.send-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-4); }
+.send-ctx { margin: 0; font-size: var(--fs-3); color: var(--text); overflow-wrap: anywhere; }
+.send-ctx-k { color: var(--text-2); }
+.send-text {
+  width: 100%; resize: vertical; min-height: 84px;
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-s);
+  border: 1px solid var(--border-card); background: var(--bg-inset); color: var(--text);
+  font: inherit; font-size: var(--fs-4); line-height: var(--lh-body);
+}
+.send-text:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+.send-foot { display: flex; align-items: center; gap: var(--space-3); }
+.send-target { display: flex; align-items: center; gap: var(--space-3); min-width: 0; font-size: var(--fs-3); color: var(--text-2); }
+.send-target select {
+  min-width: 0; max-width: 220px; height: var(--ctl-3);
+  border: 1px solid var(--border-card); border-radius: var(--radius-s);
+  background: var(--bg-card); color: var(--text); font: inherit; font-size: var(--fs-3);
+}
+.send-sp { flex: 1; }

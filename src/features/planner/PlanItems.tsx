@@ -25,9 +25,11 @@ interface ItemProps {
   locked: boolean;
   onSetStatus: (item: PlanItemDto, status: string) => void;
   onOpenJournal: (ref: string) => void;
+  /** 「Claude 에게 보내기」 — 줄을 가리킬 때만 보인다. */
+  onSend?: (item: PlanItemDto) => void;
 }
 
-function PlanItemLine({ item, depth, parent, locked, onSetStatus, onOpenJournal }: ItemProps) {
+function PlanItemLine({ item, depth, parent, locked, onSetStatus, onOpenJournal, onSend }: ItemProps) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLSpanElement | null>(null);
@@ -64,6 +66,16 @@ function PlanItemLine({ item, depth, parent, locked, onSetStatus, onOpenJournal 
       {isUserItem(item.title) ? <span className="chip sm accent">{t("plan.item.user")}</span> : null}
       {item.status === "blocked" ? <span className="chip sm danger">{t("plan.status.blocked")}</span> : null}
       {showNote ? <span className="plv-meta plv-item-note">· {item.note}</span> : null}
+      {onSend && !parent && item.status !== "done" ? (
+        <button
+          type="button"
+          className="btn ghost sm plv-item-send"
+          aria-label={t("plan.item.sendAria", { title })}
+          onClick={() => onSend(item)}
+        >
+          {t("send.submit")}
+        </button>
+      ) : null}
       {lastRef ? (
         <button
           type="button"
@@ -83,11 +95,13 @@ export function PlanItems({
   locked,
   onSetStatus,
   onOpenJournal,
+  onSend,
 }: {
   items: PlanItemDto[];
   locked: boolean;
   onSetStatus: (item: PlanItemDto, status: string) => void;
   onOpenJournal: (ref: string) => void;
+  onSend?: (item: PlanItemDto) => void;
 }) {
   const { t } = useT();
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
@@ -116,6 +130,7 @@ export function PlanItems({
                 locked={locked}
                 onSetStatus={onSetStatus}
                 onOpenJournal={onOpenJournal}
+                onSend={onSend}
               />
             ))}
           </section>

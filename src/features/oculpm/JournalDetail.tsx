@@ -17,6 +17,7 @@ import { TriggerBadge } from "./triggerMeta";
 import { verificationLines, withoutTitle, withoutVerification } from "./verification";
 import { isConfirmed, isStaleVerified } from "./verified";
 import { useJournalEvents } from "./useOculpmLive";
+import { requestSendToClaude } from "@/features/terminal/sendToClaude";
 
 // 작업 일지 상세 (4.0 → 화면 검사 {#journal-body}) — 한 건을 한 장에. 위에서 아래로: 무엇이었나
 // (종류·검증·메타 → 제목) → 사람이 읽는 본문(검증 칸만 뺀 그대로) → 믿을 근거(검증 상자: 돌린 명령과
@@ -177,6 +178,20 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
         <div className="jd-actions">
           <button type="button" className="btn sm" onClick={() => void openInEditor()} title={t("entry.openInEditorTitle")}>
             {t("entry.openInEditor")}
+          </button>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() =>
+              requestSendToClaude({
+                kind: "journal",
+                label: plainTitle(entry.title) || entry.slug,
+                ref: `.oculpm/journal/${entry.relative_path}`,
+                note: level === 0 ? t("today.check.kind.evidence") : undefined,
+              })
+            }
+          >
+            {t("send.title")}
           </button>
         </div>
       </header>

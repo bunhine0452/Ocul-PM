@@ -25,6 +25,7 @@ import { useDiffChanges } from "./useDiffChanges";
 import { useDiffFile } from "./useDiffFile";
 import { useGroupEntries } from "./useGroupEntries";
 import "./changes.css";
+import { requestSendToClaude } from "@/features/terminal/sendToClaude";
 
 // 변경 화면 (4.0) — 왼쪽 340px 목록 + 오른쪽 diff. 목록은 「기록 없음」(어느 일지에도 없는 변경)이
 // 먼저이고 그다음 「일지에 있음」 이 일지별이다. 기록 없는 파일을 고르면 diff 위에 배너가 서서
@@ -250,6 +251,22 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                 </span>
               ) : null}
               <span className="chg-sp" />
+              {selected ? (
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() =>
+                    requestSendToClaude({
+                      kind: "file",
+                      label: selected,
+                      ref: selected,
+                      note: selectedUnrecorded ? t("today.check.kind.unrecorded") : undefined,
+                    })
+                  }
+                >
+                  {t("send.title")}
+                </button>
+              ) : null}
               <div className="seg" role="tablist" aria-label={t("diff.viewAria")}>
                 {(["unified", "split"] as DiffMode[]).map((m) => (
                   <button
