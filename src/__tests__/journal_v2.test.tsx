@@ -303,7 +303,7 @@ describe("작업 일지 — 목록", () => {
     fixtures.allPeriod = entries;
     const { findByText, getByRole, container } = renderJournal();
     await findByText("증거 있음");
-    fireEvent.click(getByRole("tab", { name: "증거 없음" }));
+    fireEvent.click(getByRole("tab", { name: "검증 없음" }));
     await waitFor(() => expect(rowTitles(container)).toEqual(["증거 없음 기능", "칸만 있는 결함"]));
     // 목록의 경고 칩도 같은 정의다.
     expect(container.querySelectorAll(".jl-item .chip.warn")).toHaveLength(2);
@@ -317,9 +317,9 @@ describe("작업 일지 — 목록", () => {
     const { findByText, container } = renderJournal();
     await findByText("증거 없음 기능");
     const rows = container.querySelectorAll(".jl-item");
-    expect(rows[0].querySelector(".chip.warn")?.textContent).toBe("증거 없음");
+    expect(rows[0].querySelector(".chip.warn")?.textContent).toBe("검증 없음");
     expect(rows[1].querySelector(".chip.warn")).toBeNull();
-    expect(rows[1].querySelector('[role="img"][aria-label="증거 있음"]')).not.toBeNull();
+    expect(rows[1].querySelector('[role="img"][aria-label="검증 있음"]')).not.toBeNull();
   });
 
   it("빈 일지는 첫날 안내와 지난 커밋에서 가져오기를 보인다", async () => {

@@ -7,12 +7,10 @@ import type { ReactNode } from "react";
 export function PrefsCard({
   id,
   title,
-  note,
   children,
 }: {
   id: string;
   title: string;
-  note?: string;
   children: ReactNode;
 }) {
   const titleId = `${id}-title`;
@@ -20,7 +18,6 @@ export function PrefsCard({
     <section id={id} className="card prefs-card" aria-labelledby={titleId}>
       <div className="prefs-head">
         <h2 id={titleId}>{title}</h2>
-        {note ? <span className="prefs-note">{note}</span> : null}
       </div>
       {children}
     </section>

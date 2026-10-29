@@ -114,7 +114,7 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
       </SettingsProvider>,
     );
     await findByText("Recent projects");
-    await findByText("First time? Three steps");
+    await findByText("Getting started");
     expect(hangulIn(container)).toEqual([]);
   });
 
