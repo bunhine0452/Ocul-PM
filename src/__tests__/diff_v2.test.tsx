@@ -47,6 +47,16 @@ let briefEntries: unknown[] = [];
 // Mutable per-test: `git status` 조회가 실패한다 (봉투 오류 / 진짜 Error).
 let gitStatus: "ok" | "error" | "throw" = "ok";
 
+// 「Claude 에게 맡기기」 — 터미널(xterm)은 띄우지 않고 넘긴 글만 본다.
+const asked: string[] = [];
+vi.mock("@/features/terminal/sendToClaude", () => ({
+  requestSendToClaude: () => {},
+  sendOrRun: async (_projectId: number, text: string) => {
+    asked.push(text);
+    return null;
+  },
+}));
+
 vi.mock("@/lib/bindings", () => {
   const ok = <T,>(data: T) => Promise.resolve({ status: "ok" as const, data });
   return {
@@ -437,6 +447,9 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
     expect(row.querySelector(".chg-base")?.textContent).toBe("WorkspaceContext.tsx");
     // 합치면 여전히 원래 경로다 (툴팁·복사 기대를 깨지 않는다).
     expect(row.querySelector(".chg-name")?.textContent).toBe("src/contexts/WorkspaceContext.tsx");
+    // 한 줄 — 바뀐 종류는 한 글자, 둘째 줄(시각 · 종류 문장)은 없다 (화면 검사 #diff-rows).
+    expect(row.querySelector(".chg-op")?.textContent).toBe("M");
+    expect(row.querySelector(".chg-meta")).toBeNull();
   });
 
   it("「기록 없음」 묶음이 먼저 서고 개수를 말한다, 그다음 「일지에 있음」 이 일지 수와 함께", async () => {
@@ -456,7 +469,7 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
   it("처음에는 기록 없는 파일부터 골라 배너를 띄운다 — 최근 변경이 위", async () => {
     seedMixed();
     const { container, findByText } = renderDiff();
-    expect(await findByText("이 변경을 남긴 일지가 없어요")).toBeInTheDocument();
+    expect(await findByText(/이 변경을 남긴 일지가 없어요/)).toBeInTheDocument();
     const rows = container.querySelectorAll(".chg-list section:first-of-type .chg-name");
     expect(Array.from(rows).map((r) => r.textContent)).toEqual(["src/today.tsx", "src/ko.ts"]);
     expect(container.querySelector('.chg-item[aria-current="true"] .chg-name')?.textContent).toBe("src/today.tsx");
@@ -481,7 +494,7 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
   it("일지 묶음을 펼쳐 파일을 고르면 배너가 사라지고 그 일지의 검증 줄이 선다", async () => {
     seedMixed();
     const { container, findByText, queryByText } = renderDiff();
-    await findByText("이 변경을 남긴 일지가 없어요");
+    await findByText(/이 변경을 남긴 일지가 없어요/);
     const first = container.querySelector(".chg-grp") as HTMLElement;
     expect(first.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(first);
@@ -489,17 +502,17 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
     const nested = container.querySelectorAll(".chg-item.nested");
     expect(nested).toHaveLength(2);
     fireEvent.click(nested[0]);
-    await waitFor(() => expect(queryByText("이 변경을 남긴 일지가 없어요")).toBeNull());
+    await waitFor(() => expect(queryByText(/이 변경을 남긴 일지가 없어요/)).toBeNull());
     expect(container.querySelector(".diff-entry-foot")).not.toBeNull();
   });
 
-  it("「기록 요청 복사」 는 기록 없음 묶음의 파일 목록을 에이전트에게 붙일 글로 복사한다", async () => {
+  it("「Claude 에게 맡기기」 는 기록 없음 묶음의 파일 목록을 기록 요청으로 앱 안 터미널의 claude 에 보낸다", async () => {
     seedMixed();
     const { findByText, getByText } = renderDiff();
-    await findByText("이 변경을 남긴 일지가 없어요");
-    fireEvent.click(getByText("기록 요청 복사"));
-    await waitFor(() => expect(clipboard.writeText).toHaveBeenCalledTimes(1));
-    const text = (clipboard.writeText.mock.calls[0] as unknown as [string])[0];
+    await findByText(/이 변경을 남긴 일지가 없어요/);
+    fireEvent.click(getByText("Claude 에게 맡기기"));
+    await waitFor(() => expect(asked).toHaveLength(1));
+    const text = asked[0];
     expect(text).toContain("작업 일지에 기록돼 있지 않아요");
     expect(text).toContain("- src/today.tsx");
     expect(text).toContain("- src/ko.ts");
@@ -510,7 +523,7 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
   it("「직접 기록」 은 수동 일지 작성기를 그 파일들로 미리 채워 연다", async () => {
     seedMixed();
     const { findByText, getByText, container } = renderDiff();
-    await findByText("이 변경을 남긴 일지가 없어요");
+    await findByText(/이 변경을 남긴 일지가 없어요/);
     fireEvent.click(getByText("직접 기록"));
     expect(await findByText("수동 일지 작성")).toBeInTheDocument();
     const chips = Array.from(container.ownerDocument.querySelectorAll(".entry-files .scope-chip.on")).map(
@@ -525,7 +538,7 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
     const { container, queryByText } = renderDiff();
     await waitFor(() => expect(container.querySelectorAll(".chg-bh")).toHaveLength(1));
     expect(container.querySelector(".chg-bh")?.textContent).toBe("일지에 있음1개 파일 · 일지 1");
-    expect(queryByText("이 변경을 남긴 일지가 없어요")).toBeNull();
+    expect(queryByText(/이 변경을 남긴 일지가 없어요/)).toBeNull();
   });
 });
 
@@ -639,7 +652,7 @@ describe("PR-UI 4 — Diff a11y", () => {
       })),
     );
     const { container, findByText } = renderDiff();
-    await findByText("이 변경을 남긴 일지가 없어요");
+    await findByText(/이 변경을 남긴 일지가 없어요/);
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
   });
 });

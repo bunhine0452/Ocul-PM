@@ -5,7 +5,7 @@ import { SkeletonList } from "@/components/ui/Skeleton";
 import { Toolbar } from "@/components/Toolbar";
 import { ExternalLinkIcon, GitBranchIcon, Loader } from "@/components/Icons";
 import { fileOpenApi } from "@/api/fileOpen";
-import { errorDetail } from "@/api/invoke";
+import { errorDetail, toAppError } from "@/api/invoke";
 import { oculpmApi } from "@/api/oculpm";
 import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -25,7 +25,8 @@ import { useDiffChanges } from "./useDiffChanges";
 import { useDiffFile } from "./useDiffFile";
 import { useGroupEntries } from "./useGroupEntries";
 import "./changes.css";
-import { requestSendToClaude } from "@/features/terminal/sendToClaude";
+import { requestSendToClaude, sendOrRun } from "@/features/terminal/sendToClaude";
+import { tError } from "@/i18n/errors";
 
 // 변경 화면 (4.0) — 왼쪽 340px 목록 + 오른쪽 diff. 목록은 「기록 없음」(어느 일지에도 없는 변경)이
 // 먼저이고 그다음 「일지에 있음」 이 일지별이다. 기록 없는 파일을 고르면 diff 위에 배너가 서서
@@ -139,9 +140,14 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   // 기록 없는 변경을 남기는 두 길. 둘 다 「기록 없음」 묶음 전체를 다룬다 — 한 번의 작업이 여러 파일을
   // 고친 경우가 대부분이고, 에이전트는 한 건으로 묶어 쓰는 편이 낫다.
   const unrecorded = buckets.unrecorded;
-  const copyRequest = () => {
+  // 「Claude 에게 맡기기」 — 기록 요청을 앱 안 터미널의 claude 에 (클립보드 경로는 걷었다, #diff-rows).
+  const askClaude = () => {
     const text = recordRequestText(unrecorded, t("diff.unrecorded.prompt"), (n) => t("diff.unrecorded.promptMore", { n }));
-    void navigator.clipboard?.writeText(text).then(() => toast.info(t("diff.unrecorded.copied")));
+    void sendOrRun(projectId, text)
+      .then((n) => {
+        if (n != null) toast.info(t("send.sent", { n }));
+      })
+      .catch((e) => toast.destructive(t("send.failed", { error: tError(toAppError(e)) })));
   };
   const [manual, setManual] = useState<{ workday: string; files: string[] } | null>(null);
   const openManual = async () => {
@@ -229,7 +235,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               <ErrorCard title={t("diff.enrichFailed")} error={list.enrichError} onRetry={list.retryEnrich} style={{ margin: 12 }} />
             ) : null}
             {selectedUnrecorded ? (
-              <UnrecordedBanner count={unrecorded.length} onCopy={copyRequest} onManual={() => void openManual()} />
+              <UnrecordedBanner count={unrecorded.length} onAsk={askClaude} onManual={() => void openManual()} />
             ) : null}
             <div className="chg-fh">
               <b className="chg-fname" title={selected ?? undefined}>

@@ -62,13 +62,17 @@ export function ChangeFileList({ changes, buckets, entries, selected, open, onTo
         onClick={() => onSelect(path)}
         title={path}
       >
+        {/* 한 줄 — 바뀐 종류(M · A · D) · 경로 · 시각 (화면 검사 #diff-rows). */}
         <span className="chg-r1">
+          <span className="chg-op" data-op={op} title={t(OP_KEY[op])} aria-label={t(OP_KEY[op])}>
+            {op}
+          </span>
           <span className="chg-name">
             {dir ? <span className="chg-dir">{dir}</span> : null}
             <span className="chg-base">{base}</span>
           </span>
+          {when ? <span className="chg-when">{when}</span> : null}
         </span>
-        <span className="chg-meta">{[when, t(OP_KEY[op])].filter(Boolean).join(" · ")}</span>
       </button>
     );
   };
