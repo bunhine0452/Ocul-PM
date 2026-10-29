@@ -63,7 +63,7 @@ function ClaudeRow() {
   else
     body = (
       <>
-        <span className="chip sm accent">{t("prefs.agents.connected")}</span>
+        <span className="chip sm ok">{t("prefs.agents.connected")}</span>
         {probe.value.installed_version ? <span className="prefs-dim mono">{probe.value.installed_version}</span> : null}
       </>
     );
@@ -109,7 +109,7 @@ function CodexRow() {
     else if (installed)
       body = (
         <>
-          <span className="chip sm accent">{t("prefs.agents.connected")}</span>
+          <span className="chip sm ok">{t("prefs.agents.connected")}</span>
           <span className="prefs-dim mono">{c.cached_version}</span>
         </>
       );
@@ -173,7 +173,7 @@ function McpRow() {
   else if (probe.value.registered)
     body = (
       <>
-        <span className="chip sm accent">{t("prefs.agents.mcpRegistered")}</span>
+        <span className="chip sm ok">{t("prefs.agents.mcpRegistered")}</span>
         <button type="button" className="btn ghost sm" disabled={busy} onClick={() => void toggle(false)}>
           {t("prefs.agents.mcpUnregister")}
         </button>

@@ -484,7 +484,7 @@
   /* --accent-text 는 표면 위에 얹히는 **글자**다. 예전 #b4620a 는 가장 불리한
      표면(--bg-inset)에서 3.82:1 이라 여섯 팔레트 중 혼자 AA 미달이었다
      (2026-09-04, design_contrast.test.ts 가 잡았다). */
-  --accent: #e07b12; --accent-strong: #c96d0c; --accent-text: #a25809;
+  --accent: #e07b12; --accent-strong: #b05f0a; --accent-text: #a25809;
   --accent-soft: #fdefdb; --accent-ring: rgba(224,123,18,0.35);
 }
 [data-theme="dark"][data-accent="orange"] {
@@ -502,7 +502,7 @@
 }
 /* teal */
 [data-accent="teal"] {
-  --accent: #0e9aa0; --accent-strong: #0b8a8f; --accent-text: #097379;
+  --accent: #0e9aa0; --accent-strong: #0a8186; --accent-text: #097379;
   --accent-soft: #e0f5f5; --accent-ring: rgba(14,154,160,0.35);
 }
 [data-theme="dark"][data-accent="teal"] {

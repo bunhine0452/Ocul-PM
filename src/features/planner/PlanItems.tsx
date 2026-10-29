@@ -63,7 +63,7 @@ function PlanItemLine({ item, depth, parent, locked, onSetStatus, onOpenJournal,
         ) : null}
       </span>
       <span className="plv-item-t">{title}</span>
-      {isUserItem(item.title) ? <span className="chip sm accent">{t("plan.item.user")}</span> : null}
+      {isUserItem(item.title) ? <span className="chip sm outline">{t("plan.item.user")}</span> : null}
       {item.status === "blocked" ? <span className="chip sm danger">{t("plan.status.blocked")}</span> : null}
       {showNote ? <span className="plv-meta plv-item-note">· {item.note}</span> : null}
       {onSend && !parent && item.status !== "done" ? (

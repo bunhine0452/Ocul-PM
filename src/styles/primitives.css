@@ -26,13 +26,15 @@
 .btn:active { transform: translateY(0.5px) scale(0.98); }
 .btn:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 /* primary — 액센트 단색. 위쪽 광택·안쪽 하이라이트는 2026-09-02 에 뺐다
-   (nav-item.active 와 같은 이유). 글자색은 프리셋(고대비 등)을 따라 --text-on-accent. */
+   (nav-item.active 와 같은 이유). 글자색은 프리셋(고대비 등)을 따라 --text-on-accent.
+   바탕은 --accent-strong — 라이트에서 흰 글자 대 --accent 는 4.35:1 로 12px 글자 기준(4.5)을
+   못 넘었다(화면 검사 #green-meaning, 5.28:1). 가리키면 한 단 더 짙게(--accent-text). */
 .btn.primary {
-  background-color: var(--accent);
+  background-color: var(--accent-strong);
   border-color: transparent; color: var(--text-on-accent);
   box-shadow: 0 1px 2px var(--accent-ring);
 }
-.btn.primary:hover { background-color: var(--accent-strong); }
+.btn.primary:hover { background-color: var(--accent-text); }
 .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
 .btn.ghost:hover { background: var(--bg-hover); border-color: transparent; }
 .btn.icon { width: 30px; padding: 0; justify-content: center; }
@@ -119,7 +121,8 @@
    가까워, 상자로 두면 "덜 된 알약" 으로 보인다. */
 .chip.sm { height: var(--ctl-1); padding: 0 var(--space-2); font-size: var(--fs-2); border-radius: var(--radius-pill); }
 .chip.outline { background: transparent; border: 1px solid var(--sep); }
-.chip.accent { background: var(--accent-soft); color: var(--accent-text); }
+/* .chip.accent 는 걷었다 — 초록은 주 버튼과 통과(.chip.ok)에만 (화면 검사 #green-meaning, 10-29).
+   「열림」 · 「내 차례」 같은 상태 이름은 중립(.chip.outline)이다. */
 .chip.ok { background: var(--ok-soft); color: var(--ok-text); }
 .chip.warn { background: var(--warn-soft); color: var(--warn-text); }
 .chip.danger { background: var(--danger-soft); color: var(--danger-text); }

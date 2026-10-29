@@ -365,10 +365,12 @@ describe("primitives.css — 아이콘 버튼 2크기 · 칩 수정자, 전역 �
     expect(prim).not.toMatch(/\.iconbtn\.(?:md|lg)\b/);
     // 걷은 화면의 옛 이름(pln-/pm-/gr-/home-/sk-iconbtn …)은 화면과 함께 걷었다 (2026-10-29).
   });
-  it("칩 수정자 — sm/outline/accent/ok/warn/danger/info", () => {
-    for (const mod of ["sm", "outline", "accent", "ok", "warn", "danger", "info"]) {
+  it("칩 수정자 — sm/outline/ok/warn/danger/info (accent 는 없다)", () => {
+    for (const mod of ["sm", "outline", "ok", "warn", "danger", "info"]) {
       expect(prim).toMatch(new RegExp(`\\.chip\\.${mod} \\{`));
     }
+    // 초록은 주 버튼과 통과(.chip.ok)에만 — 상태 이름에 초록 딱지를 붙이던 .chip.accent 는 걷었다.
+    expect(prim).not.toMatch(/\.chip\.accent \{/);
   });
   it("App.css 가 primitives 를 전역으로 들이고 index.css 는 다시 들이지 않는다", () => {
     expect(read("App.css")).toMatch(/@import "\.\/styles\/primitives\.css";/);
@@ -497,6 +499,14 @@ describe("글자 램프는 어느 테마에서도 읽힌다", () => {
       // 화면 검사 #grey-one (10-29) — 눈으로 구별 안 되는 둘째 보조 회색이 4.0:1 로 본문 기준을 못 넘었다.
       expect(t.tokens["--text-3"], `${t.name} --text-3`).toBeUndefined();
     }
+  });
+});
+
+describe("주 버튼 — 초록은 주 버튼과 통과에만 (#green-meaning)", () => {
+  // 바탕은 --accent-strong. 라이트의 흰 글자 대 --accent 는 4.35:1 로 12px 버튼 글자 기준을 못 넘었다.
+  it.each(THEMES.map((t) => [t.name, t] as const))("%s", (_name, t) => {
+    const r = contrast(t.tokens["--text-on-accent"], t.tokens["--accent-strong"]);
+    expect(round(r), `${t.name}: --text-on-accent on --accent-strong`).toBeGreaterThanOrEqual(4.5);
   });
 });
 
