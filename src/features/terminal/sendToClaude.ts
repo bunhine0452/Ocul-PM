@@ -61,3 +61,21 @@ export async function deliverToSession(id: number, message: string, settleMs = 6
   await new Promise((r) => setTimeout(r, settleMs));
   await terminalApi.write(id, "\r");
 }
+
+/**
+ * 대화상자 없이 바로 맡긴다 — 이 창에서 쉬는 claude 세션이 있으면 거기에, 없으면 그 글로 새 세션을.
+ * 변경 화면의 「Claude 에게 맡기기」(일지 없는 변경의 기록 요청)가 쓴다. 넣은 세션의 순번(1부터)을
+ * 돌려주고, 새 세션이면 `null`.
+ */
+export async function sendOrRun(projectId: number, message: string): Promise<number | null> {
+  const all = await terminalApi.list().catch(() => []);
+  const list = receiversOf(Array.isArray(all) ? all : []);
+  const target = defaultReceiver(list);
+  if (target) {
+    await deliverToSession(target.id, message);
+    return list.indexOf(target) + 1;
+  }
+  const { runPromptInTerminal } = await import("./runPrompt");
+  await runPromptInTerminal(projectId, message);
+  return null;
+}
