@@ -25,6 +25,7 @@ import { toast } from "@/lib/toast";
 import { DeepLinkSheet } from "@/features/deeplink/DeepLinkSheet";
 import { openNavFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
 import { UI_V2_VIEWS } from "@/contexts/uiV2View";
+import { setAlertProjectName } from "@/features/terminal/attention";
 import { useTermCloseGuard } from "@/features/terminal/useTermCloseGuard";
 
 const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
@@ -229,6 +230,7 @@ export default function ProjectWindow({
   }, [projectId, setOculpmStatus, initNonce]);
 
   const closeGuard = useTermCloseGuard(projects);
+  useEffect(() => setAlertProjectName(projectName), [projectName]);
 
   return (
     <>

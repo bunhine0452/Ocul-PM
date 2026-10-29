@@ -55,6 +55,7 @@ vi.mock("@/api/projects", () => ({ projectsApi: { onJournalAdded: async () => ()
 import { __resetLangForTests, setLangSetting, t } from "@/i18n";
 import { TerminalScreen } from "@/features/terminal/TerminalScreen";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
+import { requestTermFocus } from "@/features/terminal/focusRequest";
 import { NAV_BUS } from "@/lib/navRegistry";
 
 function info(id: number, label: string, extra: Partial<TermInfo> = {}): TermInfo {
@@ -115,6 +116,13 @@ describe("터미널 탭", () => {
     expect(screen.getByText(t("terminal.state.working"), { exact: false })).toBeInTheDocument();
     // 작업 중일 때의 한 줄은 예외가 아니다 — 기다릴 때만 보인다.
     expect(screen.queryByText("읽는 중")).toBeNull();
+  });
+
+  it("오늘의 「Claude 가 기다려요」 줄에서 오면 그 세션부터 보인다", async () => {
+    store.set([info(1, "claude"), info(2, "zsh")]);
+    requestTermFocus(1);
+    render(<TerminalScreen projectId={1} workday="20261029" />);
+    await waitFor(() => expect(store.mounted).toEqual([1]));
   });
 
   it("닫기는 그 세션을 닫고, 새 세션 단추는 셸을 하나 더 연다", async () => {

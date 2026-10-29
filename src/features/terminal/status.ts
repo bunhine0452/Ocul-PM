@@ -62,6 +62,27 @@ export function countByProject(infos: TermInfo[]): Map<number, ProjectTerms> {
   return out;
 }
 
+/** 이 창의 세션 — 처음 한 번 읽고, 어느 창에서든 세션 · 상태가 바뀌면 다시 읽는다. */
+export function useWindowTerms(enabled = true): TermInfo[] {
+  const [list, setList] = useState<TermInfo[]>([]);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    const load = () =>
+      void terminalApi
+        .list()
+        .then((infos) => alive && setList(infos))
+        .catch(() => {});
+    load();
+    const off = terminalApi.onSessionsChanged(load);
+    return () => {
+      alive = false;
+      void off.then((fn) => fn());
+    };
+  }, [enabled]);
+  return list;
+}
+
 /**
  * 모든 창의 세션 — 처음 한 번, 어느 창에서든 세션 · 상태가 바뀔 때, `refresh` 가 바뀔 때 읽는다.
  * 빈 셸에서 명령이 시작 · 끝나는 것은 사건이 없으니 목록을 펼칠 때 `refresh` 로 다시 읽게 한다.

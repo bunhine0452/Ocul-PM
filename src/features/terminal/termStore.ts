@@ -17,6 +17,7 @@ import "@xterm/xterm/css/xterm.css";
 import { fileOpenApi } from "@/api/fileOpen";
 import { terminalApi, type TermEvent, type TermInfo } from "@/api/terminal";
 import { isMac } from "@/lib/platform";
+import { alertIfWaiting } from "./attention";
 import { attachImeBridge } from "./imeBridge";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 
@@ -133,7 +134,9 @@ export async function openTerm(projectId: number, prompt: string | null = null):
     if (ev.kind === "status") {
       // 프로그램 상태(OSC 7501) — open 이 돌아온 뒤에야 오지만(탐침 답이 먼저다) 앞서 오면 버린다.
       if (!entry) return;
+      const prev = entry.info.status;
       entry.info = { ...entry.info, status: ev.status };
+      alertIfWaiting(prev, entry.info);
       notify();
       return;
     }

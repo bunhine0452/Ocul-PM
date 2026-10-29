@@ -32,6 +32,7 @@ import { consumeResumeOnOpen } from "@/lib/resumeIntent";
 import { openSettings } from "@/lib/settingsNav";
 import { toast } from "@/lib/toast";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
+import { requestTermFocus } from "@/features/terminal/focusRequest";
 import { TodayExceptions } from "./TodayExceptions";
 import { LiveCard, MineLine, NextCard } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
@@ -167,6 +168,9 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   const runPrimary = useCallback(
     (ex: TodayException) => {
       switch (ex.kind) {
+        case "waiting":
+          requestTermFocus(ex.session.id);
+          return onNavigate("terminal");
         case "verdict":
           return openPlan(ex.plan.plan_id);
         case "evidence":

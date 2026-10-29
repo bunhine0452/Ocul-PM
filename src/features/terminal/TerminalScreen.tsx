@@ -20,6 +20,7 @@ import { kbd } from "@/lib/kbd";
 import { isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { closeTerm, mountTerm, openTerm, subscribeTerms, termsSnapshot } from "./termStore";
+import { onTermFocus, takeTermFocus } from "./focusRequest";
 import { needsMe, sessionWord } from "./status";
 import "./terminal.css";
 
@@ -55,7 +56,8 @@ function useRecordsSince(projectId: number, workday: string | null, sessions: Te
 export function TerminalScreen({ projectId, workday }: { projectId: number; workday: string | null }) {
   const { t } = useT();
   const sessions = useSyncExternalStore(subscribeTerms, termsSnapshot);
-  const [active, setActive] = useState<number | null>(() => sessions[sessions.length - 1]?.id ?? null);
+  // 오늘의 「Claude 가 기다려요」 줄에서 왔으면 그 세션부터.
+  const [active, setActive] = useState<number | null>(() => takeTermFocus() ?? sessions[sessions.length - 1]?.id ?? null);
   const paneRef = useRef<HTMLDivElement | null>(null);
   const opening = useRef(false);
   const records = useRecordsSince(projectId, workday, sessions);
@@ -90,6 +92,9 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
     if (active == null || !paneRef.current) return;
     return mountTerm(active, paneRef.current);
   }, [active]);
+
+  // 화면이 서 있는 동안 온 「이 세션을 보여 줘」.
+  useEffect(() => onTermFocus(setActive), []);
 
   // 새 세션 — macOS ⌘T, 그 밖 Ctrl+Shift+T (Ctrl+T 는 셸의 글자 바꾸기라 비워 둔다).
   useEffect(() => {

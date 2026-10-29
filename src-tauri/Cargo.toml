@@ -109,6 +109,9 @@ uuid = { version = "1", features = ["v4"] }
 # 에서는 아무 일도 하지 않는 feature 다 (크로스플랫폼 W1).
 trash = { version = "5.2.6", default-features = false, features = ["coinit_apartmentthreaded"] }
 tauri-plugin-deep-link = "2.4.10"
+# 「Claude 가 기다려요」 OS 알림 — 앱 안 터미널의 Claude 가 내 손을 기다리는데 그 창이 앞에 없을 때만
+# (ocul-next #waiting-alert). 기기 밖으로 나가지 않는다(macOS 알림 센터 · Windows 토스트 · D-Bus).
+tauri-plugin-notification = "2"
 
 # ⌘V 로 Finder 가 복사한 파일을 받기 위한 최소 표면 — OS pasteboard 읽기.
 #
