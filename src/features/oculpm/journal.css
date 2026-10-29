@@ -31,6 +31,10 @@
 /* 여섯 칸이 칸 폭(400 − 여백)에 들도록 안쪽 여백을 한 단 줄이고, 꺾지 않는다(영어 「No evidence」). */
 .jl-head .seg-item { padding: 0 var(--space-3); white-space: nowrap; }
 .jl-count { font-size: var(--fs-2); color: var(--text-2); }
+/* 「검증 없는 것만」 — 종류 세그먼트 옆의 켜고 끄는 단추. 켜진 모양은 세그먼트의 고른 칸과 같다. */
+.jl-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.jl-only { border: 1px solid var(--border-card); }
+.jl-only[aria-pressed="true"] { background: var(--bg-card); color: var(--warn-text); box-shadow: var(--shadow-card); }
 .jl-list {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
@@ -54,8 +58,13 @@
 .jl-item:hover { background: var(--bg-hover); }
 .jl-item[aria-current="true"] { background: var(--bg-active); }
 .jl-item:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
-.jl-r1 { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
-.jl-ti { flex: 1; min-width: 0; font-size: var(--fs-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jl-r1 { display: flex; align-items: flex-start; gap: var(--space-3); min-width: 0; }
+/* 제목은 두 줄까지 — 한 줄로 자르면 48건 중 45건이 잘렸고, 결과는 대개 잘린 쪽에 있었다 (화면 검사 {#journal-list}). */
+.jl-ti {
+  flex: 1; min-width: 0; font-size: var(--fs-4); line-height: var(--lh-snug);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.jl-r1 .jl-dot { margin-top: 6px; }
 .jl-meta { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jl-ok { display: inline-flex; align-items: center; flex: none; color: var(--ok-text); }
 /* `<i>` 는 인라인이라 flex 밖에서는 크기가 죽는다 — 블록으로. */
@@ -83,7 +92,6 @@
 .jd-meta { font-size: var(--fs-3); color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
 /* 문서 제목만 큰 활자다 — 크롬은 작게 (툴바 14 · 목록 13). */
 .jd-title { margin: 0; font-size: var(--fs-8); font-weight: var(--fw-bold); line-height: var(--lh-tight); letter-spacing: var(--track-snug); overflow-wrap: anywhere; }
-.jd-summary { margin: 0; max-width: var(--read-narrow); color: var(--text); line-height: var(--lh-body); overflow-wrap: anywhere; }
 .jd-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 /* 검증 상자 — 에이전트의 말이 아니라 돌린 명령과 결과 끝 줄이 서는 자리. */
@@ -130,8 +138,6 @@
 .jd-related-why { color: var(--text-3); }
 
 /* 전체 본문 — 접혀 있다. 요약·검증·diff 로 충분하면 읽을 필요가 없다. */
-.jd-full > summary { cursor: pointer; font-size: var(--fs-3); color: var(--text-2); }
-.jd-full[open] > summary { margin-bottom: var(--space-4); }
 
 /* 전체 본문의 마크다운 — 읽는 글의 조판. 제목은 절 구분이고, 코드는 바탕 한 장이다. */
 .jd-prose { color: var(--text); font-size: var(--fs-4); line-height: var(--lh-prose); max-width: var(--read-wide); }

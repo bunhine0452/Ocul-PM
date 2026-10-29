@@ -27,36 +27,6 @@ export function verificationLines(body: string, cap = 8): string[] {
     .slice(0, cap);
 }
 
-/** 검증 칸을 뺀 본문에서 요약 한 문단을 고른다 — 제목 줄과 소제목은 건너뛴다. */
-export function summaryOf(body: string, title: string, max = 360): string {
-  const blocks = body.split(/\n\s*\n/);
-  const wantedTitle = title.trim();
-  for (const block of blocks) {
-    const lines = block
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-    // 소제목 줄을 걷고 남은 본문만 본다. 검증 칸에 닿으면 요약은 끝이다.
-    const kept: string[] = [];
-    let reachedVerification = false;
-    for (const l of lines) {
-      if (HEADER.test(l)) {
-        reachedVerification = true;
-        break;
-      }
-      if (/^#{1,6}\s/.test(l)) continue;
-      const bare = l.replace(/^\[[ xX]\]\s*/, "").replace(/^[-*]\s+/, "");
-      if (bare === wantedTitle || l.replace(/^\[[ xX]\]\s*/, "") === wantedTitle) continue;
-      kept.push(bare);
-    }
-    if (reachedVerification) return "";
-    const text = plain(kept.join(" ")).trim();
-    if (!text) continue;
-    return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
-  }
-  return "";
-}
-
 /** 본문 첫 줄이 제목(`[x] 제목` · `# 제목`)이면 걷는다 — 상세가 제목을 이미 큰 활자로 보였다. */
 export function withoutTitle(body: string, title: string): string {
   const lines = body.split("\n");
@@ -72,4 +42,18 @@ export function withoutTitle(body: string, title: string): string {
   const rest = lines.slice(i + 1);
   while (rest.length && rest[0].trim() === "") rest.shift();
   return rest.join("\n");
+}
+
+/**
+ * 검증 칸을 뺀 본문 — 상세는 검증 줄을 따로 상자에 보이므로 본문에서 다시 읽히지 않게 한다
+ * (화면 검사 {#journal-body}: 「전체 본문」을 펼치면 요약과 검증이 한 번 더 나왔다).
+ */
+export function withoutVerification(body: string): string {
+  const m = HEADER.exec(body);
+  if (!m) return body;
+  const head = body.slice(0, m.index);
+  const rest = body.slice(m.index + m[0].length);
+  const end = NEXT.exec(rest);
+  const tail = end ? rest.slice(end.index) : "";
+  return `${head.trimEnd()}\n\n${tail}`.trim();
 }

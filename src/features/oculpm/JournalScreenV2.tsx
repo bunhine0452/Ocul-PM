@@ -29,7 +29,9 @@ import "./journal.css";
 // 키는 이 화면의 컨테이너가 듣는다 (j/k 이동 · Enter 상세로 · / 검색) — 전역 keydown 이 아니다.
 // ⌘N(새 일지)·⌘F(검색)만 수식키 조합이라 창에서 듣는다.
 
-type Filter = "all" | "fix" | "feature" | "refactor" | "chore" | "noevidence";
+// 종류와 「검증 없는 것만」 은 다른 축이라 따로 건다 — 한 줄 세그먼트에 섞여 있을 때는 「검증 없는 버그」를
+// 고를 수 없었다 (화면 검사 {#journal-filter}).
+type Filter = "all" | "fix" | "feature" | "refactor" | "chore";
 
 const FILTERS: { id: Filter; labelKey: I18nKey; types: EntryType[] }[] = [
   { id: "all", labelKey: "journal.filter.all", types: [] },
@@ -37,7 +39,6 @@ const FILTERS: { id: Filter; labelKey: I18nKey; types: EntryType[] }[] = [
   { id: "feature", labelKey: "journal.filter.feature", types: ["feature"] },
   { id: "refactor", labelKey: "journal.filter.refactor", types: ["refactor"] },
   { id: "chore", labelKey: "journal.filter.chore", types: ["chore"] },
-  { id: "noevidence", labelKey: "journal.filterNoEvidence", types: [] },
 ];
 
 interface JournalScreenV2Props {
@@ -76,6 +77,7 @@ export function JournalScreenV2({
   // 필터·검색은 화면 지역 상태다 — "어제 걸어 둔 필터 때문에 오늘 일지가 안 보인다" 가 이 화면에서
   // 가장 비싼 착각이라 열 때마다 전체로 시작한다.
   const [filter, setFilter] = useState<Filter>("all");
+  const [onlyMissing, setOnlyMissing] = useState(false);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -103,7 +105,7 @@ export function JournalScreenV2({
   const def = FILTERS.find((f) => f.id === filter) ?? FILTERS[0];
   const typeStrings = useMemo(() => def.types as readonly string[], [def]);
 
-  const allPeriod = showAll || filter !== "all";
+  const allPeriod = showAll || filter !== "all" || onlyMissing;
   const backendFilters = useMemo<EntryFilters | null>(
     () =>
       allPeriod
@@ -133,11 +135,11 @@ export function JournalScreenV2({
 
   const days = useMemo(() => {
     if (!rawDays) return null;
-    if (filter !== "noevidence") return rawDays;
+    if (!onlyMissing) return rawDays;
     return rawDays
       .map((d) => ({ ...d, entries: d.entries.filter(isEvidenceMissing) }))
       .filter((d) => d.entries.length > 0);
-  }, [rawDays, filter]);
+  }, [rawDays, onlyMissing]);
   const flat = useMemo(() => (days ?? []).flatMap((d) => d.entries), [days]);
 
   // 툴바의 건수는 **지금 보이는 것**을 센다 — 전체를 세고 목록은 일부만 그리면 검색이 뭔가를 삼킨 걸로 읽힌다.
@@ -350,8 +352,9 @@ export function JournalScreenV2({
     </button>
   );
 
-  const nothingYet = oculpmReady && !loading && !error && rawDays != null && rawDays.length === 0 && !searching && filter === "all" && !showAll;
-  const filtered = searching || filter !== "all";
+  const nothingYet =
+    oculpmReady && !loading && !error && rawDays != null && rawDays.length === 0 && !searching && filter === "all" && !onlyMissing && !showAll;
+  const filtered = searching || filter !== "all" || onlyMissing;
 
   // 「자동으로 기록합니다」 는 거짓이었다 — 일지를 쓰는 것은 에이전트다. 첫날 이 화면을 살리는
   // 구체적인 행동은 둘뿐: 지난 커밋에서 만들거나, 지금 한 건을 직접 쓰거나.
@@ -445,20 +448,33 @@ export function JournalScreenV2({
                   <span className="kbd">/</span>
                 )}
               </div>
-              <div className="seg" role="tablist" aria-label={t("journal.typeFilterAria")}>
-                {FILTERS.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={filter === f.id}
-                    className="seg-item"
-                    onClick={() => changeFilter(f.id)}
-                    title={f.id === "noevidence" ? t("journal.filterNoEvidenceTitle") : undefined}
-                  >
-                    {t(f.labelKey)}
-                  </button>
-                ))}
+              <div className="jl-filters">
+                <div className="seg" role="tablist" aria-label={t("journal.typeFilterAria")}>
+                  {FILTERS.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={filter === f.id}
+                      className="seg-item"
+                      onClick={() => changeFilter(f.id)}
+                    >
+                      {t(f.labelKey)}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="seg-item jl-only"
+                  aria-pressed={onlyMissing}
+                  title={t("journal.filterNoEvidenceTitle")}
+                  onClick={() => {
+                    setOnlyMissing((v) => !v);
+                    setRowLimit(ROW_LIMIT);
+                  }}
+                >
+                  {t("journal.filterNoEvidence")}
+                </button>
               </div>
               {filtered ? <span className="jl-count">{countText}</span> : null}
             </div>
