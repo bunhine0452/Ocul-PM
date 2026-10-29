@@ -260,10 +260,13 @@ check_boot_line() {
 
 check_db() { wait_until 60 test -f "$DB" && echo "$DB" || { echo "60초 안에 $DB 가 없다"; return 1; }; }
 
-has_window() { xwininfo -root -tree 2>/dev/null | grep -q '"Ocul-PM"'; }
+# 창 제목은 보이는 이름 「Ocul」 이다 (ocul-next #rename-visible). 설치 이름 · .desktop · 실행 파일은
+# Ocul-PM · ocul-pm 그대로다 — 창만 이 이름으로 찾는다.
+WINDOW_TITLE="Ocul"
+has_window() { xwininfo -root -tree 2>/dev/null | grep -q "\"$WINDOW_TITLE\""; }
 check_window() {
-  if wait_until 60 has_window; then xwininfo -root -tree | grep '"Ocul-PM"' | head -3 | sed 's/^ *//'; return 0; fi
-  echo "60초 안에 'Ocul-PM' 창이 X 트리에 없다"
+  if wait_until 60 has_window; then xwininfo -root -tree | grep "\"$WINDOW_TITLE\"" | head -3 | sed 's/^ *//'; return 0; fi
+  echo "60초 안에 '$WINDOW_TITLE' 창이 X 트리에 없다"
   return 1
 }
 
@@ -323,7 +326,7 @@ stop_app() {
 run_app_checks() { # label
   gate "$1 — 로그 기동 줄 [FLOW] tracing initialised" check_boot_line
   gate "$1 — 앱 데이터 ocul-pm.db 생성 (setup 이 DB 열기를 지났다)" check_db
-  gate "$1 — 창 'Ocul-PM' (Xvfb X 트리)" check_window
+  gate "$1 — 창 '$WINDOW_TITLE' (Xvfb X 트리)" check_window
   gate "$1 — WebKitGTK 웹 프로세스" check_webkit
   gate "$1 — 프런트: 웹뷰가 번들을 싣고 IPC 로 [FLOW] App window mounted 를 보냈다" check_frontend_mounted
   gate "$1 — 기동 20초 뒤에도 살아 있다" check_alive_20s
