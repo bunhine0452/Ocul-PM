@@ -123,6 +123,8 @@ const TESTS = new Set([
   "__tests__/ime_trace.test.ts",
   // 터미널 탭 — 한국어 테스트 이름과 「다음」 프롬프트 픽스처.
   "__tests__/terminal_screen.test.tsx",
+  // 터미널 닫기 · 끄기 확인과 프로젝트별 세션 세기 — 한국어 테스트 이름.
+  "__tests__/terminal_close_guard.test.tsx",
   "__tests__/settings_page.test.tsx",
   "__tests__/start_window.test.tsx",
   "__tests__/app_window.test.tsx",

@@ -20,6 +20,7 @@ import { kbd } from "@/lib/kbd";
 import { isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { closeTerm, mountTerm, openTerm, subscribeTerms, termsSnapshot } from "./termStore";
+import { needsMe, sessionWord } from "./status";
 import "./terminal.css";
 
 /** 세션별 「시작 뒤 일지 수」 — 오늘 일지의 만든 시각을 세션 시작과 견준다. */
@@ -118,6 +119,7 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
           <ul className="tm-list">
             {sessions.map((s) => {
               const n = records.get(s.id) ?? 0;
+              const waiting = s.alive && needsMe(s.status);
               return (
                 <li key={s.id} className={"tm-item" + (s.id === active ? " is-active" : "")}>
                   <button
@@ -126,14 +128,13 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
                     aria-current={s.id === active ? "true" : undefined}
                     onClick={() => setActive(s.id)}
                   >
-                    <span className={"tm-dot" + (s.alive ? " is-live" : "")} aria-hidden="true" />
+                    <span
+                      className={"tm-dot" + (s.alive ? (waiting ? " is-wait" : " is-live") : "")}
+                      aria-hidden="true"
+                    />
                     <span className="tm-name">{s.label}</span>
                     <span className="tm-meta">
-                      {s.alive
-                        ? t("terminal.running")
-                        : s.exit_code != null
-                          ? t("terminal.ended", { code: s.exit_code })
-                          : t("terminal.endedUnknown")}
+                      {sessionWord(t, s)}
                       {n > 0 ? (
                         <span className="tm-rec" title={t("terminal.recordsTitle")}>
                           {" · "}
@@ -141,6 +142,7 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
                         </span>
                       ) : null}
                     </span>
+                    {waiting && s.status?.msg ? <span className="tm-msg">{s.status.msg}</span> : null}
                   </button>
                   <button
                     type="button"

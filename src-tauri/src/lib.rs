@@ -39,6 +39,7 @@ mod menu;
 // 이 창구를 지난다 (clippy.toml 이 그 밖의 `Command::new` 를 막는다).
 pub mod proc;
 // 앱 안 터미널 (4.0 다시) — 세션은 앱 프로세스 안에, 창·앱과 함께 끝난다.
+pub mod program_status;
 pub mod terminal;
 pub mod text;
 // 코드 실행 신뢰 — 언어 서버·앱 안 에이전트가 같은 문을 쓴다 (review-2026-10-09).
@@ -286,7 +287,9 @@ use crate::commands::{
 };
 // 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
 use crate::commands::new_window::new_window;
-use crate::commands::terminal::{term_close, term_list, term_open, term_resize, term_write};
+use crate::commands::terminal::{
+    term_close, term_end_window, term_list, term_open, term_overview, term_resize, term_write,
+};
 
 /// Build the specta Builder with every command + event registered. Extracted
 /// so the W5-PR3 `export_bindings` test can regenerate `src/lib/bindings.ts`
@@ -322,6 +325,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             term_resize,
             term_close,
             term_list,
+            term_overview,
+            term_end_window,
             // M2-3 — Chat history
             // M5 — Window & File Operations
             open_devtools,
@@ -467,6 +472,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::commands::config::SettingsChanged,
             // 딥링크 — 프런트가 확인 시트를 띄운다 (Phase 6 #deep-link)
             crate::deeplink::DeepLinkReceived,
+            // 앱 안 터미널 — 어디서든 세션 · 상태가 바뀜 / 도는 세션이 있는 창을 닫으려 함
+            crate::commands::terminal::TermSessionsChanged,
+            crate::commands::terminal::TermCloseAsked,
         ])
 }
 
@@ -691,9 +699,24 @@ pub fn run() {
     // best-effort sync drain here loses a race.
     app.run(|app_handle, event| {
         match event {
-            tauri::RunEvent::ExitRequested { .. } => {
-                // 터미널 세션 — 고아 셸을 남기지 않는다.
+            tauri::RunEvent::ExitRequested { api, code, .. } => {
+                // 사용자가 끄려 했고(`code` 없음 — ⌘Q) 도는 터미널 세션이 있으면 멈추고 묻는다.
+                // 확인하면 창이 프로세스 플러그인으로 다시 끈다(`code` 가 있어 여기를 지난다).
                 if let Some(terms) = app_handle.try_state::<crate::terminal::TermSessions>() {
+                    if code.is_none() {
+                        if let Some((label, alive)) = terms.ask_before_quit() {
+                            api.prevent_exit();
+                            use tauri_specta::Event;
+                            if let Some(win) = app_handle.get_webview_window(&label) {
+                                let _ = win.show();
+                                let _ = win.set_focus();
+                            }
+                            let _ = crate::commands::terminal::TermCloseAsked { alive, quit: true }
+                                .emit_to(app_handle, label.as_str());
+                            return;
+                        }
+                    }
+                    // 터미널 세션 — 고아 셸을 남기지 않는다.
                     terms.close_all();
                 }
                 if let Some(manager) =

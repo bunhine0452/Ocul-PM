@@ -25,6 +25,7 @@ import { toast } from "@/lib/toast";
 import { DeepLinkSheet } from "@/features/deeplink/DeepLinkSheet";
 import { openNavFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
 import { UI_V2_VIEWS } from "@/contexts/uiV2View";
+import { useTermCloseGuard } from "@/features/terminal/useTermCloseGuard";
 
 const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
 
@@ -227,8 +228,11 @@ export default function ProjectWindow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, setOculpmStatus, initNonce]);
 
+  const closeGuard = useTermCloseGuard(projects);
+
   return (
     <>
+      {closeGuard}
       <Suspense fallback={null}>
         <ShellV2
           projectName={projectName}

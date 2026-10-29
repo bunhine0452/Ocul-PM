@@ -100,6 +100,10 @@ export const commands = {
 	termClose: (id: number) => __TAURI_INVOKE<void>("term_close", { id }),
 	/**  이 창의 세션 목록 — 웹뷰가 다시 그려져도(새로고침) 남은 세션을 안다. */
 	termList: () => __TAURI_INVOKE<TermInfo[]>("term_list"),
+	/**  모든 창의 세션 — 프로젝트 목록 · 시작 창이 프로젝트별로 센다. */
+	termOverview: () => __TAURI_INVOKE<TermInfo[]>("term_overview"),
+	/**  이 창의 세션을 모두 끝낸다 — 닫기 확인(`TermCloseAsked`)에서 「닫기」를 고른 뒤 부른다. */
+	termEndWindow: () => __TAURI_INVOKE<void>("term_end_window"),
 	openDevtools: () => typedError<null, string>(__TAURI_INVOKE("open_devtools")),
 	/**
 	 *  프로젝트의 창을 연다 — I1 이 여기서 강제된다.
@@ -743,6 +747,8 @@ export const events = {
 	oculpmWorkdayChanged: makeEvent<OculpmWorkdayChanged>("oculpm-workday-changed"),
 	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
+	termCloseAsked: makeEvent<TermCloseAsked>("term-close-asked"),
+	termSessionsChanged: makeEvent<TermSessionsChanged>("term-sessions-changed"),
 	windowNavigate: makeEvent<WindowNavigate>("window-navigate"),
 	windowProjectChanged: makeEvent<WindowProjectChanged>("window-project-changed"),
 };
@@ -2249,8 +2255,17 @@ export type TagStat = {
 	suggest_into: string | null,
 };
 
-/**  웹뷰로 가는 세션 사건 — 출력 조각과 끝. */
-export type TermEvent = { kind: "output"; data: string } | { kind: "exit"; code: number | null };
+/**
+ *  도는 세션이 있는 창을 닫으려 했다(`quit` 이면 앱을 끄려 했다) — 멈추고 그 창에만 묻는다.
+ *  확인하면 창이 `term_end_window` 로 세션을 끝내고 다시 닫는다(앱이면 프로세스 플러그인으로 끈다).
+ */
+export type TermCloseAsked = {
+	alive: number,
+	quit: boolean,
+};
+
+/**  웹뷰로 가는 세션 사건 — 출력 조각 · 끝 · 프로그램 상태(OSC 7501). */
+export type TermEvent = { kind: "output"; data: string } | { kind: "exit"; code: number | null } | { kind: "status"; status: TermStatus | null };
 
 /**  목록 한 줄. */
 export type TermInfo = {
@@ -2263,6 +2278,31 @@ export type TermInfo = {
 	/**  끝났으면 종료 코드 (모르면 `None`, 아직 돌면 `alive`). */
 	alive: boolean,
 	exit_code: number | null,
+	/**  세션 안 프로그램의 상태 — 끝난 뒤에도 마지막 값(done · error)이 남는다. */
+	status: TermStatus | null,
+};
+
+/**
+ *  어느 창에서든 세션이 열리거나 · 끝나거나 · 안의 프로그램 상태가 바뀌었다 — 프로젝트 목록과
+ *  시작 창이 「어디서 무엇이 도는지」를 다시 센다 (`term_overview`).
+ */
+export type TermSessionsChanged = {
+	project_id: number,
+};
+
+/**
+ *  세션 안 프로그램(주로 claude)이 스스로 알린 상태 — `program_status` 의 루트 기록.
+ *  `None` 은 모름(신호를 안 보내는 프로그램 · 셸만 도는 중 · `state=clear`).
+ */
+export type TermStatus = {
+	/**  `idle` · `working` · `done` · `blocked` · `error` */
+	state: string,
+	/**  blocked 일 때만 — `permission` · `question` · `auth` */
+	kind: string | null,
+	/**  프로그램이 붙인 한 줄 (「approve Write: …」 · 「answer: Q? (A · B)」). */
+	msg: string | null,
+	/**  이 상태로 바뀐 시각 (RFC 3339) — 같은 상태가 이어지면 그대로다. */
+	since: string,
 };
 
 export type TodayDigest = {

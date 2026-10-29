@@ -10,6 +10,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { projectsApi } from "@/api/projects";
 import { windowApi } from "@/api/window";
 import { addProjectFromFolder } from "@/features/start/addFolder";
+import { TermsChip } from "@/features/terminal/TermsChip";
+import { useTermOverview } from "@/features/terminal/status";
 import { orderRecent } from "@/features/start/useRecentProjects";
 import { ChevronDown } from "@/components/Icons";
 import { useT } from "@/i18n";
@@ -40,6 +42,7 @@ export function ProjectSwitcher({
   const [open, setOpen] = useState(false);
   const [brief, setBrief] = useState<HomeBrief | null>(null);
   const [openWindows, setOpenWindows] = useState<number[]>([]);
+  const terms = useTermOverview();
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -155,6 +158,7 @@ export function ProjectSwitcher({
                   <span className="proj-pop-name">{p.name}</span>
                   <span className="proj-pop-path">{tildePath(p.root_path)}</span>
                 </span>
+                <TermsChip terms={terms.get(p.id)} />
                 {isCurrent ? (
                   <span className="chip sm">{t("sidebar.currentProject")}</span>
                 ) : elsewhere ? (

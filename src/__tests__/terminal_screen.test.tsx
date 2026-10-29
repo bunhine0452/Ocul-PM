@@ -58,7 +58,16 @@ import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { NAV_BUS } from "@/lib/navRegistry";
 
 function info(id: number, label: string, extra: Partial<TermInfo> = {}): TermInfo {
-  return { id, project_id: 1, label, started_at: "2026-10-29T10:00:00Z", alive: true, exit_code: null, ...extra };
+  return {
+    id,
+    project_id: 1,
+    label,
+    started_at: "2026-10-29T10:00:00Z",
+    alive: true,
+    exit_code: null,
+    status: null,
+    ...extra,
+  };
 }
 
 beforeEach(() => {
@@ -91,6 +100,20 @@ describe("터미널 탭", () => {
     expect(await screen.findAllByText(new RegExp(t("terminal.records", { n: 2 })))).toHaveLength(2);
     expect(screen.getByText(t("terminal.running"), { exact: false })).toBeInTheDocument();
     expect(screen.getByText(t("terminal.ended", { code: 0 }), { exact: false })).toBeInTheDocument();
+  });
+
+  it("안의 프로그램이 알린 상태(OSC 7501)를 말하고, 내 손을 기다리면 그 까닭 한 줄을 붙인다", async () => {
+    const since = "2026-10-29T10:05:00Z";
+    store.set([
+      info(1, "claude", { status: { state: "blocked", kind: "question", msg: "비울까요? (예 · 아니오)", since } }),
+      info(2, "claude", { status: { state: "working", kind: null, msg: "읽는 중", since } }),
+    ]);
+    render(<TerminalScreen projectId={1} workday="20261029" />);
+    expect(await screen.findByText(t("terminal.state.question"), { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("비울까요? (예 · 아니오)")).toBeInTheDocument();
+    expect(screen.getByText(t("terminal.state.working"), { exact: false })).toBeInTheDocument();
+    // 작업 중일 때의 한 줄은 예외가 아니다 — 기다릴 때만 보인다.
+    expect(screen.queryByText("읽는 중")).toBeNull();
   });
 
   it("닫기는 그 세션을 닫고, 새 세션 단추는 셸을 하나 더 연다", async () => {
