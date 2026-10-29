@@ -86,12 +86,21 @@ afterEach(() => {
 });
 
 describe("터미널 탭", () => {
-  it("세션이 없으면 셸 하나를 띄우고 그 세션을 화면에 붙인다", async () => {
+  it("세션이 없으면 셸 하나를 띄우고 그 세션을 화면에 붙인다 — 하나뿐이면 목록 칸도 탭 줄도 없다", async () => {
     render(<TerminalScreen projectId={1} workday="20261029" />);
     await waitFor(() => expect(store.opened).toEqual([null]));
-    const list = screen.getByRole("region", { name: t("terminal.listAria") });
-    expect(await within(list).findByText("zsh")).toBeInTheDocument();
     await waitFor(() => expect(store.mounted).toContain(1));
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("하나뿐인 세션이 끝나면 그 한 줄과 닫기만 선다", async () => {
+    store.set([info(1, "zsh", { alive: false, exit_code: 0 })]);
+    render(<TerminalScreen projectId={1} workday="20261029" />);
+    const note = await screen.findByRole("status");
+    expect(within(note).getByText(t("terminal.ended", { code: 0 }))).toBeInTheDocument();
+    fireEvent.click(within(note).getByRole("button", { name: t("terminal.closeAria", { name: "zsh" }) }));
+    expect(store.closed).toEqual([1]);
   });
 
   it("세션 줄은 도는 중/끝남과 시작 뒤 일지 수를 말한다", async () => {
@@ -111,11 +120,17 @@ describe("터미널 탭", () => {
       info(2, "claude", { status: { state: "working", kind: null, msg: "읽는 중", since } }),
     ]);
     render(<TerminalScreen projectId={1} workday="20261029" />);
-    expect(await screen.findByText(t("terminal.state.question"), { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("비울까요? (예 · 아니오)")).toBeInTheDocument();
-    expect(screen.getByText(t("terminal.state.working"), { exact: false })).toBeInTheDocument();
-    // 작업 중일 때의 한 줄은 예외가 아니다 — 기다릴 때만 보인다.
+    // 둘 이상이면 위 탭 줄 — 탭마다 상태 말.
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(2);
+    expect(within(tabs[0]).getByText(t("terminal.state.question"), { exact: false })).toBeInTheDocument();
+    expect(within(tabs[1]).getByText(t("terminal.state.working"), { exact: false })).toBeInTheDocument();
+    // 작업 중인 세션을 보고 있으면 예외 줄이 없다.
+    expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByText("읽는 중")).toBeNull();
+    // 기다리는 세션을 고르면 그 까닭 한 줄.
+    fireEvent.click(tabs[0]);
+    expect(within(await screen.findByRole("status")).getByText("비울까요? (예 · 아니오)")).toBeInTheDocument();
   });
 
   it("오늘의 「Claude 가 기다려요」 줄에서 오면 그 세션부터 보인다", async () => {
