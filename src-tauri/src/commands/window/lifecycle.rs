@@ -101,9 +101,9 @@ pub(super) async fn window_title(app: &AppHandle, project_id: Option<u32>) -> St
             db.get_project(pid)
                 .await
                 .map(|p| p.name)
-                .unwrap_or_else(|_| "Ocul-PM".to_string())
+                .unwrap_or_else(|_| crate::menu::APP_NAME.to_string())
         }
-        None => "Ocul-PM".to_string(),
+        None => crate::menu::APP_NAME.to_string(),
     }
 }
 

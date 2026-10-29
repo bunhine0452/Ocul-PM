@@ -62,7 +62,7 @@ async fn render_digest(
     let mut out = String::new();
     out.push_str(&format!("# {} — 작업 일지\n\n", project.name));
     out.push_str(&format!(
-        "> 기간 {} ~ {} · 총 {}개 · Ocul-PM 내보냄\n",
+        "> 기간 {} ~ {} · 총 {}개 · Ocul 내보냄\n",
         fmt_workday(since),
         fmt_workday(until),
         entries.len()

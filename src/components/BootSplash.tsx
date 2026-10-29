@@ -79,7 +79,7 @@ export function BootSplash() {
           </g>
           <circle className="boot-pupil" cx="512" cy="512" r="22" />
         </svg>
-        <div className="boot-name">Ocul-PM</div>
+        <div className="boot-name">Ocul</div>
       </div>
     </div>
   );

@@ -51,7 +51,7 @@ export function UpdateRow() {
 
   return (
     <PrefsRow label={t("prefs.data.app")}>
-      <span>Ocul-PM {version ?? ""}</span>
+      <span>Ocul {version ?? ""}</span>
       {state ? <span className="prefs-dim">· {state}</span> : null}
       <span className="prefs-push" />
       {status.kind === "available" ? (

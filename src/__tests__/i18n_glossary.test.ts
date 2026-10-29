@@ -9,10 +9,9 @@
  * 파일 자체에 못박는다 — `lint:i18n` 이 "번역되지 않은 한글" 을 보는 것과 같은
  * 자리에서, 이 스위트는 "**어떻게** 번역했는가" 를 본다.
  *
- * 정정 — 감사가 지적했지만 규칙이 아닌 것:
- *  · `Ocul-PM`(7) vs `ocul-pm`(37) 은 드리프트가 아니다. CLAUDE.md 가 적어 둔
- *    구분이다 — 산문의 제품명은 `Ocul-PM`, 식별자(설정 탭·인스턴스·플러그인
- *    슬러그·경로)는 `ocul-pm`.
+ * 이름 (10-30 #rename-visible): 사람에게 보이는 이름은 **Ocul** 이다. `Ocul-PM` · `ocul-pm` 은
+ * 설치 이름 · 식별자(저장소 주소 · 번들 id · 데이터 폴더)에만 남고, 값에는 쓰지 않는다. 플러그인
+ * 슬러그 `oculpm` 과 프로젝트의 `.oculpm/` · `oculpm.log` 는 그대로다.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -55,6 +54,15 @@ describe("용어집 — 같은 것은 한 이름으로 부른다", () => {
   ])("%s → %s", (forbidden, preferred) => {
     const hits = bare.split("\n").filter((l) => l.includes(forbidden));
     expect(hits, `"${forbidden}" 대신 "${preferred}" — ${hits.length}곳`).toEqual([]);
+  });
+
+  it("보이는 이름은 Ocul — 값에 Ocul-PM · ocul-pm 을 쓰지 않는다 (저장소 주소만 예외)", () => {
+    for (const dict of [bare, readFileSync(join(__dirname, "..", "i18n", "en.ts"), "utf8")]) {
+      const hits = dict
+        .split("\n")
+        .filter((l) => !l.trim().startsWith("//") && /ocul-pm/i.test(l) && !/bunhine0452\/Ocul-PM/.test(l));
+      expect(hits).toEqual([]);
+    }
   });
 
   it("화면 이름은 「플래너」다 — 영문 Planner 를 값에 쓰지 않는다", () => {

@@ -40,7 +40,7 @@ pub fn open_or_ask(app_data: &Path) -> Db {
 fn ask_start_fresh(path: &Path, cause: &str) -> bool {
     let answer = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
-        .set_title("Ocul-PM — 데이터베이스를 열 수 없어요")
+        .set_title("Ocul — 데이터베이스를 열 수 없어요")
         .set_description(format!(
             "앱 데이터베이스를 열지 못했어요.\n\n경로: {}\n원인: {cause}\n\n\
              「새로 시작」 은 지금 파일을 지우지 않고 옆으로 옮겨 둔 뒤 빈 데이터베이스로 \
@@ -66,7 +66,7 @@ fn fail(path: &Path, cause: &str) -> ! {
     tracing::error!(path = %path.display(), error = %cause, "새로 시작도 실패");
     rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
-        .set_title("Ocul-PM")
+        .set_title("Ocul")
         .set_description(format!(
             "새로 시작하지도 못했어요 · Couldn't start fresh either.\n\n{}\n{cause}",
             path.display()

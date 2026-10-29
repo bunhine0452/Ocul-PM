@@ -144,7 +144,7 @@ pub async fn close_project_surfaces(app: &AppHandle, project_id: u32) {
     };
     tracing::info!(project_id, window = %label, "[FLOW] 지운 프로젝트의 창을 시작 창으로 되돌린다");
     if let Some(win) = app.get_webview_window(&label) {
-        let _ = win.set_title("Ocul-PM");
+        let _ = win.set_title(crate::menu::APP_NAME);
     }
     announce(app, &label);
 }

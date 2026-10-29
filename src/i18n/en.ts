@@ -230,7 +230,7 @@ export const en: Record<keyof typeof ko, string> = {
   "watcher.tookOver": "This window is now watching the project",
   "watcher.takeOverFailed": "Could not take over watching this project — {error}",
   "watcher.offlineTitle": "Live refresh is off",
-  "watcher.offline": "Another ocul-pm instance is using this project. Retrying every minute — until then, changes show up when you reopen the screen.",
+  "watcher.offline": "Another Ocul instance is using this project. Retrying every minute — until then, changes show up when you reopen the screen.",
   "agents.ahead.title": "This project's journaling rules are newer than this app",
   "agents.ahead.version":
     "Template v{disk} · this app knows up to v{app} — the newer rules are not honored yet. Update the app.",
@@ -257,7 +257,7 @@ export const en: Record<keyof typeof ko, string> = {
 
   // ── Today screen ────────────────────────────────────────────────────────
   "today.monitor.commitsToday": "Commits today",
-  "today.notActive": "ocul-pm isn't active yet",
+  "today.notActive": "Recording isn't on for this project yet",
   "today.loadFailed": "Couldn't load today's data",
   // ── Terminal (4.0, back — features/terminal) ──────────────────────────
   "terminal.new": "New session",
@@ -389,10 +389,10 @@ export const en: Record<keyof typeof ko, string> = {
   "journal.searchAria": "Search entries",
   "journal.clearSearch": "Clear search",
   "journal.newTitle": "Write an entry (⌘N)",
-  "journal.newDisabled": "Available once ocul-pm is active",
+  "journal.newDisabled": "Available once recording is on",
   "journal.new": "New entry",
   "journal.loadFailed": "Couldn't load the entries",
-  "journal.notActive": "Entries show up here once ocul-pm is active.",
+  "journal.notActive": "Entries show up here once recording is on.",
   "journal.loadMore": "Load older entries (all time)",
   "journal.limited": "Showing {loaded} of {total}",
   "journal.loadMorePage": "Load {n} more",
@@ -622,7 +622,7 @@ export const en: Record<keyof typeof ko, string> = {
 
   // ── Workspace-wide toasts (WorkspaceContext) ────────────────────────────
   "ws.driftBody": "The {agent} rule file was modified outside the app.",
-  "ws.watchYieldedTitle": "Another ocul-pm window took this project",
+  "ws.watchYieldedTitle": "Another Ocul window took this project",
   "ws.watchYielded": "Live refresh stopped in this window. It comes back automatically when that one closes.",
   "ws.driftTitle": "An agent rules file no longer matches the template",
   "ws.driftSync": "Sync",
@@ -673,13 +673,13 @@ export const en: Record<keyof typeof ko, string> = {
   // Tells the user one piece failed while the window itself is fine.
   "crash.title": "This part failed to render",
   "crash.body":
-    "The rest of the window still works. If retrying doesn't help, send us oculpm.log from Settings → ocul-pm → Logs.",
+    "The rest of the window still works. If retrying doesn't help, send us oculpm.log from Settings → Data → Log folder.",
   "crash.retry": "Try again",
   // ── Polish round Phase 2 (2026-08-30) — journeys: first activation · tab close
   //    guard · doctor · index empty states · shortcut cheatsheet · What's new · review loop
-  "today.activateNow": "Activate now",
-  "today.activateFailed": "Could not turn on ocul-pm — {error}",
-  "today.activated": "ocul-pm is on — from here on you can see the entries your agents write.",
+  "today.activateNow": "Turn on now",
+  "today.activateFailed": "Could not turn on recording — {error}",
+  "today.activated": "Recording is on — from here on you can see the entries your agents write.",
   "ws.openEntry": "Open",
   "ws.viewInDoctor": "View in diagnostics",
   "keys.title": "Keyboard shortcuts",
@@ -713,7 +713,7 @@ export const en: Record<keyof typeof ko, string> = {
   // ── Source badges (Osaurus round Phase 3) — who made this record
   // ── First-run wizard (WelcomeWizard.tsx) ───────────────────────────────
   // ── Error codes (Phase 4 #error-convention) — backend AppError.code → sentence
-  "err.code.not_initialized": "ocul-pm isn't active in this project yet — activate it from Today.",
+  "err.code.not_initialized": "Recording isn't on in this project yet — turn it on from Today.",
   "err.code.invalid_session_id": "Malformed session id: {detail}",
   "err.code.session_not_found": "Session not found: {detail}",
   "err.code.forbidden_journal_path": "The entry names a forbidden path, so it wasn't written: {detail}",

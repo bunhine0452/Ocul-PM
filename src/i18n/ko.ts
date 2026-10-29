@@ -229,7 +229,7 @@ export const ko = {
   "watcher.tookOver": "이 창이 이 프로젝트를 감시해요",
   "watcher.takeOverFailed": "이 프로젝트의 감시를 가져오지 못했어요 — {error}",
   "watcher.offlineTitle": "실시간 갱신이 꺼져 있어요",
-  "watcher.offline": "다른 ocul-pm 창이 이 프로젝트를 감시하고 있어요. 1분마다 다시 시도하고, 그동안 변경은 화면을 다시 열 때 보여요.",
+  "watcher.offline": "다른 Ocul 창이 이 프로젝트를 감시하고 있어요. 1분마다 다시 시도하고, 그동안 변경은 화면을 다시 열 때 보여요.",
   "agents.ahead.title": "이 프로젝트의 기록 규칙이 이 앱 버전보다 새로워요",
   "agents.ahead.version":
     "템플릿은 v{disk} 인데 이 앱은 v{app} 까지만 알아서, 새 규칙은 아직 따르지 않아요. 앱을 업데이트하세요.",
@@ -258,7 +258,7 @@ export const ko = {
   // 왜 못 누르는지 — 회색 버튼 앞에서 물을 곳이 없으면 그건 고장으로 읽힌다
   // ({#fix-disabled-reason}). 동작 설명(`title`)과 막힌 이유는 다른 문장이다.
   // 강조된 카운트가 문장 가운데라 앞/뒤로 나눈다 (§4.2 — 사전에 JSX 없음).
-  "today.notActive": "ocul-pm 이 아직 활성화되지 않았어요",
+  "today.notActive": "이 프로젝트는 아직 기록이 켜지지 않았어요",
   // 헤드라인 아래 줄은 제품 설명이 아니라 사실이다 — 오늘 기록한 에이전트 목록, 없으면 이 문장.
   "today.loadFailed": "오늘 데이터를 불러오지 못했어요",
   // ── 터미널 (4.0 다시 — features/terminal) ─────────────────────────────
@@ -391,10 +391,10 @@ export const ko = {
   "journal.searchAria": "일지 검색",
   "journal.clearSearch": "검색어 지우기",
   "journal.newTitle": "수동 일지 작성 (⌘N)",
-  "journal.newDisabled": "ocul-pm 활성화 후 사용 가능",
+  "journal.newDisabled": "기록을 켠 뒤에 쓸 수 있어요",
   "journal.new": "새 일지",
   "journal.loadFailed": "일지를 불러오지 못했어요",
-  "journal.notActive": "ocul-pm 이 활성화되면 일지가 여기에 표시돼요.",
+  "journal.notActive": "기록을 켜면 일지가 여기에 보여요.",
   "journal.loadMore": "이전 기록 더 보기 (전체 기간)",
   "journal.limited": "전체 {total}건 중 {loaded}건 표시",
   "journal.loadMorePage": "{n}건 더 불러오기",
@@ -635,7 +635,7 @@ export const ko = {
 
   // ── 워크스페이스 전역 토스트 (WorkspaceContext) ─────────────────────────
   "ws.driftBody": "{agent} 규칙 파일이 외부에서 수정되었어요.",
-  "ws.watchYieldedTitle": "다른 ocul-pm 창이 이 프로젝트를 가져갔어요",
+  "ws.watchYieldedTitle": "다른 Ocul 창이 이 프로젝트를 가져갔어요",
   "ws.watchYielded": "이 창은 실시간 갱신을 멈췄어요. 저쪽을 닫으면 자동으로 돌아와요.",
   "ws.driftTitle": "에이전트 규칙 파일이 템플릿과 달라졌어요",
   "ws.driftSync": "동기화",
@@ -685,13 +685,13 @@ export const ko = {
   // 화면 한 조각이 죽어도 창은 살아 있다는 것을 알려 주는 문구.
   "crash.title": "이 부분을 그리지 못했어요",
   "crash.body":
-    "나머지 화면은 그대로 쓸 수 있어요. 다시 시도해도 같으면 설정 → ocul-pm → 로그의 oculpm.log 를 보내주세요.",
+    "나머지 화면은 그대로 쓸 수 있어요. 다시 시도해도 같으면 설정 → 데이터 → 로그 폴더의 oculpm.log 를 보내주세요.",
   "crash.retry": "다시 시도",
   // ── 완성도 라운드 Phase 2 (2026-08-30) — 여정: 첫 활성화 · 탭 닫기 문지기 ·
   //    닥터 · 색인 빈 상태 · 단축키 치트시트 · What's new · 검토 루프
-  "today.activateNow": "지금 활성화",
-  "today.activateFailed": "ocul-pm 을 켜지 못했어요 — {error}",
-  "today.activated": "ocul-pm 이 켜졌어요. 이제 에이전트가 남기는 일지가 여기 보여요.",
+  "today.activateNow": "지금 켜기",
+  "today.activateFailed": "기록을 켜지 못했어요 — {error}",
+  "today.activated": "기록이 켜졌어요. 이제 에이전트가 남기는 일지가 여기 보여요.",
   "ws.openEntry": "열기",
   "ws.viewInDoctor": "진단에서 보기",
   "keys.title": "키보드 단축키",
@@ -725,7 +725,7 @@ export const ko = {
   // ── 출처 배지 (Osaurus 라운드 Phase 3) — 누가 이 기록을 만들었는가
   // ── 첫 실행 마법사 (WelcomeWizard.tsx) ─────────────────────────────────
   // ── 오류 코드 (Phase 4 #error-convention) — 백엔드 AppError.code → 문장
-  "err.code.not_initialized": "이 프로젝트에는 ocul-pm 이 아직 켜져 있지 않아요. 「오늘」 화면에서 켜세요.",
+  "err.code.not_initialized": "이 프로젝트는 아직 기록이 켜져 있지 않아요. 「오늘」 화면에서 켜세요.",
   "err.code.invalid_session_id": "세션 id 형식이 올바르지 않아요: {detail}",
   "err.code.session_not_found": "세션을 찾지 못했어요: {detail}",
   "err.code.forbidden_journal_path": "금지된 경로가 들어 있어 일지를 쓰지 않았어요: {detail}",
