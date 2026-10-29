@@ -28,6 +28,8 @@ import { tildePath } from "@/lib/osPath";
 import { dragRegion, isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { localWorkdayKey, shiftWorkday } from "@/lib/workday";
+import { TermsChip } from "@/features/terminal/TermsChip";
+import { useTermOverview } from "@/features/terminal/status";
 import { addProjectFromFolder } from "./addFolder";
 import { useRecentProjects, type RecentProject } from "./useRecentProjects";
 import "./start.css";
@@ -61,6 +63,7 @@ export function StartWindow() {
   const [busy, setBusy] = useState<"picking" | "recording" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openElsewhere, setOpenElsewhere] = useState<number[]>([]);
+  const terms = useTermOverview();
 
   useEffect(() => {
     let alive = true;
@@ -201,6 +204,7 @@ export function StartWindow() {
                       <div className="start-row-name">
                         {p.name}
                         {elsewhere ? <span className="chip sm accent">{t("start.openChip")}</span> : null}
+                        <TermsChip terms={terms.get(p.id)} />
                       </div>
                       <div className="start-row-path mono" title={p.root_path}>
                         {tildePath(p.root_path)}

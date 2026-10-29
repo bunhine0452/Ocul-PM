@@ -219,6 +219,19 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
         &[("pty_round_trip_output_input_and_exit", "CommandBuilder::new(\"/bin/sh\")")],
     ),
     (
+        "terminal.rs",
+        "앱 안 터미널의 상태 신호(OSC 7501) 왕복 — /bin/sh 가 탐침을 보내고 받은 답을 확인한 뒤 상태 보고를 찍는다. 기기 밖에 닿지 않는다.",
+        &[(
+            "program_status_probe_is_answered_and_reports_become_the_session_status",
+            "CommandBuilder::new(\"/bin/sh\")",
+        )],
+    ),
+    (
+        "terminal.rs",
+        "앱 끄기 전 묻기 — /bin/sh 의 sleep 하나를 세션으로 띄워 「도는 세션」을 만든다. 기기 밖에 닿지 않는다.",
+        &[("quitting_asks_only_while_a_session_runs_and_not_twice_in_a_row", "CommandBuilder::new(\"/bin/sh\")")],
+    ),
+    (
         "proc/disclaim.rs",
         "macOS 책임 분리 기동의 왕복 — /bin/sh 로 종료 코드를 거두고, 없는 경로는 오류로 돌아오는지.",
         &[

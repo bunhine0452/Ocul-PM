@@ -17,15 +17,32 @@ use std::sync::{Arc, Mutex};
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
 
+use crate::program_status;
+
 /// 프롬프트를 셸에 넘기는 환경 변수.
 pub const PROMPT_ENV: &str = "OCULPM_PROMPT";
 
-/// 웹뷰로 가는 세션 사건 — 출력 조각과 끝.
+/// 웹뷰로 가는 세션 사건 — 출력 조각 · 끝 · 프로그램 상태(OSC 7501).
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TermEvent {
     Output { data: String },
     Exit { code: Option<u32> },
+    Status { status: Option<TermStatus> },
+}
+
+/// 세션 안 프로그램(주로 claude)이 스스로 알린 상태 — `program_status` 의 루트 기록.
+/// `None` 은 모름(신호를 안 보내는 프로그램 · 셸만 도는 중 · `state=clear`).
+#[derive(Debug, Clone, Serialize, specta::Type, PartialEq, Eq)]
+pub struct TermStatus {
+    /// `idle` · `working` · `done` · `blocked` · `error`
+    pub state: String,
+    /// blocked 일 때만 — `permission` · `question` · `auth`
+    pub kind: Option<String>,
+    /// 프로그램이 붙인 한 줄 (「approve Write: …」 · 「answer: Q? (A · B)」).
+    pub msg: Option<String>,
+    /// 이 상태로 바뀐 시각 (RFC 3339) — 같은 상태가 이어지면 그대로다.
+    pub since: String,
 }
 
 /// 목록 한 줄.
@@ -40,6 +57,8 @@ pub struct TermInfo {
     /// 끝났으면 종료 코드 (모르면 `None`, 아직 돌면 `alive`).
     pub alive: bool,
     pub exit_code: Option<u32>,
+    /// 세션 안 프로그램의 상태 — 끝난 뒤에도 마지막 값(done · error)이 남는다.
+    pub status: Option<TermStatus>,
 }
 
 /// 여는 데 필요한 것.
@@ -71,7 +90,13 @@ struct Inner {
 #[derive(Default, Clone)]
 pub struct TermSessions {
     inner: Arc<Mutex<Inner>>,
+    /// 앱을 끄기 전에 물은 때 — 그 뒤 잠깐 안에 다시 끄려 하면 묻지 않고 끈다.
+    quit_asked: Arc<Mutex<Option<std::time::Instant>>>,
 }
+
+/// 끄기를 물은 뒤 이 안에 한 번 더 끄면(⌘Q 두 번) 그대로 끈다 — 묻는 창이 응답하지 못해도
+/// 앱을 끌 길이 남는다.
+const QUIT_AGAIN_WINDOW: std::time::Duration = std::time::Duration::from_secs(10);
 
 fn size(cols: u16, rows: u16) -> PtySize {
     PtySize {
@@ -142,6 +167,44 @@ pub fn take_utf8(carry: &mut Vec<u8>) -> String {
     }
 }
 
+/// 상태 신호 하나를 세션 표에 반영한다. 탐침이면 그 PTY 에 답을 쓰고, 루트 보고가 상태를
+/// 바꾸면 웹뷰로 보낼 사건을 돌려준다. 하위 기록(`id=…`)은 지금 보지 않는다.
+fn apply_program_status(
+    table: &Arc<Mutex<Inner>>,
+    id: u32,
+    msg: program_status::Message,
+) -> Option<TermEvent> {
+    let mut t = table.lock().ok()?;
+    let s = t.map.get_mut(&id)?;
+    match msg {
+        program_status::Message::Query => {
+            let _ = s.writer.write_all(program_status::QUERY_REPLY);
+            let _ = s.writer.flush();
+            None
+        }
+        program_status::Message::Report(r) if r.id.is_none() => {
+            let next = r.state.map(|state| TermStatus {
+                state: state.as_str().to_string(),
+                kind: r.kind.map(|k| k.as_str().to_string()),
+                msg: r.msg.clone(),
+                since: s
+                    .info
+                    .status
+                    .as_ref()
+                    .filter(|prev| prev.state == state.as_str())
+                    .map(|prev| prev.since.clone())
+                    .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            });
+            if s.info.status == next {
+                return None;
+            }
+            s.info.status = next.clone();
+            Some(TermEvent::Status { status: next })
+        }
+        program_status::Message::Report(_) => None,
+    }
+}
+
 impl TermSessions {
     /// 세션을 열고 출력 스레드를 붙인다. `emit` 은 출력·끝을 웹뷰로 보낸다.
     pub fn open<F>(&self, spec: OpenSpec, emit: F) -> Result<TermInfo, String>
@@ -209,6 +272,7 @@ impl TermSessions {
             started_at: chrono::Utc::now().to_rfc3339(),
             alive: true,
             exit_code: None,
+            status: None,
         };
         inner.map.insert(
             id,
@@ -228,10 +292,18 @@ impl TermSessions {
             .spawn(move || {
                 let mut buf = [0u8; 8192];
                 let mut carry: Vec<u8> = Vec::new();
+                let mut scanner = program_status::Scanner::default();
                 loop {
                     match reader.read(&mut buf) {
                         Ok(0) | Err(_) => break,
                         Ok(n) => {
+                            // 상태 신호를 **화면으로 넘기기 전에** — 탐침의 답이 xterm 의 DA1
+                            // 응답보다 먼저 가야 claude 가 이 터미널이 신호를 받는다고 본다.
+                            for msg in scanner.feed(&buf[..n]) {
+                                if let Some(ev) = apply_program_status(&table, id, msg) {
+                                    emit(ev);
+                                }
+                            }
                             carry.extend_from_slice(&buf[..n]);
                             let text = take_utf8(&mut carry);
                             if !text.is_empty() {
@@ -310,6 +382,37 @@ impl TermSessions {
     }
 
     /// 창이 닫힐 때 — 그 창의 세션 전부.
+    /// 모든 창의 세션 — 프로젝트 목록 · 시작 창이 「어디서 무엇이 도는지」를 센다.
+    pub fn overview(&self) -> Vec<TermInfo> {
+        let Ok(inner) = self.inner.lock() else {
+            return Vec::new();
+        };
+        let mut out: Vec<TermInfo> = inner.map.values().map(|s| s.info.clone()).collect();
+        out.sort_by_key(|i| i.id);
+        out
+    }
+
+    /// 앱을 끄려 한다 — 도는 세션이 있으면 물을 창(첫 세션의 창)과 도는 수를 돌려주고 물은 때를
+    /// 적는다. 도는 세션이 없거나 방금 물었으면(`QUIT_AGAIN_WINDOW`) `None` — 그대로 끈다.
+    pub fn ask_before_quit(&self) -> Option<(String, u32)> {
+        let now = std::time::Instant::now();
+        let mut asked = self.quit_asked.lock().ok()?;
+        if asked.is_some_and(|at| now.duration_since(at) < QUIT_AGAIN_WINDOW) {
+            return None;
+        }
+        let inner = self.inner.lock().ok()?;
+        let mut alive: Vec<&Session> = inner.map.values().filter(|s| s.info.alive).collect();
+        alive.sort_by_key(|s| s.info.id);
+        let first = alive.first()?;
+        *asked = Some(now);
+        Some((first.window.clone(), alive.len() as u32))
+    }
+
+    /// 이 창에서 아직 도는 세션 — 창을 닫기 전에 물을지 가른다.
+    pub fn alive_in(&self, window: &str) -> Vec<TermInfo> {
+        self.list(window).into_iter().filter(|i| i.alive).collect()
+    }
+
     pub fn close_window(&self, window: &str) {
         let ids: Vec<u32> = self
             .inner
@@ -400,7 +503,7 @@ mod tests {
                     code = c;
                     break;
                 }
-                Err(_) => {}
+                Ok(TermEvent::Status { .. }) | Err(_) => {}
             }
             if !sent && out.contains("ready:") {
                 sessions.resize(info.id, 100, 30).unwrap();
@@ -413,6 +516,96 @@ mod tests {
         assert!(!sessions.list("main")[0].alive);
         sessions.close_window("main");
         assert!(sessions.list("main").is_empty());
+    }
+
+    /// 상태 신호 왕복 — 탐침을 보낸 프로그램이 답을 받고(claude 처럼 raw 모드로 읽는다),
+    /// 루트 보고가 세션 표의 상태가 되며, 같은 상태가 다시 와도 사건을 또 내지 않는다.
+    #[cfg(unix)]
+    #[test]
+    fn program_status_probe_is_answered_and_reports_become_the_session_status() {
+        use std::sync::mpsc;
+        let sessions = TermSessions::default();
+        let (tx, rx) = mpsc::channel::<TermEvent>();
+        let n = program_status::QUERY_REPLY.len();
+        let script = format!(
+            "stty raw -echo; printf '\\033]7501;?\\033\\\\'; r=$(head -c {n}); stty sane; \
+             case \"$r\" in *states=idle*) printf 'REPLY_OK:';; *) printf 'REPLY_BAD:';; esac; \
+             printf '\\033]7501;state=blocked:kind=question\\033\\\\'; \
+             printf '\\033]7501;state=blocked:kind=question\\033\\\\'; sleep 0.3; \
+             printf '\\033]7501;state=done\\033\\\\'; sleep 0.3; exit 0"
+        );
+        let mut cmd = CommandBuilder::new("/bin/sh");
+        cmd.args(["-c", &script]);
+        let spec = OpenSpec {
+            window: "w".into(),
+            project_id: 7,
+            cwd: std::env::temp_dir(),
+            cols: 80,
+            rows: 24,
+            prompt: None,
+        };
+        sessions
+            .start(spec, cmd, "sh".into(), move |e| {
+                let _ = tx.send(e);
+            })
+            .unwrap();
+        let mut out = String::new();
+        let mut states: Vec<(String, Option<String>)> = Vec::new();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while std::time::Instant::now() < deadline {
+            match rx.recv_timeout(std::time::Duration::from_millis(200)) {
+                Ok(TermEvent::Output { data }) => out.push_str(&data),
+                Ok(TermEvent::Status { status: Some(st) }) => states.push((st.state, st.kind)),
+                Ok(TermEvent::Status { status: None }) => {}
+                Ok(TermEvent::Exit { .. }) => break,
+                Err(_) => {}
+            }
+        }
+        assert!(out.contains("REPLY_OK:"), "탐침에 답이 안 갔다: {out:?}");
+        assert_eq!(
+            states,
+            vec![
+                ("blocked".to_string(), Some("question".to_string())),
+                ("done".to_string(), None),
+            ],
+            "같은 blocked 두 번은 사건 하나여야 한다"
+        );
+        let info = &sessions.overview()[0];
+        assert_eq!(info.project_id, 7);
+        assert_eq!(info.status.as_ref().map(|s| s.state.as_str()), Some("done"));
+        assert!(
+            sessions.alive_in("w").is_empty(),
+            "끝난 세션은 「도는 중」이 아니다"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn quitting_asks_only_while_a_session_runs_and_not_twice_in_a_row() {
+        let sessions = TermSessions::default();
+        assert_eq!(
+            sessions.ask_before_quit(),
+            None,
+            "세션이 없으면 묻지 않는다"
+        );
+        let mut cmd = CommandBuilder::new("/bin/sh");
+        cmd.args(["-c", "sleep 5"]);
+        let spec = OpenSpec {
+            window: "proj-3".into(),
+            project_id: 3,
+            cwd: std::env::temp_dir(),
+            cols: 80,
+            rows: 24,
+            prompt: None,
+        };
+        sessions.start(spec, cmd, "sh".into(), |_| {}).unwrap();
+        assert_eq!(sessions.ask_before_quit(), Some(("proj-3".to_string(), 1)));
+        assert_eq!(
+            sessions.ask_before_quit(),
+            None,
+            "방금 물었으면 두 번째 ⌘Q 는 그대로 끈다"
+        );
+        sessions.close_all();
     }
 
     #[test]
