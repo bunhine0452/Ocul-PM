@@ -1,8 +1,7 @@
 /* ============================================================
    start.css — 시작 창 (4.0, 시안 Start.dc.html).
-   사이드바가 없는 전창 표면이다. 두 칸(최근 프로젝트 · 처음이라면 세 단계)이
-   캔버스(--bg-sidebar) 위에 카드로 선다. 창 최소 폭이 960 이라 두 칸이 접힐 일은
-   없다 — 그래서 폭 조건이 없다.
+   사이드바가 없는 전창 표면이다. 최근 프로젝트 카드 한 장이 캔버스(--bg-sidebar)
+   가운데 선다. 처음 쓰는 법은 첫 실행 안내(features/tour)가 맡는다(#tour-retire).
    ============================================================ */
 .start {
   flex: 1 1 auto; min-height: 0;
@@ -21,11 +20,10 @@
 
 .start-body {
   flex: 1 1 auto; min-height: 0;
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
-  gap: var(--space-7);
+  display: flex; justify-content: center;
   padding: var(--space-5) 32px 32px;
 }
-.start-card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.start-card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; width: 100%; max-width: 760px; }
 .start-card-head {
   height: 40px; flex: none;
   display: flex; align-items: center; gap: var(--space-3);
@@ -64,25 +62,3 @@
   font-size: var(--fs-3); color: var(--text-2);
 }
 .start-card > .start-foot { margin-top: auto; }
-
-/* 처음이라면 세 단계 */
-.start-steps {
-  list-style: none; margin: 0;
-  padding: var(--space-6);
-  display: flex; flex-direction: column; gap: 18px;
-}
-.start-step { display: flex; gap: var(--space-5); }
-.start-step-n { width: var(--ctl-1); justify-content: center; padding: 0; }
-.start-step-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
-.start-step-body > .copy-cmd { align-self: stretch; }
-.start-step-body h3 { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
-.start-step-body p { margin: 0; font-size: var(--fs-3); color: var(--text-2); line-height: var(--lh-snug); }
-.start-step-body .start-step-picked { color: var(--text); }
-.start-step-picked .mono { color: var(--text-2); }
-.start-error {
-  margin: 0 var(--space-6) var(--space-5);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-s);
-  background: var(--danger-soft); color: var(--danger-text);
-  font-size: var(--fs-3);
-}

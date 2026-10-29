@@ -134,6 +134,8 @@ const TESTS = new Set([
   // ⌃Tab 순환 · 두 손가락 쓸기 판정 — 한국어 테스트 이름.
   "__tests__/nav_gestures.test.ts",
   "__tests__/project_keys.test.tsx",
+  // 처음 쓰는 법 — 한국어 테스트 이름.
+  "__tests__/tour.test.tsx",
   // SECURITY.md 「외부 리뷰 이력」 표 픽스처 — 「반영」·「다음 릴리스」 는 파서가 읽는 한국어 문서 형식이다.
   "__tests__/bump_version.test.ts",
   "__tests__/journal_toast_gate.test.ts",

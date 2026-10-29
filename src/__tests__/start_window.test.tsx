@@ -1,9 +1,9 @@
 /**
- * 시작 창 (4.0) — 최근 프로젝트 + 처음이라면 세 단계.
+ * 시작 창 (4.0) — 최근 프로젝트 한 칸.
  *
- * 무는 것: 「열기」는 **이 창이** 그 프로젝트가 되는 것이다(`set_window_project`).
- * 세 단계는 폴더 고르기(폴더를 바꾸지 않는다) → 기록 켜기(`oculpm_init` + 감시) →
- * 연결 명령 복사, 그리고 첫 일지가 오면 이 창이 그 프로젝트로 넘어간다.
+ * 무는 것: 「열기」는 **이 창이** 그 프로젝트가 되는 것이다(`set_window_project`). 폴더를 새로
+ * 고르면 곧바로 그 프로젝트가 된다 — 「처음 쓰는 방법」 세 단계 칸은 첫 실행 안내가 대신한다
+ * (ocul-next #tour-retire).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -67,7 +67,6 @@ vi.mock("@/api/oculpm", () => ({
 import { StartWindow } from "@/features/start/StartWindow";
 import { __resetLangForTests, setLangSetting, t } from "@/i18n";
 import { localWorkdayKey } from "@/lib/workday";
-import { CLAUDE_PLUGIN_INSTALL } from "@/lib/agentCommands";
 
 function todayKey() {
   return localWorkdayKey();
@@ -108,9 +107,11 @@ describe("최근 프로젝트", () => {
     expect(fx.adopt).toHaveBeenCalledWith(1);
   });
 
-  it("프로젝트가 없으면 세 단계로 안내한다", async () => {
+  it("프로젝트가 없으면 폴더를 열라고 한 문장으로 말한다 — 세 단계 칸은 없다", async () => {
     render(<StartWindow />);
     expect(await screen.findByText(t("start.empty"))).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: t("tour.title") })).toBeNull();
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1);
   });
 
   it("목록에서 빼기는 묻고 나서 뺀다 — 폴더는 그대로다", async () => {
@@ -122,47 +123,22 @@ describe("최근 프로젝트", () => {
   });
 });
 
-describe("처음이라면 세 단계", () => {
-  it("폴더 고르기 → 기록 켜기 → 연결 명령, 첫 일지가 오면 이 창이 그 프로젝트가 된다", async () => {
-    render(<StartWindow />);
-    const steps = screen.getByRole("region", { name: t("start.steps.title") });
-    const turnOn = within(steps).getByRole("button", { name: t("start.step2.action") });
-    // 폴더를 고르기 전에는 기록을 켤 수 없다 — 이유를 말하는 비활성.
-    expect(turnOn).toHaveAttribute("aria-disabled", "true");
-    expect(turnOn).toHaveAttribute("title", t("start.step2.needsStep1"));
-
-    // 1. 폴더 — 새 폴더면 등록만 하고 이 창은 시작 창 그대로다.
+describe("폴더 열기", () => {
+  it("새 폴더를 고르면 등록하고 곧바로 이 창이 그 프로젝트가 된다", async () => {
     fx.picked = "/Users/me/dev/naeri";
     fx.create.mockImplementationOnce(async () => {
       fx.projects = [project(7, "naeri", "/Users/me/dev/naeri")];
       return 7;
     });
-    fireEvent.click(within(steps).getByRole("button", { name: t("start.openFolder") }));
-    expect(await within(steps).findByText("naeri")).toBeInTheDocument();
+    render(<StartWindow />);
+    fireEvent.click(screen.getAllByRole("button", { name: new RegExp(t("start.openFolder")) })[0]);
+    await waitFor(() => expect(fx.adopt).toHaveBeenCalledWith(7));
     expect(fx.create).toHaveBeenCalledWith("naeri", "/Users/me/dev/naeri");
-    expect(fx.adopt).not.toHaveBeenCalled();
-
-    // 2. 기록 켜기 — init 과 감시.
-    const ready = within(steps).getByRole("button", { name: t("start.step2.action") });
-    expect(ready).not.toHaveAttribute("aria-disabled");
-    fireEvent.click(ready);
-    expect(await within(steps).findByText(t("start.step2.done"))).toBeInTheDocument();
-    expect(fx.init).toHaveBeenCalledWith(7);
-    expect(fx.watcherStart).toHaveBeenCalledWith(7);
-
-    // 3. 연결 명령 — 두 줄(마켓플레이스 + 설치)을 한 번에 보여 준다.
-    for (const line of CLAUDE_PLUGIN_INSTALL) expect(within(steps).getByText(line)).toBeInTheDocument();
-
-    // 남의 프로젝트 일지는 무시하고, 이 프로젝트의 첫 일지에 넘어간다. 구독은 「기록 켜짐」 이
-    // 그려진 **뒤의** 효과에서 걸린다 — 느린 러너(Windows CI)에서는 그 전에 쏘아 놓쳤다.
-    await waitFor(() => expect(fx.journalAdded.length).toBeGreaterThan(0));
-    act(() => fx.journalAdded.forEach((cb) => cb(99)));
-    expect(fx.adopt).not.toHaveBeenCalled();
-    act(() => fx.journalAdded.forEach((cb) => cb(7)));
-    expect(fx.adopt).toHaveBeenCalledWith(7);
+    // 기록 파일은 프로젝트 창이 열리며 만든다 — 시작 창은 init 을 부르지 않는다.
+    expect(fx.init).not.toHaveBeenCalled();
   });
 
-  it("이미 들인 폴더를 다시 고르면 세 단계 없이 바로 연다", async () => {
+  it("이미 들인 폴더를 다시 고르면 바로 연다", async () => {
     fx.projects = [project(4, "godgame", "/Users/me/godgame")];
     fx.picked = "/Users/me/godgame/";
     render(<StartWindow />);

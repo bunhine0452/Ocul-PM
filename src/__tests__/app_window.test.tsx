@@ -29,6 +29,7 @@ vi.mock("@/api/window", () => ({
     },
     closeThisWindow: fx.close,
     newWindow: fx.newWindow,
+    onTourRequested: () => Promise.resolve(() => {}),
   },
 }));
 vi.mock("@/api/projects", () => ({

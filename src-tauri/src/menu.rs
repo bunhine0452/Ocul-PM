@@ -25,6 +25,12 @@ use tauri::{AppHandle, Manager, Runtime};
 
 pub const NEW_WINDOW: &str = "menu:new-window";
 pub const CLOSE_WINDOW: &str = "menu:close-window";
+/// 도움말 › 처음 쓰는 법 — 포커스된 창에 첫 실행 안내를 다시 띄운다 (ocul-next #tour-reopen).
+pub const TOUR: &str = "menu:tour";
+
+/// 메뉴의 「처음 쓰는 법」 — 그 창의 프런트가 안내 모달을 연다.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type, tauri_specta::Event)]
+pub struct TourRequested {}
 
 /// 액셀러레이터. 창 하나가 프로젝트 하나라 **`⌘W` 는 창 닫기**다 (macOS 표준).
 const ACC_NEW_WINDOW: &str = "Shift+CmdOrCtrl+N";
@@ -51,6 +57,8 @@ struct Labels {
     quit: &'static str,
     about: &'static str,
     services: &'static str,
+    help: &'static str,
+    tour: &'static str,
 }
 
 const KO: Labels = Labels {
@@ -58,6 +66,8 @@ const KO: Labels = Labels {
     edit: "편집",
     view: "보기",
     window: "창",
+    help: "도움말",
+    tour: "처음 쓰는 법",
     new_window: "새 창",
     close_window: "창 닫기",
     undo: "실행 취소",
@@ -79,6 +89,8 @@ const EN: Labels = Labels {
     edit: "Edit",
     view: "View",
     window: "Window",
+    help: "Help",
+    tour: "Getting Started",
     new_window: "New Window",
     close_window: "Close Window",
     undo: "Undo",
@@ -152,8 +164,18 @@ pub fn build<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<(Menu<
         .minimize_with_text(l.minimize)
         .build()?;
 
+    let tour = MenuItemBuilder::with_id(TOUR, l.tour).build(app)?;
+    let help_menu = SubmenuBuilder::new(app, l.help).item(&tour).build()?;
+
     let menu = MenuBuilder::new(app)
-        .items(&[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu])
+        .items(&[
+            &app_menu,
+            &file_menu,
+            &edit_menu,
+            &view_menu,
+            &window_menu,
+            &help_menu,
+        ])
         .build()?;
     Ok((menu, window_menu))
 }
@@ -210,6 +232,12 @@ pub fn handle_event(app: &AppHandle, id: &str) {
             tauri::async_runtime::spawn(async move {
                 let _ = win::new_window_inner(&handle).await;
             });
+        }
+        TOUR => {
+            use tauri_specta::Event;
+            if let Some(label) = win::focused_app_window(app) {
+                let _ = TourRequested {}.emit_to(app, label.as_str());
+            }
         }
         _ => {}
     }
@@ -293,6 +321,8 @@ mod tests {
     #[test]
     fn language_picks_label_set() {
         assert_eq!(labels("en").close_window, "Close Window");
+        assert_eq!(labels("en").tour, "Getting Started");
+        assert_eq!(labels("ko").tour, "처음 쓰는 법");
         assert_eq!(labels("en-US").close_window, "Close Window");
         assert_eq!(labels("ko").close_window, "창 닫기");
         // 알 수 없는 값은 한국어로 — 이 앱의 기본 언어다.

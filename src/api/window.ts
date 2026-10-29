@@ -52,4 +52,7 @@ export const windowApi = {
   /** 열린 프로젝트 집합이 바뀌었다 (「열림」 표시). */
   onOpenProjectsChanged: (cb: (open: number[]) => void) =>
     subscribe(events.projectWindowsChanged, (p) => cb(p.open)),
+
+  /** macOS 도움말 › 처음 쓰는 법 — 포커스된 이 창에만 온다 (`menu.rs` TourRequested). */
+  onTourRequested: (cb: () => void) => subscribe(events.tourRequested, () => cb()),
 };

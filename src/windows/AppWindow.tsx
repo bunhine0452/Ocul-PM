@@ -17,6 +17,7 @@ import { BootSplash } from "@/components/BootSplash";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { ShortcutCheatsheet } from "@/components/ShortcutCheatsheet";
+import { TourHost } from "@/features/tour/TourHost";
 import { StartWindow } from "@/features/start/StartWindow";
 import ProjectWindow from "@/windows/ProjectWindow";
 
@@ -133,6 +134,7 @@ export default function AppWindow({
       {/* 창당 하나면 되는 것들. */}
       <UpdateBanner />
       <ShortcutCheatsheet />
+      <TourHost />
     </div>
   );
 }

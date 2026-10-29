@@ -18,6 +18,7 @@ function requestBus(eventName: string) {
 
 const activateBus = requestBus("oculpm:activate");
 const cheatsheetBus = requestBus("oculpm:open-cheatsheet");
+const tourBus = requestBus("oculpm:open-tour");
 
 /** Today 「지금 활성화」 — 프로젝트 탭이 init·status·watcher 를 다시 돌린다. */
 export const requestOculpmActivate = activateBus.request;
@@ -26,3 +27,7 @@ export const onOculpmActivateRequest = activateBus.subscribe;
 /** ⌘/ · 팔레트 「키보드 단축키」 — 창에 하나 떠 있는 치트시트를 연다. */
 export const requestCheatsheet = cheatsheetBus.request;
 export const onCheatsheetRequest = cheatsheetBus.subscribe;
+
+/** 팔레트 「처음 쓰는 법」 — 창에 하나 떠 있는 첫 실행 안내를 다시 연다. */
+export const requestTour = tourBus.request;
+export const onTourRequest = tourBus.subscribe;
