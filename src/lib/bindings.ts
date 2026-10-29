@@ -2280,6 +2280,11 @@ export type TermInfo = {
 	exit_code: number | null,
 	/**  세션 안 프로그램의 상태 — 끝난 뒤에도 마지막 값(done · error)이 남는다. */
 	status: TermStatus | null,
+	/**
+	 *  셸 위에서 무언가가 돈다 — 닫기 · 끄기 전에 묻고 프로젝트 목록이 센다. 빈 셸은 `false`.
+	 *  표에 적어 두지 않고 목록을 줄 때마다 잰다(`Session::snapshot`).
+	 */
+	busy: boolean,
 };
 
 /**

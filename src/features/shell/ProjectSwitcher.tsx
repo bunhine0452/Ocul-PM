@@ -42,7 +42,7 @@ export function ProjectSwitcher({
   const [open, setOpen] = useState(false);
   const [brief, setBrief] = useState<HomeBrief | null>(null);
   const [openWindows, setOpenWindows] = useState<number[]>([]);
-  const terms = useTermOverview();
+  const terms = useTermOverview(open);
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);

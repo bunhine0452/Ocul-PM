@@ -66,6 +66,7 @@ function info(id: number, label: string, extra: Partial<TermInfo> = {}): TermInf
     alive: true,
     exit_code: null,
     status: null,
+    busy: false,
     ...extra,
   };
 }

@@ -59,6 +59,9 @@ pub struct TermInfo {
     pub exit_code: Option<u32>,
     /// 세션 안 프로그램의 상태 — 끝난 뒤에도 마지막 값(done · error)이 남는다.
     pub status: Option<TermStatus>,
+    /// 셸 위에서 무언가가 돈다 — 닫기 · 끄기 전에 묻고 프로젝트 목록이 센다. 빈 셸은 `false`.
+    /// 표에 적어 두지 않고 목록을 줄 때마다 잰다(`Session::snapshot`).
+    pub busy: bool,
 }
 
 /// 여는 데 필요한 것.
@@ -78,6 +81,31 @@ struct Session {
     master: Box<dyn MasterPty + Send>,
     writer: Box<dyn Write + Send>,
     child: Box<dyn Child + Send + Sync>,
+}
+
+impl Session {
+    /// 셸 위에서 무언가가 도는가 — 터미널의 포그라운드 프로세스 그룹이 셸이 아니면 그렇다(macOS
+    /// 터미널이 닫기 전에 묻는 기준). 빈 셸까지 세면 터미널 탭을 한 번 연 창은 닫을 때마다 물었다.
+    /// 그룹을 물을 수 없는 OS 는 상태 신호를 보낸 프로그램(claude)이 있을 때만.
+    fn busy(&self) -> bool {
+        if !self.info.alive {
+            return false;
+        }
+        #[cfg(unix)]
+        if let (Some(fg), Some(shell)) =
+            (self.master.process_group_leader(), self.child.process_id())
+        {
+            return fg as u32 != shell;
+        }
+        self.info.status.is_some()
+    }
+
+    fn snapshot(&self) -> TermInfo {
+        TermInfo {
+            busy: self.busy(),
+            ..self.info.clone()
+        }
+    }
 }
 
 #[derive(Default)]
@@ -273,6 +301,7 @@ impl TermSessions {
             alive: true,
             exit_code: None,
             status: None,
+            busy: false,
         };
         inner.map.insert(
             id,
@@ -375,7 +404,7 @@ impl TermSessions {
             .map
             .values()
             .filter(|s| s.window == window)
-            .map(|s| s.info.clone())
+            .map(Session::snapshot)
             .collect();
         out.sort_by_key(|i| i.id);
         out
@@ -387,13 +416,13 @@ impl TermSessions {
         let Ok(inner) = self.inner.lock() else {
             return Vec::new();
         };
-        let mut out: Vec<TermInfo> = inner.map.values().map(|s| s.info.clone()).collect();
+        let mut out: Vec<TermInfo> = inner.map.values().map(Session::snapshot).collect();
         out.sort_by_key(|i| i.id);
         out
     }
 
-    /// 앱을 끄려 한다 — 도는 세션이 있으면 물을 창(첫 세션의 창)과 도는 수를 돌려주고 물은 때를
-    /// 적는다. 도는 세션이 없거나 방금 물었으면(`QUIT_AGAIN_WINDOW`) `None` — 그대로 끈다.
+    /// 앱을 끄려 한다 — 무언가 도는 세션이 있으면 물을 창(첫 세션의 창)과 그 수를 돌려주고 물은
+    /// 때를 적는다. 없거나 방금 물었으면(`QUIT_AGAIN_WINDOW`) `None` — 그대로 끈다.
     pub fn ask_before_quit(&self) -> Option<(String, u32)> {
         let now = std::time::Instant::now();
         let mut asked = self.quit_asked.lock().ok()?;
@@ -401,16 +430,16 @@ impl TermSessions {
             return None;
         }
         let inner = self.inner.lock().ok()?;
-        let mut alive: Vec<&Session> = inner.map.values().filter(|s| s.info.alive).collect();
-        alive.sort_by_key(|s| s.info.id);
-        let first = alive.first()?;
+        let mut busy: Vec<&Session> = inner.map.values().filter(|s| s.busy()).collect();
+        busy.sort_by_key(|s| s.info.id);
+        let first = busy.first()?;
         *asked = Some(now);
-        Some((first.window.clone(), alive.len() as u32))
+        Some((first.window.clone(), busy.len() as u32))
     }
 
-    /// 이 창에서 아직 도는 세션 — 창을 닫기 전에 물을지 가른다.
-    pub fn alive_in(&self, window: &str) -> Vec<TermInfo> {
-        self.list(window).into_iter().filter(|i| i.alive).collect()
+    /// 이 창에서 무언가 도는 세션 — 창을 닫기 전에 물을지 가른다.
+    pub fn busy_in(&self, window: &str) -> Vec<TermInfo> {
+        self.list(window).into_iter().filter(|i| i.busy).collect()
     }
 
     pub fn close_window(&self, window: &str) {
@@ -574,7 +603,7 @@ mod tests {
         assert_eq!(info.project_id, 7);
         assert_eq!(info.status.as_ref().map(|s| s.state.as_str()), Some("done"));
         assert!(
-            sessions.alive_in("w").is_empty(),
+            sessions.busy_in("w").is_empty(),
             "끝난 세션은 「도는 중」이 아니다"
         );
     }
@@ -588,8 +617,10 @@ mod tests {
             None,
             "세션이 없으면 묻지 않는다"
         );
+        // 대화형 셸 — 작업 제어가 켜져 명령을 제 프로세스 그룹으로 앞에 세운다(사용자의 zsh 처럼).
         let mut cmd = CommandBuilder::new("/bin/sh");
-        cmd.args(["-c", "sleep 5"]);
+        cmd.arg("-i");
+        cmd.env("PS1", "$ ");
         let spec = OpenSpec {
             window: "proj-3".into(),
             project_id: 3,
@@ -598,7 +629,27 @@ mod tests {
             rows: 24,
             prompt: None,
         };
-        sessions.start(spec, cmd, "sh".into(), |_| {}).unwrap();
+        let info = sessions.start(spec, cmd, "sh".into(), |_| {}).unwrap();
+        let wait_for = |want: bool| {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            while std::time::Instant::now() < deadline {
+                if sessions.list("proj-3")[0].busy == want {
+                    return true;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            false
+        };
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        assert!(wait_for(false), "빈 셸은 「무언가 도는」 세션이 아니다");
+        assert_eq!(
+            sessions.ask_before_quit(),
+            None,
+            "빈 셸만 있으면 묻지 않는다"
+        );
+        sessions.write(info.id, "sleep 5\r").unwrap();
+        assert!(wait_for(true), "명령이 앞에 서면 무언가 도는 세션이다");
+        assert_eq!(sessions.busy_in("proj-3").len(), 1);
         assert_eq!(sessions.ask_before_quit(), Some(("proj-3".to_string(), 1)));
         assert_eq!(
             sessions.ask_before_quit(),

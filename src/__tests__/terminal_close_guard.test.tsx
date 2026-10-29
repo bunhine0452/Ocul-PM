@@ -47,6 +47,7 @@ function session(id: number, projectId: number, extra: Partial<TermInfo> = {}): 
     alive: true,
     exit_code: null,
     status: null,
+    busy: true,
     ...extra,
   };
 }
@@ -76,14 +77,16 @@ describe("창 닫기 확인", () => {
   it("묻고, 「닫기」면 세션을 끝낸 뒤 창을 다시 닫는다", async () => {
     api.windowSessions = [
       session(1, 1, { status: { state: "blocked", kind: "permission", msg: null, since: "" } }),
-      session(2, 1, { alive: false, exit_code: 0 }),
+      session(2, 1, { alive: false, exit_code: 0, busy: false }),
+      session(3, 1, { busy: false }),
     ];
     render(<Host />);
     await waitFor(() => expect(api.ask).not.toBeNull());
     await act(async () => api.ask?.({ alive: 1, quit: false }));
     expect(await screen.findByText(t("terminal.closeAsk.title", { n: 1 }))).toBeInTheDocument();
-    // 끝난 세션은 걸린 것이 아니다 — 실행 중인 것만 낱개로 보인다.
+    // 끝난 세션 · 빈 셸은 걸린 것이 아니다 — 무언가 도는 것만 낱개로 보인다.
     expect(screen.getByText(`claude · ${t("terminal.state.permission")}`)).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: t("terminal.closeAsk.confirm") }));
     });
@@ -118,11 +121,12 @@ describe("창 닫기 확인", () => {
 });
 
 describe("프로젝트별 세션 세기", () => {
-  it("실행 중인 것만 세고, 내 손을 기다리는 것을 따로 센다", () => {
+  it("무언가 도는 것만 세고(빈 셸 · 끝난 세션 제외), 내 손을 기다리는 것을 따로 센다", () => {
     const counts = countByProject([
       session(1, 1),
       session(2, 1, { status: { state: "blocked", kind: "question", msg: null, since: "" } }),
-      session(3, 1, { alive: false }),
+      session(3, 1, { alive: false, busy: false }),
+      session(5, 1, { busy: false }),
       session(4, 2, { status: { state: "working", kind: null, msg: null, since: "" } }),
     ]);
     expect(counts.get(1)).toEqual({ alive: 2, waiting: 1 });
