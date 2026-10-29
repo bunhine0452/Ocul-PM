@@ -44,6 +44,14 @@ export function sessionWord(tr: Tr, info: TermInfo): string {
   return info.status ? stateWord(tr, info.status) : tr("terminal.running");
 }
 
+/**
+ * 목록 명령(`term_list` · `term_overview`)은 봉투 없이 배열을 준다 — 배열이 아니면(웹뷰가 아닌 곳 ·
+ * 낡은 다리) 빈 목록으로 접는다. 터미널 목록을 못 읽었다고 오늘 화면이 죽으면 안 된다.
+ */
+function asList(infos: unknown): TermInfo[] {
+  return Array.isArray(infos) ? (infos as TermInfo[]) : [];
+}
+
 export interface ProjectTerms {
   alive: number;
   waiting: number;
@@ -71,7 +79,7 @@ export function useWindowTerms(enabled = true): TermInfo[] {
     const load = () =>
       void terminalApi
         .list()
-        .then((infos) => alive && setList(infos))
+        .then((infos) => alive && setList(asList(infos)))
         .catch(() => {});
     load();
     const off = terminalApi.onSessionsChanged(load);
@@ -94,7 +102,7 @@ export function useTermOverview(refresh?: unknown): Map<number, ProjectTerms> {
     const load = () =>
       void terminalApi
         .overview()
-        .then((infos) => alive && setCounts(countByProject(infos)))
+        .then((infos) => alive && setCounts(countByProject(asList(infos))))
         .catch(() => {});
     load();
     const off = terminalApi.onSessionsChanged(load);
