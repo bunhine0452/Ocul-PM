@@ -14,6 +14,7 @@ import type {
   JournalEntrySummary,
   JournalMissingSignal,
   PlanVerdict,
+  ClaudeQuestion,
   ClaudeWaiting,
   TermInfo,
   TodayDigest,
@@ -43,6 +44,7 @@ export function evidenceOf(e: JournalEntrySummary): EvidenceState {
 
 /** 「확인할 것」 한 행. 심각도 순서는 `EXCEPTION_ORDER`. */
 export type TodayException =
+  | { kind: "question"; key: string; item: ClaudeQuestion }
   | { kind: "waiting"; key: string; session: TermInfo }
   | { kind: "hookWaiting"; key: string; item: ClaudeWaiting }
   | { kind: "verdict"; key: string; plan: DigestPlan; verdict: PlanVerdict }
@@ -57,6 +59,7 @@ export type ExceptionKind = TodayException["kind"];
 
 /** 심각도 — 내 손을 기다리는 Claude 가 맨 위(지금 멈춰 있다), 플러그인 새 판이 맨 아래. */
 export const EXCEPTION_ORDER: readonly ExceptionKind[] = [
+  "question",
   "waiting",
   "hookWaiting",
   "verdict",
@@ -84,6 +87,8 @@ export interface ExceptionInput {
   terms?: readonly TermInfo[];
   /** 바깥 터미널의 Claude 기다림 (플러그인 Notification 훅). 앱 안 세션이 이미 기다림이면 싣지 않는다. */
   hookWaiting?: readonly ClaudeWaiting[];
+  /** Claude 가 앱에 물은 질문 (MCP ask_user) — 답 칸이 그 줄에 선다. */
+  questions?: readonly ClaudeQuestion[];
 }
 
 /** 같은 계획의 항목끼리 — 사람 몫이 열 개여도 계획마다 한 행이다. 순서는 처음 본 순서. */
@@ -99,6 +104,9 @@ function byPlan(items: readonly DigestItem[]): DigestItem[][] {
 
 export function buildExceptions(input: ExceptionInput): TodayException[] {
   const out: TodayException[] = [];
+  for (const item of input.questions ?? []) {
+    out.push({ kind: "question", key: `question:${item.id}`, item });
+  }
   for (const session of input.terms ?? []) {
     if (session.alive && session.status?.state === "blocked") {
       out.push({ kind: "waiting", key: `waiting:${session.id}`, session });

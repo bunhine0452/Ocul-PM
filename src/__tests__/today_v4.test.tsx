@@ -41,6 +41,8 @@ const fx = vi.hoisted(() => ({
   terms: [] as unknown[],
   hookWaiting: [] as unknown[],
   dismissed: [] as string[],
+  questions: [] as unknown[],
+  answers: [] as Array<[string, string]>,
   verifyCalls: [] as Array<[string, boolean]>,
   dispatchCalls: [] as Array<[string, string]>,
 }));
@@ -111,6 +113,13 @@ vi.mock("@/lib/bindings", () => {
             // 봉투 없는 명령 — 바깥 터미널의 Claude 기다림 (플러그인 Notification 훅).
             case "claudeWaiting":
               return () => Promise.resolve(fx.hookWaiting);
+            case "claudeQuestions":
+              return () => ok(fx.questions);
+            case "claudeQuestionAnswer":
+              return (_p: number, id: string, answer: string) => {
+                fx.answers.push([id, answer]);
+                return ok(null);
+              };
             case "claudeWaitingDismiss":
               return (_p: number, sessionId: string) => {
                 fx.dismissed.push(sessionId);
@@ -221,6 +230,8 @@ beforeEach(() => {
   fx.terms = [];
   fx.hookWaiting = [];
   fx.dismissed = [];
+  fx.questions = [];
+  fx.answers = [];
   fx.verifyCalls = [];
   fx.dispatchCalls = [];
   Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true });
@@ -275,6 +286,20 @@ describe("확인할 것 — 종류와 순서", () => {
     fireEvent.click(screen.getByRole("button", { name: t("today.check.openTerminal") }));
     expect(onNavigate).toHaveBeenCalledWith("terminal");
     expect(takeTermFocus()).toBe(7);
+  });
+
+  it("Claude 가 앱에 물으면(ask_user) 맨 위 줄에 답 칸 — 고른 답이나 쓴 답이 그 질문으로 간다", async () => {
+    fx.questions = [{ id: "q1", question: "배포할까요?", options: ["예", "아니오"], asked_at: new Date().toISOString() }];
+    renderToday();
+    await waitFor(() => expect(pills()).toEqual([t("today.check.kind.question")]));
+    const card = checkCard();
+    expect(within(card).getByText("배포할까요?")).toBeInTheDocument();
+    fireEvent.click(within(card).getByRole("button", { name: "예" }));
+    await waitFor(() => expect(fx.answers).toEqual([["q1", "예"]]));
+    const box = within(card).getByRole("textbox", { name: t("today.check.answerPlaceholder") });
+    fireEvent.change(box, { target: { value: "내일 하자" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await waitFor(() => expect(fx.answers).toEqual([["q1", "예"], ["q1", "내일 하자"]]));
   });
 
   it("바깥 터미널의 Claude 가 기다리면(플러그인 훅) 한 줄 — 「알았어요」로 지운다, 앱 안 세션이 기다리면 그쪽만", async () => {

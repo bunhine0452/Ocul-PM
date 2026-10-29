@@ -10,7 +10,7 @@ import { isPermissionGranted, requestPermission, sendNotification } from "@tauri
 
 import { hooksApi } from "@/api/claudeSurface";
 import type { TermInfo, TermStatus } from "@/api/terminal";
-import type { ClaudeWaiting } from "@/lib/bindings";
+import type { ClaudeQuestion, ClaudeWaiting } from "@/lib/bindings";
 import { t } from "@/i18n";
 import { needsMe, sessionWord } from "./status";
 
@@ -47,6 +47,13 @@ export function alertIfWaiting(prev: TermStatus | null, info: TermInfo): void {
         });
     })
     .catch(() => {});
+}
+
+/** 처음 보는 질문만 (MCP ask_user) — id 가 같으면 이미 알린 것이다. */
+export function newQuestions(seen: Set<string>, list: readonly ClaudeQuestion[]): ClaudeQuestion[] {
+  const fresh = list.filter((q) => !seen.has(q.id));
+  for (const q of list) seen.add(q.id);
+  return fresh;
 }
 
 /** 처음 보는 바깥 터미널 기다림만 — `세션 · 시작 시각` 이 같으면 이미 알린 것이다. */
@@ -88,9 +95,36 @@ export function useHookWaitingAlerts(projectId: number): void {
         })
         .catch(() => {});
     });
+    // Claude 가 앱에 물었다 (MCP ask_user) — 창이 뒤면 그 질문을 알린다.
+    const asked = new Set<string>();
+    void hooksApi
+      .questions(projectId)
+      .then((list) => alive && newQuestions(asked, list))
+      .catch(() => {});
+    const offQ = hooksApi.onQuestionsChanged((pid) => {
+      if (pid !== projectId) return;
+      void hooksApi
+        .questions(projectId)
+        .then((list) => {
+          if (!alive) return;
+          const fresh = newQuestions(asked, list);
+          if (fresh.length === 0 || document.hasFocus()) return;
+          void allowed().then((ok) => {
+            if (!ok) return;
+            sendNotification({
+              title: projectName
+                ? `${projectName} · ${t("today.check.kind.question")}`
+                : t("today.check.kind.question"),
+              body: fresh[0].question,
+            });
+          });
+        })
+        .catch(() => {});
+    });
     return () => {
       alive = false;
       void off.then((fn) => fn());
+      void offQ.then((fn) => fn());
     };
   }, [projectId]);
 }

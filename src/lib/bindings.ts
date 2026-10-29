@@ -677,6 +677,10 @@ export const commands = {
 	claudeWaiting: (projectId: number) => __TAURI_INVOKE<ClaudeWaiting[]>("claude_waiting", { projectId }),
 	/**  「알았어요」 — 그 기다림을 지운다(바깥 터미널이라 앱 안에서 갈 곳이 없다). 모든 창이 다시 읽는다. */
 	claudeWaitingDismiss: (projectId: number, sessionId: string) => __TAURI_INVOKE<void>("claude_waiting_dismiss", { projectId, sessionId }),
+	/**  앱에 떠 있는 Claude 의 질문들 (MCP `ask_user`, #ask-user) — 오래된 것부터. */
+	claudeQuestions: (projectId: number) => typedError<ClaudeQuestion[], string>(__TAURI_INVOKE("claude_questions", { projectId })),
+	/**  사람이 앱에서 답했다 — 기다리던 `ask_user` 가 그 답을 Claude 에게 돌려준다. 모든 창이 다시 읽는다. */
+	claudeQuestionAnswer: (projectId: number, id: string, answer: string) => typedError<null, string>(__TAURI_INVOKE("claude_question_answer", { projectId, id, answer })),
 	/**
 	 *  H3b — 플러그인 SessionEnd 훅이 남긴 "일지 없이 끝난 세션" 신호를 최근
 	 *  `days`일 범위로 반환한다 (읽기 전용, 최신 우선). 신호 파일이 없으면 빈
@@ -741,6 +745,7 @@ export const commands = {
 
 /** Events */
 export const events = {
+	claudeQuestionsChanged: makeEvent<ClaudeQuestionsChanged>("claude-questions-changed"),
 	claudeWaitingChanged: makeEvent<ClaudeWaitingChanged>("claude-waiting-changed"),
 	deepLinkReceived: makeEvent<DeepLinkReceived>("deep-link-received"),
 	oculpmAgentDrift: makeEvent<OculpmAgentDrift>("oculpm-agent-drift"),
@@ -964,6 +969,19 @@ export type ClaudePluginStatus = {
 	bundled_version: string,
 	/**  깔린 판이 앱의 판보다 낮다 — `/plugin update oculpm@oculpm` 을 안내할 때. */
 	behind: boolean,
+};
+
+/**  앱에 떠 있는 질문 하나 — `oculpm-mcp` 의 `ask_user` 가 `.oculpm/hooks/questions/<id>.json` 에 썼다. */
+export type ClaudeQuestion = {
+	id: string,
+	question: string,
+	options?: string[],
+	asked_at: string,
+};
+
+/**  그 프로젝트의 질문이 바뀌었다(새로 물음 · 답함 · 거둠) — 오늘이 다시 읽고, 창이 뒤면 알린다. */
+export type ClaudeQuestionsChanged = {
+	project_id: number,
 };
 
 /**

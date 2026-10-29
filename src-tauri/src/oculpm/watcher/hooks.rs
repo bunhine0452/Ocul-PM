@@ -74,6 +74,19 @@ impl WatcherInner {
         if events.is_empty() {
             return;
         }
+        // Claude 가 앱에 물었다 · 답을 받았다 (MCP ask_user, #ask-user) — 오늘이 질문을 다시 읽는다.
+        if let Some(handle) = &self.app_handle {
+            if events
+                .iter()
+                .any(|ev| claude_waiting::is_question_event(&ev.hook_event_name))
+            {
+                use tauri_specta::Event;
+                let _ = claude_waiting::ClaudeQuestionsChanged {
+                    project_id: self.project_id,
+                }
+                .emit(handle);
+            }
+        }
         // 바깥 터미널의 Claude 가 사람을 기다린다 (Notification 훅, #notify-hook).
         if let Some(handle) = &self.app_handle {
             use tauri::Manager;

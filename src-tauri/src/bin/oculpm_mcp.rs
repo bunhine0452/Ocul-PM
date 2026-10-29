@@ -86,8 +86,9 @@ fn main() {
         McpServer::new(root)
     };
     let stdin = std::io::stdin();
-    let stdout = std::io::stdout();
-    let mut out = stdout.lock();
+    // 응답 통로는 공유한다 — 사람의 답을 기다리는 `ask_user` 는 따로 스레드에서 돌고 끝나면 같은 통로로
+    // 응답 한 줄을 쓴다(줄 단위라 잠금 한 번에 한 줄).
+    let out = std::sync::Arc::new(std::sync::Mutex::new(std::io::stdout()));
     let mut reader = stdin.lock();
     // 라인 크기 상한 — `lines()` 는 무한 append 라 거대 라인이 메모리를 먹는다.
     // 바이트 단위로 상한까지만 읽고, 초과분은 개행까지 버린 뒤 에러 응답.
@@ -117,9 +118,22 @@ fn main() {
             }
             Some(oversized_line_response())
         } else {
-            server.handle_line(&String::from_utf8_lossy(&buf))
+            let line = String::from_utf8_lossy(&buf).into_owned();
+            if server.is_long_call(&line) {
+                let (server, out) = (server.clone(), out.clone());
+                std::thread::spawn(move || {
+                    if let Some(resp) = server.handle_line(&line) {
+                        if let Ok(mut out) = out.lock() {
+                            let _ = writeln!(out, "{resp}").and_then(|_| out.flush());
+                        }
+                    }
+                });
+                continue;
+            }
+            server.handle_line(&line)
         };
         if let Some(resp) = resp {
+            let Ok(mut out) = out.lock() else { break };
             if writeln!(out, "{resp}").and_then(|_| out.flush()).is_err() {
                 break; // stdout 닫힘
             }

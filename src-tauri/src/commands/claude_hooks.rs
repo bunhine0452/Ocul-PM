@@ -176,3 +176,31 @@ pub fn claude_waiting_dismiss(
         let _ = waiting::ClaudeWaitingChanged { project_id }.emit(&app);
     }
 }
+
+/// 앱에 떠 있는 Claude 의 질문들 (MCP `ask_user`, #ask-user) — 오래된 것부터.
+#[tauri::command]
+#[specta::specta]
+pub async fn claude_questions(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Vec<waiting::ClaudeQuestion>, String> {
+    let root = project_root(&db, project_id).await?;
+    Ok(waiting::pending_questions(&root))
+}
+
+/// 사람이 앱에서 답했다 — 기다리던 `ask_user` 가 그 답을 Claude 에게 돌려준다. 모든 창이 다시 읽는다.
+#[tauri::command]
+#[specta::specta]
+pub async fn claude_question_answer(
+    app: tauri::AppHandle,
+    db: State<'_, Db>,
+    project_id: u32,
+    id: String,
+    answer: String,
+) -> Result<(), String> {
+    let root = project_root(&db, project_id).await?;
+    waiting::write_answer(&root, &id, &answer)?;
+    use tauri_specta::Event;
+    let _ = waiting::ClaudeQuestionsChanged { project_id }.emit(&app);
+    Ok(())
+}

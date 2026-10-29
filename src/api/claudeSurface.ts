@@ -13,6 +13,7 @@
 import { commands, events } from "@/lib/bindings";
 import { call, subscribe, type Envelope } from "@/api/invoke";
 import type {
+  ClaudeQuestion,
   ClaudeWaiting,
   JournalMissingSignal,
   ClaudePluginStatus,
@@ -71,6 +72,15 @@ export const hooksApi = {
   dismissWaiting: (projectId: number, sessionId: string): Promise<void> => commands.claudeWaitingDismiss(projectId, sessionId),
   /** 어느 프로젝트의 기다림이 바뀌었다. */
   onWaitingChanged: (cb: (projectId: number) => void) => subscribe(events.claudeWaitingChanged, (p) => cb(p.project_id)),
+
+  /** Claude 가 앱에 물은 질문들 (MCP ask_user, #ask-user) — 오래된 것부터. */
+  questions: (projectId: number) =>
+    unwrap<ClaudeQuestion[]>("claude_questions", commands.claudeQuestions(projectId)),
+  /** 답한다 — 기다리던 ask_user 가 그 답을 Claude 에게 돌려준다. */
+  answerQuestion: (projectId: number, id: string, answer: string) =>
+    unwrap<null>("claude_question_answer", commands.claudeQuestionAnswer(projectId, id, answer)),
+  /** 어느 프로젝트의 질문이 바뀌었다(물음 · 답함 · 거둠). */
+  onQuestionsChanged: (cb: (projectId: number) => void) => subscribe(events.claudeQuestionsChanged, (p) => cb(p.project_id)),
 };
 
 /**

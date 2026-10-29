@@ -766,6 +766,7 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
 
 // ─── journal_search · journal_read → search.rs ──────────────────────────────
 
+pub mod ask;
 mod search;
 pub(crate) use search::*;
 
