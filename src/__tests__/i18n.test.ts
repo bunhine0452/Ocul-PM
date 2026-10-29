@@ -102,6 +102,18 @@ describe("t()", () => {
     setLangSetting("ko");
     expect(t("common.save", { unused: 1 })).toBe("저장");
   });
+
+  it("영어 단수/복수 {n|one|many} — 1 이면 앞, 아니면 뒤 (「1 entries」 를 잡으며)", () => {
+    setLangSetting("en");
+    expect(t("journal.countOnly", { n: 1 })).toBe("1 entry");
+    expect(t("journal.countOnly", { n: 3 })).toBe("3 entries");
+    expect(t("journal.countOnly", { n: 0 })).toBe("0 entries");
+    expect(t("diff.recorded.count", { files: 1, n: 2 })).toBe("1 file · 2 entries");
+    expect(t("today.check.unrecordedTitle", { n: 1 })).toBe("1 file isn't in any entry");
+    // 한국어 사전은 복수형을 쓰지 않는다 — 같은 키가 그대로 읽힌다.
+    setLangSetting("ko");
+    expect(t("journal.countOnly", { n: 1 })).not.toMatch(/\|/);
+  });
 });
 
 describe("tc() — AI 작성 언어 축", () => {

@@ -244,10 +244,19 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 export type TVars = Record<string, string | number>;
 
 const PLACEHOLDER = /\{(\w+)\}/g;
+/**
+ * 영어 단수/복수 — `{n|entry|entries}` 는 `n` 이 1 이면 앞, 아니면 뒤(4.0, 「1 entries」 를 잡으며).
+ * 한국어 사전은 쓰지 않는다. 갈래 안에는 다른 자리표시자를 넣지 않는다 — 수는 바깥의 `{n}` 이 말한다.
+ */
+const PLURAL = /\{(\w+)\|([^|{}]*)\|([^|{}]*)\}/g;
 
 function interpolate(template: string, vars?: TVars): string {
   if (!vars) return template;
-  return template.replace(PLACEHOLDER, (whole, name: string) => {
+  const counted = template.replace(PLURAL, (whole, name: string, one: string, many: string) => {
+    const v = vars[name];
+    return v === undefined ? whole : Number(v) === 1 ? one : many;
+  });
+  return counted.replace(PLACEHOLDER, (whole, name: string) => {
     const v = vars[name];
     // 치환값이 없으면 자리표시자를 그대로 남긴다 — 조용히 빈 문자열이 되면
     // "N건" 이 "건" 으로 렌더되고도 아무도 모른다.
