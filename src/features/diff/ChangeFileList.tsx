@@ -124,7 +124,7 @@ export function ChangeFileList({ changes, buckets, entries, selected, open, onTo
           {buckets.groups.length > 0 ? (
             <section aria-label={t("diff.recorded.label")}>
               <h3 className="chg-bh">
-                <span className="chip sm accent">{t("diff.recorded.label")}</span>
+                <span className="chip sm outline">{t("diff.recorded.label")}</span>
                 <span>{t("diff.recorded.count", { files: recordedFiles, n: buckets.groups.length })}</span>
               </h3>
               {buckets.groups.map(groupRow)}

@@ -111,7 +111,7 @@ export function ProjectSection({ id }: { id: string }) {
         {t("prefs.project.ahead", { disk: template.gap.from_version, app: template.gap.to_version })}
       </span>
     );
-  else rules = <span className="chip sm accent">{t("prefs.project.current")}</span>;
+  else rules = <span className="chip sm ok">{t("prefs.project.current")}</span>;
 
   return (
     <PrefsCard id={id} title={t("prefs.project.title")}>

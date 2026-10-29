@@ -155,7 +155,7 @@ export function StartWindow() {
                     <div className="start-row-main">
                       <div className="start-row-name">
                         {p.name}
-                        {elsewhere ? <span className="chip sm accent">{t("start.openChip")}</span> : null}
+                        {elsewhere ? <span className="chip sm outline">{t("start.openChip")}</span> : null}
                         <TermsChip terms={terms.get(p.id)} />
                       </div>
                       <div className="start-row-path mono" title={p.root_path}>

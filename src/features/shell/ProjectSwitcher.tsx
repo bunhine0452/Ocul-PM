@@ -183,7 +183,7 @@ export function ProjectSwitcher({
                 {isCurrent ? (
                   <span className="chip sm">{t("sidebar.currentProject")}</span>
                 ) : elsewhere ? (
-                  <span className="chip sm accent">{t("sidebar.openProject")}</span>
+                  <span className="chip sm outline">{t("sidebar.openProject")}</span>
                 ) : null}
                 {i < PROJECT_SLOTS ? <kbd className="kbd proj-pop-key">{projectSlotLabel(i)}</kbd> : null}
               </button>
