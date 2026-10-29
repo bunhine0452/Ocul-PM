@@ -105,6 +105,8 @@
 .proj-pop-item.on { background: var(--bg-active); }
 .proj-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .proj-pop-name { font-weight: var(--fw-strong); font-size: var(--fs-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 그 줄을 부르는 키 — 줄 끝, 목록이 눈에 걸리지 않게 옅게. */
+.proj-pop-key { flex: none; color: var(--text-2); }
 .proj-pop-path { font-size: var(--fs-2); color: var(--text-2); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .proj-pop-add {
   display: flex; align-items: center; width: 100%; text-align: left;

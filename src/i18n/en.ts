@@ -654,6 +654,7 @@ export const en: Record<keyof typeof ko, string> = {
   "keys.settings": "Settings",
   "keys.navHistory": "Screen back / forward (or two-finger swipe)",
   "keys.screenCycle": "Next / previous screen",
+  "keys.projectSlot": "Go to project window (project list order)",
   "keys.cheatsheet": "Show shortcuts",
   "keys.newWindow": "New window",
   "keys.closeWindow": "Close window",

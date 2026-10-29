@@ -43,6 +43,8 @@ const GLOBAL: ShortcutGroup = {
   rows: [
     { keys: "⌘K", labelKey: "keys.palette" },
     { keys: "⌘O", labelKey: "keys.switchProject" },
+    // ⌃숫자 · ⇧⌘숫자는 화면 전환 · 스크린샷과 겹친다 (features/shell/projectKeys.ts).
+    { keys: "⌥⌘1~9", nonMac: "Alt+1~9", labelKey: "keys.projectSlot" },
     { keys: "⌘,", labelKey: "keys.settings" },
     { keys: "⌘/", labelKey: "keys.cheatsheet" },
     { keys: "⌘[ / ⌘]", labelKey: "keys.navHistory" },

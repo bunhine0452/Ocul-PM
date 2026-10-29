@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { projectsApi } from "@/api/projects";
 import { windowApi } from "@/api/window";
 import { addProjectFromFolder } from "@/features/start/addFolder";
+import { PROJECT_SLOTS, projectSlotLabel, projectSlotOf } from "./projectKeys";
 import { TermsChip } from "@/features/terminal/TermsChip";
 import { useTermOverview } from "@/features/terminal/status";
 import { orderRecent } from "@/features/start/useRecentProjects";
@@ -72,6 +73,26 @@ export function ProjectSwitcher({
       alive = false;
     };
   }, [open]);
+
+  // ⌥⌘1~9 (Alt+1~9) — 목록을 열지 않고 그 번호의 프로젝트 창으로. 번호는 목록과 같은 최근 순서.
+  // 캡처 단계 — ⌘숫자(화면 전환) 처리기보다 먼저, 터미널보다 먼저 받는다.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const slot = projectSlotOf(e);
+      if (slot == null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      void projectsApi
+        .brief(1)
+        .catch(() => null)
+        .then((b) => {
+          const target = orderRecent(projects, b)[slot];
+          if (target && target.id !== currentProjectId) onOpenProject(target.id);
+        });
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [projects, currentProjectId, onOpenProject]);
 
   const close = useCallback((refocus: boolean) => {
     setOpen(false);
@@ -139,7 +160,7 @@ export function ProjectSwitcher({
 
       {open ? (
         <div className="proj-pop" role="menu" aria-label={t("sidebar.switchProjectMenu")} ref={menuRef}>
-          {ordered.map((p) => {
+          {ordered.map((p, i) => {
             const isCurrent = p.id === currentProjectId;
             const elsewhere = !isCurrent && openWindows.includes(p.id);
             return (
@@ -164,6 +185,7 @@ export function ProjectSwitcher({
                 ) : elsewhere ? (
                   <span className="chip sm accent">{t("sidebar.openProject")}</span>
                 ) : null}
+                {i < PROJECT_SLOTS ? <kbd className="kbd proj-pop-key">{projectSlotLabel(i)}</kbd> : null}
               </button>
             );
           })}
