@@ -14,6 +14,8 @@ import type { PlanDetail, PlanItemDto } from "@/lib/bindings";
 import { PlanItems } from "./PlanItems";
 import { PlanLog } from "./PlanLog";
 import { hasOpenLeaves, nextLeaf } from "./planMeta";
+import { requestSendToClaude } from "@/features/terminal/sendToClaude";
+import { stripUserTag } from "./planMeta";
 
 function dateOf(iso: string): string {
   const ms = Date.parse(iso);
@@ -129,7 +131,20 @@ export function PlanDoc({
       </header>
       <JudgeCard detail={detail} />
       {locked ? null : <NextRow items={detail.items} onRun={onRun} onRunUntilDone={onRunUntilDone} />}
-      <PlanItems items={detail.items} locked={locked} onSetStatus={onSetStatus} onOpenJournal={onOpenJournal} />
+      <PlanItems
+        items={detail.items}
+        locked={locked}
+        onSetStatus={onSetStatus}
+        onOpenJournal={onOpenJournal}
+        onSend={(item) =>
+          requestSendToClaude({
+            kind: "plan",
+            label: stripUserTag(item.title),
+            ref: `.oculpm/planner/${p.plan_id}.md #${item.item_id}`,
+            note: item.status === "blocked" ? t("plan.status.blocked") : undefined,
+          })
+        }
+      />
       <PlanLog projectId={projectId} planId={p.plan_id} revision={detail.items.map((i) => i.status).join("")} decisions={detail.decisions} />
     </article>
   );

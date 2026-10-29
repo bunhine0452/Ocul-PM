@@ -107,6 +107,10 @@
 .plv-item-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plv-item-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plv-item-j { margin-left: auto; }
+/* 「보내기」는 줄을 가리킬 때만 — 계획이 단추로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */
+.plv-item-send { margin-left: auto; opacity: 0; }
+.plv-item-send + .plv-item-j { margin-left: 0; }
+.plv-item:hover .plv-item-send, .plv-item-send:focus-visible { opacity: 1; }
 .plv-anchor { position: relative; flex: none; display: inline-flex; }
 .plv-box-btn {
   display: inline-grid; place-items: center; padding: 2px;
