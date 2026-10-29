@@ -1,0 +1,4 @@
+{
+  "prompt": "Origin: real Ocul 4.1 app screen (dark theme), captured 2026-10-30 at 1180x720 @2x from the app's own frontend running in the Vite harness with mocked IPC, filled with this repository's real .oculpm journal entries and git diffs; the Claude question and waiting rows are demo data. Top bar cropped (redrawn in HTML on the page), converted with cwebp -q 84. Not generated.",
+  "createdAt": "2026-10-29T19:22:19.569Z"
+}

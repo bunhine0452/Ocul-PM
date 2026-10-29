@@ -111,3 +111,11 @@ benchmarks/agentic/results/raw/
 
 # CI 의 ONNX Runtime 사전 빌드 캐시 (ORT_CACHE_DIR — 워크플로 env)
 /.ort-cache/
+
+# impeccable 디자인 작업 — 결정 페이지 스케치 · 검토 캡처 · 빌드 상태 · 훅 캐시는 기기 것. 남기는 것은 surfaces/ · DESIGN.md · design.json
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/build/
+.impeccable/questions/
+.impeccable/hook.cache.json
+.impeccable/config.local.json
