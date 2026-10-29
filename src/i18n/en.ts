@@ -34,9 +34,6 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.planner.alias": "planner goals plan tasks",
   "nav.diff.alias": "diff changes local files review",
   "nav.terminal.alias": "terminal shell console claude session run",
-  /** Sidebar working badge — how many sessions keep running after you navigate away. */
-  "nav.working": "{n} working",
-  "nav.attention": "{n} waiting for approval — click to unblock",
 
   // ── 4.0 shell — sidebar · start window · one-page settings (one window per project) ──
   "nav.toCheck": "{n} to check",
@@ -142,17 +139,8 @@ export const en: Record<keyof typeof ko, string> = {
   "prefs.data.noLogs": "No log folder — file logging didn't start",
 
   // ── Settings → Appearance → Language ────────────────────────────────────
-  "settings.language.system": "System",
   "settings.language.ko": "한국어",
   "settings.language.en": "English",
-  "settings.language.uiTitle": "Interface language",
-  "settings.language.uiHint": "The text you see on screen. System follows your OS language.",
-  "settings.language.contentTitle": "AI writing language",
-  "settings.language.contentHint": "The language for journal entries, plan items, and retros the AI writes. Documents already on disk are never rewritten.",
-  "settings.language.syncToast": "The AI keeps writing in {current}",
-  "settings.language.syncToastBody": "Entries already written stay as they are. Should new documents switch to {target} too?",
-  "settings.language.syncAction": "Switch to {target}",
-  "settings.language.syncDone": "The AI now writes in {target}",
 
   // ── Common ──────────────────────────────────────────────────────────────
   "common.cancel": "Cancel",
@@ -160,75 +148,24 @@ export const en: Record<keyof typeof ko, string> = {
   "common.save": "Save",
   "common.delete": "Delete",
   "common.close": "Close",
-  "common.undo": "Undo",
   "common.retry": "Retry",
-  "common.dismiss": "Dismiss",
   "diff.failed": "Could not compute the diff",
   "diff.listFailed": "Could not load the change list — we can't tell whether there are no changes",
   "diff.enrichFailed": "Could not load journal grouping — the list falls back to a flat view",
-  "settings.reset.confirm": "Reset every setting to its default?",
   "common.loading": "Loading",
   "common.copy": "Copy",
   "common.copied": "Copied",
 
   // ── Sidebar ─────────────────────────────────────────────────────────────
-  "sidebar.pin": "Pin sidebar",
-  "sidebar.collapse": "Collapse sidebar",
   "sidebar.switchProject": "Switch project (⌘P)",
   "sidebar.switchProjectMenu": "Switch project",
   "sidebar.selectProject": "Select a project",
   "sidebar.currentProject": "Current",
   "sidebar.openProject": "Open",
-  "sidebar.manageProjects": "Open start screen · manage projects…",
-  "home.numsAria": "Last 30 days",
-  "home.numEvidence": "evidence",
-  "home.numRework": "rework 7d",
-  "home.numUser": "yours",
-  "settings.moreTabs": "Pro · {n}",
-  "session.aside.title": "This terminal and the record",
-  "session.aside.summary": "entries today {n} · unrecorded files {u}",
-  "session.aside.unknown": "can't tell right now",
-  "session.aside.journals": "Entries today {n}",
-  "session.aside.noJournal": "none yet — waiting for journal_write when the turn ends",
-  "session.aside.unrecorded": "Files the agent changed but didn't record {n}",
-  "session.aside.allRecorded": "every change is in some entry",
-  "session.aside.moreFiles": "+ {n}",
-  "session.aside.note": "If no entry comes, it shows in Today's second column.",
-  "branch.receipt.redteam": "Copy /oculpm:redteam",
-  "branch.receipt.redteamCopied": "Copied the red-team command — paste it into Claude Code in the terminal.",
-  "density.aria": "Screen density",
-  "density.simple": "Simple",
-  "density.pro": "Pro",
-  "sidebar.viewerSection": "Tools",
-  "today.moreHint": "Pro mode shows all of it",
-  "plan.doneWhen": "Done when",
   "plan.copyCheck": "Copy",
   "plan.copiedCheck": "Copied the check command — run it and log the last result line in the plan.",
-  "settings.density.title": "Screen density",
-  "settings.density.desc": "Same screens; only folding and row height change. Switch anywhere with {kbd}.",
-  "settings.density.simpleHint": "The four core screens, three questions, side cards folded. For first-timers and the three-minute morning.",
-  "settings.density.proHint": "All three sidebar tiers, side cards open, shortcut hints. For people who live with agents all day.",
-  "settings.density.defaultTag": "default",
-  "settings.misc.title": "Other",
-  "settings.misc.kbdHints": "Shortcut hints beside buttons",
-  "settings.misc.kbdHintsHint": "Always on in the pro density. Turn this on to see them in the simple density too.",
-  "settings.misc.theme": "Theme",
-  "settings.misc.themeHint": "Light/dark family and palettes live in the Theme section below.",
   "toolbar.beta": "beta · bug fixes only",
   "toolbar.find": "Find",
-  "frs.aria": "First-run guide",
-  "frs.eyebrow": "Getting started · {project}",
-  "frs.title": "Three steps to the first journal",
-  "frs.lead": "This app lets you trust what the agent did and decide the next step in three minutes. For that, the agent has to leave a record first.",
-  "frs.step1": "Project added",
-  "frs.step1Sub": ".oculpm/ and AGENTS.md are in place — safe to commit.",
-  "frs.step2": "Two plugin lines in Claude Code, in your terminal",
-  "frs.step2Sub": "Hooks and recording tools attach. Once installed this step turns green by itself — there is no confirm button.",
-  "frs.step2Done": "Plugin found — hooks and recording tools are attached.",
-  "frs.step3": "Ask for one thing as usual and wait",
-  "frs.step3Sub": "When the work ends the agent leaves its first journal, this sheet folds away and Today opens. A record is not a verification.",
-  "frs.others": "Codex · Cursor · Gemini CLI only need steps 1 and 3 — the rules file does the rest.",
-  "frs.skip": "I know this — skip",
   "palette.footHint": "Journal search starts at two characters",
   "journal.filterNoEvidence": "No evidence",
   "journal.filterNoEvidenceTitle": "Only bug/feature/refactor entries whose verification section has no command evidence",
@@ -238,35 +175,10 @@ export const en: Record<keyof typeof ko, string> = {
   "palette.foot.open": "open",
   "diff.entryVerify": "This journal's verification",
   "diff.entryVerifyNone": "No verification section — nothing to trust yet",
-  "session.aside.evidence": "Result tails sent as evidence {n}",
-  "session.aside.evidenceEmpty": "None yet — \"To verification\" on a command block or the result line lands here.",
-  "session.aside.evidenceNote": "Pre-filled into the next manual journal's verification section. Paste into agent journals.",
-  "session.aside.proNote": "Pro mode — shell integration (OSC 133) markers are the source of command blocks and result tails.",
-  "session.aside.simpleNote": "In the simple density this column starts folded.",
-  "home.numUnrecorded": "Unrecorded",
-  "home.numOpen": "Next up",
-  "home.hookLine": "Opening the next conversation, the hook carries the done condition, the check command, {items} open items and the last {journals} journals. No re-explaining yesterday.",
-  "home.resumeBtn": "Continue with this context",
-  "home.resumeHint": "Opens the project and hands the last journals and open items to the terminal — you press Enter to send",
-  "home.openToday": "Today",
-  "home.whereToStart": "Where to start today?",
-  "home.headToday": "{n} journals today",
-  "home.headUser": "{n} items for you",
-  "home.howBody": "One rules file is planted in that folder, and every time Claude Code in your terminal finishes a task it leaves a journal a person can read. No server, no account.",
-  "home.howDrop": "Drop a folder here, or",
-  "home.howNote1": "A folder already tracked (.oculpm/ present) just opens — it is not re-initialised.",
-  "home.howNote2": "A git repository is better but not required.",
-  "sidebar.mainSection": "Core",
-  "sidebar.toolsSection": "Tools",
-  "sidebar.aiSection": "AI",
-  "sidebar.lightMode": "Light mode",
-  "sidebar.darkMode": "Dark mode",
   "sidebar.settings": "Settings",
 
   // ── Shell ───────────────────────────────────────────────────────────────
   "shell.settings.title": "Settings",
-  "shell.settings.sub": "Everything stays on this machine",
-  "shell.selectProjectFirst": "Pick a project first.",
 
   // ── Markdown ────────────────────────────────────────────────────────────
   "markdown.copyCode": "Copy code",
@@ -276,57 +188,14 @@ export const en: Record<keyof typeof ko, string> = {
   "palette.aria": "Command palette",
   "palette.placeholder": "Screens · projects · journal · plans…",
   "palette.empty": "No matching commands.",
-  "palette.group.jump": "Jump to",
   "palette.group.projects": "Open project",
   "palette.group.nav": "Go to",
-  "palette.group.actions": "Actions",
-  "palette.group.oculpm": "ocul-pm",
-  "palette.switchProject": "Switch project",
   "palette.openSettings": "Open settings",
-  "palette.newWindow": "Open new window",
-  "palette.sessionStart": "Start session manually",
-  "palette.sessionEnd": "End session manually",
-  "palette.manualEntry": "Write a journal entry",
-  "palette.syncAgents": "Re-send adapter rules",
-  "palette.toast.sessionStarted": "Session started: {id}",
-  "palette.toast.sessionEnded": "Session ended: {id}",
-  "palette.toast.noActiveSession": "No active session to end.",
-  "palette.toast.syncDone": "Synced ({n} adapters updated)",
 
   // ── Project management dialogs (App.tsx) ────────────────────────────────
-  "tabs.stripLabel": "Project tabs",
-  "tabs.close": "Close {name} tab",
-  "tabs.new": "New tab",
-  "tabs.newHint": "New tab (⌘T) · right-click to open a project directly",
-  "tabs.startTab": "New tab",
-  "tabs.openStart": "Open start screen",
-  "tabs.sessionActive": "{name} — session running",
-  "tabs.allOpen": "Every project is already open.",
   // Tab context menu (2026-08-28) — the keyboard/menu equivalent of the drag.
-  "tabs.menu.label": "Tab menu",
-  "tabs.menu.moveTo": "Move to \u201c{name}\u201d window",
-  "tabs.menu.detach": "Move to a new window",
-  "tabs.menu.close": "Close tab",
-  "tabs.menu.noOtherWindow": "No other window to move to.",
-  "tabs.drag.incoming": "Drops here",
   "project.openWindowFailed": "Couldn't open the window: {error}",
   "project.newWindowFailed": "Couldn't open a new window: {error}",
-  "project.closeTabFailed": "Couldn't close the tab: {error}",
-  "project.opened": "Open",
-  "project.edit.title": "Edit project",
-  "project.rename.hint":
-    "Enter a new name for this project workspace. The folder on disk is not renamed.",
-  "project.rename.placeholder": "Project name",
-  "project.remove.title": "Remove project",
-  "project.remove.confirm": "Remove this project from the Ocul-PM workspace?",
-  "project.remove.noteLabel": "Note:",
-  "project.remove.note":
-    "The index and goals are deleted from the app database, but the project folder itself is left alone.",
-  "project.remove.oculpmSuffix": "folder",
-  "project.remove.agentsMdSuffix": "file",
-  "project.remove.folderPrefix": "Also delete the project's",
-  "project.remove.irreversible": "Selected files are permanently deleted from disk. This can't be undone.",
-  "settings.closeEsc": "Close (Esc)",
 
   // ── AGENTS.md template upgrade toast ────────────────────────────────────
   "watcher.takeOver": "Watch from this window",
@@ -345,45 +214,19 @@ export const en: Record<keyof typeof ko, string> = {
   "agents.upgrade.failed": "Could not update the rules file — {error}",
 
   // ── Settings screen (SettingsPanel) ─────────────────────────────────────
-  "settings.tab.appearance": "Display",
-  "settings.tab.oculpm": "ocul-pm",
-  "settings.tab.data": "Data",
-  "settings.tab.diagnostics": "Diagnostics",
-  "settings.tab.update": "Updates",
   "settings.accent.green": "Green",
   "settings.accent.blue": "Blue",
   "settings.accent.purple": "Purple",
   "settings.accent.orange": "Orange",
   "settings.accent.rose": "Rose",
   "settings.accent.teal": "Teal",
-  "settings.accent.aria": "Accent {name}",
-  "settings.accent.title": "Accent color",
-  "settings.editor.title": "External editor",
-  "settings.editor.desc": "Open in an external editor (⌘B → pick a file → external editor). %path is replaced with the absolute file path.",
-  "settings.editor.field": "Command template",
-  "settings.editor.hint": "Default: code \"%path\". Cursor uses cursor \"%path\", Sublime subl \"%path\". macOS GUI apps don't inherit your shell PATH, so use an absolute path if the binary isn't on the system PATH (e.g. /usr/local/bin/code \"%path\").",
-  "settings.editor.hint__pc": "Default: code \"%path\". Cursor uses cursor \"%path\", Sublime subl \"%path\". If the command isn't on your PATH, use its absolute path.",
-  "settings.theme.title": "Theme",
-  "settings.theme.desc": "Light or dark, or follow the OS setting.",
 
   // Theme files (Osaurus benchmark round, phase 4) — gallery, editor, import/export.
   "settings.saveFailed": "Couldn't save that setting: {error}",
-  "settings.scale.title": "Text size",
-  "settings.scale.desc": "Scales all text and UI, like browser zoom.",
-  "settings.scale.field": "Scale — {pct}%",
-  "settings.scale.small": "Small",
-  "settings.scale.default": "Default",
-  "settings.scale.large": "Large",
-  "settings.scale.xlarge": "Larger",
 
   // Terminal font size — separate from app scale (a terminal is a fixed-width
   // grid, so an exact px value is the right control).
   "err.code.plan_has_open_items": "This plan still has open items, so it cannot be closed as done.",
-  "settings.storage.title": "Storage",
-  "settings.storage.desc": "Where this app keeps its data.",
-  "settings.storage.db": "Database",
-  "settings.storage.appData": "App data",
-  "settings.storage.version": "Version",
   // ── Deep-link confirmation sheet (Osaurus round Phase 6) ──────────────
   "deeplink.origin": "Origin",
   "deeplink.open.title": "Open this project?",
@@ -391,99 +234,7 @@ export const en: Record<keyof typeof ko, string> = {
   "deeplink.open.action": "Open",
   "deeplink.open.notRegistered": "This project isn't registered — a link never adds one.",
 
-  // ── Declared but not yet honored (Osaurus round Phase 6) ──────────────
-  "notHonored.title": "Declared, but not yet honored",
-  "notHonored.reason.hooks_run_shell":
-    "hooks run shell scripts — detected but never installed",
-  "notHonored.reason.binaries_not_installed": "binaries are not installed",
-  "notHonored.reason.not_supported_yet": "this app version doesn't handle it yet",
-  "notHonored.reason.app_older_than_template":
-    "the template is newer than this app version — updating the app honors it",
-  "notHonored.reason.unknown": "no reason given",
-
-
-  "settings.diag.title": "Diagnostics",
-  "settings.diag.devtools": "Open DevTools",
-  "settings.reset.title": "Reset",
-  "settings.reset.desc": "Restores all settings to their defaults. API keys and indexed projects are kept.",
-  "settings.reset.action": "Reset settings to defaults",
-  "settings.danger.title": "Danger zone",
-  "settings.danger.desc": "Deletes every project, index, conversation, setting, and stored API key on this machine.",
-  "settings.danger.wipe": "Delete all data",
-  "settings.danger.confirm": "Delete all data?",
-  "settings.danger.confirmBody": "Every project, index, conversation, setting and stored API key on this computer will be gone. This cannot be undone.",
-  "settings.danger.deleting": "Deleting…",
-  "settings.danger.yes": "Delete everything",
-  "settings.db.title": "Database health",
-  "settings.db.desc": "Checks SQLite + sqlite-vec status and the schema version.",
-  "settings.db.schema": "Schema",
-  "settings.db.noPath": "Not available",
-  "settings.db.refresh": "Refresh status",
-  "settings.db.size": "File size",
   "settings.db.wal": "WAL",
-  "settings.db.free": "Free space",
-  "settings.db.topTables": "Largest tables",
-  "settings.db.compact": "Compact (VACUUM)",
-  "settings.db.compacting": "Compacting…",
-  "settings.db.compactDone": "Compacted — now {size}",
-  "settings.db.compactFailed": "Could not compact the database — {error}",
-  "settings.db.compactHint": "The file doesn't shrink on its own after clearing an index or removing a project. Compacting takes a few seconds and may pause the app briefly.",
-  // Index usage (journal-scale-round {#index-usage}) — `.oculpm/index/` is
-  // app-managed and was invisible to users until now.
-  "settings.idxUsage.title": "Index usage",
-  "settings.idxUsage.desc": "How much disk `.oculpm/index/` is using right now — local history versions and diff captures pile up separately from the journal text itself.",
-  "settings.idxUsage.history": "Local history",
-  "settings.idxUsage.diffs": "Journal diff captures",
-  "settings.idxUsage.other": "Other",
-  "settings.idxUsage.usageLine": "{bytes} · {count} files",
-  "settings.idxUsage.total": "Total",
-  "settings.idxUsage.noProject": "Open a project to see its index usage here.",
-  "settings.idxUsage.clearDiffs": "Clear diff captures",
-  "settings.idxUsage.clearingDiffs": "Clearing…",
-  "settings.idxUsage.clearDiffsConfirmTitle": "Clear all diff captures?",
-  "settings.idxUsage.clearDiffsConfirmBody": "All diff captures — the record of what each entry changed at the time — will be removed. Projects with git rebuild them from git the next time they're opened; projects without git can't get that moment back.",
-  "settings.idxUsage.diffsCleared": "Cleared the diff captures",
-  "settings.idxUsage.historyHint": "Local history (version) cleanup lives in Code settings.",
-  "settings.feedback.title": "Send feedback",
-  "settings.feedback.desc": "Files a GitHub issue with a bug or feature idea. App version and OS are filled in for you.",
-  "settings.feedback.bug": "Report a bug",
-  "settings.feedback.feature": "Request a feature",
-  "settings.feedback.note": "You'll need a GitHub account. The issue form opens in your browser.",
-  "settings.feedback.bugTitle": "[Bug] ",
-  "settings.feedback.featureTitle": "[Feature] ",
-  "settings.feedback.bugBody1": "## What happened?\n\n",
-  "settings.feedback.featureBody1": "## What would you like?\n\n",
-  "settings.feedback.bugBody2": "## Steps to reproduce\n1. \n2. \n\n## Expected behavior\n\n",
-  "settings.feedback.featureBody2": "## Why do you need it?\n\n",
-  "settings.feedback.appVersion": "- App version: {version}",
-  "settings.feedback.openFailed": "Could not open the browser — {error}",
-  "settings.feedback.copyDiag": "Copy diagnostics",
-  "settings.feedback.diagCopied": "Diagnostics copied — paste them into the issue's Diagnostics field.",
-  "settings.feedback.diagFailed": "Could not copy diagnostics — {error}",
-  "settings.feedback.diagNote": "Diagnostics hold only the app version, OS and WebView versions, time zone and log folder. Your user name in paths is masked as ~.",
-  "settings.update.title": "Updates",
-  "settings.update.desc": "Checks GitHub releases for a new version and installs it in place.",
-  "settings.update.current": "Current version",
-  "settings.update.installRestart": "Install v{version} and restart",
-  "settings.update.check": "Check for updates",
-  "settings.update.checking": "Checking for a new version…",
-  "settings.update.upToDate": "You're on the latest version.",
-  "settings.update.availPrefix": "Version",
-  "settings.update.availSuffix": "is available.",
-  "settings.update.installing": "Downloading and installing… the app restarts automatically when it's done.",
-  "settings.update.checkFailed": "Couldn't check for updates (offline, or no release found): {message}",
-  "settings.update.packageManaged":
-    "Installed from a .{format} package. The app doesn't update itself — update it with your package manager. The new .{format} file is on the releases page.",
-  "settings.update.noBuild":
-    "The latest release has no build for this OS yet, so the app can't tell whether you're up to date. Check again with the next release.",
-  "settings.update.openReleases": "Releases page",
-  "settings.update.openFailed": "Couldn't open the releases page: {error}",
-
-  "settings.changelog.title": "Release notes",
-  "settings.changelog.desc": "What changed in each version — past releases expand too.",
-  "settings.changelog.loading": "Loading…",
-  "settings.changelog.empty": "Nothing listed.",
-  "settings.changelog.failed": "Couldn't load the release notes (offline, or no release found).",
 
   // ── Today screen ────────────────────────────────────────────────────────
   "today.monitor.commitsToday": "Commits today",
@@ -569,9 +320,6 @@ export const en: Record<keyof typeof ko, string> = {
   "time.minutesAgo": "{n}m ago",
   "time.hoursAgo": "{n}h ago",
   "time.daysAgo": "{n}d ago",
-  "time.hoursMinutes": "{h}h {m}m",
-  "time.minutes": "{n}m",
-  // journal-scale-round {#velocity} — journal velocity + plan completion ETA
 
   // ── Journal · diff ──────────────────────────────────────────────────────
   "journal.typeFilterAria": "Filter by type",
@@ -719,8 +467,6 @@ export const en: Record<keyof typeof ko, string> = {
   "diff.previewUnavailable": "The preview can't be shown (file too large or unsupported format)",
   "diff.readFailed": "Couldn't read the file.",
 
-  // Tag tidy sheet ({#tag-merge}).
-
   // ── Planner ─────────────────────────────────────────────────────────────
   "plan.status.todo": "To do",
   "plan.status.in_progress": "In progress",
@@ -771,105 +517,16 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.statusMenuAria": "Status of \"{title}\"",
 
   // ── ocul-pm settings (OculpmSettings) ───────────────────────────────────
-  "op.tab.record": "Recording",
-  "op.tab.agents": "Agents",
-  "op.tab.integration": "Integrations",
-  "op.tab.logs": "Logs",
-  "op.tabsAria": "ocul-pm settings sub-tabs",
-  "op.agentsMd": "AGENTS.md (recommended)",
-  "op.pickProject": "Pick a project first.",
-  "op.loading": "Loading settings…",
-  "op.loadFailed": "Couldn't load the settings: {error}",
-  "op.saveFailed": "Could not save the setting — {error}",
-  "op.saved": "Saved ({time})",
-  "op.workday.desc": "When the day rolls over, and in which time zone.",
-  "op.hhmm": "Must be `HH:MM` (e.g. 03:00).",
-  "op.session.desc": "When a work session closes, and when it picks back up.",
-  "op.session.inactivity": "Close after inactivity — {n} min",
-  "op.session.resumeGrace": "Reopen a closed session within — {n} min {suffix}",
-  "op.session.disabled": "(off)",
-  "op.session.resumeHint": "If a file changes within this window right after a session closed for inactivity, the previous session reopens instead of a new one starting. 0 turns it off.",
-  "op.git.desc": "Sensitive paths journals may not mention, and secret patterns to mask.",
-  "op.git.forbiddenHint": "Paths matching these patterns are refused for narrative writes.",
-  "op.git.redactHint":
-    "Matches are written as `[REDACTED]`. Built-in patterns for keys, tokens, private keys and connection strings always apply regardless of this list — add only the extra patterns you want masked.",
-  "op.watcher.desc": "How file changes are watched.",
-  "op.watcher.ignore": "Paths to leave unwatched (gitignore syntax)",
-  "op.watcher.gitignore": "Respect the project's .gitignore",
-  "op.agents.desc": "Which agents receive the rules file, and how detection and sync work.",
-  "op.agents.detect": "Detect",
-  "op.agents.syncNow": "Sync now",
-  "op.agents.syncDone": "Done ({n} adapters updated)",
-  "op.hooks.on": "Claude Code hook bridge is on",
-  "op.hooks.off": "Claude Code hook bridge is off",
-  "op.hooks.failed": "Could not change the hook setting — {error}",
-  "op.st.configError": "Config file error",
-  "op.st.checking": "Checking…",
-  "op.st.linked": "Connected",
-  "op.st.drift": "Differs from the installed copy — reinstall needed",
-  "op.st.off": "Off",
-  "op.hooks.title": "Claude Code hook bridge",
-  "op.reinstall": "Reinstall",
-  "op.turnOff": "Turn off",
-  "op.turnOn": "Turn on",
-  "op.hooks.desc1": "Installs Claude Code's session start/end signals as hooks in",
-  "op.hooks.desc2": "(not shared via git — this machine only). Session detection becomes a real signal instead of a heuristic, so duplicate and ghost sessions disappear and agent labels are recorded from measurement. The hook is a single local file append — no network calls.",
-  "op.hooks.custom": "Custom hooks detected — ocul-pm only adds and removes its own entries and leaves yours alone.",
-  "op.shell.on": "Shell integration is on — it applies from your next terminal session",
-  "op.shell.off": "Shell integration is off",
-  "op.shell.failed": "Could not change shell integration — {error}",
-  "op.st.error": "Error",
-  "op.st.unsupportedShell": "Unsupported shell",
-  "op.st.rcBroken": "rc block damaged",
-  "op.st.on": "On",
   // PR-ACP1 — ACP agent runtime diagnostics
-  "op.shell.title": "Terminal shell integration",
-  "op.shell.desc1": "Lets the built-in terminal see when commands start and finish, their exit codes, and the working directory.",
-  "op.shell.desc2": "gets one added line, and that line only does anything in a terminal ocul-pm launched — in iTerm2, Terminal.app, and the rest it does nothing at all. Content outside the block is preserved, and turning it off reverts it completely.",
-  "op.shell.desc2__win": "gets one added line, and that line only does anything in a terminal ocul-pm launched — in Windows Terminal, VS Code, and the rest it does nothing at all. Content outside the block is preserved, and turning it off reverts it completely.",
-  "op.shell.desc2__linux": "gets one added line, and that line only does anything in a terminal ocul-pm launched — in GNOME Terminal, Konsole, and the rest it does nothing at all. Content outside the block is preserved, and turning it off reverts it completely.",
-  "op.shell.unsupported": "Your shell (fish, nu, …) isn't supported yet. The terminal itself works fine.",
-  "op.shell.rcBrokenDesc": "markers don't pair up. Writing is blocked so the file isn't damaged — clean those lines up by hand and try again.",
   "op.copyFailed": "Couldn't copy — type the command by hand",
-  "op.mcp.registered": "MCP server registered — restart any open Claude Code session to pick it up",
-  "op.mcp.unregistered": "MCP server unregistered — restart any open Claude Code session to pick it up",
-  "op.mcp.failed": "Could not change the MCP registration — {error}",
-  "op.st.registered": "Registered",
-  "op.st.noBinary": "Binary missing",
-  "op.st.unregistered": "Not registered",
-  "op.st.noCodex": "Codex not installed",
   // Integration-tab scope — per-project and machine-wide settings shared one
   // card, so a "Installed" badge never said which of the two it meant.
-  "op.scope.project": "This project",
-  "op.scope.machine": "This machine",
-  "op.scope.projectTitle": "Applies to this project only",
-  "op.scope.projectDesc": "Applies only to the project you have open — every other project needs its own setup.",
-  "op.scope.projectDescNamed": "Applies only to \u201c{name}\u201d, the project you have open — every other project needs its own setup.",
-  "op.scope.machineTitle": "Applies to this whole machine",
-  "op.scope.machineDesc": "Set it up once and it holds for every project — switching projects changes nothing here.",
-  "op.hooks.pluginCovers": "The plugin already sends the same session signals — no need to turn this on as well.",
-  "op.hooks.pluginConflict": "This overlaps with the plugin — both are on, so every session event is recorded twice. Turn one of them off (keeping the plugin is the simpler choice).",
   "op.mcp.pluginCovers": "The plugin already provides the same tools — no need to register this as well.",
   "op.mcp.pluginCovers__win": "On Windows the plugin's MCP server doesn't start — register here to get the MCP tools (the plugin still runs the hooks).",
   "op.mcp.pluginConflict": "This overlaps with the plugin — both are registered, so each tool shows up twice. Unregister one of them (keeping the plugin is the simpler choice).",
   "op.mcp.pluginConflict__win": "On Windows this registration is the only way the MCP tools load — the plugin's MCP server doesn't start, so nothing is duplicated. Keep it.",
-  "op.plugin.title": "Claude Code plugin (hooks + MCP + skills in one)",
-  "op.plugin.title__win": "Claude Code plugin (hooks + skills — on Windows, register MCP separately)",
-  "op.plugin.installed": "Installed",
-  "op.plugin.notInstalled": "Not installed",
-  "op.plugin.copy": "Copy install command",
-  "op.plugin.desc1": "In Claude Code, run",
-  "op.plugin.desc2": "then",
-  "op.plugin.desc3": "— the hook bridge, MCP, and five skills are configured across every project at once (they only act in .oculpm-tracked projects). The command, tool, and hook reference lives under Skills & Rules → Plugin.",
-  "op.plugin.desc3__win": "— the hook bridge and five skills are configured across every project at once (they only act in .oculpm-tracked projects). On Windows the plugin's MCP server doesn't start, so turn MCP on with the MCP server registration below. The command, tool, and hook reference lives under Skills & Rules → Plugin.",
   "op.plugin.warn": "The plugin already provides hooks and MCP — turning on the hook bridge and MCP registration under \u201cApplies to this project only\u201d as well double-loads events and exposes two copies of each tool. Stick to the plugin alone.",
   "op.plugin.warn__win": "The plugin already provides the hooks — turning on the hook bridge under \u201cApplies to this project only\u201d as well double-loads events. MCP is different: on Windows the plugin's MCP server doesn't start, so turn on the MCP server registration on the same card.",
-  "op.plugin.version": "Installed {installed} ({scope}) · bundled with the app {bundled}",
-  "op.plugin.versionUnknown": "Could not read the installed version from installed_plugins.json · bundled with the app {bundled}",
-  "op.plugin.scope.project": "this project",
-  "op.plugin.scope.user": "user-wide",
-  "op.plugin.behind": "The installed plugin is older than the app. Resume (last three entries), the delivery ledger and the StopFailure hook only exist in the newer one — open this project in Claude Code and update:",
-  "op.plugin.updateCopy": "Copy update command",
   "today.pluginDrift.title": "The plugin is out of date — {installed} → {bundled}",
   "today.pluginDrift.copy": "Copy update command",
   "today.pluginDrift.copied": "Copied — paste it into Claude Code",
@@ -887,64 +544,12 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.carry.status.todo": "to do",
   "plan.carry.status.in_progress": "in progress",
   "plan.carry.status.blocked": "blocked",
-  "op.codexPlugin.title": "Codex plugin (skills + journaling rules)",
-  "op.codexPlugin.copy": "Copy install commands",
-  "op.codexPlugin.desc1": "In a terminal, run",
-  "op.codexPlugin.desc2": "then",
-  "op.codexPlugin.desc3": "— two commands and the ocul-pm skill rides along in every Codex session. Registering the MCP server is separate, in the project-scoped card above.",
-  "op.codexPlugin.orphanBadge": "Marketplace missing",
-  "op.codexPlugin.orphan": "The config lists the plugin but not its marketplace — Codex cannot load it. Re-register with the two commands above.",
-  "op.codexPlugin.cached": "Cached version:",
-  "op.agents.native": "native",
-  "op.agents.nativeNote": "Codex reads the root AGENTS.md as-is — it has no adapter file of its own. Register its MCP server and plugin from the Integration tab.",
-  "op.mcp.title": "MCP server (journal_write · plan_status · plan_update)",
-  "op.unregister": "Unregister",
-  "op.register": "Register",
-  "op.mcp.desc1": "Registers a local stdio server in the project's",
-  "op.mcp.desc2": ". Agents record journals and plans through structured tools instead of imitating the markdown spec, so frontmatter errors can't happen. It works even when the app is closed — records go straight to disk.",
-  "op.mcp.noBinary1": "Couldn't find the oculpm-mcp binary — in a dev setup, run",
-  "op.mcp.noBinary2": "then refresh.",
-  "op.mcp.commitWarn1": "Note:",
-  "op.mcp.commitWarn2": "is a committed file but the binary path is machine-specific — everyone on the team has to register it themselves.",
-  "op.codexMcp.title": "Codex MCP server",
-  "op.codexMcp.registered": "Registered the Codex MCP server — it applies in a new Codex session",
-  "op.codexMcp.unregistered": "Unregistered the Codex MCP server — it applies in a new Codex session",
-  "op.codexMcp.failed": "Could not change the Codex MCP registration — {error}",
-  "op.codexMcp.desc1": "Registers one stdio server in Codex's",
-  "op.codexMcp.desc2": "— which project it records into is decided by the folder the Codex session opened in. Claude's plugin and .mcp.json are never touched.",
-  "op.codexMcp.notFound": "Couldn't find the Codex config folder. Install Codex, open it once, then refresh.",
-  "op.codexMcp.restartNote": "It does not change open chats. Start a new Codex session to use it.",
-  "op.codexMcp.pinnedBadge": "Pinned to a project",
-  "op.codexMcp.pinnedWarn": "This entry pins {path} — journals written from other projects land there too. Re-register and the root follows the session.",
-  "op.codexMcp.reregister": "Re-register",
-  "op.logs.openFailedCopied": "Couldn't open Finder, so the path was copied to your clipboard.\n{msg}",
-  "op.logs.openFailedCopied__win": "Couldn't open Explorer, so the path was copied to your clipboard.\n{msg}",
-  "op.logs.openFailedCopied__linux": "Couldn't open the file manager, so the path was copied to your clipboard.\n{msg}",
-  "op.logs.openFailedTitle": "Couldn't open the log folder",
-  "op.logs.openFailed": "Couldn't open the log folder: {msg}",
-  "op.logs.title": "Logs",
-  "op.logs.desc": "Step-by-step [FLOW] logs are written per day. When something breaks, attach the most recent file.",
-  "op.logs.location": "Location:",
-  "op.logs.disabled": "(log file disabled)",
-  "op.logs.open": "Open the log folder",
-  "op.logs.filenameLabel": "Filename format:",
-  "op.logs.desc2": "Backend and frontend (console) logs land in one file.",
-  "op.logs.desc3": "Grep for that tag to follow each step of \"project load → external LLM writes → UI refresh\".",
-  "op.delete": "Delete",
-  "op.patternPlaceholder": "Add a pattern, then Enter",
-
-  // ── Retro screen ────────────────────────────────────────────────────────
-  "entry.type.feature": "Features",
-  "entry.type.refactor": "Refactors",
-  "entry.type.error": "Errors",
-  "entry.type.bug": "Bugs",
 
   // Tabs + file operations (ide-completion #p1-tabs) — deletion goes to the
   // system Trash, and the confirm dialog must say so.
   // Phase 2 — references / outline / signature / formatting (ide-completion)
   // Phase 3 — go to symbol / line in file (vscode-borrows #p3-goto)
   // Phase 5 — problems panel (vscode-borrows #p5-problems)
-  "palette.group.symbols": "Symbols",
   "entry.verify": "Confirm",
   "entry.verified": "Confirmed",
   "entry.verifyTitle": "Mark this entry as checked against the real change (frontmatter verified_by_user) (v)",
@@ -962,16 +567,7 @@ export const en: Record<keyof typeof ko, string> = {
   // ── AI output defaults (tc() — follows the **writing** language, not UI) ─
   // Values written into planner files and the DB. Using these for on-screen
   // copy would mix languages whenever the two settings diverge.
-  "content.defaultPlanTitle": "New plan",
   "content.defaultPhase": "To do",
-  "content.initialPlan": "Initial plan",
-  "content.initialGoalsPhase": "Initial goals",
-  "content.seed1Title": "Finish initial project setup",
-  "content.seed1Desc": "Install dependencies, set up the build, tidy the folder structure",
-  "content.seed2Title": "Prototype the core feature",
-  "content.seed2Desc": "Build one main feature at MVP quality",
-  "content.seed3Title": "Write the README and docs",
-  "content.seed3Desc": "Document what the project is, how to install it, and how to use it",
 
   // ── Workspace-wide toasts (WorkspaceContext) ────────────────────────────
   "ws.driftBody": "The {agent} rule file was modified outside the app.",
@@ -983,106 +579,6 @@ export const en: Record<keyof typeof ko, string> = {
   "ws.driftSyncFailed": "Could not sync — {error}",
   "ws.driftIgnore": "Ignore (5 min)",
   "ws.newEntry": "New entry: {title}",
-
-  // ── Project manager modal (ProjectManager) ──────────────────────────────
-  "pm.title": "Manage projects",
-  "pm.subtitle":
-    "{n} registered. Renaming and removing apply to the Ocul-PM workspace only — the actual project folders stay put.",
-  "pm.close": "Close (Esc)",
-  "pm.filterPlaceholder": "Filter by name or path",
-  "pm.filterAria": "Search projects to manage",
-  "pm.openFolder": "Open a folder",
-  "pm.selectAllAria": "Select every visible project",
-  "pm.colProject": "Project",
-  "pm.colLastActivity": "Last activity",
-  "pm.colEntries": "Entries",
-  "pm.colActions": "Actions",
-  "pm.selectAria": "Select {name}",
-  "pm.openAria": "Open {name}",
-  "pm.entryCount": "{n}",
-  "pm.renameAria": "Rename {name}",
-  "pm.removeAria": "Remove {name}",
-  "pm.removeFailed": "Could not remove {n} projects: {names}",
-  "pm.andMore": "{names} and {n} more",
-  "pm.emptySearch": "No project matches ‘{query}’",
-  "pm.emptyNone": "No projects registered yet",
-  "pm.emptySearchTip": "You can also search by path, or by Korean initials",
-  "pm.emptyNoneTip": "Use ‘Open a folder’ to add an existing project",
-  // The project names are emphasized mid-sentence, so it splits (§4.2).
-  "pm.confirmSuffix":
-    " — remove {n} projects from the workspace? Only the app's index and cache are cleared; the project folders themselves are not deleted.",
-  // The checkbox labels also wrap a `<code>` mid-sentence.
-  "pm.alsoDeletePrefix": "Also delete each folder's ",
-  "pm.alsoDeleteOculpmSuffix": " folder",
-  "pm.alsoDeleteAgentsSuffix": " file",
-  "pm.permanentWarning":
-    "The selected files are permanently deleted from all {n} folders and cannot be recovered.",
-  "pm.removing": "Removing…",
-  "pm.removeN": "Remove {n}",
-  "pm.selectedCount": "{n}",
-  "pm.selectedSuffix": " selected",
-  "pm.clearSelection": "Clear selection",
-  "pm.removeSelected": "Remove selected",
-  "pm.matchCount": "{n} matches",
-  "pm.totalCount": "{n}",
-  "pm.bulkHint": "To delete several at once, pick them with the checkboxes on the left",
-  "pm.escToClose": "close",
-
-  // ── Launcher home (StartScreen · home/*) ────────────────────────────────
-  // The first screen on launch and the project-switching hub.
-  // Dateline — the date itself comes from Intl (§3); only the tail clauses
-  // live in the dictionary.
-  "home.datelineToday": "{n} today",
-  "home.groupToday": "Today",
-  "home.groupWeek": "Past 7 days",
-  "home.groupFortnight": "Past 14 days",
-  "home.groupQuiet": "Quiet for 2+ weeks",
-  "home.pulseLabel": "{n} in {days} days",
-  "home.datelineProjects": "{n} projects",
-  // Greenfield draft steps
-  "home.noMatchCommandHint": "No project matches \"{q}\". You can still run a command.",
-  "home.matchedProjects": "{n} projects found",
-  // Atoms
-  "home.sparkAria": "Activity over the last {n} days",
-  "home.sparkProjectAria": "Recent activity for {name}",
-  "home.progressAria": "{done} of {total} done",
-  "home.renameAria": "Rename {name}",
-  "home.removeAria": "Remove {name}",
-  "home.unverified": "Unverified",
-  // Project rows
-  "home.openAria": "Open {name} — last activity {when}",
-  "home.openWithEntryAria": "Open {name} — {title}",
-  "home.todayN": "{n} today",
-  "home.noRecord": "No entries yet",
-  "home.allProjects": "Projects",
-  // Top chrome
-  "home.manageProjects": "Manage projects",
-  "home.openSettings": "Open settings",
-  "home.addProject": "Add project",
-  "home.searchProjects": "Search projects",
-  "home.matchCount": "{n} matches",
-  "home.totalCount": "{n} total",
-  "home.kbdOpen": "open",
-  "home.kbdRename": "rename",
-  "home.kbdRemove": "remove",
-  "home.kbdMove": "move",
-  "home.kbdPalette": "command palette",
-  // Sections and commands
-  "home.cmdAdd": "Open an existing folder",
-  "home.sectionSearch": "Search results",
-  "home.noMatch": "No project matches ‘{query}’",
-  "home.noMatchTip": "You can also search by path, or by Korean initials",
-  // Tiles
-  "home.resumeWork": "Pick up where you left off",
-  "home.todayFlow": "Today's flow",
-  "home.todayCountPrefix": "Today",
-  "home.todayCountSuffix": "entries",
-  "home.briefFailed": "Could not load the records.",
-  "home.briefFailedHint": "You can still open projects below.",
-  "home.briefEmpty": "Nothing recorded yet.",
-  "home.briefEmptyHint": "Work with your agent as usual and it will pile up here.",
-  "home.howTitle": "Add the folder your agent works in",
-  "home.ctaAddProject": "Open folder…",
 
   // ── Backend error mapping (i18n/errors.ts — tError) ─────────────────────
   // Rust returns English only and this maps it back (§4.4). In English mode
@@ -1107,78 +603,6 @@ export const en: Record<keyof typeof ko, string> = {
   "err.keyringUnavailable": "The system keyring is unavailable — install and unlock a Secret Service provider (GNOME Keyring or KWallet), then try again. Keys are never saved in plain text.",
   "err.linuxPasteFiles": "Pasting copied files is not available on Linux — drag the files into the tree instead.",
   "err.clipboardBusy": "The clipboard is busy in another app — try pasting again.",
-
-  // ── Skills & rules → plugin guide tab ───────────────────────────────────
-  // The **data** this tab renders (command descriptions, tool descs) mirrors
-  // plugin/oculpm/ and stays untranslated (pluginDocs.ts — scanner
-  // DISK_CONTENT). The keys here are only the chrome the app wraps around it.
-  "plugin.copy": "Copy",
-  "plugin.copyToast": "Copied — paste it into Claude Code",
-
-  // Retro generation done (failure reuses the existing `retro.genFailed`).
-  // Naming the project is the default — one window holds several projects and
-  // generation runs per key, so an unlabelled toast can't say which retro.
-
-  // ── Journal type badge (shared: tray + launcher home) ───────────────────
-  // **Singular**, since it labels one entry. `journal.filter.*` /
-  // `retro.type.*` are filter chips and read as plurals ("Bugs") in English,
-  // so they cannot be reused here.
-  "entryType.feature": "Feature",
-  "entryType.bug": "Bug",
-  "entryType.error": "Error",
-  "entryType.refactor": "Refactor",
-  "entryType.chore": "Chore",
-
-  // ── AI panel screen ─────────────────────────────────────────────────────
-  // PR-ACP2 — ACP conversation mode
-  // PR-ACP3 — tool call cards + permission approval
-  /** Lines the tool-output preview had to leave out. */
-  // Context compaction row (acp-adapter-0751 #carry-compaction) — `_meta.contextCompaction`
-  // Identity row (acp-adapter-0751 #carry-auth) — the adapter pushes `_auth/status_update`
-  // v3-record-integrity {#mcp-missing-visible}
-  // Default title stored in the DB when a conversation is created. The app
-  // writes it as a display label — not AI-authored content — so it follows the
-  // UI language ("AI writing language" governs journals/planner/retro). It is
-  // frozen at creation time and the user can rename it.
-  // Example prompt chips — clicking one drops it straight into the composer,
-  // so each has to read as a natural question in both languages.
-  // Context chips — the key stays a discriminator, only the label is looked up.
-  // Token estimate popover
-  // Composer + model picker
-
-  // ── AI panel · conversation history ─────────────────────────────────────
-  // Minute/hour relative time. Past a day it hands off to an Intl date.
-
-  // ── AI panel ────────────────────────────────────────────────────────────
-  // Labels for injected context parts (token popover · "last send attached").
-  // parts[].key is a separate sentinel, so translating labels is safe.
-
-  // The card sentence is interrupted by <span>-highlighted ids and statuses —
-  // per §4.2 the dictionary holds no JSX, so it is split into fragments. Both
-  // languages run "item → id → predicate", so the split holds.
-
-  // ── Terminal screen ─────────────────────────────────────────────────────
-
-  // Vertical session rail (2026-08-28 visual identity round)
-
-  // Agent control room (2026-08-28 Phase 2)
-
-  // Command blocks (2026-08-28 Phase 3)
-  // Drag-to-split (2026-08-28) — drag a session side by side, or pull a pane out.
-  // Terminal file-link ⌘click menu (2026-09-07).
-
-  // Written straight into the terminal, where PTY output would be.
-
-  // A pane whose shell exited — a pill laid over the output.
-
-  // Renderer crash boundary
-
-  // Shell integration status bar — assembled by `summarizeShell()`. Command
-  // name first, status after, so the same assembly works in both languages.
-
-  // Agent run ended → offer to journal it (never written automatically)
-
-  // ── Terminal dock (2026-08-15) — a shell on every screen + detach to a window ──
 
   // ── Update banner ───────────────────────────────────────────────────────
   // Split into prefix/suffix because the version number between them is bolded
@@ -1207,12 +631,6 @@ export const en: Record<keyof typeof ko, string> = {
   "today.activated": "ocul-pm is on — from here on you can see the entries your agents write.",
   "ws.openEntry": "Open",
   "ws.viewInDoctor": "View in diagnostics",
-  "close.guard.title": "Work is still running",
-  "close.guard.more": "and {n} more",
-  "close.guard.agents": "{n} Claude Code session(s) working",
-  "close.guard.detail": "Closing the tab ends all of it.",
-  "close.guard.detailPane": "Closing the terminal ends it.",
-  "close.guard.confirm": "Close",
   "keys.title": "Keyboard shortcuts",
   "keys.hint": "⌘/ opens this anytime · each screen also has keys that only work inside it",
   "keys.g.nav": "Screens",
@@ -1223,23 +641,11 @@ export const en: Record<keyof typeof ko, string> = {
   "keys.g.start": "Start screen",
   "keys.palette": "Command palette",
   "keys.switchProject": "Recent projects",
-  "keys.dock": "Terminal dock",
   "keys.settings": "Settings",
-  "keys.ai": "AI panel",
   "keys.navHistory": "Screen back / forward",
-  "keys.inTerminal": "Inside the terminal, add Shift — Ctrl+letter belongs to the shell",
   "keys.cheatsheet": "Show shortcuts",
-  "keys.newTab": "New tab",
   "keys.newWindow": "New window",
-  "keys.closeTab": "Close tab (innermost first)",
   "keys.closeWindow": "Close window",
-  "keys.cycleTabs": "Cycle tabs",
-  "keys.moveTabs": "Previous · next tab",
-  "keys.treeMove": "Move up / down the tree",
-  "keys.treeFold": "Collapse / expand folder",
-  "keys.treePick": "Pick (multi-select)",
-  "keys.treeCutPaste": "Cut and paste into a folder",
-  "keys.treeDelete": "Delete the picked items",
   "keys.journalFind": "Search journal",
   "keys.journalNew": "Manual entry",
   "keys.entryBack": "Back to list from detail",
@@ -1250,50 +656,7 @@ export const en: Record<keyof typeof ko, string> = {
   "keys.diffFiles": "Move between files",
   "keys.diffFilter": "Filter files",
   "keys.startAdd": "Open folder",
-  "keys.startManage": "Manage projects",
-  "keys.startRename": "Rename",
-  "keys.startDelete": "Delete",
-  "keys.startFind": "Search",
-  "palette.cheatsheet": "Keyboard shortcuts",
-  "settings.doctor.title": "Doctor",
-  "settings.doctor.desc": "Everything ocul-pm needs to run in this project, in one table.",
-  "settings.doctor.noProject": "Open a project to fill in the rows.",
-  "settings.doctor.refresh": "Check again",
-  "settings.doctor.checking": "Checking…",
-  "settings.doctor.oculpm": "ocul-pm",
-  "settings.doctor.watcher": "Watcher",
-  "settings.doctor.lock": "Lock",
-  "settings.doctor.hooks": "Claude hooks",
-  "settings.doctor.mcp": "MCP server",
-  "settings.doctor.v.active": "Active",
-  "settings.doctor.v.inactive": "Inactive",
-  "settings.doctor.v.configInvalid": "config.toml invalid",
-  "settings.doctor.v.running": "Watching",
-  "settings.doctor.v.dropped": "Watching · {n} changes missed",
-  "settings.doctor.v.stopped": "Stopped",
-  "settings.doctor.v.error": "Error",
-  "settings.doctor.v.lockHealthy": "Held by this app",
-  "settings.doctor.v.lockHeld": "Held by another process",
-  "settings.doctor.v.lockRecovered": "Recovered",
-  "settings.doctor.v.lockNone": "None",
-  "settings.doctor.v.installed": "Installed",
-  "settings.doctor.v.notInstalled": "Not installed",
-  "settings.doctor.v.partial": "Partial",
-  "settings.doctor.v.registered": "Registered",
-  "settings.doctor.v.binaryMissing": "Binary missing",
-  "settings.doctor.v.unknown": "Check failed",
-  "settings.doctor.a.activate": "Activate",
-  "settings.doctor.a.start": "Start",
-  "settings.doctor.a.takeOver": "Take over",
-  "settings.doctor.a.open": "Open settings",
-  "settings.doctor.a.failed": "Check failed — {error}",
-  "settings.doctor.warnings": "Recent integrity warnings",
-  "settings.doctor.warningsEmpty": "No warnings this session.",
-  "settings.doctor.clear": "Clear",
   // v3 {#revive-recovery-cmds} — re-arm the watcher + rebuild the journal cache
-  "settings.doctor.a.restart": "Restart",
-  "settings.doctor.reindexCache": "Rebuild journal cache",
-  "settings.doctor.reindexCacheDone": "Journal cache rebuilt — {inserted} added · {updated} updated · {deleted} removed",
   // ── Source badges (Osaurus round Phase 3) — who made this record
   "source.direct": "By hand",
   "source.agent": "Agent",
@@ -1312,42 +675,6 @@ export const en: Record<keyof typeof ko, string> = {
   "source.hint.backfill": "Reconstructed from git commit history.",
   "source.hint.imported": "Imported from an outside conversation.",
   // ── First-run wizard (WelcomeWizard.tsx) ───────────────────────────────
-  "welcome.aria": "First-run setup",
-  "welcome.step.lang": "Language",
-  "welcome.step.look": "Look",
-  "welcome.step.project": "Project",
-  "welcome.skip": "Skip",
-  "welcome.later": "Later",
-  "welcome.back": "Back",
-  "welcome.next": "Next",
-  "welcome.lang.title": "Welcome.",
-  "welcome.lang.sub":
-    "Your agents write the code and the journal entries; Ocul-PM collects them and shows you what happened. Start by picking the language for the app.",
-  "welcome.lang.note":
-    "The language the AI writes journals in is matched to this too — to split them (English screen, Korean journals), go to Settings → Appearance.",
-  "welcome.look.title": "Pick what's easy on the eyes.",
-  "welcome.look.sub": "It applies the moment you pick. Change it any time in Settings.",
-  "welcome.look.themeLabel": "Theme",
-  "welcome.look.accentLabel": "Accent",
-  "welcome.look.light": "Light",
-  "welcome.look.dark": "Dark",
-  "welcome.look.system": "System",
-  "welcome.look.note":
-    "You can change this later in Settings → Appearance.",
-  "welcome.project.title": "Bring in your first project.",
-  "welcome.project.sub": "Point at a repo folder you already have. Opening it is what creates the place the record lives.",
-  "welcome.project.open": "Open a folder",
-  "welcome.project.openDesc": "Track a project you already have",
-  "welcome.project.working": "Opening…",
-  "welcome.project.note":
-    "When you open the project, .oculpm/ and a journaling-rules file (AGENTS.md) are created in the folder. Your code never leaves this machine.",
-  "welcome.ready.title": "{name} — one step left: open it.",
-  "welcome.ready.sub":
-    "It's on your list and the code index has started. Nothing has been written inside the folder yet.",
-  "welcome.ready.li1": ".oculpm/ — the place journals, plans and discussions will pile up as markdown",
-  "welcome.ready.li2": "AGENTS.md — the journaling rules your agents will read gets planted",
-  "welcome.ready.li3": "From then on, an agent that reads those rules writes one entry itself each time it finishes a unit of work",
-  "welcome.ready.open": "Open project",
   // ── Error codes (Phase 4 #error-convention) — backend AppError.code → sentence
   "err.code.not_initialized": "ocul-pm isn't active in this project yet — activate it from Today.",
   "err.code.invalid_session_id": "Malformed session id: {detail}",
@@ -1383,67 +710,13 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.acp_usage_failed": "Couldn't load usage: {detail}",
   "err.code.acp_prompt_failed": "The request failed: {detail}",
   "err.code.acp_session_busy": "This conversation is still answering. Wait for it to finish, or stop it first.",
-  // ── v3-surface / dialect ──────────────────────────────
-  "settings.search.placeholder": "Search settings",
-  "settings.search.empty": "No matching setting.",
-  // ── Settings redesign (2026-09-09) — grouped rail + one line per tab.
-  "settings.group.general": "General",
-  "settings.group.journal": "Journaling",
-  "settings.group.system": "System",
-  "settings.tabDesc.appearance": "Theme, accent, language and text size — how the app looks.",
-  "settings.tabDesc.data": "Local storage, export and import.",
-  "settings.tabDesc.oculpm": "Journals, planner and agent rules — how this app records work.",
-  "settings.tabDesc.diagnostics": "Database health, self-checks and the firing ledger. Start here when something looks off.",
-  "settings.tabDesc.update": "Check for a new version and read past patch notes.",
-  "settings.search.clear": "Clear search",
-  "settings.search.count": "{n} results",
 
   // ── v3-surface / firstrun ────────────────────────────────────────────────
-  "welcome.ready.listLabel": "When you open it:",
-  "welcome.ready.note": "⌘K goes anywhere, ⌘, opens settings.",
   "journal.emptyTitle": "Not one entry yet",
   "plan.emptyTitle": "No plan yet",
   "diff.emptyTitle": "Nothing to diff",
-  // ── v3-surface / ia ──────────────────────────────────────────────
-  "sidebar.refSection": "Reference",
-  "sidebar.remapTitle": "Shortcuts moved",
-  "sidebar.remapBody": "The Code Map screen is gone, so the \u2318 numbers from \u23186 on moved up one: Terminal \u23186 \u00b7 Editor \u23187 \u00b7 Agents \u23188 \u00b7 AI panel \u23189 \u00b7 Skills \u23180. \u23181\u2013\u23185 are unchanged.",
-  "sidebar.remapCheatsheet": "See all",
-  "sidebar.remapDismiss": "Got it",
 
   // ── v3-surface / activity ──────────────────────────────
-  "activity.kind.journal": "Journal",
-  "activity.kind.plan": "Plan",
-  "activity.kind.read": "Read",
-  "activity.kind.edit": "Edit",
-  "activity.kind.delete": "Delete",
-  "activity.kind.move": "Move",
-  "activity.kind.search": "Search",
-  "activity.kind.shell": "Command",
-  "activity.kind.web": "Web",
-  "activity.kind.think": "Thinking",
-  "activity.kind.todo": "To-do",
-  "activity.kind.permission": "Approval",
-  "activity.kind.error": "Failure",
-  "activity.kind.other": "Tool",
-  "activity.verb.journal_write": "Wrote a journal entry",
-  "activity.verb.journal_read": "Read a journal entry",
-  "activity.verb.journal_search": "Searched journals",
-  "activity.verb.plan_status": "Checked the plan",
-  "activity.verb.plan_update": "Updated the plan",
-  "activity.verb.plan_create": "Created a plan",
-  "activity.run.read": "read {n} files",
-  "activity.run.edit": "edited {n} places",
-  "activity.run.delete": "deleted {n}",
-  "activity.run.move": "moved {n}",
-  "activity.run.search": "searched {n} times",
-  "activity.run.shell": "ran {n} commands",
-  "activity.run.web": "fetched {n}",
-  "activity.run.think": "{n} thoughts",
-  "activity.run.other": "{n} tool calls",
-  "activity.run.generic": "{n} items",
-  "activity.raw.title": "Raw event",
-  "activity.raw.clipped": "clipped",
   "entry.openInEditor": "Open file",
   "entry.openInEditorTitle": "Open this journal entry's .md file in the system default editor",
   "entry.openInEditorFailed": "Could not open the file — {error}",
@@ -1451,28 +724,13 @@ export const en: Record<keyof typeof ko, string> = {
   // are different sentences: the supervisor revives the first within 60s and
   // never touches the second. The copy says out loud that the pause lives in
   // process memory only.
-  "settings.doctor.v.paused": "Stopped by you \u00b7 resumes when the app restarts",
-  "settings.doctor.a.pause": "Stop",
-  "settings.doctor.a.resume": "Resume",
   // Doctor watcher-counters row ({#scheduling-telemetry}) — the numbers
   // perf-baseline §7 said were missing: how full the queue got and how long
   // the handler held the worker, on one line. Cumulative since the watcher
   // was armed; never reset.
-  "settings.doctor.watcherSched": "Watcher counters",
-  "settings.doctor.v.watcherSched":
-    "{events} events \u00b7 {dropped} dropped \u00b7 queue {depth}/peak {high} \u00b7 handled {total}s total \u00b7 {max}ms max",
   // {#fix-disabled-reason} 4차 — 막힌 버튼이 말하는 이유 (blocked()).
-  "common.blockedNoName": "Enter a name",
-  "common.blockedEmptyDraft": "Type something to send",
   "manual.blockedNoTitle": "Enter a title",
   "manual.blockedNoSlug": "Enter a slug",
-  "home.blockedNoProject": "The project for this entry could not be found",
-  "settings.idxUsage.blockedDiffsEmpty": "No diff captures to clear",
-  "op.codexMcp.blockedNotInstalled": "Codex CLI is not installed",
-  "op.blockedNoBinary": "MCP server binary not found",
-  "op.blockedStatusUnknown": "Status not loaded yet",
-  "op.log.blockedNoDir": "Log folder not found yet",
-  "settings.db.blockedNoHealth": "Check the status first",
   // First-record card (plan first-record-loop {#p1-card}) — checks the first
   // journal entry per conversation. Success only counts an entry attributed
   // to a conversation id. Recorded ≠ reviewed.

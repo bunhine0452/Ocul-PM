@@ -368,7 +368,8 @@ describe("dictionary — t() renders the OS notation", () => {
   const glyphKeys = (Object.keys(ko) as I18nKey[]).filter((k) => GLYPH.test(ko[k]) || GLYPH.test(en[k]));
 
   it("there are glyph strings to check (an empty sample would prove nothing)", () => {
-    expect(glyphKeys.length).toBeGreaterThan(5);
+    // 10-29 사전 정리(부르는 곳 없는 키 631개) 뒤 4개 — 문턱은 「비지 않았다」만 본다.
+    expect(glyphKeys.length).toBeGreaterThanOrEqual(3);
   });
 
 

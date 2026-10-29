@@ -30,9 +30,6 @@ export const ko = {
   "nav.planner.alias": "목표 계획 planner",
   "nav.diff.alias": "변경 diff 로컬 파일 검토 차이",
   "nav.terminal.alias": "터미널 셸 콘솔 claude 세션 실행",
-  /** 사이드바 작업 중 배지 — 화면을 옮겨도 도는 세션이 몇 개인지. */
-  "nav.working": "{n}개 작업 중",
-  "nav.attention": "{n}개 승인 대기 — 눌러야 진행돼요",
 
   // ── 4.0 셸 — 사이드바 · 시작 창 · 설정 한 쪽 (창 하나 = 프로젝트 하나) ──────
   "nav.toCheck": "확인할 것 {n}개",
@@ -138,17 +135,8 @@ export const ko = {
   "prefs.data.noLogs": "로그 폴더가 없어요 — 파일 로그를 열지 못했어요",
 
   // ── 설정 → 모양 → 언어 ──────────────────────────────────────────────────
-  "settings.language.system": "시스템",
   "settings.language.ko": "한국어",
   "settings.language.en": "English",
-  "settings.language.uiTitle": "UI 언어",
-  "settings.language.uiHint": "화면에 보이는 텍스트예요. 시스템을 고르면 OS 언어를 따라요.",
-  "settings.language.contentTitle": "AI 작성 언어",
-  "settings.language.contentHint": "AI 가 만드는 작업 일지·플래너 항목·회고의 언어예요. 이미 기록된 문서는 바뀌지 않아요.",
-  "settings.language.syncToast": "AI 작성 언어는 {current} 로 유지돼요",
-  "settings.language.syncToastBody": "이미 기록된 일지는 그대로 남아요. 새로 쓰는 문서도 {target} 로 바꿀까요?",
-  "settings.language.syncAction": "{target} 로 바꾸기",
-  "settings.language.syncDone": "AI 작성 언어를 {target} 로 바꿨어요",
 
   // ── 공용 ────────────────────────────────────────────────────────────────
   "common.cancel": "취소",
@@ -156,13 +144,10 @@ export const ko = {
   "common.save": "저장",
   "common.delete": "삭제",
   "common.close": "닫기",
-  "common.undo": "되돌리기",
   "common.retry": "다시 시도",
-  "common.dismiss": "닫기",
   "diff.failed": "diff 를 계산하지 못했어요",
   "diff.listFailed": "변경 목록을 불러오지 못했어요 — 변경이 없는 건지 알 수 없어요",
   "diff.enrichFailed": "일지 묶기를 불러오지 못했어요 — 목록은 평면으로 보여요",
-  "settings.reset.confirm": "모든 설정을 기본값으로 되돌릴까요?",
   "common.loading": "불러오는 중",
   "common.copy": "복사",
   /* 복사 확인은 「(무엇) 복사됨」 한 형태다. 2026-09-09 이전엔 13종이었고 말투가
@@ -171,63 +156,15 @@ export const ko = {
   "common.copied": "복사됨",
 
   // ── 사이드바 ────────────────────────────────────────────────────────────
-  "sidebar.pin": "사이드바 고정",
-  "sidebar.collapse": "사이드바 접기",
   "sidebar.switchProject": "프로젝트 전환 (⌘P)",
   "sidebar.switchProjectMenu": "프로젝트 전환",
   "sidebar.selectProject": "프로젝트 선택",
   "sidebar.currentProject": "현재",
   "sidebar.openProject": "열림",
-  "sidebar.manageProjects": "시작 화면 열기 · 프로젝트 관리…",
-  "home.numsAria": "최근 30일 숫자",
-  "home.numEvidence": "증거",
-  "home.numRework": "재수정 7일",
-  "home.numUser": "사용자 몫",
-  "settings.moreTabs": "전문 · {n}",
-  "session.aside.title": "이 터미널과 기록",
-  "session.aside.summary": "오늘 일지 {n} · 미기록 파일 {u}",
-  "session.aside.unknown": "지금은 알 수 없어요",
-  "session.aside.journals": "오늘 일지 {n}",
-  "session.aside.noJournal": "아직 없어요 — 턴이 끝나면 journal_write 를 기다려요",
-  "session.aside.unrecorded": "에이전트가 고치고 적지 않은 파일 {n}",
-  "session.aside.allRecorded": "전부 어느 일지엔가 적혀 있어요",
-  "session.aside.moreFiles": "+ {n}",
-  "session.aside.note": "일지에 안 오면 오늘 화면 ② 칸에 떠요.",
-  "branch.receipt.redteam": "/oculpm:redteam 복사",
-  "branch.receipt.redteamCopied": "레드팀 명령을 복사했어요 — 터미널의 Claude Code 에 붙이세요.",
-  "density.aria": "화면 밀도",
-  "density.simple": "간단",
-  "density.pro": "전문",
-  "sidebar.viewerSection": "도구",
-  "today.moreHint": "전문 모드에선 전부 펼쳐져요",
-  "plan.doneWhen": "완료 조건",
   "plan.copyCheck": "복사",
   "plan.copiedCheck": "확인 명령을 복사했어요 — 돌려서 결과 끝 줄을 플랜 로그에 적으세요.",
-  "settings.density.title": "화면 밀도",
-  "settings.density.desc": "같은 화면, 접힘과 행 높이만 달라요. 어디서든 {kbd} 로 바꿀 수 있어요.",
-  "settings.density.simpleHint": "핵심 네 화면, 세 질문, 보조 카드는 접힘. 처음 쓰는 사람과 매일 아침 3분만 쓰는 사람.",
-  "settings.density.proHint": "사이드바 세 단 전부, 보조 카드 펼침, 단축키 힌트. 하루 종일 에이전트와 사는 사람.",
-  "settings.density.defaultTag": "기본",
-  "settings.misc.title": "그 밖에",
-  "settings.misc.kbdHints": "단축키 힌트를 버튼 옆에",
-  "settings.misc.kbdHintsHint": "전문 밀도에선 늘 보여요. 간단 밀도에서도 보고 싶으면 켜요.",
-  "settings.misc.theme": "테마",
-  "settings.misc.themeHint": "라이트·다크 가족과 팔레트는 아래 「테마」 절에서.",
   "toolbar.beta": "베타 · 결함 수정만",
   "toolbar.find": "찾기",
-  "frs.aria": "첫 실행 안내",
-  "frs.eyebrow": "시작하기 · {project}",
-  "frs.title": "첫 일지까지 세 단계",
-  "frs.lead": "에이전트가 한 일을 3분 안에 믿고 다음을 정하는 앱이에요. 그러려면 먼저 에이전트가 기록을 남겨야 해요.",
-  "frs.step1": "프로젝트를 추가했어요",
-  "frs.step1Sub": ".oculpm/ 과 AGENTS.md 가 심어졌어요 — 저장소에 커밋해도 괜찮아요.",
-  "frs.step2": "터미널의 Claude Code 에 플러그인 두 줄",
-  "frs.step2Sub": "훅과 기록 도구가 붙어요. 설치되면 이 칸이 스스로 초록이 돼요 — 확인 버튼이 없어요.",
-  "frs.step2Done": "플러그인을 찾았어요 — 훅과 기록 도구가 붙었어요.",
-  "frs.step3": "평소처럼 한 가지 시키고 기다리기",
-  "frs.step3Sub": "작업이 끝나면 에이전트가 첫 일지를 남기고, 이 시트가 접히며 오늘 화면이 열려요. 기록이 남았다는 뜻이지 검증됐다는 뜻은 아니에요.",
-  "frs.others": "Codex · Cursor · Gemini CLI 는 1 · 3 단계만 — 규칙 파일로 도와요.",
-  "frs.skip": "이미 알아요 — 건너뛰기",
   "palette.footHint": "일지는 두 글자부터 찾아요",
   "journal.filterNoEvidence": "증거 없음",
   "journal.filterNoEvidenceTitle": "결함·기능·리팩토링인데 검증 칸에 명령 증거가 없는 일지만",
@@ -237,35 +174,10 @@ export const ko = {
   "palette.foot.open": "열기",
   "diff.entryVerify": "이 일지의 검증",
   "diff.entryVerifyNone": "검증 칸이 없어요 — 아직 믿을 근거가 없어요",
-  "session.aside.evidence": "증거로 보낸 결과 끝 줄 {n}",
-  "session.aside.evidenceEmpty": "아직 없어요 — 명령 블록이나 결과 줄의 「검증 칸으로」가 여기 쌓여요.",
-  "session.aside.evidenceNote": "다음 수동 일지의 검증 칸에 미리 들어가 있어요. 에이전트 일지에는 붙여 넣어요.",
-  "session.aside.proNote": "전문 모드 — 셸 통합(OSC 133) 마커가 명령 블록과 결과 끝 줄의 원천이에요.",
-  "session.aside.simpleNote": "간단 모드에선 이 열이 접힌 채 시작해요.",
-  "home.numUnrecorded": "미기록",
-  "home.numOpen": "다음 할 일",
-  "home.hookLine": "다음 대화를 열면 훅이 완료 조건·확인 명령·미완 {items}·마지막 일지 {journals}을 실어요. 어제를 다시 설명하지 않아요.",
-  "home.resumeBtn": "이 맥락으로 이어서 작업",
-  "home.resumeHint": "프로젝트를 열고 마지막 일지와 미완 항목을 터미널에 넘겨요 — 보내는 건 Enter 로 직접",
-  "home.openToday": "오늘 화면",
-  "home.whereToStart": "오늘 어디서부터?",
-  "home.headToday": "오늘 일지 {n}건",
-  "home.headUser": "사용자 몫 항목 {n}",
-  "home.howBody": "그 폴더에 규칙 파일 하나가 심어지고, 터미널의 Claude Code 가 작업을 끝낼 때마다 사람이 읽는 일지를 남겨요. 서버도 계정도 없어요.",
-  "home.howDrop": "여기에 폴더를 끌어다 놓거나",
-  "home.howNote1": "이미 추적 중인 폴더(.oculpm/ 있음)는 그대로 열려요 — 다시 초기화하지 않아요.",
-  "home.howNote2": "git 저장소면 더 좋지만 필수는 아니에요.",
-  "sidebar.mainSection": "핵심",
-  "sidebar.toolsSection": "도구",
-  "sidebar.aiSection": "AI",
-  "sidebar.lightMode": "라이트 모드",
-  "sidebar.darkMode": "다크 모드",
   "sidebar.settings": "설정",
 
   // ── 셸 ──────────────────────────────────────────────────────────────────
   "shell.settings.title": "설정",
-  "shell.settings.sub": "모든 데이터는 이 기기에만 저장돼요",
-  "shell.selectProjectFirst": "프로젝트를 먼저 선택해주세요.",
 
   // ── 마크다운 ────────────────────────────────────────────────────────────
   "markdown.copyCode": "코드 복사",
@@ -275,55 +187,14 @@ export const ko = {
   "palette.aria": "명령 팔레트",
   "palette.placeholder": "화면 · 프로젝트 · 일지 · 계획…",
   "palette.empty": "매칭되는 명령이 없어요.",
-  "palette.group.jump": "바로가기",
   "palette.group.projects": "프로젝트 열기",
   "palette.group.nav": "이동",
-  "palette.group.actions": "액션",
-  "palette.group.oculpm": "ocul-pm",
-  "palette.switchProject": "프로젝트 전환",
   "palette.openSettings": "설정 열기",
-  "palette.newWindow": "새 창 열기",
-  "palette.sessionStart": "세션 수동 시작",
-  "palette.sessionEnd": "세션 수동 종료",
-  "palette.manualEntry": "수동 작업 기록 작성",
-  "palette.syncAgents": "어댑터 규칙 다시 보내기",
-  "palette.toast.sessionStarted": "세션 시작: {id}",
-  "palette.toast.sessionEnded": "세션 종료: {id}",
-  "palette.toast.noActiveSession": "종료할 활성 세션이 없어요.",
-  "palette.toast.syncDone": "동기화 완료 ({n} 어댑터 갱신)",
 
   // ── 프로젝트 관리 다이얼로그 (App.tsx) ──────────────────────────────────
-  "tabs.stripLabel": "프로젝트 탭",
-  "tabs.close": "{name} 탭 닫기",
-  "tabs.new": "새 탭",
-  "tabs.newHint": "새 탭 (⌘T) · 우클릭으로 프로젝트 바로 열기",
-  "tabs.startTab": "새 탭",
-  "tabs.openStart": "시작 화면 열기",
-  "tabs.sessionActive": "{name} — 세션 진행 중",
-  "tabs.allOpen": "모든 프로젝트가 이미 열려 있어요.",
   // 탭 컨텍스트 메뉴 (2026-08-28) — 창 간 드래그의 키보드·메뉴 등가물.
-  "tabs.menu.label": "탭 메뉴",
-  "tabs.menu.moveTo": "「{name}」 창으로 옮기기",
-  "tabs.menu.detach": "새 창으로 떼어내기",
-  "tabs.menu.close": "탭 닫기",
-  "tabs.menu.noOtherWindow": "옮길 다른 창이 없어요.",
-  "tabs.drag.incoming": "여기에 놓여요",
   "project.openWindowFailed": "창을 열지 못했어요: {error}",
   "project.newWindowFailed": "새 창을 열지 못했어요: {error}",
-  "project.closeTabFailed": "탭을 닫지 못했어요: {error}",
-  "project.opened": "열림",
-  "project.edit.title": "프로젝트 편집",
-  "project.rename.hint": "프로젝트 워크스페이스의 새 이름을 입력하세요. 실제 폴더 이름은 변경되지 않아요.",
-  "project.rename.placeholder": "프로젝트 이름",
-  "project.remove.title": "프로젝트 제거",
-  "project.remove.confirm": "이 프로젝트를 Ocul-PM 워크스페이스에서 제거할까요?",
-  "project.remove.noteLabel": "참고:",
-  "project.remove.note": "앱 데이터베이스에서 인덱스와 목표가 삭제되지만, 실제 프로젝트 폴더는 삭제되지 않아요.",
-  "project.remove.oculpmSuffix": "폴더도 삭제",
-  "project.remove.agentsMdSuffix": "파일도 삭제",
-  "project.remove.folderPrefix": "프로젝트 폴더의",
-  "project.remove.irreversible": "선택한 파일은 디스크에서 영구 삭제되며 되돌릴 수 없어요.",
-  "settings.closeEsc": "닫기 (Esc)",
 
   // ── AGENTS.md 템플릿 업그레이드 토스트 ──────────────────────────────────
   "watcher.takeOver": "이 창에서 감시하기",
@@ -341,45 +212,19 @@ export const ko = {
   "agents.upgrade.failed": "규칙 파일을 업데이트하지 못했어요 — {error}",
 
   // ── 설정 화면 (SettingsPanel) ───────────────────────────────────────────
-  "settings.tab.appearance": "표시",
-  "settings.tab.oculpm": "ocul-pm",
-  "settings.tab.data": "데이터",
-  "settings.tab.diagnostics": "진단",
-  "settings.tab.update": "업데이트",
   "settings.accent.green": "그린",
   "settings.accent.blue": "블루",
   "settings.accent.purple": "퍼플",
   "settings.accent.orange": "오렌지",
   "settings.accent.rose": "로즈",
   "settings.accent.teal": "틸",
-  "settings.accent.aria": "액센트 {name}",
-  "settings.accent.title": "액센트 컬러",
-  "settings.editor.title": "외부 에디터",
-  "settings.editor.desc": "외부 에디터로 열기 (⌘B → 파일 선택 → 외부 에디터). %path 는 절대 파일 경로로 치환돼요.",
-  "settings.editor.field": "명령 템플릿",
-  "settings.editor.hint": "기본값: code \"%path\". Cursor 는 cursor \"%path\", Sublime 은 subl \"%path\". macOS GUI 앱은 셸 PATH 를 상속받지 않으므로 PATH 에 없으면 절대 경로를 적어 주세요 (예: /usr/local/bin/code \"%path\").",
-  "settings.editor.hint__pc": "기본값: code \"%path\". Cursor 는 cursor \"%path\", Sublime 은 subl \"%path\". 명령이 PATH 에 없으면 절대 경로를 적어 주세요.",
-  "settings.theme.title": "테마",
-  "settings.theme.desc": "밝게 / 어둡게 · 또는 OS 설정을 따라가요.",
 
   // 설정 쓰기가 거절됐다 (v2.42.0 `{#settings-set-unhandled}`). 예전에는 화면이
   // 새 값을 그린 채 아무 말도 하지 않아 "저장됐다" 는 착각만 남았다.
   "settings.saveFailed": "설정을 저장하지 못했어요: {error}",
-  "settings.scale.title": "글자 크기",
-  "settings.scale.desc": "앱 전체 글자와 화면 배율을 조절해요 — 브라우저 확대/축소처럼 동작해요.",
-  "settings.scale.field": "배율 — {pct}%",
-  "settings.scale.small": "작게",
-  "settings.scale.default": "기본",
-  "settings.scale.large": "크게",
-  "settings.scale.xlarge": "더 크게",
 
   // 터미널 글자 크기 — 앱 배율과 별개 (터미널은 고정폭 격자라 px 가 정확하다)
   "err.code.plan_has_open_items": "미완 항목이 남아 있어 플랜을 완료로 닫을 수 없어요.",
-  "settings.storage.title": "저장소",
-  "settings.storage.desc": "이 앱이 데이터를 저장하는 위치.",
-  "settings.storage.db": "데이터베이스",
-  "settings.storage.appData": "앱 데이터",
-  "settings.storage.version": "버전",
   // ── 딥링크 확인 시트 (Osaurus 라운드 Phase 6) ─────────────────────────
   "deeplink.origin": "출처",
   "deeplink.open.title": "이 프로젝트를 열까요?",
@@ -387,101 +232,7 @@ export const ko = {
   "deeplink.open.action": "열기",
   "deeplink.open.notRegistered": "등록되지 않은 프로젝트예요 — 링크로는 추가하지 않아요.",
 
-  // ── 선언됐지만 아직 이행하지 않음 (Osaurus 라운드 Phase 6) ────────────
-  "notHonored.title": "선언됐지만 아직 이행하지 않아요",
-  "notHonored.reason.hooks_run_shell":
-    "훅은 셸 스크립트를 실행해요 — 감지만 하고 설치하지 않아요",
-  "notHonored.reason.binaries_not_installed": "실행 파일은 설치하지 않아요",
-  "notHonored.reason.not_supported_yet": "이 앱 버전이 아직 다루지 않아요",
-  "notHonored.reason.app_older_than_template":
-    "템플릿이 이 앱 버전보다 새로워요 — 앱을 업데이트하면 이행해요",
-  "notHonored.reason.unknown": "사유 없음",
-
-
-  "settings.diag.title": "진단",
-  "settings.diag.devtools": "DevTools 열기",
-  "settings.reset.title": "초기화",
-  "settings.reset.desc": "모든 설정을 기본값으로 복원해요. API 키와 인덱싱된 프로젝트는 유지돼요.",
-  "settings.reset.action": "설정 기본값으로 초기화",
-  "settings.danger.title": "위험 구역",
-  "settings.danger.desc": "이 컴퓨터의 모든 프로젝트 · 인덱스 · 대화 · 설정 · 저장된 API 키를 삭제해요.",
-  "settings.danger.wipe": "모든 데이터 삭제",
-  "settings.danger.confirm": "모든 데이터를 삭제할까요?",
-  "settings.danger.confirmBody": "이 컴퓨터의 모든 프로젝트 · 인덱스 · 대화 · 설정 · 저장된 API 키가 사라져요. 되돌릴 수 없어요.",
-  "settings.danger.deleting": "삭제 중…",
-  "settings.danger.yes": "모두 삭제",
-  "settings.db.title": "데이터베이스 상태",
-  "settings.db.desc": "SQLite + sqlite-vec 상태와 스키마 버전을 확인해요.",
-  "settings.db.schema": "스키마",
-  "settings.db.noPath": "조회되지 않음",
-  "settings.db.refresh": "상태 새로고침",
-  "settings.db.size": "파일 크기",
   "settings.db.wal": "WAL",
-  "settings.db.free": "빈 공간",
-  "settings.db.topTables": "큰 표",
-  "settings.db.compact": "압축 (VACUUM)",
-  "settings.db.compacting": "압축 중…",
-  "settings.db.compactDone": "압축 완료 — 지금 {size}",
-  "settings.db.compactFailed": "데이터베이스를 압축하지 못했어요 — {error}",
-  "settings.db.compactHint": "색인을 비우거나 프로젝트를 지운 뒤에도 파일은 저절로 줄지 않아요. 압축은 몇 초 걸리고 그동안 앱이 잠시 멈출 수 있어요.",
-  // 인덱스 사용량 (journal-scale-round {#index-usage}) — .oculpm/index/ 는
-  // 앱 관리 영역이라 여태 사용자 눈에 안 보였다.
-  "settings.idxUsage.title": "인덱스 사용량",
-  "settings.idxUsage.desc": "`.oculpm/index/` 가 지금 쓰는 디스크 용량이에요 — 일지 원문과 별개로 로컬 히스토리 판과 diff 캡처가 쌓여요.",
-  "settings.idxUsage.history": "로컬 히스토리",
-  "settings.idxUsage.diffs": "일지 diff 캡처",
-  "settings.idxUsage.other": "그 밖",
-  "settings.idxUsage.usageLine": "{bytes} · {count}개",
-  "settings.idxUsage.total": "합계",
-  "settings.idxUsage.noProject": "프로젝트를 열면 이 프로젝트의 인덱스 사용량이 여기 나와요.",
-  "settings.idxUsage.clearDiffs": "diff 캡처 정리",
-  "settings.idxUsage.clearingDiffs": "정리하는 중…",
-  "settings.idxUsage.clearDiffsConfirmTitle": "diff 캡처를 전부 지울까요?",
-  "settings.idxUsage.clearDiffsConfirmBody": "일지가 그 시점에 무엇을 바꿨는지 보여주던 diff 캡처가 전부 사라져요. git 이 있는 프로젝트는 다시 열 때 git 에서 새로 만들어요 — 없는 프로젝트는 이후에는 다시 못 만들어요.",
-  "settings.idxUsage.diffsCleared": "diff 캡처를 지웠어요",
-  "settings.idxUsage.historyHint": "로컬 히스토리(판) 정리는 코드 설정에 있어요.",
-  "settings.feedback.title": "피드백 보내기",
-  "settings.feedback.desc": "버그나 기능 아이디어를 개발자에게 GitHub 이슈로 전달해요. 앱 버전·OS 가 자동으로 채워져요.",
-  "settings.feedback.bug": "버그 리포트",
-  "settings.feedback.feature": "기능 문의",
-  "settings.feedback.note": "GitHub 계정이 필요해요. 브라우저에서 이슈 작성 페이지가 열려요.",
-  "settings.feedback.bugTitle": "[버그] ",
-  "settings.feedback.featureTitle": "[기능 문의] ",
-  "settings.feedback.bugBody1": "## 무슨 일이 있었나요?\n\n",
-  "settings.feedback.featureBody1": "## 어떤 기능을 원하세요?\n\n",
-  "settings.feedback.bugBody2": "## 재현 방법\n1. \n2. \n\n## 기대한 동작\n\n",
-  "settings.feedback.featureBody2": "## 왜 필요한가요?\n\n",
-  "settings.feedback.appVersion": "- 앱 버전: {version}",
-  "settings.feedback.openFailed": "브라우저를 열지 못했어요 — {error}",
-  "settings.feedback.copyDiag": "진단 정보 복사",
-  "settings.feedback.diagCopied": "진단 정보를 복사했어요 — 이슈의 「진단 정보」 칸에 붙여 주세요.",
-  "settings.feedback.diagFailed": "진단 정보를 복사하지 못했어요 — {error}",
-  "settings.feedback.diagNote": "진단 정보에는 앱 버전·OS 판·WebView 판·시간대·로그 폴더 위치만 담겨요. 경로 속 사용자 이름은 ~ 로 가려요.",
-  "settings.update.title": "업데이트",
-  "settings.update.desc": "GitHub 릴리스에서 새 버전을 확인하고 앱 내에서 바로 설치해요.",
-  "settings.update.current": "현재 버전",
-  "settings.update.installRestart": "v{version} 설치 후 재시작",
-  "settings.update.check": "업데이트 확인",
-  "settings.update.checking": "새 버전을 확인하는 중…",
-  "settings.update.upToDate": "최신 버전을 사용 중이에요.",
-  "settings.update.availPrefix": "새 버전",
-  "settings.update.availSuffix": "을 사용할 수 있어요.",
-  "settings.update.installing": "다운로드 후 설치 중… 완료되면 앱이 자동으로 재시작돼요.",
-  "settings.update.checkFailed": "업데이트를 확인하지 못했어요 (오프라인이거나 릴리스를 찾을 수 없음): {message}",
-  // 크로스플랫폼 L-UPD — deb 설치본은 앱 안에서 업데이트하지 않고, 이 OS 의 빌드가 빠진
-  // 릴리스는 「최신이에요」 가 아니라 중립으로 말한다 (lib/updaterRoute.ts).
-  "settings.update.packageManaged":
-    ".{format} 패키지로 설치한 앱이에요. 앱 안에서는 업데이트하지 않고 패키지 관리자로 업데이트해요 — 새 .{format} 파일은 릴리스 페이지에서 받을 수 있어요.",
-  "settings.update.noBuild":
-    "최신 릴리스에 이 OS 용 빌드가 아직 없어요. 지금 버전이 최신인지는 여기서 알 수 없어요 — 다음 릴리스에서 다시 확인해요.",
-  "settings.update.openReleases": "릴리스 페이지",
-  "settings.update.openFailed": "릴리스 페이지를 열지 못했어요: {error}",
-
-  "settings.changelog.title": "패치노트",
-  "settings.changelog.desc": "버전별 변경 사항 — 과거 릴리스도 펼쳐볼 수 있어요.",
-  "settings.changelog.loading": "불러오는 중…",
-  "settings.changelog.empty": "변경 내용이 없어요.",
-  "settings.changelog.failed": "패치노트를 불러오지 못했어요 (오프라인이거나 릴리스를 찾을 수 없음).",
 
   // ── Today 화면 ──────────────────────────────────────────────────────────
   "today.monitor.commitsToday": "오늘 커밋",
@@ -571,9 +322,6 @@ export const ko = {
   "time.minutesAgo": "{n}분 전",
   "time.hoursAgo": "{n}시간 전",
   "time.daysAgo": "{n}일 전",
-  "time.hoursMinutes": "{h}시간 {m}분",
-  "time.minutes": "{n}분",
-  // journal-scale-round {#velocity} — 일지 속도 + 플랜 완료 ETA
 
   // ── 일지 · diff ─────────────────────────────────────────────────────────
   "journal.typeFilterAria": "종류로 좁히기",
@@ -724,9 +472,6 @@ export const ko = {
   "diff.previewUnavailable": "미리보기를 표시할 수 없어요 (파일이 너무 크거나 지원되지 않는 포맷)",
   "diff.readFailed": "파일을 읽을 수 없어요.",
 
-  // 「태그 정리」 시트 ({#tag-merge}) — 태그 806종 중 437종이 1회용이라
-  // 필터가 죽었다. 제안은 백엔드의 결정적 판정이고, 실행은 사용자가 누른다.
-
   // ── 플래너 ──────────────────────────────────────────────────────────────
   "plan.status.todo": "할 일",
   "plan.status.in_progress": "진행중",
@@ -780,105 +525,16 @@ export const ko = {
   "plan.statusMenuAria": "\"{title}\" 상태",
 
   // ── ocul-pm 설정 (OculpmSettings) ───────────────────────────────────────
-  "op.tab.record": "기록",
-  "op.tab.agents": "에이전트",
-  "op.tab.integration": "연동",
-  "op.tab.logs": "로그",
-  "op.tabsAria": "ocul-pm 설정 하위 탭",
-  "op.agentsMd": "AGENTS.md (권장)",
-  "op.pickProject": "프로젝트를 먼저 선택하세요.",
-  "op.loading": "설정 로딩…",
-  "op.loadFailed": "설정을 불러올 수 없어요: {error}",
-  "op.saveFailed": "설정을 저장하지 못했어요 — {error}",
-  "op.saved": "저장됨 ({time})",
-  "op.workday.desc": "하루가 바뀌는 시각과 시간대.",
-  "op.hhmm": "`HH:MM` 형식이어야 해요 (예: 03:00).",
-  "op.session.desc": "작업 세션을 언제 닫고 언제 다시 이을지 정해요.",
-  "op.session.inactivity": "활동이 없으면 닫기 — {n}분",
-  "op.session.resumeGrace": "닫힌 세션 다시 잇기 — {n}분 {suffix}",
-  "op.session.disabled": "(비활성)",
-  "op.session.resumeHint": "활동이 없어 세션이 닫힌 직후 이 시간 안에 파일이 다시 바뀌면, 새 세션을 만들지 않고 직전 세션을 다시 열어요. 0 으로 두면 꺼져요.",
-  "op.git.desc": "일지에 적을 수 없는 민감 경로와 마스킹할 비밀 패턴.",
-  "op.git.forbiddenHint": "이 패턴과 매치되는 경로는 작업 서술 작성이 거부돼요.",
-  "op.git.redactHint":
-    "매치된 부분을 `[REDACTED]` 로 바꿔 적어요. 키·토큰·개인키·접속 문자열 같은 기본 패턴은 이 목록과 상관없이 늘 적용돼요 — 여기에는 더 가릴 패턴만 적으세요.",
-  "op.watcher.desc": "파일 변경을 어떻게 감시할지 정해요.",
-  "op.watcher.ignore": "감시에서 뺄 경로 (gitignore 문법)",
-  "op.watcher.gitignore": "프로젝트 .gitignore 존중",
-  "op.agents.desc": "규칙 파일을 받을 에이전트와 자동 감지·동기화 방식.",
-  "op.agents.detect": "감지",
-  "op.agents.syncNow": "지금 동기화",
-  "op.agents.syncDone": "완료 ({n} 어댑터 갱신)",
-  "op.hooks.on": "Claude Code 훅 연동을 켰어요",
-  "op.hooks.off": "Claude Code 훅 연동을 껐어요",
-  "op.hooks.failed": "훅 설정을 바꾸지 못했어요 — {error}",
-  "op.st.configError": "설정 파일 오류",
-  "op.st.checking": "확인 중…",
-  "op.st.linked": "연동됨",
-  "op.st.drift": "설치본과 달라짐 — 재설치 필요",
-  "op.st.off": "꺼짐",
-  "op.hooks.title": "Claude Code 훅 연동",
-  "op.reinstall": "재설치",
-  "op.turnOff": "끄기",
-  "op.turnOn": "켜기",
-  "op.hooks.desc1": "Claude Code 의 세션 시작·종료 신호를",
-  "op.hooks.desc2": "(git 비공유·이 머신 전용)에 훅으로 설치해요. 세션 감지가 휴리스틱이 아닌 실제 신호가 되어 세션 중복·유령 세션이 사라지고, 에이전트 라벨이 실측으로 기록돼요. 훅은 로컬 파일 append 한 줄 — 네트워크 호출이 없어요.",
-  "op.hooks.custom": "사용자 정의 훅이 감지되었어요 — ocul-pm 은 자기 항목만 추가/제거하며 기존 훅은 건드리지 않아요.",
-  "op.shell.on": "셸 통합을 켰어요 — 새 터미널 세션부터 적용돼요",
-  "op.shell.off": "셸 통합을 껐어요",
-  "op.shell.failed": "셸 통합을 바꾸지 못했어요 — {error}",
-  "op.st.error": "오류",
-  "op.st.unsupportedShell": "지원하지 않는 셸",
-  "op.st.rcBroken": "rc 블록 손상",
-  "op.st.on": "켜짐",
   // PR-ACP1 — ACP 에이전트 런타임 진단
-  "op.shell.title": "터미널 셸 통합",
-  "op.shell.desc1": "내장 터미널이 명령의 시작·종료·종료코드·작업 폴더를 인식하게 해요.",
-  "op.shell.desc2": "에 한 줄을 추가하는데, 그 줄은 ocul-pm 이 띄운 터미널에서만 동작해요 — iTerm2·Terminal.app 등 다른 터미널에서는 아무 일도 하지 않아요. 블록 밖 내용은 보존되고, 끄기로 완전히 되돌릴 수 있어요.",
-  "op.shell.desc2__win": "에 한 줄을 추가하는데, 그 줄은 ocul-pm 이 띄운 터미널에서만 동작해요 — Windows Terminal·VS Code 등 다른 터미널에서는 아무 일도 하지 않아요. 블록 밖 내용은 보존되고, 끄기로 완전히 되돌릴 수 있어요.",
-  "op.shell.desc2__linux": "에 한 줄을 추가하는데, 그 줄은 ocul-pm 이 띄운 터미널에서만 동작해요 — GNOME 터미널·Konsole 등 다른 터미널에서는 아무 일도 하지 않아요. 블록 밖 내용은 보존되고, 끄기로 완전히 되돌릴 수 있어요.",
-  "op.shell.unsupported": "현재 셸(fish·nu 등)은 아직 지원하지 않아요. 터미널 자체는 정상 동작해요.",
-  "op.shell.rcBrokenDesc": "짝이 맞지 않아요. 파일이 상하지 않도록 쓰기를 막았어요 — 해당 줄을 직접 정리한 뒤 다시 시도하세요.",
   "op.copyFailed": "클립보드 복사 실패 — 명령을 직접 입력하세요",
-  "op.mcp.registered": "MCP 서버를 등록했어요 — 열려 있는 Claude Code 세션은 재시작해야 반영돼요",
-  "op.mcp.unregistered": "MCP 서버 등록을 해제했어요 — 열려 있는 Claude Code 세션은 재시작해야 반영돼요",
-  "op.mcp.failed": "MCP 등록을 바꾸지 못했어요 — {error}",
-  "op.st.registered": "등록됨",
-  "op.st.noBinary": "바이너리 없음",
-  "op.st.unregistered": "미등록",
-  "op.st.noCodex": "Codex 미설치",
   // 연동 탭 적용 범위 — 프로젝트별 설정과 머신 전역 설정이 한 화면에 섞여
   // 있어 "설치됨" 배지가 어느 범위를 말하는지 알 수 없던 것을 갈랐다.
-  "op.scope.project": "이 프로젝트",
-  "op.scope.machine": "이 머신 전체",
-  "op.scope.projectTitle": "이 프로젝트에만 적용",
-  "op.scope.projectDesc": "지금 열려 있는 프로젝트에만 적용돼요 — 다른 프로젝트에서는 각각 다시 설정해야 해요.",
-  "op.scope.projectDescNamed": "지금 열려 있는 「{name}」에만 적용돼요 — 다른 프로젝트에서는 각각 다시 설정해야 해요.",
-  "op.scope.machineTitle": "이 머신 전체에 적용",
-  "op.scope.machineDesc": "한 번 설정하면 모든 프로젝트에 그대로 적용돼요 — 프로젝트를 바꿔도 다시 할 필요가 없어요.",
-  "op.hooks.pluginCovers": "플러그인이 이미 같은 세션 신호를 보내요 — 여기서 또 켤 필요가 없어요.",
-  "op.hooks.pluginConflict": "플러그인과 겹쳐요 — 둘 다 켜져 있어 세션 이벤트가 두 번 적재돼요. 둘 중 하나를 끄세요 (플러그인 쪽만 쓰는 것을 권장).",
   "op.mcp.pluginCovers": "플러그인이 이미 같은 도구를 제공해요 — 여기서 또 등록할 필요가 없어요.",
   "op.mcp.pluginCovers__win": "Windows 에서는 플러그인의 MCP 서버가 뜨지 않아요 — 여기서 등록해야 MCP 도구가 생겨요 (훅은 플러그인이 그대로 돌려요).",
   "op.mcp.pluginConflict": "플러그인과 겹쳐요 — 둘 다 등록돼 있어 도구가 2벌 노출돼요. 둘 중 하나를 해제하세요 (플러그인 쪽만 쓰는 것을 권장).",
   "op.mcp.pluginConflict__win": "Windows 에서는 이 등록이 MCP 도구가 뜨는 유일한 길이에요 — 플러그인의 MCP 서버는 뜨지 않아 겹치지 않으니 그대로 두세요.",
-  "op.plugin.title": "Claude Code 플러그인 (훅 + MCP + 스킬 한 번에)",
-  "op.plugin.title__win": "Claude Code 플러그인 (훅 + 스킬 — Windows 에서 MCP 는 따로 등록)",
-  "op.plugin.installed": "설치됨",
-  "op.plugin.notInstalled": "미설치",
-  "op.plugin.copy": "설치 명령 복사",
-  "op.plugin.desc1": "Claude Code 에서",
-  "op.plugin.desc2": "후",
-  "op.plugin.desc3": " — 훅 브리지·MCP·스킬 5종이 전 프로젝트에 한 번에 구성돼요 (.oculpm 추적 프로젝트에서만 동작). 커맨드·도구·훅 안내는 스킬·규칙 → 플러그인 탭에서 볼 수 있어요.",
-  "op.plugin.desc3__win": " — 훅 브리지·스킬 5종이 전 프로젝트에 한 번에 구성돼요 (.oculpm 추적 프로젝트에서만 동작). Windows 에서는 플러그인의 MCP 서버가 뜨지 않아 MCP 는 아래 「MCP 서버」 등록으로 켜요. 커맨드·도구·훅 안내는 스킬·규칙 → 플러그인 탭에서 볼 수 있어요.",
   "op.plugin.warn": "플러그인이 이미 훅과 MCP 를 제공해요 — 「이 프로젝트에만 적용」의 훅 연동·MCP 등록을 함께 켜면 이벤트가 이중 적재되고 도구가 2벌 노출돼요. 플러그인 하나만 쓰는 것을 권장해요.",
   "op.plugin.warn__win": "플러그인이 이미 훅을 제공해요 — 「이 프로젝트에만 적용」의 훅 연동을 함께 켜면 이벤트가 이중 적재돼요. MCP 는 달라요: Windows 에서는 플러그인의 MCP 서버가 뜨지 않으니 같은 카드의 「MCP 서버」 등록을 켜세요.",
-  "op.plugin.version": "깔린 판 {installed} ({scope}) · 앱이 든 판 {bundled}",
-  "op.plugin.versionUnknown": "깔린 판을 레지스트리(installed_plugins.json)에서 읽지 못했어요 · 앱이 든 판 {bundled}",
-  "op.plugin.scope.project": "이 프로젝트",
-  "op.plugin.scope.user": "사용자 전역",
-  "op.plugin.behind": "깔린 플러그인이 앱보다 낮아요. 이어하기(마지막 일지 3건)·전달 원장·StopFailure 훅은 새 판에만 있어요 — Claude Code 에서 이 프로젝트를 열고 올리세요:",
-  "op.plugin.updateCopy": "업데이트 명령 복사",
   "today.pluginDrift.title": "플러그인이 옛 판이에요 — {installed} → {bundled}",
   "today.pluginDrift.copy": "업데이트 명령 복사",
   "today.pluginDrift.copied": "복사했어요 — Claude Code 에 붙여 넣으세요",
@@ -896,57 +552,6 @@ export const ko = {
   "plan.carry.status.todo": "할 일",
   "plan.carry.status.in_progress": "진행중",
   "plan.carry.status.blocked": "막힘",
-  "op.codexPlugin.title": "Codex 플러그인 (스킬 · 기록 규칙 안내)",
-  "op.codexPlugin.copy": "설치 명령 복사",
-  "op.codexPlugin.desc1": "터미널에서",
-  "op.codexPlugin.desc2": "후",
-  "op.codexPlugin.desc3": "— 두 명령이면 Codex 세션에 ocul-pm 스킬이 붙어요. MCP 서버 등록은 위의 「이 프로젝트에만 적용」 카드에서 따로 해요.",
-  "op.codexPlugin.orphanBadge": "마켓플레이스 없음",
-  "op.codexPlugin.orphan": "설정에 플러그인 항목은 있는데 그 마켓플레이스가 없어요 — Codex 가 이 플러그인을 로드하지 못해요. 위 두 명령으로 다시 등록하세요.",
-  "op.codexPlugin.cached": "캐시 버전:",
-  "op.agents.native": "네이티브",
-  "op.agents.nativeNote": "Codex 는 루트 AGENTS.md 를 그대로 읽어요 — 별도 어댑터 파일이 없어요. MCP 서버·플러그인 등록은 연동 탭에서 하세요.",
-  "op.mcp.title": "MCP 서버 (journal_write · plan_status · plan_update)",
-  "op.unregister": "해제",
-  "op.register": "등록",
-  "op.mcp.desc1": "프로젝트",
-  "op.mcp.desc2": "에 로컬 stdio 서버를 등록해요. 에이전트가 마크다운 규격을 흉내 내는 대신 구조화 도구로 일지·플랜을 기록해 frontmatter 오류가 원천 차단돼요. 앱이 꺼져 있어도 동작해요 — 기록은 디스크에 바로 남아요.",
-  "op.mcp.noBinary1": "oculpm-mcp 바이너리를 찾지 못했어요 — dev 환경에서는",
-  "op.mcp.noBinary2": "후 새로고침하세요.",
-  "op.mcp.commitWarn1": "주의:",
-  "op.mcp.commitWarn2": "은 커밋되는 파일인데 바이너리 경로는 이 머신 전용이에요 — 팀 공유 시 각자 재등록이 필요해요.",
-  "op.codexMcp.title": "Codex MCP 서버",
-  "op.codexMcp.registered": "Codex MCP 서버를 등록했어요 — 새 Codex 세션에서 반영돼요",
-  "op.codexMcp.unregistered": "Codex MCP 서버 등록을 해제했어요 — 새 Codex 세션에서 반영돼요",
-  "op.codexMcp.failed": "Codex MCP 등록을 바꾸지 못했어요 — {error}",
-  "op.codexMcp.desc1": "Codex 전용 설정",
-  "op.codexMcp.desc2": "에 stdio 서버 하나를 등록해요 — 어느 프로젝트인지는 Codex 세션이 열린 폴더가 정해요. Claude 의 플러그인과 .mcp.json 은 변경하지 않아요.",
-  "op.codexMcp.notFound": "Codex 설정 폴더를 찾지 못했어요 — Codex 를 설치하고 한 번 연 뒤 새로고침하세요.",
-  "op.codexMcp.restartNote": "열려 있는 대화에는 반영되지 않아요 — 새 Codex 세션을 열어 사용하세요.",
-  "op.codexMcp.pinnedBadge": "프로젝트 고정됨",
-  "op.codexMcp.pinnedWarn": "이 항목이 {path} 를 고정하고 있어요 — 다른 프로젝트에서 남긴 기록도 그 경로로 가요. 다시 등록하면 세션을 따라가요.",
-  "op.codexMcp.reregister": "다시 등록",
-  "op.logs.openFailedCopied": "Finder 를 열 수 없어 경로를 클립보드에 복사했어요.\n{msg}",
-  "op.logs.openFailedCopied__win": "탐색기를 열 수 없어 경로를 클립보드에 복사했어요.\n{msg}",
-  "op.logs.openFailedCopied__linux": "파일 관리자를 열 수 없어 경로를 클립보드에 복사했어요.\n{msg}",
-  "op.logs.openFailedTitle": "로그 폴더 열기 실패",
-  "op.logs.openFailed": "로그 폴더 열기 실패: {msg}",
-  "op.logs.title": "로그",
-  "op.logs.desc": "흐름 단계별 [FLOW] 로그가 일별로 저장돼요. 문제가 생겼을 때 가장 최근 파일을 첨부해주세요.",
-  "op.logs.location": "위치:",
-  "op.logs.disabled": "(로그 파일 비활성)",
-  "op.logs.open": "로그 폴더 열기",
-  "op.logs.filenameLabel": "파일명 형식:",
-  "op.logs.desc2": "+ frontend(console) 양쪽 로그가 한 파일에 모여요.",
-  "op.logs.desc3": "태그로 grep 하면 \"프로젝트 로드 → 외부 LLM 작성 → UI 갱신\" 흐름의 각 단계가 보여요.",
-  "op.delete": "삭제",
-  "op.patternPlaceholder": "패턴 추가 후 Enter",
-
-  // ── 회고 화면 ───────────────────────────────────────────────────────────
-  "entry.type.feature": "기능",
-  "entry.type.refactor": "리팩토링",
-  "entry.type.error": "에러",
-  "entry.type.bug": "버그",
 
   // 지연 로딩 트리 — "읽는 중"과 "빈 폴더"는 반드시 구별돼야 한다.
   // 구별이 없으면 안 읽힌 가지가 빈 폴더로 읽힌다.
@@ -959,7 +564,6 @@ export const ko = {
   // Phase 2 — 참조·아웃라인·시그니처·포맷 (ide-completion #p2-lsp-rest)
   // Phase 3 — 파일 안에서 이동 (vscode-borrows #p3-goto)
   // Phase 5 — 문제 패널 (vscode-borrows #p5-problems)
-  "palette.group.symbols": "심볼",
   "entry.verify": "확인",
   "entry.verified": "확인됨",
   "entry.verifyTitle": "이 일지가 실제 변경과 맞는지 확인했다고 표시해요 (frontmatter verified_by_user) (v)",
@@ -976,16 +580,7 @@ export const ko = {
 
   // ── AI 산출물 기본값 (tc() — UI 언어가 아니라 **작성 언어**를 따른다) ────
   // 플래너 파일·DB 에 기록되는 값. 화면 문구에 쓰면 두 설정이 갈릴 때 섞인다.
-  "content.defaultPlanTitle": "새 계획",
   "content.defaultPhase": "할 일",
-  "content.initialPlan": "초기 계획",
-  "content.initialGoalsPhase": "초기 목표",
-  "content.seed1Title": "프로젝트 초기 설정 완료",
-  "content.seed1Desc": "의존성 설치, 빌드 환경 구성, 기본 폴더 구조 정리",
-  "content.seed2Title": "핵심 기능 프로토타입 구현",
-  "content.seed2Desc": "MVP 수준의 메인 기능 1개 구현",
-  "content.seed3Title": "README 및 문서 작성",
-  "content.seed3Desc": "프로젝트 설명, 설치 방법, 사용법 문서화",
 
   // ── 워크스페이스 전역 토스트 (WorkspaceContext) ─────────────────────────
   "ws.driftBody": "{agent} 규칙 파일이 외부에서 수정되었어요.",
@@ -997,104 +592,6 @@ export const ko = {
   "ws.driftSyncFailed": "동기화하지 못했어요 — {error}",
   "ws.driftIgnore": "무시 (5분)",
   "ws.newEntry": "새 기록: {title}",
-
-  // ── 프로젝트 관리 모달 (ProjectManager) ─────────────────────────────────
-  "pm.title": "프로젝트 관리",
-  "pm.subtitle": "등록된 {n}곳. 이름 변경과 제거는 Ocul-PM 워크스페이스에만 적용되고, 실제 프로젝트 폴더는 그대로 남아요.",
-  "pm.close": "닫기 (Esc)",
-  "pm.filterPlaceholder": "이름 · 경로로 거르기",
-  "pm.filterAria": "관리할 프로젝트 검색",
-  "pm.openFolder": "폴더 불러오기",
-  "pm.selectAllAria": "보이는 프로젝트 전체 선택",
-  "pm.colProject": "프로젝트",
-  "pm.colLastActivity": "마지막 활동",
-  "pm.colEntries": "기록",
-  "pm.colActions": "작업",
-  "pm.selectAria": "{name} 선택",
-  "pm.openAria": "{name} 열기",
-  "pm.entryCount": "{n}건",
-  "pm.renameAria": "{name} 이름 변경",
-  "pm.removeAria": "{name} 제거",
-  "pm.removeFailed": "제거하지 못한 프로젝트 {n}곳: {names}",
-  "pm.andMore": "{names} 외 {n}곳",
-  "pm.emptySearch": "‘{query}’ 와 일치하는 프로젝트가 없어요",
-  "pm.emptyNone": "아직 등록된 프로젝트가 없어요",
-  "pm.emptySearchTip": "경로와 초성으로도 찾을 수 있어요",
-  "pm.emptyNoneTip": "‘폴더 불러오기’ 로 기존 프로젝트를 추가하세요",
-  // 확인 문장 가운데 프로젝트 이름이 강조돼 앞/뒤로 쪼갠다 (§4.2).
-  "pm.confirmSuffix": " — 총 {n}곳을 워크스페이스에서 제거할까요? 앱의 인덱스와 캐시만 지워지고, 프로젝트 폴더 자체는 삭제되지 않아요.",
-  // 체크박스 라벨도 `<code>` 가 가운데 들어간다.
-  "pm.alsoDeletePrefix": "각 폴더의 ",
-  "pm.alsoDeleteOculpmSuffix": " 폴더도 삭제",
-  "pm.alsoDeleteAgentsSuffix": " 파일도 삭제",
-  "pm.permanentWarning": "선택한 파일은 {n}곳 전부에서 영구 삭제되며 되돌릴 수 없어요.",
-  "pm.removing": "제거 중…",
-  "pm.removeN": "{n}곳 제거",
-  "pm.selectedCount": "{n}곳",
-  "pm.selectedSuffix": " 선택됨",
-  "pm.clearSelection": "선택 해제",
-  "pm.removeSelected": "선택 제거",
-  "pm.matchCount": "{n}곳 일치",
-  "pm.totalCount": "{n}곳",
-  "pm.bulkHint": "여러 곳을 한 번에 지우려면 왼쪽 체크박스로 고르세요",
-  "pm.escToClose": "닫기",
-
-  // ── 런처 홈 (StartScreen · home/*) ──────────────────────────────────────
-  // 앱을 처음 여는 화면이자 프로젝트 전환 허브.
-  // 데이트라인 — 날짜 자체는 Intl 이 만든다 (§3). 뒤에 붙는 절만 사전.
-  "home.datelineToday": "오늘 {n}건",
-  "home.groupToday": "오늘",
-  "home.groupWeek": "7일 안",
-  "home.groupFortnight": "14일 안",
-  "home.groupQuiet": "2주 넘게 조용함",
-  "home.pulseLabel": "{days}일 {n}건",
-  "home.datelineProjects": "프로젝트 {n}",
-  // 그린필드 초안 단계
-  "home.noMatchCommandHint": "\"{q}\" 와 맞는 프로젝트가 없어요. 명령을 실행할 수 있어요.",
-  "home.matchedProjects": "프로젝트 {n}곳 검색됨",
-  // 원자 컴포넌트
-  "home.sparkAria": "최근 {n}일 활동 추이",
-  "home.sparkProjectAria": "{name} 최근 활동 추이",
-  "home.progressAria": "{total}개 중 {done}개 완료",
-  "home.renameAria": "{name} 이름 변경",
-  "home.removeAria": "{name} 제거",
-  "home.unverified": "기록 미확인",
-  // 프로젝트 행
-  "home.openAria": "{name} 열기 — 마지막 활동 {when}",
-  "home.openWithEntryAria": "{name} 열기 — {title}",
-  "home.todayN": "오늘 {n}",
-  "home.noRecord": "기록 없음",
-  "home.allProjects": "프로젝트",
-  // 상단 chrome
-  "home.manageProjects": "프로젝트 관리",
-  "home.openSettings": "설정 열기",
-  "home.addProject": "프로젝트 추가",
-  "home.searchProjects": "프로젝트 검색",
-  "home.matchCount": "{n}곳 일치",
-  "home.totalCount": "{n} 곳",
-  "home.kbdOpen": "열기",
-  "home.kbdRename": "이름 변경",
-  "home.kbdRemove": "제거",
-  "home.kbdMove": "이동",
-  "home.kbdPalette": "명령 팔레트",
-  // 섹션·명령
-  "home.cmdAdd": "기존 폴더 불러오기",
-  "home.sectionSearch": "검색 결과",
-  "home.noMatch": "‘{query}’ 와 일치하는 프로젝트가 없어요",
-  "home.noMatchTip": "경로와 초성으로도 찾을 수 있어요",
-  // 타일
-  "home.resumeWork": "이어서 일하기",
-  "home.todayFlow": "오늘의 흐름",
-  "home.todayCountPrefix": "오늘",
-  "home.todayCountSuffix": "건",
-  "home.briefFailed": "기록을 불러오지 못했어요.",
-  "home.briefFailedHint": "프로젝트는 아래에서 그대로 열 수 있어요.",
-  "home.briefEmpty": "아직 기록이 없어요.",
-  "home.briefEmptyHint": "평소처럼 에이전트로 작업하면 여기에 쌓여요.",
-  // 첫 사용 안내 3단계
-  "home.howTitle": "에이전트가 일하는 폴더를 추가하세요",
-  // 가운데 "자동으로" 가 강조돼 앞/뒤로 쪼갠다 (§4.2).
-  "home.ctaAddProject": "폴더 열기…",
 
   // ── 백엔드 에러 매핑 (i18n/errors.ts — tError) ──────────────────────────
   // Rust 는 영어만 반환하고 여기서 되돌린다 (§4.4). 표에 없으면 영어 원문이
@@ -1118,87 +615,6 @@ export const ko = {
   "err.keyringUnavailable": "시스템 키링을 쓸 수 없어요 — Secret Service 제공자(GNOME 키링이나 KWallet)를 설치하고 잠금을 푼 뒤 다시 시도하세요. 키는 평문으로 저장하지 않아요.",
   "err.linuxPasteFiles": "Linux 에서는 복사한 파일을 붙여넣을 수 없어요 — 파일을 트리로 끌어다 놓으세요.",
   "err.clipboardBusy": "다른 앱이 클립보드를 쓰고 있어요 — 다시 붙여넣어 보세요.",
-
-  // ── 스킬·규칙 → 플러그인 안내 탭 ────────────────────────────────────────
-  // 이 탭이 렌더하는 **데이터**(커맨드 설명·도구 desc)는 plugin/oculpm/ 의
-  // 거울이라 번역하지 않는다 (pluginDocs.ts — 스캐너 DISK_CONTENT). 여기 키는
-  // 앱이 두르는 chrome 뿐이다.
-  "plugin.copy": "복사",
-  "plugin.copyToast": "복사했어요 — Claude Code 에 붙여넣으세요",
-
-  // 회고 생성 완료 알림 (실패는 기존 `retro.genFailed` 재사용). 프로젝트를
-  // 밝히는 쪽이 기본이다 — 창 하나가 프로젝트 여럿을 물고 생성도 키 단위로
-  // 겹쳐 돌 수 있어, 이름이 없으면 어느 회고가 끝났는지 알 길이 없다.
-
-  // ── 일지 타입 배지 (런처 홈) ──────────────────────────────
-  // 한 건짜리 배지라 **단수**다. `journal.filter.*` 와 `retro.type.*` 는 필터
-  // 칩이라 영어가 복수형("Bugs")이어서 재사용할 수 없다.
-  "entryType.feature": "기능",
-  "entryType.bug": "버그",
-  "entryType.error": "에러",
-  "entryType.refactor": "리팩토링",
-  "entryType.chore": "잡일",
-
-  // ── AI 패널 화면 ────────────────────────────────────────────────────────
-  // PR-ACP2 — ACP 대화 모드
-  // PR-ACP3 — 도구 호출 카드 + 권한 승인
-  /** 도구 출력 미리보기에서 잘려 나간 줄 수. */
-  // 컨텍스트 압축 줄 (acp-adapter-0751 #carry-compaction) — `_meta.contextCompaction`
-  // 신원 줄 (acp-adapter-0751 #carry-auth) — 어댑터가 밀어 주는 `_auth/status_update`
-  // 중단·권한 응답이 조용히 실패하던 자리 (v2.42.0 `{#floating-promises}`).
-  // 「중지」를 눌렀는데 아무 일도 안 일어나면 사용자는 계속 누르는 것 말고 할 게 없다.
-  // v3-record-integrity {#mcp-missing-visible} — 기록 도구 없이 열린 대화.
-  // 셔틀(plugin/oculpm/bin/oculpm-mcp)의 안내와 **같은 어휘**를 쓴다.
-  // 대화 생성 시 DB 에 저장되는 기본 제목. AI 가 쓰는 내용이 아니라 앱이
-  // 붙이는 표시용 라벨이라 UI 언어를 따른다 (설정의 "AI 작성 언어" 는
-  // 일지·플래너·회고를 가리킨다). 만들 때 언어로 굳고, 사용자가 바꿀 수 있다.
-  // 빈 상태 제목은 프로젝트 이름이다 ("무엇이든 물어보세요" 는 챗봇 관용구라 뺐다).
-  // 예시 질문 칩 — 누르면 입력창에 그대로 들어간다. 모델에게 가는 문장이자
-  // 화면에 보이는 문장이라 두 언어 모두 자연스러운 질문이어야 한다.
-  // 컨텍스트 첨부 칩 — key 는 판별자라 그대로, 라벨만 사전을 거친다.
-  // 토큰 추정 팝오버
-  // 입력·모델 선택
-
-  // ── AI 패널 · 대화 기록 ─────────────────────────────────────────────────
-  // 분·시간 단위 상대 시각. 하루가 넘어가면 Intl 날짜로 넘긴다 (사전 아님).
-
-  // ── AI 패널 ─────────────────────────────────────────────────────────────
-  // 주입된 컨텍스트 조각 라벨 (토큰 팝오버 · "지난 전송 첨부" 목록).
-  // parts[].key 가 별도 sentinel 이라 라벨을 번역해도 판별에 영향이 없다.
-
-  // 카드 문장은 항목 id·상태가 <span> 으로 강조돼 중간에 끼어든다 — §4.2 대로
-  // 사전에 JSX 를 넣지 않고 조각으로 쪼갠다. 두 언어 모두 "항목 → id → 서술"
-  // 어순이라 이 분할이 성립한다.
-
-  // ── 터미널 화면 ─────────────────────────────────────────────────────────
-
-  // 세로 세션 레일 (2026-08-28 시각 정체성 라운드)
-
-  // 에이전트 관제탑 (2026-08-28 Phase 2)
-  // 벨과 추정을 **다른 말로** 적는다 — 둘을 같은 문구로 그리면 "기다린다"는
-  // 표시 전체를 아무도 안 믿게 된다.
-
-  // 명령 블록 (2026-08-28 Phase 3)
-  // 실행이 아니라 채우기다 — 눈으로 확인하지 않은 명령을 바로 돌리지 않는다.
-  // 드래그 분할 (2026-08-28) — 세션을 끌어 나란히 놓거나, 페인을 빼내 세션으로.
-  // 활성 인덱스를 못 세는 경우(하이라이트 한계 초과) 총 개수만 — "3/17" 과
-  // 달리 위치 정보가 없다.
-  // 터미널 파일 링크 ⌘클릭 메뉴 (2026-09-07).
-
-  // 터미널 안에 직접 써 넣는 문구 (PTY 출력 자리에 나타난다).
-
-  // 셸이 스스로 끝난 페인 — 출력 위에 얹히는 알약.
-
-  // 렌더러 크래시 경계
-
-  // 셸 통합 상태바 — `summarizeShell()` 이 조립한다. 명령 이름이 앞에 오고
-  // 상태가 뒤에 붙는 어순이라 두 언어 모두 같은 조립이 성립한다.
-
-  // 에이전트 실행 종료 → 일지 제안 (자동 작성은 하지 않는다)
-
-  // ── 터미널 도크 (2026-08-15) — 어느 화면에서나 뜨는 셸 + 창으로 분리 ──
-  // 세션을 끝내는 두 갈래가 조용히 실패하던 자리 (v2.42.0 `{#floating-promises}`).
-  // 화면에서는 탭이 사라졌는데 뒤에서 프로세스가 계속 도는 것이 가장 나쁜 결말이다.
 
   // ── 업데이트 배너 ───────────────────────────────────────────────────────
   // prefix/suffix 로 쪼갠 이유: 가운데 버전 번호가 <b> 로 강조돼야 하는데
@@ -1227,12 +643,6 @@ export const ko = {
   "today.activated": "ocul-pm 이 켜졌어요 — 이제 에이전트가 남기는 일지를 여기서 볼 수 있어요.",
   "ws.openEntry": "열기",
   "ws.viewInDoctor": "진단에서 보기",
-  "close.guard.title": "실행 중인 작업이 있어요",
-  "close.guard.more": "외 {n}개",
-  "close.guard.agents": "작업 중인 Claude Code 세션 {n}개",
-  "close.guard.detail": "탭을 닫으면 모두 종료돼요.",
-  "close.guard.detailPane": "터미널을 닫으면 종료돼요.",
-  "close.guard.confirm": "닫기",
   "keys.title": "키보드 단축키",
   "keys.hint": "⌘/ 로 언제든 열어요 · 화면마다 그 화면 안에서만 듣는 키가 따로 있어요",
   "keys.g.nav": "화면 이동",
@@ -1243,23 +653,11 @@ export const ko = {
   "keys.g.start": "시작 화면",
   "keys.palette": "명령 팔레트",
   "keys.switchProject": "최근 프로젝트",
-  "keys.dock": "터미널 도크",
   "keys.settings": "설정",
-  "keys.ai": "AI 패널",
   "keys.navHistory": "화면 뒤로 / 앞으로",
-  "keys.inTerminal": "터미널 안에서는 Shift 를 더해요 — Ctrl+글자는 셸의 것이에요",
   "keys.cheatsheet": "단축키 보기",
-  "keys.newTab": "새 탭",
   "keys.newWindow": "새 창",
-  "keys.closeTab": "탭 닫기 (안쪽부터)",
   "keys.closeWindow": "창 닫기",
-  "keys.cycleTabs": "탭 전환",
-  "keys.moveTabs": "이전·다음 탭",
-  "keys.treeMove": "트리에서 위·아래",
-  "keys.treeFold": "폴더 접기·펼치기",
-  "keys.treePick": "뽑기 (여러 개 고르기)",
-  "keys.treeCutPaste": "잘라내 다른 폴더로",
-  "keys.treeDelete": "뽑은 것 삭제",
   "keys.journalFind": "일지 검색",
   "keys.journalNew": "수동 일지",
   "keys.entryBack": "상세에서 목록으로",
@@ -1270,50 +668,7 @@ export const ko = {
   "keys.diffFiles": "파일 이동",
   "keys.diffFilter": "파일 필터",
   "keys.startAdd": "폴더 열기",
-  "keys.startManage": "프로젝트 관리",
-  "keys.startRename": "이름 바꾸기",
-  "keys.startDelete": "삭제",
-  "keys.startFind": "검색",
-  "palette.cheatsheet": "키보드 단축키",
-  "settings.doctor.title": "닥터",
-  "settings.doctor.desc": "이 프로젝트에서 ocul-pm 이 돌아가는 데 필요한 것들을 한 표로 봐요.",
-  "settings.doctor.noProject": "프로젝트를 열면 항목이 채워져요.",
-  "settings.doctor.refresh": "다시 확인",
-  "settings.doctor.checking": "확인 중…",
-  "settings.doctor.oculpm": "ocul-pm",
-  "settings.doctor.watcher": "워처",
-  "settings.doctor.lock": "락",
-  "settings.doctor.hooks": "Claude 훅",
-  "settings.doctor.mcp": "MCP 서버",
-  "settings.doctor.v.active": "활성",
-  "settings.doctor.v.inactive": "비활성",
-  "settings.doctor.v.configInvalid": "config.toml 오류",
-  "settings.doctor.v.running": "감시 중",
-  "settings.doctor.v.dropped": "감시 중 · 놓친 변경 {n}건",
-  "settings.doctor.v.stopped": "멈춤",
-  "settings.doctor.v.error": "오류",
-  "settings.doctor.v.lockHealthy": "이 앱이 보유",
-  "settings.doctor.v.lockHeld": "다른 프로세스가 보유",
-  "settings.doctor.v.lockRecovered": "복구됨",
-  "settings.doctor.v.lockNone": "없음",
-  "settings.doctor.v.installed": "설치됨",
-  "settings.doctor.v.notInstalled": "설치 안 됨",
-  "settings.doctor.v.partial": "일부만",
-  "settings.doctor.v.registered": "등록됨",
-  "settings.doctor.v.binaryMissing": "바이너리 없음",
-  "settings.doctor.v.unknown": "확인 실패",
-  "settings.doctor.a.activate": "활성화",
-  "settings.doctor.a.start": "시작",
-  "settings.doctor.a.takeOver": "넘겨받기",
-  "settings.doctor.a.open": "설정 열기",
-  "settings.doctor.a.failed": "확인하지 못했어요 — {error}",
-  "settings.doctor.warnings": "최근 무결성 경고",
-  "settings.doctor.warningsEmpty": "이번 세션에는 경고가 없어요.",
-  "settings.doctor.clear": "지우기",
   // v3 {#revive-recovery-cmds} — 워처 다시 시작 + 일지 캐시 복구
-  "settings.doctor.a.restart": "다시 시작",
-  "settings.doctor.reindexCache": "일지 캐시 재색인",
-  "settings.doctor.reindexCacheDone": "일지 캐시를 다시 읽었어요 — 추가 {inserted} · 갱신 {updated} · 삭제 {deleted}",
   // ── 출처 배지 (Osaurus 라운드 Phase 3) — 누가 이 기록을 만들었는가
   "source.direct": "직접",
   "source.agent": "에이전트",
@@ -1332,42 +687,6 @@ export const ko = {
   "source.hint.backfill": "git 커밋 이력에서 복원했어요.",
   "source.hint.imported": "외부 대화에서 들여왔어요.",
   // ── 첫 실행 마법사 (WelcomeWizard.tsx) ─────────────────────────────────
-  "welcome.aria": "첫 실행 설정",
-  "welcome.step.lang": "언어",
-  "welcome.step.look": "모양",
-  "welcome.step.project": "프로젝트",
-  "welcome.skip": "건너뛰기",
-  "welcome.later": "나중에",
-  "welcome.back": "이전",
-  "welcome.next": "다음",
-  "welcome.lang.title": "반가워요.",
-  "welcome.lang.sub":
-    "에이전트가 코드를 쓰고 작업 일지도 직접 남기면, Ocul-PM 이 그 기록을 모아서 보여줘요. 먼저 화면에 쓸 언어를 고르세요.",
-  "welcome.lang.note":
-    "AI 가 쓰는 일지의 언어도 함께 맞춰요 — 화면은 영어, 기록은 한국어처럼 갈라 쓰려면 설정 → 모양에서 나누세요.",
-  "welcome.look.title": "눈에 편한 쪽으로.",
-  "welcome.look.sub": "고르는 즉시 적용돼요. 언제든 설정에서 다시 바꿀 수 있어요.",
-  "welcome.look.themeLabel": "테마",
-  "welcome.look.accentLabel": "강조색",
-  "welcome.look.light": "밝게",
-  "welcome.look.dark": "어둡게",
-  "welcome.look.system": "시스템",
-  "welcome.look.note":
-    "나중에 설정 → 모양에서 바꿀 수 있어요.",
-  "welcome.project.title": "첫 프로젝트를 불러오세요.",
-  "welcome.project.sub": "이미 있는 저장소 폴더를 고르세요. 그 폴더를 열 때 기록이 쌓일 자리가 만들어져요.",
-  "welcome.project.open": "폴더 열기",
-  "welcome.project.openDesc": "이미 있는 프로젝트를 추적해요",
-  "welcome.project.working": "여는 중…",
-  "welcome.project.note":
-    "프로젝트를 열면 그 폴더에 .oculpm/ 과 기록 규칙(AGENTS.md)이 생겨요. 코드는 이 컴퓨터를 떠나지 않아요.",
-  "welcome.ready.title": "{name} — 이제 열기만 남았어요.",
-  "welcome.ready.sub":
-    "목록에 추가하고 코드 색인을 시작했어요. 폴더 안에는 아직 아무것도 쓰지 않았어요.",
-  "welcome.ready.li1": ".oculpm/ — 일지·계획·논의가 마크다운으로 쌓일 자리가 생겨요",
-  "welcome.ready.li2": "AGENTS.md — 에이전트가 읽을 기록 규칙이 심겨요",
-  "welcome.ready.li3": "그다음부터, 그 규칙을 읽은 에이전트가 일을 마칠 때마다 일지를 한 건씩 직접 남겨요",
-  "welcome.ready.open": "프로젝트 열기",
   // ── 오류 코드 (Phase 4 #error-convention) — 백엔드 AppError.code → 문장
   "err.code.not_initialized": "이 프로젝트에 ocul-pm 이 아직 켜져 있지 않아요 — 「오늘 현황」에서 활성화하세요.",
   "err.code.invalid_session_id": "세션 id 형식이 올바르지 않아요: {detail}",
@@ -1405,76 +724,18 @@ export const ko = {
   "err.code.acp_usage_failed": "사용량을 불러오지 못했어요: {detail}",
   "err.code.acp_prompt_failed": "요청이 실패했어요: {detail}",
   "err.code.acp_session_busy": "이 대화는 이미 답하는 중이에요. 끝나거나 멈춘 뒤에 보내 주세요.",
-  // ── v3-surface / dialect ──────────────────────────────
-  // 설정 검색 ({#settings-search}) — 12탭 + 하위 5탭을 눈으로 훑던 것을 끝낸다.
-  "settings.search.placeholder": "설정 검색",
-  "settings.search.empty": "일치하는 설정이 없어요.",
-  // ── 설정 재설계 (2026-09-09) — 그룹 있는 레일 + 탭마다의 한 줄 안내.
-  //    열두 탭이 그룹 없이 한 줄에 서 있어서 「그래프」와 「모바일」이 같은
-  //    위계로 읽혔다. 다섯 묶음으로 접고, 탭을 열면 여기가 무엇을 정하는
-  //    자리인지 한 문장으로 말한다.
-  "settings.group.general": "일반",
-  "settings.group.journal": "작업 기록",
-  "settings.group.system": "시스템",
-  "settings.tabDesc.appearance": "테마·강조색·언어·글자 크기 — 앱이 보이는 방식을 정해요.",
-  "settings.tabDesc.data": "로컬 저장소·내보내기·가져오기.",
-  "settings.tabDesc.oculpm": "일지·플래너·에이전트 규칙 — 이 앱의 기록 방식 자체.",
-  "settings.tabDesc.diagnostics": "DB 상태·자가 점검·발동 이력. 뭔가 이상할 때 여기부터.",
-  "settings.tabDesc.update": "새 버전 확인과 지난 패치 노트.",
-  "settings.search.clear": "검색어 지우기",
-  "settings.search.count": "결과 {n}개",
 
   // ── v3-surface / firstrun ────────────────────────────────────────────────
   // 첫 5분의 화면이 아직 일어나지 않은 일을 말하지 않게 하는 문구들.
-  "welcome.ready.listLabel": "프로젝트를 열면:",
-  "welcome.ready.note": "⌘K 로 어디든, ⌘, 로 설정.",
   "journal.emptyTitle": "아직 일지가 한 건도 없어요",
   "plan.emptyTitle": "아직 계획이 없어요",
   "diff.emptyTitle": "볼 변경이 없어요",
-  // ── v3-surface / ia ──────────────────────────────────────────────
-  "sidebar.refSection": "참고",
-  "sidebar.remapTitle": "단축키가 바뀌었어요",
-  "sidebar.remapBody": "코드 맵 화면이 빠지면서 ⌘6 부터 한 칸씩 당겨졌어요 — 터미널 ⌘6 · 편집기 ⌘7 · 에이전트 ⌘8 · AI 패널 ⌘9 · 스킬 ⌘0. ⌘1~⌘5 는 그대로예요.",
-  "sidebar.remapCheatsheet": "전체 보기",
-  "sidebar.remapDismiss": "알겠어요",
 
   // ── v3-surface / activity ──────────────────────────────
   // 활동 어휘 15낱말 — 에이전트가 한 일을 우리 말로 부른다.
-  "activity.kind.journal": "일지",
-  "activity.kind.plan": "계획",
-  "activity.kind.read": "읽기",
-  "activity.kind.edit": "고침",
-  "activity.kind.delete": "삭제",
-  "activity.kind.move": "옮김",
-  "activity.kind.search": "찾기",
-  "activity.kind.shell": "명령",
-  "activity.kind.web": "웹",
-  "activity.kind.think": "생각",
-  "activity.kind.todo": "할 일",
-  "activity.kind.permission": "승인",
-  "activity.kind.error": "실패",
-  "activity.kind.other": "도구",
   // 우리 도구의 사람 말 — 이 열셋이 화면에서 이 제품의 값어치다.
-  "activity.verb.journal_write": "일지 기록",
-  "activity.verb.journal_read": "일지 읽기",
-  "activity.verb.journal_search": "일지 검색",
-  "activity.verb.plan_status": "계획 확인",
-  "activity.verb.plan_update": "계획 갱신",
-  "activity.verb.plan_create": "계획 작성",
   // 접힌 묶음의 요약.
-  "activity.run.read": "파일 {n}개 읽음",
-  "activity.run.edit": "{n}곳 고침",
-  "activity.run.delete": "{n}개 지움",
-  "activity.run.move": "{n}개 옮김",
-  "activity.run.search": "{n}번 찾음",
-  "activity.run.shell": "명령 {n}개 실행",
-  "activity.run.web": "{n}건 가져옴",
-  "activity.run.think": "생각 {n}조각",
-  "activity.run.other": "도구 {n}개",
-  "activity.run.generic": "{n}건",
   // 원본 이벤트 레일 — 어휘가 틀린 날의 도망갈 데.
-  "activity.raw.title": "원본 이벤트",
-  "activity.raw.clipped": "잘림",
   // 바쁨 신호의 출처 — 「모른다」를 「돌고 있다」로 말하지 않는다.
   // 세션 카드의 「무엇을 하고 있는가」 — 대화 화면과 같은 어휘.
   // Today 링이 상한에 눌렸을 때 ({#today-overcount}) — 여기서부터는 값이 커져도
@@ -1489,27 +750,12 @@ export const ko = {
   // 닥터 워처 행 ({#watcher-user-pause}) — 「멈춤」과 「사용자가 멈춤」은 다른
   // 말이다. 앞엣것은 감독관이 60초 안에 되살리고, 뒤엣것은 되살리지 않는다.
   // 일시정지가 프로세스 메모리에만 산다는 사실을 문구가 직접 말한다.
-  "settings.doctor.v.paused": "사용자가 멈춤 · 앱을 다시 켜면 풀려요",
-  "settings.doctor.a.pause": "중지",
-  "settings.doctor.a.resume": "다시 켜기",
   // 닥터 워처 계측 행 ({#scheduling-telemetry}) — perf-baseline §7 이 "없다" 고
   // 적어 둔 숫자들. 큐가 얼마나 찼고 처리기가 얼마나 오래 워커를 잡았는지를
   // 한 줄로. 워처를 켠 뒤의 누계라 리셋되지 않는다.
-  "settings.doctor.watcherSched": "워처 계측",
-  "settings.doctor.v.watcherSched":
-    "이벤트 {events} · 버림 {dropped} · 큐 {depth}/최대 {high} · 처리 누적 {total}s · 최대 {max}ms",
   // {#fix-disabled-reason} 4차 — 막힌 버튼이 말하는 이유 (blocked()).
-  "common.blockedNoName": "이름을 적어 주세요",
-  "common.blockedEmptyDraft": "보낼 내용을 적어 주세요",
   "manual.blockedNoTitle": "제목을 적어 주세요",
   "manual.blockedNoSlug": "slug 을 적어 주세요",
-  "home.blockedNoProject": "이 일지의 프로젝트를 찾을 수 없어요",
-  "settings.idxUsage.blockedDiffsEmpty": "비울 diff 캡처가 없어요",
-  "op.codexMcp.blockedNotInstalled": "Codex CLI 가 설치되어 있지 않아요",
-  "op.blockedNoBinary": "MCP 서버 실행 파일을 못 찾았어요",
-  "op.blockedStatusUnknown": "상태를 아직 못 읽었어요",
-  "op.log.blockedNoDir": "로그 폴더를 아직 못 찾았어요",
-  "settings.db.blockedNoHealth": "먼저 상태를 확인하세요",
   // 첫 기록 카드 (플랜 first-record-loop {#p1-card}) — 대화 단위 첫 일지 확인.
   // 성공은 대화 id 로 귀속된 일지뿐이다. 기록 ≠ 검증.
   // 이어하기 카드 (플랜 first-record-loop Phase 2) — 다음 세션의 시작점.
