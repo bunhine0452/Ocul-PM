@@ -24,6 +24,9 @@ use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder};
 use tauri::{AppHandle, Manager, Runtime};
 
 pub const NEW_WINDOW: &str = "menu:new-window";
+/// 사람에게 보이는 앱 이름 (ocul-next #rename-visible). 식별자 · 설치 이름 · 데이터 폴더 · 플러그인
+/// `oculpm` · `.oculpm/` 은 그대로다.
+pub const APP_NAME: &str = "Ocul";
 pub const CLOSE_WINDOW: &str = "menu:close-window";
 /// 도움말 › 처음 쓰는 법 — 포커스된 창에 첫 실행 안내를 다시 띄운다 (ocul-next #tour-reopen).
 pub const TOUR: &str = "menu:tour";
@@ -78,9 +81,9 @@ const KO: Labels = Labels {
     select_all: "전체 선택",
     fullscreen: "전체 화면",
     minimize: "최소화",
-    hide: "Ocul-PM 가리기",
-    quit: "Ocul-PM 종료",
-    about: "Ocul-PM 정보",
+    hide: "Ocul 가리기",
+    quit: "Ocul 종료",
+    about: "Ocul 정보",
     services: "서비스",
 };
 
@@ -101,9 +104,9 @@ const EN: Labels = Labels {
     select_all: "Select All",
     fullscreen: "Toggle Full Screen",
     minimize: "Minimize",
-    hide: "Hide Ocul-PM",
-    quit: "Quit Ocul-PM",
-    about: "About Ocul-PM",
+    hide: "Hide Ocul",
+    quit: "Quit Ocul",
+    about: "About Ocul",
     services: "Services",
 };
 
@@ -122,8 +125,14 @@ pub fn build<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<(Menu<
     let l = labels(lang);
 
     // ① 앱 메뉴 — macOS 는 첫 서브메뉴를 앱 이름으로 대체한다.
-    let app_menu = SubmenuBuilder::new(app, "Ocul-PM")
-        .about_with_text(l.about, None)
+    // 보이는 이름은 Ocul — 설치 이름(productName)은 Ocul-PM 그대로다(자동 업데이트 · Windows 설치기가
+    // 그 이름으로 자리를 찾는다). 정보 창도 기본값은 productName 이라 이름을 준다.
+    let about = tauri::menu::AboutMetadataBuilder::new()
+        .name(Some(APP_NAME))
+        .version(Some(app.package_info().version.to_string()))
+        .build();
+    let app_menu = SubmenuBuilder::new(app, APP_NAME)
+        .about_with_text(l.about, Some(about))
         .separator()
         .services_with_text(l.services)
         .separator()

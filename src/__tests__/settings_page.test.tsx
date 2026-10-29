@@ -212,7 +212,7 @@ describe("데이터", () => {
     fireEvent.click(within(data).getByRole("button", { name: t("prefs.data.rebuild") }));
     await waitFor(() => expect(fx.reindex).toHaveBeenCalledWith(1));
     // 앱 판은 열 때 스스로 확인한다.
-    expect(await within(data).findByText(/Ocul-PM 4\.0\.0/)).toBeInTheDocument();
+    expect(await within(data).findByText(/Ocul 4\.0\.0/)).toBeInTheDocument();
     expect(await within(data).findByText(new RegExp(t("prefs.data.upToDate")))).toBeInTheDocument();
   });
 });

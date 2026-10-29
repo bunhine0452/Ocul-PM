@@ -13,7 +13,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "Ocul-PM",
+        "title": "Ocul",
         "hiddenTitle": true,
         "trafficLightPosition": { "x": 16, "y": 20 },
         "width": 1150,
@@ -54,6 +54,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
+      "bundleName": "Ocul",
       "hardenedRuntime": true,
       "minimumSystemVersion": "13.0"
     }

@@ -100,7 +100,7 @@ export default function AppWindow({
   // 창 제목 = 프로젝트 이름 (macOS 창 전환기·Mission Control 구분용).
   const project = projectId == null ? null : (projects.find((p) => p.id === projectId) ?? null);
   useEffect(() => {
-    document.title = project?.name || "Ocul-PM";
+    document.title = project?.name || "Ocul";
   }, [project?.name]);
 
   // ⌘W(창 닫기) · ⇧⌘N(새 창)의 Windows·Linux 판. macOS 는 앱 메뉴가 받는다.

@@ -129,7 +129,7 @@ export function StartWindow() {
     <div className={"start" + (isMac() ? " is-mac" : "")}>
       <header className="start-bar" {...drag}>
         <span className="start-bar-title" {...drag}>
-          Ocul-PM
+          Ocul
         </span>
       </header>
 
