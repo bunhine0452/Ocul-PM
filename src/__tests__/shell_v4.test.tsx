@@ -50,6 +50,7 @@ vi.mock("@/features/oculpm/JournalScreenV2", () => ({ JournalScreenV2: () => <di
 vi.mock("@/features/planner/PlannerScreenV2", () => ({ PlannerScreenV2: () => <div data-testid="screen">planner</div> }));
 vi.mock("@/features/diff/DiffScreenV2", () => ({ DiffScreenV2: () => <div data-testid="screen">diff</div> }));
 vi.mock("@/features/settings/SettingsPage", () => ({ SettingsPage: () => <div data-testid="screen">settings</div> }));
+vi.mock("@/features/terminal/TerminalScreen", () => ({ TerminalScreen: () => <div data-testid="screen">terminal</div> }));
 
 import ShellV2 from "@/features/shell/ShellV2";
 import { TopBar } from "@/features/shell/TopBar";
@@ -111,7 +112,7 @@ describe("윗줄 — 프로젝트 · 탭 넷 · 찾기 · 설정 (사이드바 �
     const labels = within(nav)
       .getAllByRole("button")
       .map((b) => b.querySelector(".topnav-label")?.textContent);
-    expect(labels).toEqual(["오늘", "작업 일지", "계획", "변경"]);
+    expect(labels).toEqual(["오늘", "작업 일지", "계획", "변경", "터미널"]);
     expect(screen.getByRole("button", { name: t("sidebar.settings") })).toBeInTheDocument();
     // 머리는 프로젝트 이름 버튼 하나 — 최근 프로젝트 목록을 띄운다.
     expect(screen.getByRole("button", { name: t("sidebar.switchProjectAria", { name: "ai-pm" }) })).toHaveAttribute(
@@ -169,7 +170,7 @@ describe("라우터 — 다섯 화면", () => {
     }
   });
 
-  it("⌘1~⌘4 는 탭 순서, ⌘, 는 설정, ⌘5 는 아무것도 아니다", async () => {
+  it("⌘1~⌘5 는 탭 순서, ⌘, 는 설정, ⌘6 은 아무것도 아니다", async () => {
     await mountShell();
     const press = (key: string) => act(() => void fireEvent.keyDown(window, { key, metaKey: true }));
     press("2");
@@ -180,9 +181,11 @@ describe("라우터 — 다섯 화면", () => {
     expect(current()).toBe("diff");
     press(",");
     expect(await screen.findByText("settings")).toBeInTheDocument();
+    press("5");
+    expect(await screen.findByText("terminal")).toBeInTheDocument();
     press("1");
     expect(current()).toBe("today");
-    press("5");
+    press("6");
     expect(current()).toBe("today");
   });
 });

@@ -21,6 +21,14 @@ const fx = vi.hoisted(() => ({
   dispatch: [] as Array<[string, string]>,
 }));
 
+// 「다음」 은 앱 안 터미널에서 실행된다 — 터미널(xterm)은 띄우지 않고 넘긴 프롬프트만 본다.
+const runs: string[] = [];
+vi.mock("@/features/terminal/runPrompt", () => ({
+  runPromptInTerminal: async (_projectId: number, prompt: string) => {
+    runs.push(prompt);
+  },
+}));
+
 vi.mock("@/lib/bindings", () => {
   const ok = <T,>(data: T) => Promise.resolve({ status: "ok" as const, data });
   return {
@@ -171,8 +179,8 @@ describe("판정 카드", () => {
   });
 });
 
-describe("다음 · 복사", () => {
-  it("다음은 사람 몫을 건너뛴 첫 할 일 — 프롬프트 복사와 until-done 복사", async () => {
+describe("다음 · 터미널에서 실행", () => {
+  it("다음은 사람 몫을 건너뛴 첫 할 일 — 터미널에서 실행 · until-done 실행", async () => {
     const p = summary("drop");
     stage(
       [p],
@@ -187,12 +195,11 @@ describe("다음 · 복사", () => {
     );
     renderPlanner();
     await screen.findByText("트레이 제거", { selector: ".plv-next-title" });
-    fireEvent.click(screen.getByRole("button", { name: t("plan.nextRow.copy") }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith("PROMPT"));
+    runs.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: t("plan.nextRow.run") }));
+    await waitFor(() => expect(runs).toEqual(["PROMPT"]));
     fireEvent.click(screen.getByRole("button", { name: t("plan.nextRow.untilDone") }));
-    await waitFor(() =>
-      expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(`PROMPT\n\n${t("plan.nextRow.untilDoneSuffix")}`),
-    );
+    await waitFor(() => expect(runs[1]).toBe(`PROMPT\n\n${t("plan.nextRow.untilDoneSuffix")}`));
     expect(t("plan.nextRow.untilDoneSuffix")).toContain("/oculpm:next until-done");
     expect(fx.dispatch).toEqual([
       ["drop", "drop-tray"],
@@ -245,7 +252,7 @@ describe("상태 메뉴", () => {
     renderPlanner();
     const box = await screen.findByRole("button", { name: t("plan.item.statusAria", { title: "남은 것", status: t("plan.status.todo") }) });
     expect(box).toBeDisabled();
-    expect(screen.queryByRole("button", { name: t("plan.nextRow.copy") })).toBeNull();
+    expect(screen.queryByRole("button", { name: t("plan.nextRow.run") })).toBeNull();
   });
 });
 

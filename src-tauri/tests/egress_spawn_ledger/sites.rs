@@ -34,6 +34,20 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         reach: Reach::Network("open_url 의 스킴 가드 — http/https/mailto 만, OS 브라우저가 연다"),
         reason: "Windows — cmd 를 거치지 않고 ShellExecute(opener) 로. `cmd /C start` 는 쿼리의 `&` 뒤를 명령으로 실행했었다.",
     },
+    Launch {
+        path: "terminal.rs",
+        func: "shell_command",
+        call: "CommandBuilder::new(&shell)",
+        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 쳐 넣는 claude 한 줄"),
+        reason: "앱 안 터미널의 셸(macOS·Linux, $SHELL -l) — portable-pty 가 앱 프로세스 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 스스로 치는 것은 「다음」 실행의 `claude \"$OCULPM_PROMPT\"` 한 줄뿐(사용자가 누른 단추).",
+    },
+    Launch {
+        path: "terminal.rs",
+        func: "shell_command",
+        call: "CommandBuilder::new(\"powershell.exe\")",
+        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 쳐 넣는 claude 한 줄"),
+        reason: "Windows — 위와 같다(PowerShell, `claude $env:OCULPM_PROMPT`).",
+    },
     // ── 창구 ──
     Launch {
         path: "proc.rs",
@@ -199,6 +213,11 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
 /// 테스트 범위의 기동 자리 — 파일별 사유 하나에 `(함수, 띄우는 것)` 전부.
 /// 출시되는 앱에서 돌지 않는다는 것은 이 표의 주장이 아니라 스캐너의 판정이다.
 pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
+    (
+        "terminal.rs",
+        "앱 안 터미널의 진짜 PTY 왕복 — /bin/sh 가 읽은 한 줄(한글)을 되돌려 주고 종료 코드 3 으로 끝나는지. 기기 밖에 닿지 않는다.",
+        &[("pty_round_trip_output_input_and_exit", "CommandBuilder::new(\"/bin/sh\")")],
+    ),
     (
         "proc/disclaim.rs",
         "macOS 책임 분리 기동의 왕복 — /bin/sh 로 종료 코드를 거두고, 없는 경로는 오류로 돌아오는지.",

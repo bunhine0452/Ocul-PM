@@ -24,6 +24,7 @@ pub mod related;
 pub mod review;
 pub mod scorecard;
 pub mod tags;
+pub mod terminal;
 pub mod today;
 pub mod velocity;
 pub mod window;

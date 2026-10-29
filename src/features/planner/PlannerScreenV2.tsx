@@ -23,6 +23,7 @@ import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import type { PlanItemDto } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
+import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { CarryInbox } from "./CarryInbox";
 import { PlanDoc } from "./PlanDoc";
 import { PlanRail } from "./PlanRail";
@@ -53,14 +54,14 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     void plan.setStatus(item, status);
   };
 
-  // 다음 항목 넘기기 — 백엔드가 프롬프트를 조립하고, 붙여 넣는 것은 사용자다.
-  const copyPrompt = async (item: PlanItemDto, untilDone: boolean) => {
+  // 다음 항목 넘기기 — 백엔드가 프롬프트를 조립하고, 앱 안 터미널의 새 세션이 claude 로 돌린다
+  // (클립보드 경로는 터미널이 돌아오며 걷었다).
+  const runPrompt = async (item: PlanItemDto, untilDone: boolean) => {
     if (selectedId == null) return;
     try {
       const res = await planApi.dispatchPrompt(projectId, selectedId, item.item_id);
       const text = untilDone ? `${res.prompt}\n\n${t("plan.nextRow.untilDoneSuffix")}` : res.prompt;
-      await navigator.clipboard.writeText(text);
-      toast.info(untilDone ? t("plan.nextRow.untilDoneCopied") : t("plan.dispatchCopied", { title: res.item_title }));
+      await runPromptInTerminal(projectId, text);
     } catch (e) {
       toast.destructive(t("plan.dispatchFailed", { error: tError(toAppError(e)) }));
     }
@@ -94,8 +95,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           detail={detail}
           locked={locked}
           onSetStatus={applyStatus}
-          onCopy={(item) => void copyPrompt(item, false)}
-          onCopyUntilDone={(item) => void copyPrompt(item, true)}
+          onRun={(item) => void runPrompt(item, false)}
+          onRunUntilDone={(item) => void runPrompt(item, true)}
           onOpenJournal={openJournal}
         />
         {/* 닫힌 계획에 갇힌 미완 — 고른 활성 계획으로 옮긴다 (없으면 그리지 않는다). */}

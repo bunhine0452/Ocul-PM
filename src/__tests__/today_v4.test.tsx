@@ -41,6 +41,14 @@ const fx = vi.hoisted(() => ({
   dispatchCalls: [] as Array<[string, string]>,
 }));
 
+// 「다음」 은 앱 안 터미널에서 실행된다 — 터미널(xterm)은 띄우지 않고 넘긴 프롬프트만 본다.
+const runs: string[] = [];
+vi.mock("@/features/terminal/runPrompt", () => ({
+  runPromptInTerminal: async (_projectId: number, prompt: string) => {
+    runs.push(prompt);
+  },
+}));
+
 vi.mock("@/lib/bindings", () => {
   const ok = <T,>(data: T) => Promise.resolve({ status: "ok" as const, data });
   return {
@@ -318,16 +326,17 @@ describe("확인할 것 — 동작", () => {
     expect(document.activeElement).toBe(input);
   });
 
-  it("c 는 다음 항목의 프롬프트를 복사한다", async () => {
+  it("r 은 다음 항목을 앱 안 터미널에서 실행한다 (클립보드 경로는 걷었다)", async () => {
     fx.entries = [entry(1)];
     fx.digest = digest({
       plans: [plan("a", { next: { plan_id: "a", plan_title: "계획 a", item_id: "drop-tray", title: "트레이 제거", status: "todo" } })],
     });
     const { container } = renderToday();
     expect(await screen.findByText("트레이 제거")).toBeInTheDocument();
-    fireEvent.keyDown(container.querySelector(".page.tdy") as HTMLElement, { key: "c" });
+    runs.length = 0;
+    fireEvent.keyDown(container.querySelector(".page.tdy") as HTMLElement, { key: "r" });
     await waitFor(() => expect(fx.dispatchCalls).toEqual([["a", "drop-tray"]]));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("PROMPT");
+    await waitFor(() => expect(runs).toEqual(["PROMPT"]));
   });
 });
 

@@ -1,0 +1,425 @@
+//! 앱 안 터미널 (4.0, 플랜 `terminal-v4-20261029`) — 세션은 **앱 프로세스 안에** 산다.
+//!
+//! 10-28 에 걷은 3.x 터미널은 앱 밖 PTY 호스트(업데이트를 견디는 세션) · 떼어낸 창 ·
+//! 셸 rc 통합까지 6만여 줄이었고 10월 fix 1위였다. 다시 들이며 그 셋을 들이지 않는다:
+//! 세션은 창이 닫히면 그 창의 것이, 앱이 끝나면 전부 끝난다. 셸은 사용자의 로그인 셸을
+//! 그대로 띄우고(PATH 가 Finder 로 뜬 앱의 최소 PATH 가 아니게), rc 는 건드리지 않는다.
+//!
+//! 「다음」 을 실행할 때는 프롬프트를 환경 변수(`OCULPM_PROMPT`)로 넘기고 셸에
+//! `claude "$OCULPM_PROMPT"` 한 줄을 쳐 넣는다 — 따옴표·줄바꿈을 셸 문법으로 이스케이프할
+//! 일이 없고, claude 가 끝나면 셸이 남는다.
+
+use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+
+use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
+use serde::Serialize;
+
+/// 프롬프트를 셸에 넘기는 환경 변수.
+pub const PROMPT_ENV: &str = "OCULPM_PROMPT";
+
+/// 웹뷰로 가는 세션 사건 — 출력 조각과 끝.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TermEvent {
+    Output { data: String },
+    Exit { code: Option<u32> },
+}
+
+/// 목록 한 줄.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct TermInfo {
+    pub id: u32,
+    pub project_id: u32,
+    /// 셸 이름 또는 `claude` (「다음」 실행).
+    pub label: String,
+    /// 시작 시각 (RFC 3339).
+    pub started_at: String,
+    /// 끝났으면 종료 코드 (모르면 `None`, 아직 돌면 `alive`).
+    pub alive: bool,
+    pub exit_code: Option<u32>,
+}
+
+/// 여는 데 필요한 것.
+pub struct OpenSpec {
+    pub window: String,
+    pub project_id: u32,
+    pub cwd: PathBuf,
+    pub cols: u16,
+    pub rows: u16,
+    /// 있으면 그 프롬프트로 `claude` 를 바로 실행한다.
+    pub prompt: Option<String>,
+}
+
+struct Session {
+    window: String,
+    info: TermInfo,
+    master: Box<dyn MasterPty + Send>,
+    writer: Box<dyn Write + Send>,
+    child: Box<dyn Child + Send + Sync>,
+}
+
+#[derive(Default)]
+struct Inner {
+    next: u32,
+    map: HashMap<u32, Session>,
+}
+
+/// 앱 상태 — 모든 창의 세션 표.
+#[derive(Default, Clone)]
+pub struct TermSessions {
+    inner: Arc<Mutex<Inner>>,
+}
+
+fn size(cols: u16, rows: u16) -> PtySize {
+    PtySize {
+        rows: rows.max(2),
+        cols: cols.max(2),
+        pixel_width: 0,
+        pixel_height: 0,
+    }
+}
+
+/// 사용자의 셸 — 로그인 셸로 띄워 프로필의 PATH 를 받는다.
+fn shell_command() -> (CommandBuilder, String) {
+    #[cfg(windows)]
+    {
+        let cmd = CommandBuilder::new("powershell.exe");
+        (cmd, "powershell".to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        let fallback = if cfg!(target_os = "macos") {
+            "/bin/zsh"
+        } else {
+            "/bin/bash"
+        };
+        let shell = std::env::var("SHELL")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| fallback.to_string());
+        let name = std::path::Path::new(&shell)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "shell".to_string());
+        let mut cmd = CommandBuilder::new(&shell);
+        cmd.arg("-l");
+        (cmd, name)
+    }
+}
+
+/// 「다음」 실행 때 셸에 쳐 넣는 한 줄.
+fn run_line() -> String {
+    if cfg!(windows) {
+        format!("claude $env:{PROMPT_ENV}\r")
+    } else {
+        format!("claude \"${PROMPT_ENV}\"\r")
+    }
+}
+
+/// 읽은 바이트에서 **완성된 UTF-8 만** 꺼낸다 — 한글 한 글자(3바이트)가 두 번의 읽기에
+/// 걸쳐 오면 앞 조각을 다음 읽기까지 남긴다. 잘못된 바이트는 대체 문자로.
+pub fn take_utf8(carry: &mut Vec<u8>) -> String {
+    match std::str::from_utf8(carry) {
+        Ok(s) => {
+            let out = s.to_owned();
+            carry.clear();
+            out
+        }
+        Err(e) if e.error_len().is_none() => {
+            let valid = e.valid_up_to();
+            let out = String::from_utf8_lossy(&carry[..valid]).into_owned();
+            carry.drain(..valid);
+            out
+        }
+        Err(_) => {
+            let out = String::from_utf8_lossy(carry).into_owned();
+            carry.clear();
+            out
+        }
+    }
+}
+
+impl TermSessions {
+    /// 세션을 열고 출력 스레드를 붙인다. `emit` 은 출력·끝을 웹뷰로 보낸다.
+    pub fn open<F>(&self, spec: OpenSpec, emit: F) -> Result<TermInfo, String>
+    where
+        F: Fn(TermEvent) + Send + 'static,
+    {
+        let (cmd, shell_name) = shell_command();
+        let label = if spec.prompt.is_some() {
+            "claude".to_string()
+        } else {
+            shell_name
+        };
+        self.start(spec, cmd, label, emit)
+    }
+
+    /// 명령을 PTY 에 띄운다 — `open` 이 셸로 부르고, 테스트는 짧은 명령으로 부른다.
+    fn start<F>(
+        &self,
+        spec: OpenSpec,
+        mut cmd: CommandBuilder,
+        label: String,
+        emit: F,
+    ) -> Result<TermInfo, String>
+    where
+        F: Fn(TermEvent) + Send + 'static,
+    {
+        let pair = native_pty_system()
+            .openpty(size(spec.cols, spec.rows))
+            .map_err(|e| format!("pty: {e}"))?;
+        cmd.cwd(&spec.cwd);
+        cmd.env("TERM", "xterm-256color");
+        cmd.env("COLORTERM", "truecolor");
+        // Claude Code 의 전체 화면 렌더러 — 일반 렌더러는 크기가 바뀔 때마다 지난 화면을
+        // 다시 쏟아 스크롤백을 더럽혔다(3.x 실측, v3.13.2).
+        cmd.env("CLAUDE_CODE_NO_FLICKER", "1");
+        if let Some(prompt) = &spec.prompt {
+            cmd.env(PROMPT_ENV, prompt);
+        }
+        let child = pair
+            .slave
+            .spawn_command(cmd)
+            .map_err(|e| format!("spawn: {e}"))?;
+        drop(pair.slave);
+        let mut reader = pair
+            .master
+            .try_clone_reader()
+            .map_err(|e| format!("reader: {e}"))?;
+        let mut writer = pair
+            .master
+            .take_writer()
+            .map_err(|e| format!("writer: {e}"))?;
+        if spec.prompt.is_some() {
+            // 셸이 아직 프롬프트를 그리기 전이어도 tty 가 받아 둔다.
+            let _ = writer.write_all(run_line().as_bytes());
+            let _ = writer.flush();
+        }
+
+        let mut inner = self.inner.lock().map_err(|_| "poisoned".to_string())?;
+        inner.next += 1;
+        let id = inner.next;
+        let info = TermInfo {
+            id,
+            project_id: spec.project_id,
+            label,
+            started_at: chrono::Utc::now().to_rfc3339(),
+            alive: true,
+            exit_code: None,
+        };
+        inner.map.insert(
+            id,
+            Session {
+                window: spec.window,
+                info: info.clone(),
+                master: pair.master,
+                writer,
+                child,
+            },
+        );
+        drop(inner);
+
+        let table = self.inner.clone();
+        std::thread::Builder::new()
+            .name(format!("term-{id}"))
+            .spawn(move || {
+                let mut buf = [0u8; 8192];
+                let mut carry: Vec<u8> = Vec::new();
+                loop {
+                    match reader.read(&mut buf) {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => {
+                            carry.extend_from_slice(&buf[..n]);
+                            let text = take_utf8(&mut carry);
+                            if !text.is_empty() {
+                                emit(TermEvent::Output { data: text });
+                            }
+                        }
+                    }
+                }
+                // 표를 잠근 채 기다리지 않는다(try_wait) — 막히면 다른 세션 조작이 다 선다.
+                // 출력이 끝나도(EOF) 자식이 아직 안 거둬졌을 수 있어 잠깐씩 다시 본다(최대 ~1초) —
+                // 바로 한 번만 보면 부하가 있을 때 종료 코드를 「모름」 으로 적었다. 닫기로 끝난
+                // 세션은 표에 없으므로 곧장 나온다.
+                let mut code = None;
+                for _ in 0..50 {
+                    let seen = table.lock().ok().and_then(|mut t| {
+                        let s = t.map.get_mut(&id)?;
+                        Some(s.child.try_wait().ok().flatten().map(|st| st.exit_code()))
+                    });
+                    match seen {
+                        Some(None) => std::thread::sleep(std::time::Duration::from_millis(20)),
+                        Some(found) => {
+                            code = found;
+                            break;
+                        }
+                        None => break,
+                    }
+                }
+                if let Ok(mut t) = table.lock() {
+                    if let Some(s) = t.map.get_mut(&id) {
+                        s.info.alive = false;
+                        s.info.exit_code = code;
+                    }
+                }
+                emit(TermEvent::Exit { code });
+            })
+            .map_err(|e| format!("thread: {e}"))?;
+        Ok(info)
+    }
+
+    pub fn write(&self, id: u32, data: &str) -> Result<(), String> {
+        let mut inner = self.inner.lock().map_err(|_| "poisoned".to_string())?;
+        let s = inner.map.get_mut(&id).ok_or("no such session")?;
+        s.writer
+            .write_all(data.as_bytes())
+            .map_err(|e| e.to_string())?;
+        s.writer.flush().map_err(|e| e.to_string())
+    }
+
+    pub fn resize(&self, id: u32, cols: u16, rows: u16) -> Result<(), String> {
+        let inner = self.inner.lock().map_err(|_| "poisoned".to_string())?;
+        let s = inner.map.get(&id).ok_or("no such session")?;
+        s.master.resize(size(cols, rows)).map_err(|e| e.to_string())
+    }
+
+    /// 세션을 닫는다 — 자식을 죽이고 표에서 뺀다(PTY 가 닫혀 출력 스레드도 끝난다).
+    pub fn close(&self, id: u32) {
+        let removed = self.inner.lock().ok().and_then(|mut t| t.map.remove(&id));
+        if let Some(mut s) = removed {
+            let _ = s.child.kill();
+        }
+    }
+
+    /// 그 창의 세션 목록 (연 순서).
+    pub fn list(&self, window: &str) -> Vec<TermInfo> {
+        let Ok(inner) = self.inner.lock() else {
+            return Vec::new();
+        };
+        let mut out: Vec<TermInfo> = inner
+            .map
+            .values()
+            .filter(|s| s.window == window)
+            .map(|s| s.info.clone())
+            .collect();
+        out.sort_by_key(|i| i.id);
+        out
+    }
+
+    /// 창이 닫힐 때 — 그 창의 세션 전부.
+    pub fn close_window(&self, window: &str) {
+        let ids: Vec<u32> = self
+            .inner
+            .lock()
+            .map(|t| {
+                t.map
+                    .iter()
+                    .filter(|(_, s)| s.window == window)
+                    .map(|(id, _)| *id)
+                    .collect()
+            })
+            .unwrap_or_default();
+        for id in ids {
+            self.close(id);
+        }
+    }
+
+    /// 앱이 끝날 때 — 전부. 고아 셸을 남기지 않는다.
+    pub fn close_all(&self) {
+        let ids: Vec<u32> = self
+            .inner
+            .lock()
+            .map(|t| t.map.keys().copied().collect())
+            .unwrap_or_default();
+        for id in ids {
+            self.close(id);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn utf8_split_across_reads_waits_for_the_rest() {
+        let bytes = "가나".as_bytes();
+        let mut carry = bytes[..4].to_vec(); // 「가」 3바이트 + 「나」 첫 바이트
+        assert_eq!(take_utf8(&mut carry), "가");
+        assert_eq!(carry.len(), 1);
+        carry.extend_from_slice(&bytes[4..]);
+        assert_eq!(take_utf8(&mut carry), "나");
+        assert!(carry.is_empty());
+    }
+
+    #[test]
+    fn invalid_bytes_become_replacement_characters() {
+        let mut carry = vec![b'a', 0xff, b'b'];
+        assert_eq!(take_utf8(&mut carry), "a\u{fffd}b");
+        assert!(carry.is_empty());
+    }
+
+    /// 진짜 PTY 왕복 — 쓴 것이 자식에게 가고, 자식의 출력과 끝이 돌아온다. 닫으면 표에서 빠진다.
+    #[cfg(unix)]
+    #[test]
+    fn pty_round_trip_output_input_and_exit() {
+        use std::sync::mpsc;
+        let sessions = TermSessions::default();
+        let (tx, rx) = mpsc::channel::<TermEvent>();
+        let mut cmd = CommandBuilder::new("/bin/sh");
+        cmd.args([
+            "-c",
+            "printf 'ready:'; read line; printf 'got:%s:' \"$line\"; exit 3",
+        ]);
+        let spec = OpenSpec {
+            window: "main".into(),
+            project_id: 1,
+            cwd: std::env::temp_dir(),
+            cols: 80,
+            rows: 24,
+            prompt: None,
+        };
+        let info = sessions
+            .start(spec, cmd, "sh".into(), move |e| {
+                let _ = tx.send(e);
+            })
+            .unwrap();
+        assert_eq!(sessions.list("main").len(), 1);
+        assert!(sessions.list("other").is_empty());
+        let mut out = String::new();
+        let mut code = None;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let mut sent = false;
+        while std::time::Instant::now() < deadline {
+            match rx.recv_timeout(std::time::Duration::from_millis(200)) {
+                Ok(TermEvent::Output { data }) => out.push_str(&data),
+                Ok(TermEvent::Exit { code: c }) => {
+                    code = c;
+                    break;
+                }
+                Err(_) => {}
+            }
+            if !sent && out.contains("ready:") {
+                sessions.resize(info.id, 100, 30).unwrap();
+                sessions.write(info.id, "한글\r").unwrap();
+                sent = true;
+            }
+        }
+        assert!(out.contains("got:한글:"), "출력: {out:?}");
+        assert_eq!(code, Some(3));
+        assert!(!sessions.list("main")[0].alive);
+        sessions.close_window("main");
+        assert!(sessions.list("main").is_empty());
+    }
+
+    #[test]
+    fn run_line_reads_the_prompt_from_the_environment() {
+        let line = run_line();
+        assert!(line.starts_with("claude "));
+        assert!(line.contains(PROMPT_ENV));
+        assert!(line.ends_with('\r'));
+    }
+}

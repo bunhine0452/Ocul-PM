@@ -1,4 +1,4 @@
-import { Sunrise, NotebookText, TargetIcon, GitCompareArrows } from "@/components/Icons";
+import { Sunrise, NotebookText, TargetIcon, GitCompareArrows, SquareTerminal } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import type { I18nKey } from "@/i18n";
 import { modLabel } from "@/lib/kbd";
@@ -43,13 +43,15 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "journal", labelKey: "nav.journal", aliasKey: "nav.journal.alias", icon: NotebookText },
   { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon },
   { id: "diff", labelKey: "nav.diff", aliasKey: "nav.diff.alias", icon: GitCompareArrows },
+  // 4.0 다시 (10-29 사용자 결정) — 앱 안 세션, 「다음」 이 여기서 claude 를 연다.
+  { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal },
 ];
 
 /** ⌘K 팔레트가 싣는 화면 목적지 — 사이드바 행과 같다. */
 export const NAV_DESTINATIONS: NavEntry[] = NAV_ENTRIES;
 
-/** ⌘번호 키 → 배열 앞에서부터 (⌘1~⌘4). */
-export const NAV_SHORTCUT_KEYS = ["1", "2", "3", "4"] as const;
+/** ⌘번호 키 → 배열 앞에서부터 (⌘1~⌘5). */
+export const NAV_SHORTCUT_KEYS = ["1", "2", "3", "4", "5"] as const;
 
 export function navViewForKey(key: string): UiV2View | undefined {
   const idx = (NAV_SHORTCUT_KEYS as readonly string[]).indexOf(key);

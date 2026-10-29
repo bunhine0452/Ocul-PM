@@ -1,0 +1,41 @@
+/* ============================================================
+   terminal.css — 터미널 (4.0 다시): 왼쪽 세션 목록 한 칸 + 터미널.
+   작업 일지(.jl-col)와 같은 꼴 — 목록 칸은 창 바탕, 선택은 면(--bg-active).
+   터미널 면은 `--term-bg`(= 콘텐츠 바탕) 라 화면과 이어진다. 색은 tokens.css 의 --term-*.
+   ============================================================ */
+
+.tm-split { flex: 1; min-height: 0; display: flex; }
+
+.tm-col {
+  width: 240px; max-width: 35%; flex: none; min-height: 0;
+  display: flex; flex-direction: column; overflow-y: auto;
+  border-right: 1px solid var(--sep); background: var(--bg-window);
+}
+.tm-list { margin: 0; padding: var(--space-2) 0; list-style: none; }
+.tm-empty { margin: 0; padding: var(--space-5) var(--space-6); font-size: var(--fs-3); color: var(--text-2); }
+
+.tm-item { display: flex; align-items: center; gap: var(--space-1); padding-right: var(--space-3); }
+.tm-item.is-active { background: var(--bg-active); }
+.tm-item:not(.is-active):hover { background: var(--bg-hover); }
+.tm-pick {
+  flex: 1; min-width: 0;
+  display: grid; grid-template-columns: 8px minmax(0, 1fr); column-gap: var(--space-3); row-gap: 2px; align-items: center;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-6);
+  border: 0; background: transparent; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.tm-pick:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+.tm-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
+.tm-dot.is-live { background: var(--ok); }
+.tm-name { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-meta { grid-column: 2; font-size: var(--fs-2); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-rec { color: var(--ok-text); }
+/* 닫기는 줄을 가리킬 때만 — 목록이 × 로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */
+.tm-close { flex: none; opacity: 0; }
+.tm-item:hover .tm-close, .tm-item.is-active .tm-close, .tm-close:focus-visible { opacity: 1; }
+
+/* 터미널 면 — xterm 이 이 칸을 채운다(FitAddon). 여백은 칸 안쪽에 두어 글자가 테두리에 붙지 않게. */
+.tm-pane { flex: 1; min-width: 0; min-height: 0; position: relative; background: var(--term-bg); }
+.term-host { position: absolute; inset: var(--space-4) var(--space-3) var(--space-3) var(--space-5); }
+.term-host .xterm { height: 100%; }
+.term-host .xterm-viewport { background: transparent !important; }

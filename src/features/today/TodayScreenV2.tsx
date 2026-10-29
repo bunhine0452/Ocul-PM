@@ -31,6 +31,7 @@ import { requestOculpmActivate } from "@/lib/projectActions";
 import { consumeResumeOnOpen } from "@/lib/resumeIntent";
 import { openSettings } from "@/lib/settingsNav";
 import { toast } from "@/lib/toast";
+import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { TodayExceptions } from "./TodayExceptions";
 import { LiveCard, NextCard } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
@@ -82,13 +83,12 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   }, []);
 
   // 시작 탭의 「이 맥락으로 이어서 작업」 — 프로젝트가 열려 이 화면이 서면 한 번, 이어하기
-  // 프롬프트를 클립보드에 둔다. 보내는 것은 사용자다(자기 터미널의 에이전트에 붙여 넣는다).
+  // 프롬프트로 앱 안 터미널에서 claude 를 연다(사용자가 그 단추를 눌렀다).
   useEffect(() => {
     if (!oculpmReady || !consumeResumeOnOpen(projectId)) return;
     void hooksApi
       .resumeDispatchPrompt(projectId)
-      .then((res) => navigator.clipboard.writeText(res.prompt))
-      .then(() => toast.info(t("today.resume.dispatchCopied")))
+      .then((res) => runPromptInTerminal(projectId, res.prompt))
       .catch((e: unknown) => toast.destructive(t("today.resume.dispatchFailed", { error: tError(toAppError(e)) })));
     // 뜻은 한 번만 소비된다 — t 가 바뀌어도 다시 돌 일이 없다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,12 +126,12 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   );
 
   const next = firstNext(data.digest ?? null);
-  const copyNext = useCallback(async () => {
+  // 다음 항목을 앱 안 터미널에서 — 새 세션에 `claude "<프롬프트>"` (클립보드 경로는 걷었다).
+  const runNext = useCallback(async () => {
     if (!next) return;
     try {
       const res = await planApi.dispatchPrompt(projectId, next.plan.plan_id, next.item.item_id);
-      await navigator.clipboard.writeText(res.prompt);
-      toast.info(t("plan.dispatchCopied", { title: res.item_title }));
+      await runPromptInTerminal(projectId, res.prompt);
     } catch (e) {
       toast.destructive(t("plan.dispatchFailed", { error: tError(toAppError(e)) }));
     }
@@ -186,10 +186,10 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
       if (ex?.kind !== "evidence") return;
       e.preventDefault();
       void verify(ex.entry);
-    } else if (e.key === "c") {
+    } else if (e.key === "r") {
       if (!next) return;
       e.preventDefault();
-      void copyNext();
+      void runNext();
     }
   };
 
@@ -252,7 +252,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                 onPrimary={runPrimary}
                 onVerify={(entry) => void verify(entry)}
               />
-              {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onCopy={() => void copyNext()} /> : null}
+              {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onRun={() => void runNext()} /> : null}
               <LiveCard sessions={live} now={now} />
               {/* 오늘 기록이 없으면 이 카드는 위 문단을 되풀이할 뿐이다. */}
               {entries.length > 0 && data.digest ? (
