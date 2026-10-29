@@ -228,7 +228,7 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
     ),
     (
         "terminal.rs",
-        "앱 끄기 전 묻기 — /bin/sh 의 sleep 하나를 세션으로 띄워 「도는 세션」을 만든다. 기기 밖에 닿지 않는다.",
+        "앱 끄기 전 묻기 — 대화형 /bin/sh 를 세션으로 띄워 빈 셸은 안 묻고, sleep 이 앞에 서면 묻는지 본다. 기기 밖에 닿지 않는다.",
         &[("quitting_asks_only_while_a_session_runs_and_not_twice_in_a_row", "CommandBuilder::new(\"/bin/sh\")")],
     ),
     (

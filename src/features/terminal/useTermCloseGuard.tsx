@@ -25,7 +25,7 @@ export function useTermCloseGuard(projects: Project[]): ReactNode {
     let alive = true;
     const answer = async (ask: TermCloseAsked) => {
       const all = await (ask.quit ? terminalApi.overview() : terminalApi.list()).catch(() => []);
-      const running = all.filter((s) => s.alive);
+      const running = all.filter((s) => s.busy);
       const nameOf = (id: number) => projects.find((p) => p.id === id)?.name ?? "";
       const n = running.length || ask.alive;
       const ok = await confirm({

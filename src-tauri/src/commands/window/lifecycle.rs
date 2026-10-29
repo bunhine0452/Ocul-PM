@@ -181,11 +181,11 @@ fn attach_window_hooks(app: &AppHandle, window: &tauri::WebviewWindow, label: St
         // 발화하지 않아, 종료 중에 "마지막 창" 판정이 무언가를 다시 띄우는 사고를
         // 구조적으로 막는다.
         tauri::WindowEvent::CloseRequested { api, .. } => {
-            // 도는 터미널 세션이 있으면 닫지 않고 그 창에 묻는다 — 닫으면 세션이 함께 끝난다.
+            // 무언가 도는 터미널 세션이 있으면 닫지 않고 그 창에 묻는다 — 닫으면 세션이 함께 끝난다.
             // 확인하면 창이 `term_end_window` 로 세션을 끝내고 다시 닫으므로 여기를 그냥 지난다.
             let alive = handle
                 .try_state::<crate::terminal::TermSessions>()
-                .map(|t| t.alive_in(&label).len())
+                .map(|t| t.busy_in(&label).len())
                 .unwrap_or(0);
             if alive > 0 {
                 api.prevent_close();

@@ -49,11 +49,11 @@ export interface ProjectTerms {
   waiting: number;
 }
 
-/** 실행 중인 세션을 프로젝트별로 센다 — 끝난 세션은 세지 않는다. */
+/** 무언가 도는 세션을 프로젝트별로 센다 — 빈 셸과 끝난 세션은 세지 않는다(`busy`). */
 export function countByProject(infos: TermInfo[]): Map<number, ProjectTerms> {
   const out = new Map<number, ProjectTerms>();
   for (const s of infos) {
-    if (!s.alive) continue;
+    if (!s.busy) continue;
     const row = out.get(s.project_id) ?? { alive: 0, waiting: 0 };
     row.alive += 1;
     if (needsMe(s.status)) row.waiting += 1;
@@ -62,8 +62,11 @@ export function countByProject(infos: TermInfo[]): Map<number, ProjectTerms> {
   return out;
 }
 
-/** 모든 창의 세션 — 처음 한 번 읽고, 어느 창에서든 세션 · 상태가 바뀌면 다시 읽는다. */
-export function useTermOverview(): Map<number, ProjectTerms> {
+/**
+ * 모든 창의 세션 — 처음 한 번, 어느 창에서든 세션 · 상태가 바뀔 때, `refresh` 가 바뀔 때 읽는다.
+ * 빈 셸에서 명령이 시작 · 끝나는 것은 사건이 없으니 목록을 펼칠 때 `refresh` 로 다시 읽게 한다.
+ */
+export function useTermOverview(refresh?: unknown): Map<number, ProjectTerms> {
   const [counts, setCounts] = useState<Map<number, ProjectTerms>>(() => new Map());
   useEffect(() => {
     let alive = true;
@@ -78,6 +81,6 @@ export function useTermOverview(): Map<number, ProjectTerms> {
       alive = false;
       void off.then((fn) => fn());
     };
-  }, []);
+  }, [refresh]);
   return counts;
 }
