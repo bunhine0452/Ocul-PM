@@ -1,7 +1,7 @@
 // 실행 중인 터미널 세션이 있는 창 닫기 · 앱 끄기 확인 (ui-audit #term-close-guard)과
 // 프로젝트별 세션 세기 (#term-running-badge).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 
 import type { TermCloseAsked, TermInfo } from "@/api/terminal";
 
@@ -35,7 +35,8 @@ vi.mock("@tauri-apps/plugin-process", () => ({
 
 import { __resetLangForTests, setLangSetting, t } from "@/i18n";
 import { useTermCloseGuard } from "@/features/terminal/useTermCloseGuard";
-import { countByProject } from "@/features/terminal/status";
+import { countByProject, useWindowTerms } from "@/features/terminal/status";
+import { terminalApi } from "@/api/terminal";
 import type { Project } from "@/lib/bindings";
 
 function session(id: number, projectId: number, extra: Partial<TermInfo> = {}): TermInfo {
@@ -117,6 +118,17 @@ describe("창 닫기 확인", () => {
       fireEvent.click(screen.getByRole("button", { name: t("terminal.quitAsk.confirm") }));
     });
     await waitFor(() => expect(api.calls).toEqual(["exit:0"]));
+  });
+});
+
+describe("목록을 못 읽을 때", () => {
+  it("배열이 아닌 답(봉투 · null)은 빈 목록으로 — 오늘 화면이 죽지 않는다", async () => {
+    const list = vi.spyOn(terminalApi, "list").mockResolvedValue({ status: "ok", data: null } as unknown as TermInfo[]);
+    const { result } = renderHook(() => useWindowTerms());
+    await waitFor(() => expect(list).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(result.current).toEqual([]);
+    list.mockRestore();
   });
 });
 
