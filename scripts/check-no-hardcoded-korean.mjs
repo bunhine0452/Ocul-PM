@@ -176,6 +176,7 @@ const TESTS = new Set([
   // bug-hunt C4 (2026-09-22) — 시작 탭의 설정 오버레이. 한국어 테스트 이름뿐이다.
   // 4.0 오늘 화면 — 일지·계획 픽스처 제목과 한국어 테스트 이름이 검사 재료다.
   "__tests__/today_v4.test.tsx",
+  "__tests__/today_num.test.tsx",
   "__tests__/uiv2view_route_safety.test.ts",
   "__tests__/update_banner.test.tsx",
   "__tests__/updater_route.test.ts",

@@ -69,7 +69,8 @@
 .tdy-empty { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px 14px; }
 
 /* 검증 없이 끝난 일지 — 시각 · 제목 · 행에 올라가야 보이는 「읽음」(읽음은 묶음 머리에 하나 서 있다). */
-.tdy-time { flex: none; width: 40px; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* 영어 「yesterday」 가 40px 에서 「yester / day」 로 꺾였다(10-30) — 낱말 안에서 끊지 않는 폭. */
+.tdy-time { flex: none; width: 5em; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; overflow-wrap: normal; word-break: keep-all; }
 .tdy-unread .tdy-row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .tdy-row-quiet { opacity: 0; }
 .tdy-row:hover .tdy-row-quiet,
