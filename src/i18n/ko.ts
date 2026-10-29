@@ -252,6 +252,7 @@ export const ko = {
   "terminal.records": "일지 {n}건",
   "terminal.recordsTitle": "이 세션이 시작된 뒤 이 프로젝트에 남은 일지",
   "terminal.openFailed": "터미널을 열지 못했어요 — {error}",
+  "terminal.launchFailed": "claude 명령을 찾지 못했어요. Claude Code 가 깔려 있고 로그인 셸의 PATH 에 있는지 확인해 주세요.",
   "terminal.empty": "세션이 없어요. 새 세션을 열면 이 프로젝트 폴더에서 셸이 떠요.",
   "terminal.state.working": "작업 중",
   "terminal.state.idle": "입력을 기다려요",

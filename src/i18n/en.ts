@@ -250,6 +250,7 @@ export const en: Record<keyof typeof ko, string> = {
   "terminal.records": "{n} {n|entry|entries}",
   "terminal.recordsTitle": "Journal entries written in this project since this session started",
   "terminal.openFailed": "Couldn't open the terminal — {error}",
+  "terminal.launchFailed": "Couldn't find the claude command. Check that Claude Code is installed and on your login shell's PATH.",
   "terminal.empty": "No sessions. A new session opens a shell in this project folder.",
   "terminal.state.working": "Working",
   "terminal.state.idle": "Waiting for input",

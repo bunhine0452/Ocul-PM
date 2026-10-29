@@ -17,8 +17,11 @@ import "@xterm/xterm/css/xterm.css";
 import { fileOpenApi } from "@/api/fileOpen";
 import { terminalApi, type TermEvent, type TermInfo } from "@/api/terminal";
 import { isMac } from "@/lib/platform";
+import { t } from "@/i18n";
+import { toast } from "@/lib/toast";
 import { alertIfWaiting } from "./attention";
 import { attachImeBridge } from "./imeBridge";
+import { LAUNCH_WATCH_CHARS, launchFailed } from "./launchCheck";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 
 // 한글은 번들 'D2Coding Term'(App.css)이 unicode-range 로 두 셀을 정확히 채운다 — 라틴 격자를
@@ -126,9 +129,20 @@ export async function openTerm(projectId: number, prompt: string | null = null):
   // 셸이 open 이 돌아오기 전에 끝날 수도 있다 — 그 끝을 받아 뒀다가 표에 넣을 때 적는다.
   let earlyExit: { code: number | null } | null = null;
   // 첫 출력이 open 이 돌아오기 전에 올 수 있다 — xterm 은 open() 전에도 버퍼에 쓴다.
+  // 「다음」 실행이면 첫머리에서 claude 를 못 찾았는지 본다 — 찾았든 못 찾았든 한 번만.
+  let launchHead: string | null = prompt ? "" : null;
   const onEvent = (ev: TermEvent) => {
     if (ev.kind === "output") {
       term.write(ev.data);
+      if (launchHead !== null) {
+        launchHead += ev.data;
+        if (launchFailed(launchHead)) {
+          launchHead = null;
+          toast.warning(t("terminal.launchFailed"), { durationMs: 15000 });
+        } else if (launchHead.length > LAUNCH_WATCH_CHARS) {
+          launchHead = null;
+        }
+      }
       return;
     }
     if (ev.kind === "status") {
