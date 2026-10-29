@@ -123,7 +123,7 @@ pub fn tool_definitions() -> Value {
                 "properties": {
                     "type": { "type": "string", "enum": ["bug", "feature", "error", "refactor", "chore"], "description": "작업 단위의 종류" },
                     "slug": { "type": "string", "description": "ASCII kebab-case, 40자 이내 (예: fix-cache-invalidation)" },
-                    "title": { "type": "string", "description": "한 줄 제목. 언어는 프로젝트 AGENTS.md 를 따른다 (앱의 \"AI 작성 언어\" 설정이 그 마스터를 고른다)" },
+                    "title": { "type": "string", "description": "한 줄 제목, **40자 안** — 일지 목록 · 오늘 화면의 한 줄에 들어가게(자세한 것은 본문에). 언어는 프로젝트 AGENTS.md 를 따른다 (앱의 \"AI 작성 언어\" 설정이 그 마스터를 고른다)" },
                     "body_markdown": { "type": "string", "description": "본문. 타입별 권장 헤더 — bug/error: 발생 원인·해결 방법, feature: 추가 기능·동작 흐름, refactor: 동기·변경 요약. 마지막에 검증 섹션 1~3줄 필수. **정확한 헤더 이름과 언어는 프로젝트 AGENTS.md 를 따른다** (영어 프로젝트는 Root cause / Fix / Verification). 시크릿 금지." },
                     "status": { "type": "string", "enum": ["planned", "in_progress", "done", "abandoned"], "description": "기본 done" },
                     "difficulty": { "type": "string", "enum": ["verylow", "low", "medium", "high", "superhigh"] },
@@ -211,7 +211,7 @@ pub fn tool_definitions() -> Value {
                 "type": "object",
                 "properties": {
                     "plan_id": { "type": "string", "description": "영문 kebab-case ≤40자 — 파일명이자 frontmatter id" },
-                    "title": { "type": "string", "description": "사람이 읽는 제목 (한국어 권장)" },
+                    "title": { "type": "string", "description": "사람이 읽는 제목, 40자 안 (한국어 권장)" },
                     "description": { "type": "string", "description": "선택 — 제목 아래 소개 1~2문장" },
                     "done_when": { "type": "string", "description": "**완료 조건** 한 줄 — 무엇이 되면 이 플랜이 끝인가 (할 일 목록이 아니라 그 너머의 결과). 세션 시작 훅·이어하기·plan_status 가 항목과 함께 싣는다. 거의 필수 — 없으면 에이전트가 왜 하는지 모른 채 항목만 받는다" },
                     "check": { "type": "string", "description": "**확인 명령** 한 줄 — 완료 조건을 통과/실패로 판정하는 명령(`pnpm test && cargo test`, `curl -f localhost:3000/health` …). 훅이 완료 조건 다음에 싣고, 마지막 항목을 닫을 때 이 명령을 돌려 결과를 로그에 적도록 안내한다. 에이전트에게 통과/실패를 내는 것을 주면 「됐다」는 주장이 아니라 결과로 끝낸다" },
@@ -228,7 +228,7 @@ pub fn tool_definitions() -> Value {
                                     "items": {
                                         "type": "object",
                                         "properties": {
-                                            "text": { "type": "string", "description": "항목 한 줄 (줄바꿈 금지 — 전부 [ ] 할일로 생성됨)" },
+                                            "text": { "type": "string", "description": "항목 한 줄, 40자 안 — 계획 화면 한 줄에 들어가게 (줄바꿈 금지 — 전부 [ ] 할일로 생성됨)" },
                                             "id": { "type": "string", "description": "안정적 kebab id (생략 시 텍스트에서 유도, 한글뿐이면 p<n>-<m>)" },
                                             "children": {
                                                 "type": "array",
