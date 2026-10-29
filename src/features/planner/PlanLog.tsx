@@ -7,7 +7,8 @@ import { useT } from "@/i18n";
 import type { PlanDecisionDto, PlanItemUpdateDto } from "@/lib/bindings";
 
 /**
- * 「갱신 기록 N줄 · 결정 M」 — 계획 문서 끝의 plan-log 와 결정, 한 줄로 접힌 채 시작한다.
+ * 「이력 N줄 · 결정 M」 — 계획 문서 끝의 plan-log 와 결정, 한 줄로 접힌 채 시작한다.
+ * 0 인 쪽은 쓰지 않고, 둘 다 0 이면(또는 아직 읽는 중이면) 줄 자체를 세우지 않는다 (화면 검사 {#hide-zero}).
  *
  * 행은 항목별 이력과 같은 투영(`oculpm_plan_item_updates`)이고 계획 단위로 한 번
  * 읽는다 (`plan_log`). 못 읽으면 「모름」 — 0줄과 같은 얼굴을 하지 않는다.
@@ -43,11 +44,17 @@ export function PlanLog({
     };
   }, [projectId, planId, revision]);
 
+  const parts = [
+    rows && rows.length > 0 ? t("plan.log.rows", { n: rows.length }) : null,
+    decisions.length > 0 ? t("plan.log.decisionCount", { n: decisions.length }) : null,
+  ].filter(Boolean);
+  if (!failed && parts.length === 0) return null;
+
   return (
     <details className="plv-log">
       <summary>
         <ChevronRight size={11} className="plv-log-chev" aria-hidden="true" />
-        {failed ? t("plan.log.unknown") : t("plan.log.summary", { n: rows?.length ?? 0, m: decisions.length })}
+        {failed ? t("plan.log.unknown") : parts.join(" · ")}
       </summary>
       {decisions.length > 0 ? (
         <section className="plv-log-sec" aria-label={t("plan.log.decisions")}>
