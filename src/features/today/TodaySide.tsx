@@ -6,7 +6,7 @@
  * 이미 「확인할 것」에 선다 (4.0 「더 단순하게」).
  */
 
-import { Copy } from "@/components/Icons";
+import { SquareTerminal } from "@/components/Icons";
 import { agentLabel } from "@/features/today/agentColor";
 import { useT } from "@/i18n";
 import { relativeTime } from "@/lib/format";
@@ -55,10 +55,10 @@ export function LiveCard({ sessions, now }: { sessions: LiveSession[]; now: numb
 }
 
 /**
- * 다음 — 한 줄. 항목 제목 · 계획 이름 · 「프롬프트 복사」 하나. 끝까지 맡기는 법
- * (`/oculpm:next until-done`)은 버튼의 title 에 — 늘 떠 있는 설명 문단을 걷었다.
+ * 다음 — 한 줄. 항목 제목 · 계획 이름 · 「터미널에서 실행」 하나(앱 안 터미널의 새 세션에서
+ * `claude "<프롬프트>"`). 끝까지 맡기는 법(`/oculpm:next until-done`)은 버튼의 title 에.
  */
-export function NextCard({ next, onCopy }: { next: { plan: DigestPlan; item: DigestItem } | null; onCopy: () => void }) {
+export function NextCard({ next, onRun }: { next: { plan: DigestPlan; item: DigestItem } | null; onRun: () => void }) {
   const { t } = useT();
   return (
     <section className="card tdy-card tdy-next" aria-labelledby="tdy-next-h">
@@ -74,11 +74,11 @@ export function NextCard({ next, onCopy }: { next: { plan: DigestPlan; item: Dig
           <button
             type="button"
             className="btn primary sm"
-            onClick={onCopy}
+            onClick={onRun}
             title={`${t("today.nextUp.hint")} /oculpm:next until-done`}
           >
-            <Copy size={13} aria-hidden="true" />
-            {t("today.nextUp.copy")}
+            <SquareTerminal size={13} aria-hidden="true" />
+            {t("today.nextUp.run")}
           </button>
         </>
       ) : (

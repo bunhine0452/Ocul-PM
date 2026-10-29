@@ -38,6 +38,8 @@ export const ALLOWLIST = new Set([
   "api/diff.ts",
   "api/projects.ts",
   "api/settings.ts",
+  // 앱 안 터미널 세션 (4.0 터미널 복귀) — 출력 Channel 을 만드는 자리라 래퍼가 정본이다.
+  "api/terminal.ts",
   // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준 87개 → 2026-10-01 52개). 새로
   // 늘리지 말 것 — 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.
   "contexts/SettingsContext.tsx",

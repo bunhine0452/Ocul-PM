@@ -189,6 +189,10 @@ fn attach_window_hooks(app: &AppHandle, window: &tauri::WebviewWindow, label: St
 
 /// 반환값 `true` 면 닫기를 가로챈 것 (macOS 에서 마지막 창을 숨기기만 함).
 fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
+    // 그 창의 터미널 세션은 창과 함께 끝난다 — 세션은 창 안에만 보인다.
+    if let Some(terms) = app.try_state::<crate::terminal::TermSessions>() {
+        terms.close_window(label);
+    }
     let remaining = app.state::<WindowProjects>().lock().remove(label);
     emit_open_projects(app);
     if remaining > 0 {

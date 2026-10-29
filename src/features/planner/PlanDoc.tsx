@@ -6,7 +6,7 @@
  * 다른 주장이고, 둘째를 말하는 것은 에이전트가 아니라 확인 명령의 결과 끝 줄이다.
  */
 
-import { Copy } from "@/components/Icons";
+import { SquareTerminal } from "@/components/Icons";
 import { agentLabel } from "@/features/today/agentColor";
 import { whenLabel } from "@/lib/whenLabel";
 import { getLang, useT } from "@/i18n";
@@ -58,12 +58,12 @@ function JudgeCard({ detail }: { detail: PlanDetail }) {
 
 function NextRow({
   items,
-  onCopy,
-  onCopyUntilDone,
+  onRun,
+  onRunUntilDone,
 }: {
   items: PlanItemDto[];
-  onCopy: (item: PlanItemDto) => void;
-  onCopyUntilDone: (item: PlanItemDto) => void;
+  onRun: (item: PlanItemDto) => void;
+  onRunUntilDone: (item: PlanItemDto) => void;
 }) {
   const { t } = useT();
   const next = nextLeaf(items);
@@ -75,11 +75,11 @@ function NextRow({
           <span className="plv-next-title">{next.title}</span>
           <span className="plv-meta mono">#{next.item_id}</span>
           <span className="plv-grow" />
-          <button type="button" className="btn primary sm" onClick={() => onCopy(next)}>
-            <Copy size={13} aria-hidden="true" />
-            {t("plan.nextRow.copy")}
+          <button type="button" className="btn primary sm" onClick={() => onRun(next)}>
+            <SquareTerminal size={13} aria-hidden="true" />
+            {t("plan.nextRow.run")}
           </button>
-          <button type="button" className="btn sm" title={t("plan.nextRow.untilDoneTitle")} onClick={() => onCopyUntilDone(next)}>
+          <button type="button" className="btn sm" title={t("plan.nextRow.untilDoneTitle")} onClick={() => onRunUntilDone(next)}>
             {t("plan.nextRow.untilDone")}
           </button>
         </>
@@ -95,16 +95,16 @@ export function PlanDoc({
   detail,
   locked,
   onSetStatus,
-  onCopy,
-  onCopyUntilDone,
+  onRun,
+  onRunUntilDone,
   onOpenJournal,
 }: {
   projectId: number;
   detail: PlanDetail;
   locked: boolean;
   onSetStatus: (item: PlanItemDto, status: string) => void;
-  onCopy: (item: PlanItemDto) => void;
-  onCopyUntilDone: (item: PlanItemDto) => void;
+  onRun: (item: PlanItemDto) => void;
+  onRunUntilDone: (item: PlanItemDto) => void;
   onOpenJournal: (ref: string) => void;
 }) {
   const { t } = useT();
@@ -119,7 +119,7 @@ export function PlanDoc({
         <h2 className="plv-title">{p.title}</h2>
       </header>
       <JudgeCard detail={detail} />
-      {locked ? null : <NextRow items={detail.items} onCopy={onCopy} onCopyUntilDone={onCopyUntilDone} />}
+      {locked ? null : <NextRow items={detail.items} onRun={onRun} onRunUntilDone={onRunUntilDone} />}
       <PlanItems items={detail.items} locked={locked} onSetStatus={onSetStatus} onOpenJournal={onOpenJournal} />
       <PlanLog projectId={projectId} planId={p.plan_id} revision={detail.items.map((i) => i.status).join("")} decisions={detail.decisions} />
     </article>

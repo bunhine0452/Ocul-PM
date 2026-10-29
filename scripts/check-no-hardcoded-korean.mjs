@@ -118,6 +118,11 @@ const TESTS = new Set([
   "__tests__/screens_agree.test.ts",
   // 끝난 단계 접기 — 한국어 항목 제목 픽스처와 테스트 이름.
   "__tests__/plan_fold.test.tsx",
+  // 터미널 한글 입력 브리지 (4.0 터미널 복귀 때 되살림) — 조합 중 글자(ㅊ·치)가 검사 재료다.
+  "__tests__/ime_bridge.test.ts",
+  "__tests__/ime_trace.test.ts",
+  // 터미널 탭 — 한국어 테스트 이름과 「다음」 프롬프트 픽스처.
+  "__tests__/terminal_screen.test.tsx",
   "__tests__/settings_page.test.tsx",
   "__tests__/start_window.test.tsx",
   "__tests__/app_window.test.tsx",

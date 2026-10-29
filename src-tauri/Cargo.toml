@@ -88,6 +88,8 @@ serde_yaml = "0.9"
 # 에이전트가 쓰는 입력이다.
 pulldown-cmark = { version = "0.13.5", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
+# 앱 안 터미널 — 사용자의 셸을 PTY 에 띄운다 (src/terminal.rs).
+portable-pty = "0.8"
 # IANA tzdata 를 크레이트에 굽는다 — 0.8.6 은 2024a, 0.10.x 는 2025b (파라과이 상시
 # -03 등). 0.10 의 깨지는 변경(`OffsetName::abbreviation` → Option)은 우리가 안 쓴다.
 chrono-tz = "0.10"

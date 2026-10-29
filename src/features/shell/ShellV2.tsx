@@ -11,7 +11,7 @@ import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 // 설정은 지연 청크다 — 목록과 그 이유는 `./screens` 가 소유한다.
-import { SettingsPage } from "./screens";
+import { SettingsPage, TerminalScreen } from "./screens";
 import { KNOWN_VIEWS, useShellNav } from "./useShellNav";
 import { useNavBadges } from "./useNavBadges";
 import { useTodayExceptions } from "@/features/today/useTodayExceptions";
@@ -216,6 +216,8 @@ export default function ShellV2({
               setUiV2View("journal");
             }}
           />
+        ) : view === "terminal" ? (
+          <TerminalScreen projectId={projectId} workday={workday} />
         ) : view === "planner" ? (
           <PlannerScreenV2
             key={`planner-${jumpNonce}`}

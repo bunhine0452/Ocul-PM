@@ -38,6 +38,8 @@ mod menu;
 // 프로세스 생성 단일 창구 (크로스플랫폼 D5) — pub 인 이유: main.rs 의 re-exec 도
 // 이 창구를 지난다 (clippy.toml 이 그 밖의 `Command::new` 를 막는다).
 pub mod proc;
+// 앱 안 터미널 (4.0 다시) — 세션은 앱 프로세스 안에, 창·앱과 함께 끝난다.
+pub mod terminal;
 pub mod text;
 // 코드 실행 신뢰 — 언어 서버·앱 안 에이전트가 같은 문을 쓴다 (review-2026-10-09).
 pub mod trust;
@@ -297,6 +299,7 @@ use crate::commands::{
 };
 // 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
 use crate::commands::new_window::new_window;
+use crate::commands::terminal::{term_close, term_list, term_open, term_resize, term_write};
 
 /// Build the specta Builder with every command + event registered. Extracted
 /// so the W5-PR3 `export_bindings` test can regenerate `src/lib/bindings.ts`
@@ -332,6 +335,11 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             plan_migrate_goals,
             plan_recent_updates,
             today_digest,
+            term_open,
+            term_write,
+            term_resize,
+            term_close,
+            term_list,
             plan_set_status,
             plan_set_status_bulk,
             plan_rename,
@@ -624,6 +632,7 @@ pub fn run() {
             app.manage(crate::oculpm::history::HistoryState::default());
             // 창 → 프로젝트 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowProjects::default());
+            app.manage(crate::terminal::TermSessions::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
 
@@ -709,6 +718,10 @@ pub fn run() {
     app.run(|app_handle, event| {
         match event {
             tauri::RunEvent::ExitRequested { .. } => {
+                // 터미널 세션 — 고아 셸을 남기지 않는다.
+                if let Some(terms) = app_handle.try_state::<crate::terminal::TermSessions>() {
+                    terms.close_all();
+                }
                 if let Some(manager) =
                     app_handle.try_state::<crate::oculpm::manager::OculpmManager>()
                 {

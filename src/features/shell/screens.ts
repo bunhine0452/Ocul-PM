@@ -11,6 +11,11 @@
 
 import { lazy } from "react";
 
+// 터미널 — xterm 이 무겁고(약 300KB) 매일 열지 않는 사람도 있다.
+export const TerminalScreen = lazy(() =>
+  import("@/features/terminal/TerminalScreen").then((m) => ({ default: m.TerminalScreen })),
+);
+
 export const SettingsPage = lazy(() =>
   import("@/features/settings/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
