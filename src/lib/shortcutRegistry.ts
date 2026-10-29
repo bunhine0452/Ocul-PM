@@ -46,10 +46,12 @@ const GLOBAL: ShortcutGroup = {
     { keys: "⌘,", labelKey: "keys.settings" },
     { keys: "⌘/", labelKey: "keys.cheatsheet" },
     { keys: "⌘[ / ⌘]", labelKey: "keys.navHistory" },
+    // 탭과 함께 걷었던 ⌃Tab 은 화면 순환으로 돌아왔다 (ocul-next #nav-cycle).
+    { keys: "⌃Tab / ⌃⇧Tab", labelKey: "keys.screenCycle" },
   ],
 };
 
-// 창 하나 = 프로젝트 하나 (4.0) — 탭 키(⌘T·⌃Tab·⌘⌥←→)는 탭과 함께 걷었다.
+// 창 하나 = 프로젝트 하나 (4.0) — 탭 키(⌘T·⌘⌥←→)는 탭과 함께 걷었다.
 const WINDOW: ShortcutGroup = {
   id: "window",
   titleKey: "keys.g.window",

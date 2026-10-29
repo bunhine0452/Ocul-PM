@@ -17,6 +17,7 @@ import { windowApi } from "@/api/window";
 import { useProjectRuntime, useUiPrefs } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useNavHistory } from "@/hooks/useNavHistory";
+import { useScreenCycle, useSwipeNav } from "@/hooks/useNavGestures";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { oculpmLog } from "@/lib/oculpmLog";
@@ -79,6 +80,9 @@ export default function ProjectWindow({
     onNavBack: navHistory.goBack,
     onNavForward: navHistory.goForward,
   });
+  // ⌃Tab 화면 순환 · 트랙패드 두 손가락 쓸기 — 윗줄까지 가지 않고 (ocul-next #nav-cycle).
+  useScreenCycle(prefs.uiV2View, setUiV2View);
+  useSwipeNav(navHistory.goBack, navHistory.goForward);
 
   // 딥링크는 창이 마운트되며 한 번 소비한다.
   useEffect(() => {
