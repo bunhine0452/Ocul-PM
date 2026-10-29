@@ -87,6 +87,21 @@ last_verdict() {
   ' "$1" 2>/dev/null
 }
 
+# 한 줄을 N 바이트 언저리에서 자르되 UTF-8 글자 중간에서는 끊지 않는다 — 예전의 바이트 자르기
+# (GNU 의 cut 은 -c 도 바이트 단위다)는 완료 조건의 한글(3바이트)을 가운데서 잘라 깨진 UTF-8 을
+# 실었고, 그러면 additionalContext JSON 이 깨져 컨텍스트가 통째로 사라진다(위 last_verdict 와 같은 규칙).
+clip_line() {
+  LC_ALL=C awk -v max="$1" '{
+    v = $0
+    if (length(v) > max) {
+      p = max
+      while (p > 0 && substr(v, p + 1, 1) >= "\200" && substr(v, p + 1, 1) < "\300") p--
+      v = substr(v, 1, p) "…"
+    }
+    print v
+  }'
+}
+
 body=$(
   {
     # 활성 플랜이 많으면(이 저장소는 17개까지 갔다) 24줄 상한이 앞 플랜 둘셋에서 끝나 뒤는 영영
@@ -114,11 +129,11 @@ body=$(
       echo "[plan: $(basename "$f" .md)]"
       # 작업 너머의 목표 — 플랜 본문의 「**완료 조건:**」 한 줄 (고도: 할 일 목록만
       # 받은 에이전트는 왜 하는지를 모른다). 없으면 그 플랜은 항목만 싣는다.
-      goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | cut -c1-240)
+      goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | clip_line 240)
       [ -n "$goal" ] && printf '%s\n' "$goal"
       # 확인 명령 — 완료 조건을 통과/실패로 판정하는 명령 (깊이: 통과/실패를 내는 것이
       # 없는 에이전트는 「됐다」는 주장으로 끝낸다). 완료 조건 바로 다음 줄.
-      check=$(grep -m1 -E '^\*\*(확인 명령|Check):\*\*' "$f" 2>/dev/null | cut -c1-240)
+      check=$(grep -m1 -E '^\*\*(확인 명령|Check):\*\*' "$f" 2>/dev/null | clip_line 240)
       [ -n "$check" ] && printf '%s\n' "$check"
       [ -n "$verdict" ] && printf '%s\n' "$verdict"
       printf '%s\n' "$items"
@@ -133,7 +148,7 @@ body=$(
       sed -n '2,/^---$/p' "$f" 2>/dev/null | grep -q '^status: active' || continue
       grep -qE '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null && continue
       grep -qE '^[[:space:]]*- \[[xX]\]' "$f" 2>/dev/null || continue
-      goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | cut -c1-200)
+      goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | clip_line 200)
       verdict=$(last_verdict "$f")
       echo "[plan: $(basename "$f" .md)] 항목 전부 닫힘 — 완료 조건이 참인지 판정 후 닫기${goal:+: }${goal}${verdict:+ · }${verdict}"
     done | head -3

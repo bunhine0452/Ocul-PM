@@ -324,3 +324,27 @@ fn a_long_verdict_is_clipped_on_a_character_boundary() {
     );
     assert!(line.len() < 240, "{} bytes: {line}", line.len());
 }
+
+/// 긴 완료 조건도 글자 경계에서 자른다 — 예전엔 바이트 단위 `cut` 이라 240바이트째의 한글을
+/// 가운데서 잘랐고, 깨진 UTF-8 이 additionalContext 를 통째로 날렸다(`context()` 가 파싱한다).
+#[test]
+fn a_long_done_condition_is_clipped_on_a_character_boundary() {
+    let p = project();
+    // `**완료 조건:** ` 이 20바이트 — 그 뒤 한글 3바이트씩이라 240바이트째가 글자 가운데다.
+    let goal = "가나다라마바사아자차카타파하".repeat(10);
+    let md = format!(
+        "---\nstatus: active\n---\n# 플랜\n\n**완료 조건:** {goal}\n\n- [ ] 첫 항목 {{#first}}\n"
+    );
+    write(p.path(), ".oculpm/planner/g.md", &md);
+    let text = context(p.path());
+    let line = text
+        .lines()
+        .find(|l| l.starts_with("**완료 조건:**"))
+        .unwrap_or_else(|| panic!("완료 조건 줄이 없다: {text}"));
+    assert!(line.ends_with('…'), "{line}");
+    assert!(
+        line.len() <= 240 + '…'.len_utf8(),
+        "{} bytes: {line}",
+        line.len()
+    );
+}
