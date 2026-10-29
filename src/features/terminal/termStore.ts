@@ -221,6 +221,31 @@ export function focusTerm(id: number) {
   entries.get(id)?.term.focus();
 }
 
+/**
+ * 세션 안 프로그램의 상태가 `pred` 를 만족할 때까지 기다린다(OSC 7501) — 만족하면 `true`,
+ * 시간이 다 되거나 세션이 끝나면 `false`. 「끝까지」가 claude 의 입력 대기를 기다릴 때 쓴다.
+ */
+export function waitForTermStatus(id: number, pred: (s: TermInfo["status"]) => boolean, timeoutMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (ok: boolean) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      off();
+      resolve(ok);
+    };
+    const check = () => {
+      const info = entries.get(id)?.info;
+      if (!info || !info.alive) finish(false);
+      else if (pred(info.status)) finish(true);
+    };
+    const off = subscribeTerms(check);
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    check();
+  });
+}
+
 /** 세션을 닫는다 — 셸을 죽이고 화면을 버린다. */
 export function closeTerm(id: number) {
   const e = entries.get(id);

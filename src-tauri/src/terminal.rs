@@ -163,8 +163,12 @@ fn shell_command() -> (CommandBuilder, String) {
     }
 }
 
-/// 「다음」 실행 때 셸에 쳐 넣는 한 줄.
-fn run_line() -> String {
+/// 「다음」 실행 때 셸에 쳐 넣는 한 줄. 프롬프트가 비었으면 그냥 `claude` — 「끝까지」가 띄운 뒤
+/// 입력 대기 신호를 받고 `/goal …` 을 넣는다(시작 인자로 넘기는 슬래시 명령은 문서에 없다).
+fn run_line(prompt: &str) -> String {
+    if prompt.is_empty() {
+        return "claude\r".to_string();
+    }
     if cfg!(windows) {
         format!("claude $env:{PROMPT_ENV}\r")
     } else {
@@ -268,7 +272,7 @@ impl TermSessions {
         // Claude Code 의 전체 화면 렌더러 — 일반 렌더러는 크기가 바뀔 때마다 지난 화면을
         // 다시 쏟아 스크롤백을 더럽혔다(3.x 실측, v3.13.2).
         cmd.env("CLAUDE_CODE_NO_FLICKER", "1");
-        if let Some(prompt) = &spec.prompt {
+        if let Some(prompt) = spec.prompt.as_deref().filter(|p| !p.is_empty()) {
             cmd.env(PROMPT_ENV, prompt);
         }
         let child = pair
@@ -284,9 +288,9 @@ impl TermSessions {
             .master
             .take_writer()
             .map_err(|e| format!("writer: {e}"))?;
-        if spec.prompt.is_some() {
+        if let Some(prompt) = &spec.prompt {
             // 셸이 아직 프롬프트를 그리기 전이어도 tty 가 받아 둔다.
-            let _ = writer.write_all(run_line().as_bytes());
+            let _ = writer.write_all(run_line(prompt).as_bytes());
             let _ = writer.flush();
         }
 
@@ -661,7 +665,8 @@ mod tests {
 
     #[test]
     fn run_line_reads_the_prompt_from_the_environment() {
-        let line = run_line();
+        assert_eq!(run_line(""), "claude\r", "빈 프롬프트는 그냥 claude");
+        let line = run_line("다음 항목");
         assert!(line.starts_with("claude "));
         assert!(line.contains(PROMPT_ENV));
         assert!(line.ends_with('\r'));
