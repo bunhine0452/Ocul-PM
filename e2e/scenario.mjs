@@ -77,35 +77,38 @@ export async function runScenario(ctx) {
     });
     await installProbes(wd);
     // 4.0 — 첫 창은 시작 창이다 (창 하나 = 프로젝트 하나). 빈 데이터 폴더라 최근
-    // 프로젝트는 비고 「처음이라면 세 단계」가 선다.
-    const start = await waitFor(wd, "return document.querySelector('.start .start-steps') ? 'start-window' : null;", [], {
+    // 프로젝트는 빈 한 칸이다(「세 단계」 칸은 처음 쓰는 법 안내가 대신한다, ocul-next #tour-retire).
+    const start = await waitFor(wd, "return document.querySelector('.start .start-card') ? 'start-window' : null;", [], {
       timeout: 60_000,
       desc: "시작 창(빈 데이터 폴더)",
     });
     rec.notes.push(`첫 화면: ${start}`, `드라이버 브라우저: ${wd.capabilities.browserName ?? "?"} ${wd.capabilities.browserVersion ?? ""}`);
-    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "start-window", caption: "시작 창 — 최근 프로젝트 + 처음이라면 세 단계" });
+    // 처음 쓰는 법 — 빈 데이터 폴더의 첫 창이라 앞에 있으면 저절로 뜬다. 떴으면 찍고 닫는다.
+    // 창이 뒤에 있으면 처음 앞에 올 때 뜨므로(뒤 단계의 클릭을 가로막는다) 「봤음」을 미리 적는다.
+    let tour = null;
+    try {
+      tour = await waitFor(wd, "return document.querySelector('.tour') ? 'tour' : null;", [], { timeout: 4_000, desc: "처음 쓰는 법" });
+    } catch {
+      tour = null;
+    }
+    if (tour) {
+      await report.shot(wd, { phase: "01 기동", key: "boot", screen: "tour", caption: "처음 쓰는 법 — 첫 실행 안내 1쪽" });
+      await clickCss(wd, ".tour-foot .btn.ghost", 0);
+      await waitFor(wd, "return !document.querySelector('.tour');", [], { desc: "처음 쓰는 법 닫힘" });
+    }
+    await wd.execute("return window.__TAURI_INTERNALS__.invoke('settings_set', { key: 'tour_seen', value: '1' }).then(() => true);");
+    rec.notes.push(`처음 쓰는 법: ${tour ? "떠서 찍고 닫음" : "안 뜸(창이 앞에 없었다)"} · tour_seen=1`);
+    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "start-window", caption: "시작 창 — 최근 프로젝트 한 칸" });
   }, { critical: true });
 
-  // 세 단계의 버튼 — 단계마다 첫 `.btn` 이 그 단계의 동작이다 (1 폴더 열기 · 2 기록 켜기 ·
-  // 3 의 첫 버튼은 「복사」, 「기다리지 않고 열기」는 마지막 `.btn`).
-  const STEP = (n) => `.start-steps > li:nth-child(${n})`;
-
-  await report.step("시작 창 세 단계 → 픽스처 프로젝트 (.oculpm 초기화) → 이 창이 그 프로젝트가 된다", async (rec) => {
+  await report.step("시작 창 폴더 열기 → 픽스처 프로젝트 → 이 창이 그 프로젝트가 된다 (.oculpm 초기화)", async (rec) => {
     await stubFolderPicker(wd, fixture);
-    await clickCss(wd, `${STEP(1)} .btn`, 0);
-    const picked = await waitFor(wd, `const p = document.querySelector('${STEP(1)} .start-step-picked'); return p ? p.innerText : null;`, [], {
-      timeout: 30_000,
-      desc: "1단계 — 폴더를 들였다(create_project)",
-    });
-    rec.notes.push(`1단계: ${picked}`);
-    await clickCss(wd, `${STEP(2)} .btn`, 0);
+    // 「폴더 열기」 — 최근 프로젝트 칸 머리의 단추. 새 폴더면 등록하고 곧바로 이 창이 그 프로젝트가 된다.
+    await clickCss(wd, ".start-card-head .btn", 0);
+    await waitFor(wd, "return !!document.querySelector('header.topbar .topnav .topnav-item');", [], { timeout: 60_000, desc: "프로젝트 셸(윗줄)" });
+    // 기록 파일은 프로젝트 창이 열리며 만든다 (oculpmInit).
     if (!(await pollFs(join(fixture, ".oculpm"), 60_000))) throw new Error(".oculpm/ 이 60초 안에 안 생겼다 (oculpmInit)");
     rec.notes.push(".oculpm/ 생성 확인");
-    await waitFor(wd, `return !!document.querySelector('${STEP(2)} .start-step-picked');`, [], { desc: "2단계 — 기록 켜짐" });
-    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "start-steps-done", caption: "세 단계 — 폴더를 들이고 기록을 켰다" });
-    // 첫 일지를 기다리지 않고 연다 — 같은 창이 그 프로젝트가 된다.
-    await wd.execute(`const b = [...document.querySelectorAll('${STEP(3)} .btn')].pop(); b.click(); return true;`);
-    await waitFor(wd, "return !!document.querySelector('header.topbar .topnav .topnav-item');", [], { timeout: 60_000, desc: "프로젝트 셸(윗줄)" });
     await waitScreenReady(wd, 60_000);
     await sleep(1500);
     const state = await screenState(wd, crashTitles);
