@@ -26,7 +26,7 @@ Sorted by severity. When it is empty, one calm paragraph remains — but if some
 
 ## Next
 
-The plan's next item (the first `[ ]` that isn't human-owned) on one line, with one "Copy prompt" button. `c` copies it too. To hand off to the end: `/oculpm:next until-done`.
+The plan's next item (the first `[ ]` that isn't human-owned) on one line, with one "Run in terminal" button — `claude` picks it up in a new session on the [Terminal](/wiki/en/screens) tab. `r` does it too. To hand off to the end: `/oculpm:next until-done`.
 
 ## Done today
 
@@ -34,7 +34,7 @@ Today's entries grouped by plan, with anything outside a plan under "Outside pla
 
 ## Keys
 
-Only inside the screen — `j`/`k` move · `Enter` default action · `v` checked · `c` copy the next prompt.
+Only inside the screen — `j`/`k` move · `Enter` default action · `v` checked · `r` run the next item in the terminal.
 
 :::note
 Before the first entry, one hint stands alone — it points to Settings → Agent connections. The 3.x stat cards · activity ring · commit graph · standup · weekly summary were removed in 4.0.

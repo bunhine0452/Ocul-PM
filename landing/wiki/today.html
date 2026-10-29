@@ -71,11 +71,11 @@
 <p>심각도 순으로 섭니다. 비었으면 차분한 한 문단만 남습니다 — 다만 못 읽은 것이 있으면 「없다」고 말하지 않습니다.</p>
 <div class="wk-table"><table><thead><tr><th>종류</th><th>언제 서나</th><th>버튼</th></tr></thead><tbody><tr><td><b>판정 실패</b></td><td>계획의 마지막 판정이 <code>✗</code></td><td>출력 보기 → 그 계획</td></tr><tr><td><b>증거 없음</b></td><td>버그 · 기능 · 리팩토링 일지의 검증 칸에 명령 증거가 없고, 사람이 확인하지 않았거나 확인 뒤 바뀜</td><td>확인함 (제목을 누르면 그 일지)</td></tr><tr><td><b>기록 없는 변경</b></td><td>오늘 바뀐 파일 중 어느 일지에도 없는 것, 또는 일지 없이 끝난 대화</td><td>변경 보기</td></tr><tr><td><b>막힘</b></td><td>계획 항목이 <code>[!]</code></td><td>계획 열기</td></tr><tr><td><b>결정 필요</b></td><td>사람 몫(<code>[사용자]</code>) 항목이 열려 있음 — 계획마다 한 행</td><td>계획 열기</td></tr><tr><td><b>플러그인 새 판</b></td><td>프로젝트에 깔린 플러그인이 앱보다 낮음</td><td>명령 복사</td></tr></tbody></table></div>
 <h2 id="다음">다음</h2>
-<p>계획의 다음 항목(사람 몫이 아닌 첫 <code>[ ]</code>) 한 줄과 「프롬프트 복사」 하나입니다. <code>c</code> 로도 복사합니다. 끝까지 맡기려면 <code>/oculpm:next until-done</code>.</p>
+<p>계획의 다음 항목(사람 몫이 아닌 첫 <code>[ ]</code>) 한 줄과 「터미널에서 실행」 하나입니다 — <a href="/wiki/screens">터미널</a> 탭의 새 세션에서 <code>claude</code> 가 그 항목부터 잡습니다. <code>r</code> 로도 됩니다. 끝까지 맡기려면 <code>/oculpm:next until-done</code>.</p>
 <h2 id="오늘-한-일">오늘 한 일</h2>
 <p>오늘의 일지를 계획별로 묶고, 어느 계획에도 없는 것은 「계획 밖」에 둡니다. 묶음 머리에 건수 · 증거 · 없음 · 확인함이 섭니다 — 증거 비율의 목표는 <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md" target="_blank" rel="noreferrer">약속 문서</a>에 숫자로(97%) 적혀 있습니다. 8건 이하면 전부 보이고, 넘으면 <b>증거가 다 선 묶음은 머리 한 줄로 접히고</b> 빠진 게 있는 묶음은 그 행만 보입니다(「나머지 N건 보기」). 계획별 / 시간순으로 바꿔 볼 수 있습니다.</p>
 <h2 id="키">키</h2>
-<p>화면 안에서만 듣습니다 — <code>j</code>/<code>k</code> 이동 · <code>Enter</code> 기본 동작 · <code>v</code> 확인함 · <code>c</code> 다음 프롬프트 복사.</p>
+<p>화면 안에서만 듣습니다 — <code>j</code>/<code>k</code> 이동 · <code>Enter</code> 기본 동작 · <code>v</code> 확인함 · <code>r</code> 다음 항목을 터미널에서 실행.</p>
 <div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>첫 일지가 남기 전에는 안내 하나만 섭니다 — 설정의 에이전트 연결로 갑니다. 3.x 의 통계 카드 · 활동 링 · 커밋 그래프 · 스탠드업 · 주간 요약은 4.0 에서 걷었습니다.</p></div></div>
 <h2 id="다음-걸음">다음 걸음</h2>
 <ul><li>일지가 어떻게 쌓이고 검증 상자가 무엇을 보는지 → <a href="/wiki/journal">작업 일지</a></li><li>판정과 「다음」의 출처 → <a href="/wiki/planner">계획</a></li></ul>
