@@ -105,7 +105,7 @@ export async function runScenario(ctx) {
     await report.shot(wd, { phase: "01 기동", key: "boot", screen: "start-steps-done", caption: "세 단계 — 폴더를 들이고 기록을 켰다" });
     // 첫 일지를 기다리지 않고 연다 — 같은 창이 그 프로젝트가 된다.
     await wd.execute(`const b = [...document.querySelectorAll('${STEP(3)} .btn')].pop(); b.click(); return true;`);
-    await waitFor(wd, "return !!document.querySelector('nav.sidebar .side-nav .nav-item');", [], { timeout: 60_000, desc: "프로젝트 셸(사이드바)" });
+    await waitFor(wd, "return !!document.querySelector('header.topbar .topnav .topnav-item');", [], { timeout: 60_000, desc: "프로젝트 셸(윗줄)" });
     await waitScreenReady(wd, 60_000);
     await sleep(1500);
     const state = await screenState(wd, crashTitles);
@@ -115,24 +115,24 @@ export async function runScenario(ctx) {
   }, { critical: true });
 
   await report.step("프로젝트 이름 = 폴더 이름 (e2e-fixture)", async (rec) => {
-    const name = await wd.execute("const n = document.querySelector('nav.sidebar .proj-name'); return n ? n.innerText.trim() : null;");
-    rec.notes.push(`사이드바 프로젝트 이름: ${JSON.stringify(name)}`);
+    const name = await wd.execute("const n = document.querySelector('header.topbar .proj-name'); return n ? n.innerText.trim() : null;");
+    rec.notes.push(`윗줄 프로젝트 이름: ${JSON.stringify(name)}`);
     if (name !== "e2e-fixture") throw new Error(`프로젝트 이름이 ${JSON.stringify(name)} — 폴더 이름(e2e-fixture)이 아니다`);
   });
 
-  await report.step("navRegistry 대조 — 사이드바 행 수", async (rec) => {
+  await report.step("navRegistry 대조 — 윗줄 탭 수", async (rec) => {
     const labels = await sidebarLabels(wd);
-    rec.notes.push(`사이드바 ${labels.length}행: ${labels.join(" · ")}`, `navRegistry 행 ${nav.rows.length} · 화면 ${nav.destinations.length}`);
-    if (labels.length !== nav.rows.length) throw new Error(`사이드바 ${labels.length}행 ≠ navRegistry ${nav.rows.length}행`);
+    rec.notes.push(`윗줄 탭 ${labels.length}개: ${labels.join(" · ")}`, `navRegistry 행 ${nav.rows.length} · 화면 ${nav.destinations.length}`);
+    if (labels.length !== nav.rows.length) throw new Error(`윗줄 탭 ${labels.length}개 ≠ navRegistry ${nav.rows.length}행`);
   });
 
   /**
    * 설정 한 쪽(4.0)의 「표시 → 언어」 세그먼트를 누른다 — 0 = 한국어, 1 = English.
-   * 설정은 사이드바 바닥의 행이고(`nav.sidebar > .nav-item`), 표시 칸은 `#prefs-display`
+   * 설정은 윗줄 끝의 톱니고(`header.topbar .topbar-settings`), 표시 칸은 `#prefs-display`
    * 다. 첫 `.seg` 가 언어다 (언어 · 밝기 · 글자 크기 순).
    */
   const setLanguage = async (rec, index, marker) => {
-    await clickCss(wd, "nav.sidebar > .nav-item", 0);
+    await clickCss(wd, "header.topbar .topbar-settings", 0);
     await waitFor(wd, "return document.querySelectorAll('#prefs-display .seg .seg-item').length >= 2;", [], { desc: "설정 — 표시 · 언어" });
     // 일지의 「열기」 토스트가 오른쪽 아래에 15초 남는다 — 그 자리를 가로막지 않게 기다린다
     // (v3.17.0 run, Windows·Linux 27건 연쇄 실패).
@@ -140,8 +140,8 @@ export async function runScenario(ctx) {
     await waitNoToasts(wd);
     rec.notes.push(`토스트 소거 대기 ${Date.now() - t0}ms`);
     await clickCss(wd, "#prefs-display .seg .seg-item", index);
-    await waitFor(wd, "return !!document.querySelector('nav.sidebar') && document.querySelector('nav.sidebar').innerText.includes(arguments[0]);", [marker], {
-      desc: "사이드바 언어가 바뀌었다",
+    await waitFor(wd, "return !!document.querySelector('header.topbar') && document.querySelector('header.topbar').innerText.includes(arguments[0]);", [marker], {
+      desc: "윗줄 언어가 바뀌었다",
     });
     await sleep(800);
   };

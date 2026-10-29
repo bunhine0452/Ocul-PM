@@ -3,7 +3,8 @@
    칸 넷이 카드로 세로로 선다. 줄은 라벨(왼쪽 200px) · 값(오른쪽). 좁은 화면에서는
    라벨이 값 위로 올라간다.
    ============================================================ */
-.prefs { display: flex; flex-direction: column; gap: var(--space-6); max-width: var(--read-wide); margin: 0; }
+.prefs { display: flex; flex-direction: column; gap: var(--space-6); max-width: var(--read-wide); margin: 0 auto; }
+.prefs-h { margin: 0; font-size: var(--fs-6); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); }
 .prefs-card { overflow: hidden; scroll-margin-top: var(--space-6); }
 .prefs-head {
   display: flex; align-items: center; gap: var(--space-3);

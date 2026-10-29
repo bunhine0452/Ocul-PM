@@ -57,6 +57,12 @@ const WINDOW_W: f64 = 1150.0;
 const WINDOW_H: f64 = 780.0;
 const WINDOW_MIN_W: f64 = 960.0;
 const WINDOW_MIN_H: f64 = 640.0;
+/// macOS 신호등 — 셸 윗줄(`--toolbar-h` 44px)의 세로 가운데. `tauri.conf.json` 의
+/// `trafficLightPosition` 과 같은 값이다(tao 는 버튼 컨테이너 높이를 `버튼 + y` 로 잡는다).
+#[cfg(target_os = "macos")]
+const TRAFFIC_LIGHT_X: f64 = 16.0;
+#[cfg(target_os = "macos")]
+const TRAFFIC_LIGHT_Y: f64 = 20.0;
 
 pub fn window_label(n: u32) -> String {
     format!("{WINDOW_PREFIX}{n}")

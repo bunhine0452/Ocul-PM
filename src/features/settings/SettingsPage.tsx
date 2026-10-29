@@ -51,6 +51,8 @@ export function SettingsPage() {
       <Toolbar title={t("shell.settings.title")} sub={t("prefs.sub")} />
       <div className="scroll">
         <div className="page prefs">
+          {/* 윗줄의 설정은 톱니 하나라 이름이 안 보인다 — 쪽 머리에 한 번 적는다. */}
+          <h1 className="prefs-h">{t("shell.settings.title")}</h1>
           <AgentsSection id={SECTION_ID.agents} />
           <ProjectSection id={SECTION_ID.project} />
           <DisplaySection id={SECTION_ID.display} />

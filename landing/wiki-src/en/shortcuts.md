@@ -5,7 +5,7 @@ order: 16
 updated: 2026-10-29
 ---
 
-`⌘` numbers come from the sidebar order automatically — what each screen does is in the [Screens tour](/wiki/en/screens). On Windows · Linux, `Ctrl` replaces `⌘`.
+`⌘` numbers come from the top-bar tab order automatically — what each screen does is in the [Screens tour](/wiki/en/screens). On Windows · Linux, `Ctrl` replaces `⌘`.
 
 ## Anywhere
 

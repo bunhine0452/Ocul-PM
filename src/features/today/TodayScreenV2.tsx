@@ -238,11 +238,14 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
             <>
               {data.entries ? (
                 <div className="tdy-day">
+                  <span className="tdy-date">{dateLabel}</span>
                   <Num k="today.day.records" n={stats.total} />
-                  <span title={t("today.day.evidenceTitle")}>
-                    <Num k="today.day.evidence" n={stats.withEvidence} />
-                    {stats.pct != null ? ` · ${stats.pct}%` : null}
-                  </span>
+                  {stats.judged > 0 ? (
+                    <span title={t("today.day.evidenceTitle")}>
+                      <Num k="today.day.evidence" n={stats.withEvidence} />
+                      {stats.pct != null ? ` · ${stats.pct}%` : null}
+                    </span>
+                  ) : null}
                   {sessions && sessions.length > 1 ? <Num k="today.day.sessions" n={sessions.length} /> : null}
                   {exceptions ? (
                     <Num k="today.day.check" n={exceptions.length} className={exceptions.length > 0 ? "tdy-warn" : undefined} />
@@ -263,6 +266,8 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
               {entries.length > 0 && data.digest ? (
                 <TodayWork entries={entries} digest={data.digest} onOpenEntry={openEntry} />
               ) : null}
+              {/* 단축키는 늘 떠 있는 크롬이 아니라 목록 끝의 한 줄이다 — 윗줄은 탭과 동작만. */}
+              {entries.length > 0 ? <p className="tdy-keys">{t("today.kbd.hint")}</p> : null}
             </>
           )}
         </div>
@@ -279,9 +284,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
 
   return (
     <>
-      <Toolbar title={t("nav.today")} sub={dateLabel} find>
-        {oculpmReady && !firstRun ? <span className="tdy-keys">{t("today.kbd.hint")}</span> : null}
-      </Toolbar>
+      <Toolbar title={t("nav.today")} sub={dateLabel} find />
       <div className="scroll">
         <div ref={rootRef} className="page tdy" tabIndex={-1} onKeyDown={onKeyDown}>
           {body}

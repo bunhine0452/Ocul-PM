@@ -11,6 +11,7 @@ import { projectsApi } from "@/api/projects";
 import { windowApi } from "@/api/window";
 import { addProjectFromFolder } from "@/features/start/addFolder";
 import { orderRecent } from "@/features/start/useRecentProjects";
+import { ChevronDown } from "@/components/Icons";
 import { useT } from "@/i18n";
 import type { HomeBrief, Project } from "@/lib/bindings";
 import { NAV_BUS } from "@/lib/navRegistry";
@@ -130,7 +131,7 @@ export function ProjectSwitcher({
         title={t("sidebar.switchProjectTitle", { key: shortcut })}
       >
         <span className="proj-name">{projectName ?? t("sidebar.selectProject")}</span>
-        <kbd className="kbd">{shortcut}</kbd>
+        <ChevronDown size={13} aria-hidden="true" />
       </button>
 
       {open ? (

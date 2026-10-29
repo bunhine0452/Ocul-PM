@@ -105,22 +105,22 @@ export function stubFolderPicker(wd, folder) {
 
 const LABEL_OF = `
   const norm = (s) => (s || '').replace(/\\s+/g, ' ').trim();
-  const labelOf = (el) => norm(el.querySelector('.nav-label') ? el.querySelector('.nav-label').textContent : '');`;
+  const labelOf = (el) => norm(el.querySelector('.topnav-label') ? el.querySelector('.topnav-label').textContent : '');`;
 
 /**
- * 사이드바 화면 행 — 4.0 은 행 넷(`.side-nav`)과 바닥의 설정 하나다. 접히는 단도,
- * 에이전트 갈래도 없다 (밀도 토글과 함께 걷었다).
+ * 윗줄의 화면 탭 — 4.0 은 탭 넷(`.topnav`)과 끝의 설정 톱니 하나다. 사이드바는 걷었다
+ * (그 옆에 목록 칸이 또 서서 왼쪽이 두 겹이었다).
  */
-const ROWS = "nav.sidebar .side-nav .nav-item";
+const ROWS = "header.topbar .topnav .topnav-item";
 
-/** 사이드바 행을 라벨로 찾는다 — `hit` 에 담는다. */
+/** 윗줄 탭을 라벨로 찾는다 — `hit` 에 담는다. */
 const NAV_ROW = `${LABEL_OF}
   const [label] = arguments;
   const hit = [...document.querySelectorAll('${ROWS}')].find((el) => labelOf(el) === label) || null;`;
 const FIND_NAV = `${NAV_ROW} return hit;`;
 const NAV_ACTIVE = `${NAV_ROW} return !!hit && hit.getAttribute('aria-current') === 'page';`;
 
-/** 사이드바 행 라벨 전부 (navRegistry 행 수와 대조). */
+/** 윗줄 탭 라벨 전부 (navRegistry 행 수와 대조). */
 export async function sidebarLabels(wd) {
   return wd.execute(`${LABEL_OF}
     return [...document.querySelectorAll('${ROWS}')].map(labelOf);`);
@@ -129,7 +129,7 @@ export async function sidebarLabels(wd) {
 /** 화면 하나로 간다 — 도착 판정은 그 행의 `aria-current="page"`. */
 export async function navigateTo(wd, dest, t) {
   const label = t(dest.labelKey);
-  const row = await waitFor(wd, FIND_NAV, [label], { desc: `사이드바 "${label}"` });
+  const row = await waitFor(wd, FIND_NAV, [label], { desc: `윗줄 탭 "${label}"` });
   await wd.click(elementId(row));
   await waitFor(wd, NAV_ACTIVE, [label], { desc: `"${label}" 활성(aria-current)` });
 }

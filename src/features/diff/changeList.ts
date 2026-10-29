@@ -27,7 +27,19 @@ export type DiffBaseline = "working" | "last_commit";
 export function toBaselineChanges(
   rows: readonly { path: string; op: string }[],
 ): RecentChange[] {
-  return rows.map((c) => ({ path: c.path, op: c.op as ChangeOp, ts: 0, read: true }));
+  return rows
+    .filter((c) => !isRecordPath(c.path))
+    .map((c) => ({ path: c.path, op: c.op as ChangeOp, ts: 0, read: true }));
+}
+
+/**
+ * `.oculpm/` 은 기록 자신이다(일지 · 계획 · 앱이 관리하는 규격 파일). 변경 화면은 코드가 바뀐
+ * 것만 본다 — 기록은 작업 일지 화면이 보여 준다. 넣어 두면 갓 쓴 일지 파일이 「이 변경을 남긴
+ * 일지가 없어요」 로 잡혔고, 오늘 화면(「기록 없는 변경 없음」)과 서로 다른 말을 했다
+ * (4.0 E2E 화면에서 잡음).
+ */
+export function isRecordPath(path: string): boolean {
+  return path === ".oculpm" || path.startsWith(".oculpm/");
 }
 
 /**
@@ -41,8 +53,8 @@ export function mergeChanges(
   watcher: readonly RecentChange[],
 ): RecentChange[] {
   const byPath = new Map<string, RecentChange>();
-  for (const c of git) byPath.set(c.path, c);
-  for (const c of watcher) byPath.set(c.path, c);
+  for (const c of git) if (!isRecordPath(c.path)) byPath.set(c.path, c);
+  for (const c of watcher) if (!isRecordPath(c.path)) byPath.set(c.path, c);
   return [...byPath.values()].sort((a, b) => a.ts - b.ts || a.path.localeCompare(b.path));
 }
 

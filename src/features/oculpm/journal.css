@@ -10,15 +10,31 @@
    ============================================================ */
 
 .jl-split { flex: 1; min-height: 0; display: flex; outline: none; }
-/* 툴바의 검색칸 — 상자는 `.search-box`(primitives.css), 여기는 폭만 정한다. */
-.jl-search { width: 260px; }
 
-/* ── 왼쪽: 목록 ───────────────────────────────────────────────────────────── */
-.jl-list {
+/* ── 왼쪽: 목록 칸 = 머리(검색 · 종류) + 목록 ─────────────────────────────── */
+.jl-col {
   width: 400px; max-width: 45%; flex: none; min-height: 0;
   display: flex; flex-direction: column;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
   border-right: 1px solid var(--sep); background: var(--bg-window);
+}
+/* 머리 — 검색칸 한 줄, 종류 한 줄. 목록이 스크롤돼도 서 있다. */
+.jl-head {
+  flex: none; display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--sep);
+}
+/* 상자는 `.search-box`(primitives.css), 여기는 칸을 채우게만. */
+.jl-search { width: 100%; box-sizing: border-box; }
+/* 종류 여섯은 칸 폭을 넘을 수 있다(영어) — 꺾지 않고 가로로 민다. */
+.jl-head .seg { align-self: flex-start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.jl-head .seg::-webkit-scrollbar { display: none; }
+/* 여섯 칸이 칸 폭(400 − 여백)에 들도록 안쪽 여백을 한 단 줄이고, 꺾지 않는다(영어 「No evidence」). */
+.jl-head .seg-item { padding: 0 var(--space-3); white-space: nowrap; }
+.jl-count { font-size: var(--fs-2); color: var(--text-2); }
+.jl-list {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
 }
 /* 날짜 머리 — 스크롤 중 붙는다. 불투명이 아니면 행이 글자 뒤로 비친다. */
 .jl-dayh {

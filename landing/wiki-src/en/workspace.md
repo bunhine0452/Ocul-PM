@@ -19,7 +19,7 @@ Since 4.0 one window holds one project. The 3.x Chrome-style tabs, tear-off and 
 
 - Pick a project in the start window and **that window becomes the project**
 - The window title is the project name, so the window switcher tells them apart
-- Each project remembers its own screen, filters and sidebar state
+- Each project remembers its own screen and filters
 - **On macOS the app stays alive after the last window closes**, and a Dock click opens one again. Windows · Linux quit when the last window closes
 - An update restart brings each window back with the project it had open
 
