@@ -671,6 +671,13 @@ export const commands = {
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**
+	 *  이 프로젝트에서 Claude 가 사람을 기다리는 세션들 (플러그인 Notification 훅, #notify-hook).
+	 *  [`waiting::WAITING_STALE_MINUTES`] 보다 오래된 것은 지우고 돌려준다.
+	 */
+	claudeWaiting: (projectId: number) => __TAURI_INVOKE<ClaudeWaiting[]>("claude_waiting", { projectId }),
+	/**  「알았어요」 — 그 기다림을 지운다(바깥 터미널이라 앱 안에서 갈 곳이 없다). 모든 창이 다시 읽는다. */
+	claudeWaitingDismiss: (projectId: number, sessionId: string) => __TAURI_INVOKE<void>("claude_waiting_dismiss", { projectId, sessionId }),
+	/**
 	 *  H3b — 플러그인 SessionEnd 훅이 남긴 "일지 없이 끝난 세션" 신호를 최근
 	 *  `days`일 범위로 반환한다 (읽기 전용, 최신 우선). 신호 파일이 없으면 빈
 	 *  배열 — 플러그인 미설치 프로젝트에서 에러 경로를 만들지 않는다.
@@ -734,6 +741,7 @@ export const commands = {
 
 /** Events */
 export const events = {
+	claudeWaitingChanged: makeEvent<ClaudeWaitingChanged>("claude-waiting-changed"),
 	deepLinkReceived: makeEvent<DeepLinkReceived>("deep-link-received"),
 	oculpmAgentDrift: makeEvent<OculpmAgentDrift>("oculpm-agent-drift"),
 	oculpmDataChanged: makeEvent<OculpmDataChanged>("oculpm-data-changed"),
@@ -956,6 +964,24 @@ export type ClaudePluginStatus = {
 	bundled_version: string,
 	/**  깔린 판이 앱의 판보다 낮다 — `/plugin update oculpm@oculpm` 을 안내할 때. */
 	behind: boolean,
+};
+
+/**
+ *  바깥(또는 앱 안) 터미널의 Claude 가 사람을 기다린다 — 플러그인 Notification 훅 (ocul-next
+ *  #notify-hook). 같은 세션의 다음 이벤트(입력 · 턴 끝 · 세션 끝)가 오면 지운다.
+ */
+export type ClaudeWaiting = {
+	session_id: string,
+	/**  `permission` · `idle` */
+	kind: string,
+	message: string | null,
+	/**  기다리기 시작한 시각 (RFC 3339). */
+	since: string,
+};
+
+/**  그 프로젝트의 기다림이 바뀌었다 — 오늘 화면이 다시 읽고, 창이 뒤에 있으면 알린다. */
+export type ClaudeWaitingChanged = {
+	project_id: number,
 };
 
 export type CliCheckResult = {

@@ -268,6 +268,15 @@ pub struct HookEvent {
     /// SessionEnd 전용.
     #[serde(default)]
     pub reason: Option<String>,
+    /// Notification 전용 — `permission_prompt`(약 6초 뒤) · `idle_prompt`(60초 뒤) 등.
+    #[serde(default)]
+    pub notification_type: Option<String>,
+    /// Notification 전용 — Claude 가 사람에게 하는 한 줄.
+    #[serde(default)]
+    pub message: Option<String>,
+    /// 훅 한 줄이 끼운 UTC ISO-8601 시각 (플러그인 hooks.json).
+    #[serde(default)]
+    pub oculpm_ts: Option<String>,
 }
 
 /// 다 읽은 인박스가 [`INBOX_COMPACT_BYTES`] 를 넘으면 비운다 (감사 라운드
@@ -342,7 +351,8 @@ pub fn apply_event(open: &mut BTreeSet<String>, ev: &HookEvent) -> HookSignal {
     match ev.hook_event_name.as_str() {
         // StopFailure — 턴이 API 오류로 끝났다 (플러그인 훅, 2026-10-24). 세션은 살아
         // 있으므로 Stop 과 같은 활동 신호다.
-        "SessionStart" | "Stop" | "StopFailure" => {
+        // Notification · UserPromptSubmit (플러그인 훅, 10-29 #notify-hook) — 세션이 살아 있다는 활동 신호.
+        "SessionStart" | "Stop" | "StopFailure" | "Notification" | "UserPromptSubmit" => {
             if !ev.session_id.is_empty() {
                 open.insert(ev.session_id.clone());
             }
@@ -464,6 +474,9 @@ mod tests {
             cwd: None,
             source: None,
             reason: None,
+            notification_type: None,
+            message: None,
+            oculpm_ts: None,
         };
         assert_eq!(
             apply_event(&mut open, &ev("SessionStart", "s1")),

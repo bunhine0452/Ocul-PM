@@ -22,7 +22,7 @@ import { useJournalEvents, useOculpmDataEvents } from "@/features/oculpm/useOcul
 import { useWindowTerms } from "@/features/terminal/status";
 import { tError } from "@/i18n/errors";
 import { safeUnlisten } from "@/lib/unlisten";
-import type { JournalEntrySummary, JournalMissingSignal, TodayDigest } from "@/lib/bindings";
+import type { ClaudeWaiting, JournalEntrySummary, JournalMissingSignal, TodayDigest } from "@/lib/bindings";
 import { buildExceptions, splitExceptions, workdayStartMs, type TodayException } from "./todayModel";
 
 interface Loaded<T> {
@@ -181,6 +181,7 @@ export function useTodayExceptions(
   // 안 그러면 「볼 것이 없어요」가 먼저 떴다가 행이 뒤늦게 끼어든다(배지도 같이 흔들린다).
   const sideSettled = unrecorded.settled && silent.settled && plugin.settled;
   const terms = useWindowTerms(enabled);
+  const hookWaiting = useHookWaiting(projectId, enabled);
   const exceptions = useMemo(() => {
     if (!brief.value || !digest.value || !sideSettled) return null;
     return buildExceptions({
@@ -191,8 +192,9 @@ export function useTodayExceptions(
       plugin: pluginBehind,
       verifiedLocally,
       terms,
+      hookWaiting,
     });
-  }, [brief.value, digest.value, sideSettled, unrecorded.value, silent.value, pluginBehind, verifiedLocally, terms]);
+  }, [brief.value, digest.value, sideSettled, unrecorded.value, silent.value, pluginBehind, verifiedLocally, terms, hookWaiting]);
 
   return {
     data,
@@ -202,4 +204,27 @@ export function useTodayExceptions(
     refresh,
     markVerified,
   };
+}
+
+/** 바깥 터미널의 Claude 기다림 (플러그인 Notification 훅) — 처음 한 번, 이 프로젝트의 기다림이 바뀌면 다시. */
+function useHookWaiting(projectId: number, enabled: boolean): ClaudeWaiting[] {
+  const [list, setList] = useState<ClaudeWaiting[]>([]);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    const load = () =>
+      void hooksApi
+        .waiting(projectId)
+        .then((next) => alive && setList(next))
+        .catch(() => {});
+    load();
+    const off = hooksApi.onWaitingChanged((pid) => {
+      if (pid === projectId) load();
+    });
+    return () => {
+      alive = false;
+      void off.then((fn) => fn());
+    };
+  }, [projectId, enabled]);
+  return list;
 }

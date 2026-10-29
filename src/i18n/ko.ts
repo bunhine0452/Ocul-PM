@@ -302,6 +302,8 @@ export const ko = {
   "today.check.emptyBodyQuiet": "오늘은 아직 일지가 없어요. 검증이 빠지거나 확인 명령이 실패하면 여기에 먼저 떠요.",
   "today.check.kind.waiting": "Claude 가 기다려요",
   "today.check.openTerminal": "터미널에서 보기",
+  "today.check.dismissWaiting": "알았어요",
+  "today.check.outsideTerminal": "바깥 터미널",
   "terminal.notify.title": "Claude 가 기다려요",
   "terminal.notify.titleIn": "{project} · Claude 가 기다려요",
   "today.check.kind.verdict": "실패",

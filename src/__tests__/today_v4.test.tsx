@@ -39,6 +39,8 @@ const fx = vi.hoisted(() => ({
   plugin: null as unknown,
   sessions: [] as unknown[],
   terms: [] as unknown[],
+  hookWaiting: [] as unknown[],
+  dismissed: [] as string[],
   verifyCalls: [] as Array<[string, boolean]>,
   dispatchCalls: [] as Array<[string, string]>,
 }));
@@ -106,6 +108,14 @@ vi.mock("@/lib/bindings", () => {
             // 봉투 없는 명령 — 이 창의 터미널 세션 목록.
             case "termList":
               return () => Promise.resolve(fx.terms);
+            // 봉투 없는 명령 — 바깥 터미널의 Claude 기다림 (플러그인 Notification 훅).
+            case "claudeWaiting":
+              return () => Promise.resolve(fx.hookWaiting);
+            case "claudeWaitingDismiss":
+              return (_p: number, sessionId: string) => {
+                fx.dismissed.push(sessionId);
+                return Promise.resolve(null);
+              };
             default:
               return () => ok(null);
           }
@@ -209,6 +219,8 @@ beforeEach(() => {
   fx.plugin = { installed: true, behind: false, installed_version: "4.0.0", bundled_version: "4.0.0", path: "/p", scope: "user" } satisfies ClaudePluginStatus;
   fx.sessions = [];
   fx.terms = [];
+  fx.hookWaiting = [];
+  fx.dismissed = [];
   fx.verifyCalls = [];
   fx.dispatchCalls = [];
   Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true });
@@ -263,6 +275,26 @@ describe("확인할 것 — 종류와 순서", () => {
     fireEvent.click(screen.getByRole("button", { name: t("today.check.openTerminal") }));
     expect(onNavigate).toHaveBeenCalledWith("terminal");
     expect(takeTermFocus()).toBe(7);
+  });
+
+  it("바깥 터미널의 Claude 가 기다리면(플러그인 훅) 한 줄 — 「알았어요」로 지운다, 앱 안 세션이 기다리면 그쪽만", async () => {
+    const since = new Date().toISOString();
+    fx.hookWaiting = [{ session_id: "ext-1", kind: "permission", message: "Claude needs your permission to use Bash", since }];
+    const { unmount } = renderToday();
+    await waitFor(() => expect(pills()).toEqual([t("today.check.kind.waiting")]));
+    expect(within(checkCard()).getByText("Claude needs your permission to use Bash")).toBeInTheDocument();
+    expect(within(checkCard()).getByText(new RegExp(t("today.check.outsideTerminal")))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: t("today.check.dismissWaiting") }));
+    await waitFor(() => expect(fx.dismissed).toEqual(["ext-1"]));
+    unmount();
+    // 앱 안 세션이 이미 기다림이면(OSC 7501) 눌러서 그 세션으로 가는 줄만 — 같은 claude 를 두 번 말하지 않는다.
+    fx.terms = [
+      { id: 3, project_id: 1, label: "claude", started_at: since, alive: true, exit_code: null, busy: true, unseen: false, status: { state: "blocked", kind: "permission", msg: "approve Bash", since } },
+    ];
+    renderToday();
+    await waitFor(() => expect(pills()).toEqual([t("today.check.kind.waiting")]));
+    expect(screen.getByRole("button", { name: t("today.check.openTerminal") })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: t("today.check.dismissWaiting") })).toBeNull();
   });
 
   it("증거를 요구하지 않는 종류(잡일·에러 사이클)와 사람이 확인한 일지는 예외가 아니다", async () => {

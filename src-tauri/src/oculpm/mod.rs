@@ -16,6 +16,7 @@ pub mod cas;
 pub mod chain;
 pub mod check_infer;
 pub mod claude_hooks;
+pub mod claude_waiting;
 pub mod config;
 pub mod content_lang;
 pub mod entry_diffs;

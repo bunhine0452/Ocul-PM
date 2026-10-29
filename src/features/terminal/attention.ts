@@ -5,9 +5,12 @@
  * 앞에 없을 때만 보낸다 — 앞에 있으면 터미널 목록 · 오늘의 줄로 충분하다(Orca 의 알림 규칙).
  * 같은 기다림이 이어지며 한 줄만 바뀌면 다시 울리지 않는다. 권한은 처음 울릴 때 한 번 묻는다.
  */
+import { useEffect } from "react";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 
+import { hooksApi } from "@/api/claudeSurface";
 import type { TermInfo, TermStatus } from "@/api/terminal";
+import type { ClaudeWaiting } from "@/lib/bindings";
 import { t } from "@/i18n";
 import { needsMe, sessionWord } from "./status";
 
@@ -44,4 +47,50 @@ export function alertIfWaiting(prev: TermStatus | null, info: TermInfo): void {
         });
     })
     .catch(() => {});
+}
+
+/** 처음 보는 바깥 터미널 기다림만 — `세션 · 시작 시각` 이 같으면 이미 알린 것이다. */
+export function newWaitings(seen: Set<string>, list: readonly ClaudeWaiting[]): ClaudeWaiting[] {
+  const fresh = list.filter((w) => !seen.has(`${w.session_id}@${w.since}`));
+  for (const w of list) seen.add(`${w.session_id}@${w.since}`);
+  return fresh;
+}
+
+/**
+ * 바깥 터미널의 Claude 기다림(플러그인 Notification 훅, #notify-hook)도 창이 뒤에 있을 때만 OS 알림으로.
+ * 프로젝트 창마다 하나 — 처음 읽은 것은 알리지 않는다(앱을 켜기 전부터 있던 기다림).
+ */
+export function useHookWaitingAlerts(projectId: number): void {
+  useEffect(() => {
+    let alive = true;
+    const seen = new Set<string>();
+    void hooksApi
+      .waiting(projectId)
+      .then((list) => alive && newWaitings(seen, list))
+      .catch(() => {});
+    const off = hooksApi.onWaitingChanged((pid) => {
+      if (pid !== projectId) return;
+      void hooksApi
+        .waiting(projectId)
+        .then((list) => {
+          if (!alive) return;
+          const fresh = newWaitings(seen, list);
+          if (fresh.length === 0 || document.hasFocus()) return;
+          const w = fresh[0];
+          const word = w.kind === "permission" ? t("terminal.state.permission") : t("terminal.state.idle");
+          void allowed().then((ok) => {
+            if (!ok) return;
+            sendNotification({
+              title: projectName ? t("terminal.notify.titleIn", { project: projectName }) : t("terminal.notify.title"),
+              body: [t("today.check.outsideTerminal"), w.message || word].join(" · "),
+            });
+          });
+        })
+        .catch(() => {});
+    });
+    return () => {
+      alive = false;
+      void off.then((fn) => fn());
+    };
+  }, [projectId]);
 }

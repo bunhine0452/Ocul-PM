@@ -615,8 +615,10 @@ fn every_codex_hook_has_a_windows_variant_calling_the_same_script() {
 /// Windows 변형(`commandWindows`)을 더 싣고, Claude 판은 Codex 에 없는 이벤트
 /// ([`CLAUDE_ONLY_EVENTS`])를 더 싣는다. 그것들을 걷어내면 같아야 한다.
 /// Claude Code 에만 있는 훅 이벤트 — Codex 의 이벤트 표(developers.openai.com/codex/hooks)에
-/// 없다. `StopFailure`: 턴이 API 오류로 끝날 때 Stop 대신 온다 (2026-10-24).
-const CLAUDE_ONLY_EVENTS: &[&str] = &["StopFailure"];
+/// 없다. `StopFailure`: 턴이 API 오류로 끝날 때 Stop 대신 온다 (2026-10-24). `Notification` ·
+/// `UserPromptSubmit`: Claude 가 사람을 기다린다 / 그 기다림이 풀렸다 (10-29 #notify-hook) — Codex 판에
+/// 넣지 않는다(모르는 키로 훅 설정이 거부되면 Codex 사용자의 훅이 통째로 죽는다).
+const CLAUDE_ONLY_EVENTS: &[&str] = &["StopFailure", "Notification", "UserPromptSubmit"];
 
 #[test]
 fn the_codex_plugin_ships_the_same_hook_bundle_as_the_claude_one() {

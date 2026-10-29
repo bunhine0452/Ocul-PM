@@ -14,6 +14,7 @@ import type {
   JournalEntrySummary,
   JournalMissingSignal,
   PlanVerdict,
+  ClaudeWaiting,
   TermInfo,
   TodayDigest,
 } from "@/lib/bindings";
@@ -43,6 +44,7 @@ export function evidenceOf(e: JournalEntrySummary): EvidenceState {
 /** 「확인할 것」 한 행. 심각도 순서는 `EXCEPTION_ORDER`. */
 export type TodayException =
   | { kind: "waiting"; key: string; session: TermInfo }
+  | { kind: "hookWaiting"; key: string; item: ClaudeWaiting }
   | { kind: "verdict"; key: string; plan: DigestPlan; verdict: PlanVerdict }
   | { kind: "evidence"; key: string; entry: JournalEntrySummary }
   | { kind: "unrecorded"; key: string; files: string[] }
@@ -56,6 +58,7 @@ export type ExceptionKind = TodayException["kind"];
 /** 심각도 — 내 손을 기다리는 Claude 가 맨 위(지금 멈춰 있다), 플러그인 새 판이 맨 아래. */
 export const EXCEPTION_ORDER: readonly ExceptionKind[] = [
   "waiting",
+  "hookWaiting",
   "verdict",
   "evidence",
   "unrecorded",
@@ -79,6 +82,8 @@ export interface ExceptionInput {
   verifiedLocally?: ReadonlySet<string>;
   /** 이 창의 터미널 세션 — 안의 프로그램이 내 손을 기다리는 것만 줄이 된다(OSC 7501 blocked). */
   terms?: readonly TermInfo[];
+  /** 바깥 터미널의 Claude 기다림 (플러그인 Notification 훅). 앱 안 세션이 이미 기다림이면 싣지 않는다. */
+  hookWaiting?: readonly ClaudeWaiting[];
 }
 
 /** 같은 계획의 항목끼리 — 사람 몫이 열 개여도 계획마다 한 행이다. 순서는 처음 본 순서. */
@@ -97,6 +102,13 @@ export function buildExceptions(input: ExceptionInput): TodayException[] {
   for (const session of input.terms ?? []) {
     if (session.alive && session.status?.state === "blocked") {
       out.push({ kind: "waiting", key: `waiting:${session.id}`, session });
+    }
+  }
+  // 앱 안 세션의 기다림(OSC 7501)은 눌러서 그 세션으로 가는 줄이라 그쪽이 있으면 훅 줄은 뺀다 —
+  // 같은 claude 를 두 번 말하지 않게. 없으면 훅이 바깥 터미널의 기다림을 채운다.
+  if (!out.some((ex) => ex.kind === "waiting")) {
+    for (const item of input.hookWaiting ?? []) {
+      out.push({ kind: "hookWaiting", key: `hook-waiting:${item.session_id}`, item });
     }
   }
   for (const plan of input.digest.plans) {

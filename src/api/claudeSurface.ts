@@ -10,9 +10,10 @@
  * 스킬·규칙·승격 후보·발동 원장·스택 감지 래퍼는 4.0 에서 스킬·규칙 화면과 함께 걷었다.
  */
 
-import { commands } from "@/lib/bindings";
-import { call, type Envelope } from "@/api/invoke";
+import { commands, events } from "@/lib/bindings";
+import { call, subscribe, type Envelope } from "@/api/invoke";
 import type {
+  ClaudeWaiting,
   JournalMissingSignal,
   ClaudePluginStatus,
   CliCheckResult,
@@ -57,6 +58,19 @@ export const hooksApi = {
    */
   resumeDispatchPrompt: (projectId: number) =>
     unwrap<ResumeDispatch>("resume_dispatch_prompt", commands.resumeDispatchPrompt(projectId)),
+
+  /**
+   * 바깥(앱 밖) 터미널의 Claude 가 사람을 기다린다 — 플러그인 Notification 훅이 인박스에 남긴 것을
+   * 워처가 세션별로 든다 (#notify-hook). 봉투 없이 배열을 준다 — 배열이 아니면 빈 목록으로 접는다.
+   */
+  waiting: async (projectId: number): Promise<ClaudeWaiting[]> => {
+    const list: unknown = await commands.claudeWaiting(projectId);
+    return Array.isArray(list) ? (list as ClaudeWaiting[]) : [];
+  },
+  /** 「알았어요」 — 그 기다림을 지운다 (바깥 터미널이라 앱 안에서 갈 곳이 없다). */
+  dismissWaiting: (projectId: number, sessionId: string): Promise<void> => commands.claudeWaitingDismiss(projectId, sessionId),
+  /** 어느 프로젝트의 기다림이 바뀌었다. */
+  onWaitingChanged: (cb: (projectId: number) => void) => subscribe(events.claudeWaitingChanged, (p) => cb(p.project_id)),
 };
 
 /**

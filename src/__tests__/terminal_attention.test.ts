@@ -18,7 +18,7 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
   sendNotification: (n: { title: string; body?: string }) => void os.sent.push(n),
 }));
 
-import { alertIfWaiting, setAlertProjectName, shouldAlert } from "@/features/terminal/attention";
+import { alertIfWaiting, newWaitings, setAlertProjectName, shouldAlert } from "@/features/terminal/attention";
 import { t } from "@/i18n";
 
 const st = (state: string, kind: string | null = null, msg: string | null = null): TermStatus => ({
@@ -80,5 +80,16 @@ describe("알림감", () => {
     alertIfWaiting(st("working"), info(st("blocked", "permission")));
     await new Promise((r) => setTimeout(r, 10));
     expect(os.sent).toHaveLength(0);
+  });
+});
+
+describe("바깥 터미널 기다림 알림 (#notify-hook)", () => {
+  it("처음 보는 기다림만 — 같은 세션 · 같은 시작 시각은 한 번", () => {
+    const seen = new Set<string>();
+    const a = { session_id: "s1", kind: "permission", message: null, since: "2026-10-29T14:00:00Z" };
+    expect(newWaitings(seen, [a])).toEqual([a]);
+    expect(newWaitings(seen, [a])).toEqual([]);
+    const again = { ...a, since: "2026-10-29T14:10:00Z" };
+    expect(newWaitings(seen, [again])).toEqual([again]);
   });
 });

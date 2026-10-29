@@ -300,6 +300,8 @@ export const en: Record<keyof typeof ko, string> = {
   "today.check.emptyBodyQuiet": "No entries yet today. A missing verification or a failing check command shows up here first.",
   "today.check.kind.waiting": "Claude is waiting",
   "today.check.openTerminal": "Open in terminal",
+  "today.check.dismissWaiting": "Got it",
+  "today.check.outsideTerminal": "Outside terminal",
   "terminal.notify.title": "Claude is waiting",
   "terminal.notify.titleIn": "{project} · Claude is waiting",
   "today.check.kind.verdict": "Failed",

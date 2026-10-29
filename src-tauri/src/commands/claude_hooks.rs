@@ -10,6 +10,7 @@ use crate::app_error::AppError;
 use crate::db::Db;
 use crate::oculpm::cache::JournalCache;
 use crate::oculpm::claude_hooks::{self, ClaudeHooksStatus, JournalMissingSignal};
+use crate::oculpm::claude_waiting as waiting;
 use crate::oculpm::first_record::{self, FirstRecordLedger};
 use crate::oculpm::resume::{self, ResumeDigest};
 
@@ -125,4 +126,53 @@ pub async fn resume_dispatch_prompt(
         command: crate::oculpm::planner::dispatch::shell_command_for(&abs),
         prompt,
     })
+}
+
+/// 이 프로젝트에서 Claude 가 사람을 기다리는 세션들 (플러그인 Notification 훅, #notify-hook).
+/// [`waiting::WAITING_STALE_MINUTES`] 보다 오래된 것은 지우고 돌려준다.
+#[tauri::command]
+#[specta::specta]
+pub fn claude_waiting(
+    state: State<'_, waiting::ClaudeWaitingState>,
+    project_id: u32,
+) -> Vec<waiting::ClaudeWaiting> {
+    let cutoff = chrono::Utc::now() - chrono::Duration::minutes(waiting::WAITING_STALE_MINUTES);
+    let Ok(mut all) = state.0.lock() else {
+        return Vec::new();
+    };
+    let Some(table) = all.get_mut(&project_id) else {
+        return Vec::new();
+    };
+    table.retain(|_, w| {
+        chrono::DateTime::parse_from_rfc3339(&w.since)
+            .map(|t| t.with_timezone(&chrono::Utc) >= cutoff)
+            .unwrap_or(true)
+    });
+    let mut out: Vec<_> = table.values().cloned().collect();
+    out.sort_by(|a, b| b.since.cmp(&a.since));
+    out
+}
+
+/// 「알았어요」 — 그 기다림을 지운다(바깥 터미널이라 앱 안에서 갈 곳이 없다). 모든 창이 다시 읽는다.
+#[tauri::command]
+#[specta::specta]
+pub fn claude_waiting_dismiss(
+    app: tauri::AppHandle,
+    state: State<'_, waiting::ClaudeWaitingState>,
+    project_id: u32,
+    session_id: String,
+) {
+    let removed = state
+        .0
+        .lock()
+        .ok()
+        .and_then(|mut all| {
+            all.get_mut(&project_id)
+                .map(|t| t.remove(&session_id).is_some())
+        })
+        .unwrap_or(false);
+    if removed {
+        use tauri_specta::Event;
+        let _ = waiting::ClaudeWaitingChanged { project_id }.emit(&app);
+    }
 }

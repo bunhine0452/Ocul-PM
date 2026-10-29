@@ -58,13 +58,20 @@ fn hooks_json_guards_and_consumes_stdin() {
     let map = hooks["hooks"].as_object().expect("hooks 맵");
     assert_eq!(
         map.len(),
-        5,
-        "구독 이벤트는 SessionStart/Stop/StopFailure/SessionEnd(싱크) + SubagentStart(주입) 5종"
+        7,
+        "구독 이벤트는 SessionStart/Stop/StopFailure/Notification/UserPromptSubmit/SessionEnd(싱크) + SubagentStart(주입) 7종"
     );
-    // 인라인 이벤트 싱크 3종 — 가드·stdin 소비·네트워크 금지 계약 (D1).
+    // 인라인 이벤트 싱크 5종 — 가드·stdin 소비·네트워크 금지 계약 (D1). Notification(권한 · 입력
+    // 대기) · UserPromptSubmit(그 기다림을 푼다)은 10-29 #notify-hook — 바깥 터미널의 기다림을 앱이 안다.
     // StopFailure(2026-10-24): 턴이 API 오류로 끝나면 Stop 대신 이것만 온다 —
     // 없으면 그 턴의 끝이 원장에서 빠진다. 막을 수 없는 이벤트라 배달 게이트는 안 붙인다.
-    for ev in ["SessionStart", "Stop", "StopFailure"] {
+    for ev in [
+        "SessionStart",
+        "Stop",
+        "StopFailure",
+        "Notification",
+        "UserPromptSubmit",
+    ] {
         let cmd = map[ev][0]["hooks"][0]["command"]
             .as_str()
             .unwrap_or_else(|| panic!("{ev} command"));
@@ -85,7 +92,13 @@ fn hooks_json_guards_and_consumes_stdin() {
     // (같은 플러그인의 session-end.sh 는 처음부터 `printf '%s\n'` 을 썼다).
     // 소비자(`claude_hooks::parse_inbox_slice`)가 깨진 줄을 건너뛰긴 하지만,
     // 건너뛴 줄은 곧 잃은 이벤트다 — 붙는 쪽을 고치는 것이 원칙이다.
-    for ev in ["SessionStart", "Stop", "StopFailure"] {
+    for ev in [
+        "SessionStart",
+        "Stop",
+        "StopFailure",
+        "Notification",
+        "UserPromptSubmit",
+    ] {
         let cmd = map[ev][0]["hooks"][0]["command"].as_str().unwrap();
         assert!(
             !cmd.contains("cat >> "),
