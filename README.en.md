@@ -4,7 +4,7 @@
 
 <img src="landing/demo.gif" alt="Ocul-PM demo (3.x screens) — ask the agent for a change and the work journal writes itself" width="100%" />
 
-<sub>The demo shows 3.x screens — the in-app terminal on the right was removed in 4.0; the same thing now happens in your own terminal.</sub>
+<sub>The demo shows 3.x screens — in 4.0 the in-app terminal is a single top-bar tab (⌘5), and running the agent in your own terminal leaves the same records.</sub>
 
 <h3>Stop re-explaining to your AI where you left off yesterday.</h3>
 
@@ -65,7 +65,7 @@ What it doesn't give is written down too. Ambition itself is the human's job —
 
 ## 🚀 v4.0 — Five surfaces, exceptions only
 
-- **Five surfaces left** — Today · Work Journal · Plan · Diff · Settings. The Search, Discussions, Branch and Skills & Rules screens, the menu-bar tray, the new-project wizard and theme presets are gone, and the in-app terminal · editor · Claude Code/Codex screens · AI panel removed on 2026-10-28 leave with this release. Journal search lives in Work Journal (`/`).
+- **Five surfaces left** — Today · Work Journal · Plan · Diff · Settings. The Search, Discussions, Branch and Skills & Rules screens, the menu-bar tray, the new-project wizard and theme presets are gone, and the editor · Claude Code/Codex screens · AI panel removed on 2026-10-28 leave with this release. The in-app terminal **came back, smaller** — sessions live inside the app (they end with the window), and "Next" opens `claude` right there. Journal search lives in Work Journal (`/`).
 - **Exceptions only** — Today unfolds only "To check" (failed verdicts · entries without evidence · unrecorded changes · blocked · decisions · a new plugin version) and folds work with evidence into one line per plan. 3 entries a day or 60, it's the same screen; the simple/pro density toggle is gone.
 - **Last verdict** — log a check command's result as `verdict ✓|✗ <last line>` (`판정` in Korean) and the start hook and the Plan screen read it by the same rule. It shows done condition · check command · last verdict right under the title.
 - **The app calls no LLM** — summaries · weekly rollups · release-note drafts · plan AI refresh · API-key settings · automation are gone. Semantic code search and indexing are gone too (on one install, 358MB of an 837MB database was that index); the first launch after updating drops those tables (keeping an `ocul-pm.db.bak-v42` copy first). Screens reach no outside host. The agent does the thinking; the app shows the evidence, deterministically.

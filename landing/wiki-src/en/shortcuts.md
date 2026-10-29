@@ -12,7 +12,8 @@ updated: 2026-10-29
 | Key | Action |
 |---|---|
 | `⌘K` | Command palette — find screens · projects · entries · plans by title and open them |
-| `⌘1` – `⌘4` | Jump to a screen — `⌘1` Today · `⌘2` Work Journal · `⌘3` Plan · `⌘4` Diff |
+| `⌘1` – `⌘5` | Jump to a screen — `⌘1` Today · `⌘2` Work Journal · `⌘3` Plan · `⌘4` Diff · `⌘5` Terminal |
+| `⌘T` | Terminal — new session (`Ctrl+Shift+T` on Windows · Linux) |
 | `⌘,` | Settings |
 | `⌘[` / `⌘]` | Back / forward between screens — like a browser |
 | `⌘/` | Shortcut cheatsheet |
@@ -36,9 +37,9 @@ These keys listen only inside that screen.
 | `j` / `k` | Next / previous item |
 | `Enter` | The item's default action (see diff · open plan …) |
 | `v` | Today — mark checked |
-| `c` | Today — copy the next item's prompt |
+| `r` | Today — run the next item in the terminal |
 | `/` | Work Journal — journal search |
 
 :::note
-The in-app terminal, editor and agent screens were removed on 2026-10-28. Agents run in your own terminal, and the Plan screen's [Copy prompt] · [Copy with until-done] and `c` on Today put the prompt on your **clipboard**.
+The in-app terminal was removed on 2026-10-28 and came back, smaller, on 10-29 — sessions live inside the app and end when the window closes. `r` on Today and the Plan screen's [Run in terminal] · [To the end (until-done)] open `claude` in a new session. The editor and agent chat screens did not come back.
 :::

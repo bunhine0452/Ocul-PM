@@ -1,20 +1,21 @@
 ---
 title: Screens tour
-desc: The five surfaces of 4.0 — Today · Work Journal · Plan · Diff · Settings — and the start window, on one page.
+desc: The screens of 4.0 — Today · Work Journal · Plan · Diff · Terminal · Settings — and the start window, on one page.
 order: 3
 updated: 2026-10-29
 ---
 
-Ocul-PM 4.0 has five surfaces. One principle — **show only the exceptions.** The screen grows with what a person must see, not with how much the agent did, so someone with 3 entries a day and someone with 60 use the same screen, with no modes. The agent itself runs **in your own terminal**.
+Ocul-PM 4.0 has five surfaces and a terminal. One principle — **show only the exceptions.** The screen grows with what a person must see, not with how much the agent did, so someone with 3 entries a day and someone with 60 use the same screen, with no modes. Run the agent in the in-app **Terminal** tab or in your own terminal — the records come out the same.
 
-Top-bar tab order = `⌘` number order (`⌘1` – `⌘4`). Settings is the gear at the end of the top bar (`⌘,`).
+Top-bar tab order = `⌘` number order (`⌘1` – `⌘5`). Settings is the gear at the end of the top bar (`⌘,`).
 
 | Screen | Key | What it does |
 |---|---|---|
 | **Today** | `⌘1` | "To check" — failed verdicts · entries without command evidence · changes no entry mentions · blocked · decisions that are yours · a new plugin version. Work with evidence folds to one line per plan |
 | **Work Journal** | `⌘2` | A list on the left, the detail on the right (verification box · inline diff per file · related entries). Journal search (`/`) lives here |
-| **Plan** | `⌘3` | Done condition · check command · last verdict right under the title, the next item and a prompt to copy |
+| **Plan** | `⌘3` | Done condition · check command · last verdict right under the title, the next item run in the terminal. Finished phases fold to one line |
 | **Diff** | `⌘4` | Uncommitted / last-commit diffs. "Unrecorded" (files no entry mentions) comes first |
+| **Terminal** | `⌘5` | A shell in this project folder. Session list on the left (running · ended · entries since start) + the terminal. "Next" on Today and Plan opens `claude` here. Sessions end when the window closes |
 | **Settings** | `⌘,` | Agent connections · this project · display · data, on one page |
 
 A window with no project is the **start window** — recent projects and, the first time, three steps (folder → turn recording on → copy the plugin install command).
