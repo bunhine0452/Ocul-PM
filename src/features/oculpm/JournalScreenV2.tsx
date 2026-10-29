@@ -3,7 +3,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Toolbar } from "@/components/Toolbar";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { ArrowLeft, NotebookText, Plus, SearchIcon, X } from "@/components/Icons";
+import { ArrowLeft, Plus, SearchIcon, X } from "@/components/Icons";
 import { oculpmApi } from "@/api/oculpm";
 import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { useT, type I18nKey } from "@/i18n";
@@ -358,27 +358,25 @@ export function JournalScreenV2({
 
   // 「자동으로 기록합니다」 는 거짓이었다 — 일지를 쓰는 것은 에이전트다. 첫날 이 화면을 살리는
   // 구체적인 행동은 둘뿐: 지난 커밋에서 만들거나, 지금 한 건을 직접 쓰거나.
+  // 문장 하나 · 버튼 하나 (화면 검사 #empty-one). 예전 기록이 있으면 그리로, 정말 처음이면 지난 커밋에서
+  // 첫 일지를 만드는 길 하나 — 새 일지 쓰기는 윗줄 단추가 늘 있다.
+  const hasOlder = total != null && total > 0;
   const firstDay = (
     <EmptyState
       density="rich"
-      icon={NotebookText}
-      title={t("journal.emptyTitle")}
       actions={
-        <>
-          {newEntry}
-          <button type="button" className="btn" disabled={backfilling} onClick={runGitBackfill}>
+        hasOlder ? (
+          <button type="button" className="btn primary" onClick={() => setShowAll(true)}>
+            {t("journal.loadMore")}
+          </button>
+        ) : (
+          <button type="button" className="btn primary" disabled={backfilling} onClick={runGitBackfill}>
             {backfilling ? t("journal.backfill.busy") : t("journal.backfill.action")}
           </button>
-          {/* 최근 14일이 비어도 예전 기록으로 갈 길이 있어야 한다 — 두 주 넘게 쉬었다 돌아온 경우. */}
-          {total == null || total > 0 ? (
-            <button type="button" className="btn" onClick={() => setShowAll(true)}>
-              {t("journal.loadMore")}
-            </button>
-          ) : null}
-        </>
+        )
       }
     >
-      {t("journal.empty")}
+      {hasOlder ? t("journal.emptyRecent") : t("journal.empty")}
     </EmptyState>
   );
 

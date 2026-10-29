@@ -14,7 +14,7 @@ import { toAppError } from "@/api/invoke";
 import { planApi } from "@/api/plan";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
-import { TargetIcon, TriangleAlert } from "@/components/Icons";
+import { TriangleAlert } from "@/components/Icons";
 import { Toolbar } from "@/components/Toolbar";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { SkeletonList } from "@/components/ui/Skeleton";
@@ -91,7 +91,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     main = <SkeletonList rows={4} height={36} gap={10} />;
   } else if (plan.plans.length === 0) {
     main = (
-      <EmptyState density="rich" icon={TargetIcon} title={t("plan.emptyTitle")}>
+      <EmptyState density="rich">
         {t("plan.emptyAgents")}
       </EmptyState>
     );

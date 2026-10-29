@@ -58,21 +58,17 @@ describe("EmptyState — two densities, one component", () => {
     expect(root.querySelector(".es-actions")).toBeNull();
   });
 
-  it("rich renders icon, title, description and actions", () => {
+  it("one shape — left aligned, one sentence, one action (no icon, no title)", () => {
     const { container } = render(
-      <EmptyState
-        density="rich"
-        icon={(p) => <svg {...p} data-testid="ico" />}
-        title="a title"
-        actions={<button>do it</button>}
-      >
+      <EmptyState density="rich" actions={<button>do it</button>}>
         why it is empty
       </EmptyState>,
     );
     const root = container.firstElementChild!;
     expect(root.className).toContain("es--rich");
-    expect(screen.getByTestId("ico")).toBeInTheDocument();
-    expect(screen.getByText("a title")).toBeInTheDocument();
+    expect(root.className).toContain("es--start");
+    expect(root.querySelector("svg")).toBeNull();
+    expect(root.querySelector(".es-title")).toBeNull();
     expect(screen.getByText("why it is empty")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "do it" })).toBeInTheDocument();
   });
