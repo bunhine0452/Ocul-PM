@@ -143,7 +143,7 @@ export function DataSection({ id }: { id: string }) {
   const free = health?.free_bytes ?? null;
 
   return (
-    <PrefsCard id={id} title={t("prefs.data.title")} note={t("prefs.data.note")}>
+    <PrefsCard id={id} title={t("prefs.data.title")}>
       <PrefsRow
         label={t("prefs.data.cache")}
         meta={

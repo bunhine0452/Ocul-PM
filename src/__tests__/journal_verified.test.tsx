@@ -176,19 +176,19 @@ describe("검증 칸 읽기", () => {
 describe("목록 행 — 증거 표시", () => {
   it("증거 없음은 경고 칩", () => {
     const { container } = renderRow(summary({ type: "bug", evidence: 0 }));
-    expect(container.querySelector(".chip.warn")?.textContent).toBe("증거 없음");
+    expect(container.querySelector(".chip.warn")?.textContent).toBe("검증 없음");
   });
   it("명령 증거는 체크, 사람 확인은 확인됨 체크", () => {
     const a = renderRow(summary({ evidence: 2 }));
-    expect(a.container.querySelector('[role="img"][aria-label="증거 있음"]')).not.toBeNull();
+    expect(a.container.querySelector('[role="img"][aria-label="검증 있음"]')).not.toBeNull();
     a.unmount();
     const b = renderRow(summary({ type: "bug", verified_by_user: true }));
-    expect(b.container.querySelector('[role="img"][aria-label="확인됨"]')).not.toBeNull();
+    expect(b.container.querySelector('[role="img"][aria-label="읽음"]')).not.toBeNull();
     expect(b.container.querySelector(".chip.warn")).toBeNull();
   });
   it("확인 뒤 바뀐 일지는 체크가 아니라 다시 경고 칩이다", () => {
     const { container } = renderRow(summary({ type: "bug", verified_by_user: true, verified_stale: true }));
-    expect(container.querySelector('[role="img"][aria-label="확인됨"]')).toBeNull();
+    expect(container.querySelector('[role="img"][aria-label="읽음"]')).toBeNull();
     expect(container.querySelector(".chip.warn")).not.toBeNull();
   });
   it("미완료는 칩으로 말하고, 잡일은 증거 요구가 없어 표시가 없다", () => {
@@ -203,7 +203,7 @@ describe("상세 — 검증 상자", () => {
     const { container, findByText, queryByText } = renderDetail(summary({ type: "bug", evidence: 2 }));
     expect(await findByText("명령 있음")).toBeInTheDocument();
     await waitFor(() => expect(container.querySelector(".jd-term")?.textContent).toBe("pnpm test → 2064 passed"));
-    expect(queryByText(/이 일지는 주장이에요/)).toBeNull();
+    expect(queryByText(/이 일지는 주장일 뿐이에요/)).toBeNull();
   });
 
   it("검증 칸이 있어도 명령이 없으면 경고 칩 + 「주장이에요」 한 줄 + 에이전트가 쓴 문장 그대로", async () => {
@@ -212,7 +212,7 @@ describe("상세 — 검증 상자", () => {
     const { container, findByText } = renderDetail(summary({ type: "bug", evidence: 1 }));
     const chip = await findByText("명령 없음");
     expect(chip.className).toContain("warn");
-    expect(await findByText(/돌린 명령과 결과 끝 줄이 없으면 이 일지는 주장이에요/)).toBeInTheDocument();
+    expect(await findByText(/돌린 명령과 결과 끝 줄이 없으면 이 일지는 주장일 뿐이에요/)).toBeInTheDocument();
     await waitFor(() => expect(container.querySelector(".jd-term")?.textContent).toBe("수동으로 확인했다"));
   });
 
@@ -220,7 +220,7 @@ describe("상세 — 검증 상자", () => {
     mocks.body = BODY_NO_SECTION;
     mocks.evidence = 0;
     const { container, findByText } = renderDetail(summary({ type: "bug", evidence: 0 }));
-    expect(await findByText("검증 칸 없음")).toBeInTheDocument();
+    expect(await findByText("이 일지에는 검증을 적지 않았어요")).toBeInTheDocument();
     expect(container.querySelector(".jd-term")).toBeNull();
   });
 
@@ -250,7 +250,7 @@ describe("상세 — 검증 상자", () => {
     expect(meta).toContain("Opus 5.5");
     expect(meta).toContain("계획 「4.0 덜어내기」 #drop-app-llm +1");
     expect(container.querySelector(".tbadge")?.textContent).toContain("버그 수정");
-    expect(container.querySelector(".jd-chips .chip.warn")?.textContent).toBe("증거 없음");
+    expect(container.querySelector(".jd-chips .chip.warn")?.textContent).toBe("검증 없음");
   });
 });
 
@@ -258,22 +258,22 @@ describe("상세 — 확인함 토글 (사람 확인은 증거와 다른 사실)
   it("확인 안 된 일지: 「확인함」 을 누르면 true — 이때 백엔드가 해시를 묶고, 눌린 상태가 된다", async () => {
     const entry = summary({ relative_path: "20260531/F/1000_no.md", type: "bug", evidence: 1 });
     const { getByRole, findByRole } = renderDetail(entry);
-    const btn = await findByRole("button", { name: "확인함", pressed: false });
+    const btn = await findByRole("button", { name: "읽음", pressed: false });
     fireEvent.click(btn);
     await waitFor(() =>
       expect(mocks.verify).toEqual([{ projectId: 1, relativePath: "20260531/F/1000_no.md", verified: true }]),
     );
-    await waitFor(() => expect(getByRole("button", { name: "확인함", pressed: true })).toBeTruthy());
+    await waitFor(() => expect(getByRole("button", { name: "읽음", pressed: true })).toBeTruthy());
   });
 
   it("이미 확인된 일지: 눌린 상태로 시작하고, 다시 누르면 해제(false)", async () => {
     const entry = summary({ relative_path: "20260531/F/1000_ok.md", type: "bug", verified_by_user: true });
     const { getByRole, findByRole } = renderDetail(entry);
-    fireEvent.click(await findByRole("button", { name: "확인함", pressed: true }));
+    fireEvent.click(await findByRole("button", { name: "읽음", pressed: true }));
     await waitFor(() =>
       expect(mocks.verify).toEqual([{ projectId: 1, relativePath: "20260531/F/1000_ok.md", verified: false }]),
     );
-    await waitFor(() => expect(getByRole("button", { name: "확인함", pressed: false })).toBeTruthy());
+    await waitFor(() => expect(getByRole("button", { name: "읽음", pressed: false })).toBeTruthy());
   });
 
   it("확인 뒤 바뀐 일지: 눌리지 않은 「다시 검토」, 누르면 true 로 다시 묶는다", async () => {
@@ -284,12 +284,12 @@ describe("상세 — 확인함 토글 (사람 확인은 증거와 다른 사실)
       verified_stale: true,
     });
     const { getByRole, findByRole } = renderDetail(entry);
-    fireEvent.click(await findByRole("button", { name: "다시 검토", pressed: false }));
+    fireEvent.click(await findByRole("button", { name: "다시 읽기", pressed: false }));
     await waitFor(() =>
       expect(mocks.verify).toEqual([{ projectId: 1, relativePath: "20260531/F/1000_stale.md", verified: true }]),
     );
     // 다시 묶였다 — 워처 왕복 없이 바로 눌린 「확인함」이다.
-    await waitFor(() => expect(getByRole("button", { name: "확인함", pressed: true })).toBeTruthy());
+    await waitFor(() => expect(getByRole("button", { name: "읽음", pressed: true })).toBeTruthy());
   });
 });
 

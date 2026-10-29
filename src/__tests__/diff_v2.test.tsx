@@ -254,7 +254,7 @@ describe("PR-UI 4 — Diff screen", () => {
     expect(names).toContain("src/a.ts");
     expect(names).toContain("src/b.ts");
     // 묶음을 아직 모르면 「기록 없음」 이라고 단언하지 않는다 — 평평한 목록이다.
-    expect(container.textContent).not.toContain("기록 없음");
+    expect(container.textContent).not.toContain("일지 없음");
   });
 
   it("parses + renders the git diff body for the selected file", async () => {
@@ -444,7 +444,7 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
     const { container } = renderDiff();
     await waitFor(() => expect(container.querySelectorAll(".chg-bh")).toHaveLength(2));
     const heads = Array.from(container.querySelectorAll(".chg-bh")).map((h) => h.textContent);
-    expect(heads[0]).toBe("기록 없음2개 파일");
+    expect(heads[0]).toBe("일지 없음2개 파일");
     expect(heads[1]).toBe("일지에 있음3개 파일 · 일지 2");
     // 기록 없음 쪽 파일은 바로 보이고, 일지 쪽 파일은 묶음을 펼치기 전엔 안 보인다.
     const sections = container.querySelectorAll(".chg-list section");
@@ -470,11 +470,11 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
     ];
     const { container } = renderDiff();
     await waitFor(() => expect(container.querySelectorAll(".chg-grp")).toHaveLength(2));
-    await waitFor(() => expect(container.textContent).toContain("! 증거 없음"));
+    await waitFor(() => expect(container.textContent).toContain("! 검증 없음"));
     const grp = Array.from(container.querySelectorAll(".chg-grp"));
     expect(grp[0].querySelector(".chg-ti")?.textContent).toBe("새 폴더 감시 경합");
     expect(grp[0].querySelector(".chg-count")?.textContent).toBe("2");
-    expect(grp[0].textContent).toContain("! 증거 없음");
+    expect(grp[0].textContent).toContain("! 검증 없음");
     expect(grp[1].textContent).toContain("✓ 명령");
   });
 

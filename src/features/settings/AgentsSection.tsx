@@ -197,7 +197,7 @@ function McpRow() {
 export function AgentsSection({ id }: { id: string }) {
   const { t } = useT();
   return (
-    <PrefsCard id={id} title={t("prefs.agents.title")} note={t("prefs.agents.note")}>
+    <PrefsCard id={id} title={t("prefs.agents.title")}>
       <ClaudeRow />
       <CodexRow />
       <McpRow />

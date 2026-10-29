@@ -206,7 +206,7 @@ describe("데이터", () => {
     renderPage();
     const data = section(t("prefs.data.title"));
     // 본체 1000 + WAL 24 = 1.0 KB, 빈 자리 200 B.
-    expect(await within(data).findByText(/1\.0 KB · .*200 B/)).toBeInTheDocument();
+    expect(await within(data).findByText(/1\.0 KB .*· .*200 B/)).toBeInTheDocument();
     fireEvent.click(within(data).getByRole("button", { name: t("prefs.data.compact") }));
     await waitFor(() => expect(fx.compact).toHaveBeenCalled());
     fireEvent.click(within(data).getByRole("button", { name: t("prefs.data.rebuild") }));

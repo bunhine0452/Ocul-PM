@@ -52,7 +52,7 @@ describe("tError — 크로스플랫폼 고정 문구 ({#ui-followups})", () => 
     setLangSetting("ko");
     const raw =
       "The system keyring is unavailable — install and unlock a Secret Service provider (GNOME Keyring or KWallet), then try again. Keys are never saved in plain text. (Platform secure storage failure: …)";
-    const guide = "시스템 키링을 쓸 수 없어요 — Secret Service 제공자(GNOME 키링이나 KWallet)를 설치하고 잠금을 푼 뒤 다시 시도하세요. 키는 평문으로 저장하지 않아요.";
+    const guide = "시스템 키링을 쓸 수 없어요. Secret Service 제공자(GNOME 키링이나 KWallet)를 설치하고 잠금을 푼 뒤 다시 시도하세요. 키는 평문으로 저장하지 않아요.";
     expect(tError(raw)).toBe(guide);
     expect(tError(`Could not save to the keychain: ${raw}`)).toBe(guide);
   });
@@ -61,9 +61,9 @@ describe("tError — 크로스플랫폼 고정 문구 ({#ui-followups})", () => 
     setLangSetting("ko");
     expect(
       tError("Pasting copied files is not available on Linux — drag the files into the tree instead."),
-    ).toBe("Linux 에서는 복사한 파일을 붙여넣을 수 없어요 — 파일을 트리로 끌어다 놓으세요.");
+    ).toBe("Linux 에서는 복사한 파일을 붙여넣을 수 없어요. 파일을 트리로 끌어다 놓으세요.");
     expect(tError("The clipboard is busy in another app — try pasting again.")).toBe(
-      "다른 앱이 클립보드를 쓰고 있어요 — 다시 붙여넣어 보세요.",
+      "다른 앱이 클립보드를 쓰고 있어요. 다시 붙여넣어 보세요.",
     );
   });
 

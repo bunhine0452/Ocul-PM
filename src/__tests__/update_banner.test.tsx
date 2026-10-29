@@ -248,7 +248,7 @@ describe("설치 형식 × 업데이터", () => {
     stubReleasesFetch();
     fx.install = DEB;
     const view = render(<UpdateRow />);
-    expect(await view.findByText(/deb 패키지로 설치됐어요/)).toBeInTheDocument();
+    expect(await view.findByText(/deb 패키지로 설치했어요/)).toBeInTheDocument();
     expect(view.queryByText("업데이트 확인")).toBeNull();
     // 바깥 링크는 앱 전역 가드가 기본 브라우저로 넘긴다 (externalLinks.ts).
     expect(view.getByRole("link", { name: "릴리스 페이지" })).toHaveAttribute("href", RELEASES_PAGE);
