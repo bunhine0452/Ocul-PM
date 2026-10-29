@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Today — Ocul-PM Wiki</title>
-<meta name="description" content="The first screen you see — one line a day, "To check", and "Done today" folded by plan." />
+<meta name="description" content="The first screen you see — one column: "To check", a one-line "Next", and "Done today" folded by plan." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/today" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="en_US" />
 <meta property="og:title" content="Today — Ocul-PM Wiki" />
-<meta property="og:description" content="The first screen you see — one line a day, "To check", and "Done today" folded by plan." />
+<meta property="og:description" content="The first screen you see — one column: "To check", a one-line "Next", and "Done today" folded by plan." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -63,17 +63,17 @@
     <article class="wk-article">
       <h1>Today</h1>
       <p class="wk-updated">Last updated 2026-10-29</p>
-      <nav class="wk-toc"><span>On this page</span><a href="#one-line-a-day">One line a day</a><a href="#to-check">To check</a><a href="#done-today">Done today</a><a href="#right-column">Right column</a><a href="#keys">Keys</a><a href="#next-steps">Next steps</a></nav>
+      <nav class="wk-toc"><span>On this page</span><a href="#one-column">One column</a><a href="#to-check">To check</a><a href="#next">Next</a><a href="#done-today">Done today</a><a href="#keys">Keys</a><a href="#next-steps">Next steps</a></nav>
       <p><code>⌘1</code> is the first screen you see. The principle is <b>show only the exceptions</b> — it unfolds only what a person must see and folds work with evidence into one line. 3 entries a day or 60, it's the same screen.</p>
-<h2 id="one-line-a-day">One line a day</h2>
-<p>The line at the top: <b>entries N · outside-judge evidence M · % · sessions K · to check X.</b> "Outside-judge evidence" is an entry whose verification section holds the command that ran and its last line of output — the target for that share is a number in the <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md" target="_blank" rel="noreferrer">promise document</a> (97%).</p>
+<h2 id="one-column">One column</h2>
+<p>Top to bottom: <b>date · entries N</b> → <b>To check</b> → <b>Next</b> (one line) → sessions working now (only when there are some) → <b>Done today</b>. Per-plan progress and passing verdicts live on the <a href="/wiki/en/planner">Plan</a> tab — Today shows only failed verdicts and human-owned items, under To check.</p>
 <h2 id="to-check">To check</h2>
 <p>Sorted by severity. When it is empty, one calm paragraph remains — but if something couldn't be read, it doesn't claim there is nothing.</p>
-<div class="wk-table"><table><thead><tr><th>Kind</th><th>When it shows</th><th>Buttons</th></tr></thead><tbody><tr><td><b>Failed verdict</b></td><td>A plan's last verdict is <code>✗</code></td><td>See output → that plan</td></tr><tr><td><b>No evidence</b></td><td>A bug · feature · refactor entry whose verification section has no command evidence, and no human has checked it (or it changed after the check)</td><td>diff · Checked</td></tr><tr><td><b>Unrecorded change</b></td><td>A file changed today that no entry mentions, or a conversation that ended without an entry</td><td>See changes</td></tr><tr><td><b>Blocked</b></td><td>A plan item is <code>[!]</code></td><td>Open plan</td></tr><tr><td><b>Decision needed</b></td><td>A human-owned (<code>[user]</code>) item is open — one row per plan</td><td>Open plan</td></tr><tr><td><b>New plugin version</b></td><td>The plugin installed for the project is older than the app</td><td>Copy command</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th>Kind</th><th>When it shows</th><th>Buttons</th></tr></thead><tbody><tr><td><b>Failed verdict</b></td><td>A plan's last verdict is <code>✗</code></td><td>See output → that plan</td></tr><tr><td><b>No evidence</b></td><td>A bug · feature · refactor entry whose verification section has no command evidence, and no human has checked it (or it changed after the check)</td><td>Checked (click the title to open the entry)</td></tr><tr><td><b>Unrecorded change</b></td><td>A file changed today that no entry mentions, or a conversation that ended without an entry</td><td>See changes</td></tr><tr><td><b>Blocked</b></td><td>A plan item is <code>[!]</code></td><td>Open plan</td></tr><tr><td><b>Decision needed</b></td><td>A human-owned (<code>[user]</code>) item is open — one row per plan</td><td>Open plan</td></tr><tr><td><b>New plugin version</b></td><td>The plugin installed for the project is older than the app</td><td>Copy command</td></tr></tbody></table></div>
+<h2 id="next">Next</h2>
+<p>The plan's next item (the first <code>[ ]</code> that isn't human-owned) on one line, with one "Copy prompt" button. <code>c</code> copies it too. To hand off to the end: <code>/oculpm:next until-done</code>.</p>
 <h2 id="done-today">Done today</h2>
-<p>Today's entries grouped by plan, with anything outside a plan under "Outside plans". Each group header shows count · evidence · none · checked. Up to 8 entries everything shows; past that, <b>groups whose evidence is complete fold to their header line</b>, and groups missing something show only those rows ("Show N more"). Switch between by-plan and by-time.</p>
-<h2 id="right-column">Right column</h2>
-<ul><li><b>Working now</b> — agent sessions currently open</li><li><b>Plans</b> — progress and verdict (✓ / ✗ / none) of each active plan</li><li><b>Next</b> — the next item of a plan. <code>c</code> copies a prompt that picks it up</li></ul>
+<p>Today's entries grouped by plan, with anything outside a plan under "Outside plans". Each group header shows count · evidence · none · checked — the target for the evidence share is a number in the <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md" target="_blank" rel="noreferrer">promise document</a> (97%). Up to 8 entries everything shows; past that, <b>groups whose evidence is complete fold to their header line</b>, and groups missing something show only those rows ("Show N more"). Switch between by-plan and by-time.</p>
 <h2 id="keys">Keys</h2>
 <p>Only inside the screen — <code>j</code>/<code>k</code> move · <code>Enter</code> default action · <code>v</code> checked · <code>c</code> copy the next prompt.</p>
 <div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Before the first entry, one hint stands alone — it points to Settings → Agent connections. The 3.x stat cards · activity ring · commit graph · standup · weekly summary were removed in 4.0.</p></div></div>

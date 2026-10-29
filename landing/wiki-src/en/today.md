@@ -1,15 +1,15 @@
 ---
 title: Today
-desc: The first screen you see — one line a day, "To check", and "Done today" folded by plan.
+desc: The first screen you see — one column: "To check", a one-line "Next", and "Done today" folded by plan.
 order: 4
 updated: 2026-10-29
 ---
 
 `⌘1` is the first screen you see. The principle is **show only the exceptions** — it unfolds only what a person must see and folds work with evidence into one line. 3 entries a day or 60, it's the same screen.
 
-## One line a day
+## One column
 
-The line at the top: **entries N · outside-judge evidence M · % · sessions K · to check X.** "Outside-judge evidence" is an entry whose verification section holds the command that ran and its last line of output — the target for that share is a number in the [promise document](https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md) (97%).
+Top to bottom: **date · entries N** → **To check** → **Next** (one line) → sessions working now (only when there are some) → **Done today**. Per-plan progress and passing verdicts live on the [Plan](/wiki/en/planner) tab — Today shows only failed verdicts and human-owned items, under To check.
 
 ## To check
 
@@ -18,21 +18,19 @@ Sorted by severity. When it is empty, one calm paragraph remains — but if some
 | Kind | When it shows | Buttons |
 |---|---|---|
 | **Failed verdict** | A plan's last verdict is `✗` | See output → that plan |
-| **No evidence** | A bug · feature · refactor entry whose verification section has no command evidence, and no human has checked it (or it changed after the check) | diff · Checked |
+| **No evidence** | A bug · feature · refactor entry whose verification section has no command evidence, and no human has checked it (or it changed after the check) | Checked (click the title to open the entry) |
 | **Unrecorded change** | A file changed today that no entry mentions, or a conversation that ended without an entry | See changes |
 | **Blocked** | A plan item is `[!]` | Open plan |
 | **Decision needed** | A human-owned (`[user]`) item is open — one row per plan | Open plan |
 | **New plugin version** | The plugin installed for the project is older than the app | Copy command |
 
+## Next
+
+The plan's next item (the first `[ ]` that isn't human-owned) on one line, with one "Copy prompt" button. `c` copies it too. To hand off to the end: `/oculpm:next until-done`.
+
 ## Done today
 
-Today's entries grouped by plan, with anything outside a plan under "Outside plans". Each group header shows count · evidence · none · checked. Up to 8 entries everything shows; past that, **groups whose evidence is complete fold to their header line**, and groups missing something show only those rows ("Show N more"). Switch between by-plan and by-time.
-
-## Right column
-
-- **Working now** — agent sessions currently open
-- **Plans** — progress and verdict (✓ / ✗ / none) of each active plan
-- **Next** — the next item of a plan. `c` copies a prompt that picks it up
+Today's entries grouped by plan, with anything outside a plan under "Outside plans". Each group header shows count · evidence · none · checked — the target for the evidence share is a number in the [promise document](https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md) (97%). Up to 8 entries everything shows; past that, **groups whose evidence is complete fold to their header line**, and groups missing something show only those rows ("Show N more"). Switch between by-plan and by-time.
 
 ## Keys
 

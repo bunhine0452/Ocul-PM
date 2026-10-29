@@ -116,6 +116,8 @@ const TESTS = new Set([
   "__tests__/shell_v4.test.tsx",
   // 화면끼리 같은 말을 하는가(증거 비율의 분모 · `.oculpm/` 은 변경이 아니다) — 한국어 테스트 이름.
   "__tests__/screens_agree.test.ts",
+  // 끝난 단계 접기 — 한국어 항목 제목 픽스처와 테스트 이름.
+  "__tests__/plan_fold.test.tsx",
   "__tests__/settings_page.test.tsx",
   "__tests__/start_window.test.tsx",
   "__tests__/app_window.test.tsx",

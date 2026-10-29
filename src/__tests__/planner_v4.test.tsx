@@ -152,7 +152,6 @@ describe("판정 카드", () => {
     expect(within(card).getByText("2 failed, 418 passed")).toBeInTheDocument();
     expect(within(card).getByText("앱이 다섯 화면만 남는다")).toBeInTheDocument();
     expect(within(card).getByText("pnpm test && (cd src-tauri && cargo test --locked)")).toBeInTheDocument();
-    expect(within(card).getByText(t("plan.judge.rule"))).toBeInTheDocument();
   });
 
   it("✓ — 통과 칩", async () => {

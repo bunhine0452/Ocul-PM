@@ -19,7 +19,7 @@ import { dragRegion } from "@/lib/platform";
 // 왼쪽 칸은 많아야 하나다. 화면 제목은 고른 탭이 대신하므로 화면의 `<Toolbar>` 는 제목 없이
 // 동작만 이 줄의 「화면 동작」 자리로 보낸다(`ToolbarSlotContext`).
 //
-// 탭 옆의 수는 **예외만** — 확인할 것(경고색)과 오늘 기록 수(조용한 색).
+// 탭 옆의 수는 **예외만** — 확인할 것(경고색) 하나.
 
 interface TopBarProps {
   view: UiV2View;
@@ -75,10 +75,7 @@ export function TopBar({
             >
               <span className="topnav-label">{label}</span>
               {badge ? (
-                <span
-                  className={"nav-badge " + badge.tone}
-                  aria-label={t(badge.tone === "warn" ? "nav.toCheck" : "nav.count", { n: badge.n })}
-                >
+                <span className="nav-badge" aria-label={t("nav.toCheck", { n: badge.n })}>
                   {badge.n}
                 </span>
               ) : null}
