@@ -38,6 +38,7 @@ const fx = vi.hoisted(() => ({
   missing: [] as unknown[],
   plugin: null as unknown,
   sessions: [] as unknown[],
+  terms: [] as unknown[],
   verifyCalls: [] as Array<[string, boolean]>,
   dispatchCalls: [] as Array<[string, string]>,
 }));
@@ -102,6 +103,9 @@ vi.mock("@/lib/bindings", () => {
               };
             case "settingsGetAll":
               return () => ok([] as Array<[string, string]>);
+            // 봉투 없는 명령 — 이 창의 터미널 세션 목록.
+            case "termList":
+              return () => Promise.resolve(fx.terms);
             default:
               return () => ok(null);
           }
@@ -113,6 +117,7 @@ vi.mock("@/lib/bindings", () => {
 });
 
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
+import { takeTermFocus } from "@/features/terminal/focusRequest";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { t } from "@/i18n";
@@ -203,6 +208,7 @@ beforeEach(() => {
   fx.missing = [];
   fx.plugin = { installed: true, behind: false, installed_version: "4.0.0", bundled_version: "4.0.0", path: "/p", scope: "user" } satisfies ClaudePluginStatus;
   fx.sessions = [];
+  fx.terms = [];
   fx.verifyCalls = [];
   fx.dispatchCalls = [];
   Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true });
@@ -242,6 +248,21 @@ describe("확인할 것 — 종류와 순서", () => {
     expect(within(card).getByText(/2 failed, 418 passed/)).toBeInTheDocument();
     expect(within(card).getByText(t("today.check.unrecordedTitle", { n: 2 }))).toBeInTheDocument();
     expect(within(card).getByText(/3\.3\.0 → 4\.0\.0/)).toBeInTheDocument();
+  });
+
+  it("앱 안 터미널의 Claude 가 내 손을 기다리면 맨 위 한 줄 — 누르면 그 세션의 터미널로", async () => {
+    const since = new Date().toISOString();
+    fx.terms = [
+      { id: 7, project_id: 1, label: "claude", started_at: since, alive: true, exit_code: null, busy: true, status: { state: "blocked", kind: "permission", msg: "approve Write: src/a.ts", since } },
+      { id: 8, project_id: 1, label: "claude", started_at: since, alive: true, exit_code: null, busy: true, status: { state: "working", kind: null, msg: null, since } },
+    ];
+    fx.digest = digest({ blocked: [{ plan_id: "a", plan_title: "계획 a", item_id: "hook", title: "시작 훅", status: "blocked" }] });
+    const { onNavigate } = renderToday();
+    await waitFor(() => expect(pills()).toEqual([t("today.check.kind.waiting"), t("today.check.kind.blocked")]));
+    expect(within(checkCard()).getByText("approve Write: src/a.ts")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: t("today.check.openTerminal") }));
+    expect(onNavigate).toHaveBeenCalledWith("terminal");
+    expect(takeTermFocus()).toBe(7);
   });
 
   it("증거를 요구하지 않는 종류(잡일·에러 사이클)와 사람이 확인한 일지는 예외가 아니다", async () => {

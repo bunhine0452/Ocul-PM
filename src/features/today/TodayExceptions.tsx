@@ -16,10 +16,12 @@ import { agentLabel } from "@/features/today/agentColor";
 import { useT, type I18nKey } from "@/i18n";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { stripUserTag } from "@/features/planner/planMeta";
+import { sessionWord } from "@/features/terminal/status";
 import { whenLabel } from "@/lib/whenLabel";
 import type { ExceptionKind, TodayException, TodaySplit } from "./todayModel";
 
 const PILL: Record<ExceptionKind, { key: I18nKey; tone: string }> = {
+  waiting: { key: "today.check.kind.waiting", tone: "warn" },
   verdict: { key: "today.check.kind.verdict", tone: "danger" },
   evidence: { key: "today.check.kind.evidence", tone: "warn" },
   unrecorded: { key: "today.check.kind.unrecorded", tone: "warn" },
@@ -30,6 +32,7 @@ const PILL: Record<ExceptionKind, { key: I18nKey; tone: string }> = {
 };
 
 const PRIMARY: Record<ExceptionKind, I18nKey> = {
+  waiting: "today.check.openTerminal",
   verdict: "today.check.openOutput",
   evidence: "today.check.diff",
   unrecorded: "today.check.viewChanges",
@@ -46,6 +49,16 @@ function shortId(id: string): string {
 function useRowText(ex: TodayException): { title: string; meta: string; mono: boolean } {
   const { t } = useT();
   switch (ex.kind) {
+    case "waiting": {
+      // 프로그램이 붙인 한 줄(「approve Write: …」)이 곧 무엇을 기다리는지다 — 없으면 상태 말.
+      const s = ex.session;
+      const word = sessionWord(t, s);
+      return {
+        title: s.status?.msg || word,
+        meta: [s.label, s.status?.msg ? word : "", s.status ? whenLabel(s.status.since) : ""].filter(Boolean).join(" · "),
+        mono: false,
+      };
+    }
     case "verdict": {
       // 누가 돌렸는지는 빼고 무엇이 나왔는지만 — 같은 에이전트 이름이 줄마다 섰다 ({#today-repeat}).
       const parts = [ex.plan.check, ex.verdict.summary || t("today.check.noSummary"), whenLabel(ex.verdict.ts)];

@@ -125,6 +125,8 @@ const TESTS = new Set([
   "__tests__/terminal_screen.test.tsx",
   // 터미널 닫기 · 끄기 확인과 프로젝트별 세션 세기 — 한국어 테스트 이름.
   "__tests__/terminal_close_guard.test.tsx",
+  // 「Claude 가 기다려요」 알림 규칙 — 한국어 테스트 이름과 상태 한 줄 픽스처.
+  "__tests__/terminal_attention.test.ts",
   "__tests__/settings_page.test.tsx",
   "__tests__/start_window.test.tsx",
   "__tests__/app_window.test.tsx",

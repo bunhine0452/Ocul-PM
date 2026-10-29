@@ -14,6 +14,7 @@ import type {
   JournalEntrySummary,
   JournalMissingSignal,
   PlanVerdict,
+  TermInfo,
   TodayDigest,
 } from "@/lib/bindings";
 
@@ -41,6 +42,7 @@ export function evidenceOf(e: JournalEntrySummary): EvidenceState {
 
 /** 「확인할 것」 한 행. 심각도 순서는 `EXCEPTION_ORDER`. */
 export type TodayException =
+  | { kind: "waiting"; key: string; session: TermInfo }
   | { kind: "verdict"; key: string; plan: DigestPlan; verdict: PlanVerdict }
   | { kind: "evidence"; key: string; entry: JournalEntrySummary }
   | { kind: "unrecorded"; key: string; files: string[] }
@@ -51,8 +53,9 @@ export type TodayException =
 
 export type ExceptionKind = TodayException["kind"];
 
-/** 심각도 — 판정 실패가 맨 위, 플러그인 새 판이 맨 아래. */
+/** 심각도 — 내 손을 기다리는 Claude 가 맨 위(지금 멈춰 있다), 플러그인 새 판이 맨 아래. */
 export const EXCEPTION_ORDER: readonly ExceptionKind[] = [
+  "waiting",
   "verdict",
   "evidence",
   "unrecorded",
@@ -74,6 +77,8 @@ export interface ExceptionInput {
   plugin: { installed: string; bundled: string } | null;
   /** 방금 「확인함」을 눌러 응답을 기다리는 일지 — 다시 읽기 전에 목록에서 뺀다. */
   verifiedLocally?: ReadonlySet<string>;
+  /** 이 창의 터미널 세션 — 안의 프로그램이 내 손을 기다리는 것만 줄이 된다(OSC 7501 blocked). */
+  terms?: readonly TermInfo[];
 }
 
 /** 같은 계획의 항목끼리 — 사람 몫이 열 개여도 계획마다 한 행이다. 순서는 처음 본 순서. */
@@ -89,6 +94,11 @@ function byPlan(items: readonly DigestItem[]): DigestItem[][] {
 
 export function buildExceptions(input: ExceptionInput): TodayException[] {
   const out: TodayException[] = [];
+  for (const session of input.terms ?? []) {
+    if (session.alive && session.status?.state === "blocked") {
+      out.push({ kind: "waiting", key: `waiting:${session.id}`, session });
+    }
+  }
   for (const plan of input.digest.plans) {
     if (plan.last_verdict && !plan.last_verdict.passed) {
       out.push({ kind: "verdict", key: `verdict:${plan.plan_id}`, plan, verdict: plan.last_verdict });

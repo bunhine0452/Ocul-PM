@@ -19,6 +19,7 @@ import { toAppError } from "@/api/invoke";
 import { oculpmApi } from "@/api/oculpm";
 import { planApi } from "@/api/plan";
 import { useJournalEvents, useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
+import { useWindowTerms } from "@/features/terminal/status";
 import { tError } from "@/i18n/errors";
 import { safeUnlisten } from "@/lib/unlisten";
 import type { JournalEntrySummary, JournalMissingSignal, TodayDigest } from "@/lib/bindings";
@@ -179,6 +180,7 @@ export function useTodayExceptions(
   // 보조 재료 셋(기록 없는 파일·조용한 대화·플러그인)도 처음 한 번은 답을 기다린다 —
   // 안 그러면 「볼 것이 없어요」가 먼저 떴다가 행이 뒤늦게 끼어든다(배지도 같이 흔들린다).
   const sideSettled = unrecorded.settled && silent.settled && plugin.settled;
+  const terms = useWindowTerms(enabled);
   const exceptions = useMemo(() => {
     if (!brief.value || !digest.value || !sideSettled) return null;
     return buildExceptions({
@@ -188,8 +190,9 @@ export function useTodayExceptions(
       silent: silent.value ?? null,
       plugin: pluginBehind,
       verifiedLocally,
+      terms,
     });
-  }, [brief.value, digest.value, sideSettled, unrecorded.value, silent.value, pluginBehind, verifiedLocally]);
+  }, [brief.value, digest.value, sideSettled, unrecorded.value, silent.value, pluginBehind, verifiedLocally, terms]);
 
   return {
     data,

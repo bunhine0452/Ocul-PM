@@ -19,6 +19,7 @@
     "dialog:allow-save",
     "updater:default",
     "process:default",
+    "notification:default",
     "core:window:allow-start-dragging",
     "core:webview:allow-set-webview-zoom"
   ]
