@@ -121,6 +121,8 @@
    가까워, 상자로 두면 "덜 된 알약" 으로 보인다. */
 .chip.sm { height: var(--ctl-1); padding: 0 var(--space-2); font-size: var(--fs-2); border-radius: var(--radius-pill); }
 .chip.outline { background: transparent; border: 1px solid var(--sep); }
+/* 읽지 않은 터미널 소식의 점 — 프로젝트 목록 · 시작 창의 「새 소식」 (TermsChip). */
+.terms-unseen { display: inline-block; width: 6px; height: 6px; margin-right: var(--space-1); border-radius: 50%; background: var(--info); }
 /* .chip.accent 는 걷었다 — 초록은 주 버튼과 통과(.chip.ok)에만 (화면 검사 #green-meaning, 10-29).
    「열림」 · 「내 차례」 같은 상태 이름은 중립(.chip.outline)이다. */
 .chip.ok { background: var(--ok-soft); color: var(--ok-text); }

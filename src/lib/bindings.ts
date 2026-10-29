@@ -2287,6 +2287,11 @@ export type TermInfo = {
 	 *  표에 적어 두지 않고 목록을 줄 때마다 잰다(`Session::snapshot`).
 	 */
 	busy: boolean,
+	/**
+	 *  그 창이 뒤에 있는 동안 안의 프로그램이 기다림 · 끝냄 · 오류로 바뀌었고 아직 그 창을 안 봤다
+	 *  (Orca 의 알림 규칙 — 읽지 않음은 프로젝트(= 창)마다). 창이 앞에 오면 지운다.
+	 */
+	unseen: boolean,
 };
 
 /**

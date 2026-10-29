@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
-use tauri::State;
+use tauri::{Manager, State};
 use tauri_specta::Event;
 
 use crate::app_error::AppError;
@@ -54,8 +54,21 @@ pub async fn term_open(
         prompt,
     };
     let notify = app.clone();
+    let label = window.label().to_string();
+    let table = sessions.inner().clone();
     let info = sessions
         .open(spec, move |ev| {
+            if let TermEvent::Status { status: Some(st) } = &ev {
+                // 그 창이 뒤에 있는 동안 기다림 · 끝냄 · 오류가 되면 읽지 않음 (Orca 의 알림 규칙).
+                let settled = matches!(st.state.as_str(), "blocked" | "done" | "error");
+                let front = notify
+                    .get_webview_window(&label)
+                    .and_then(|w| w.is_focused().ok())
+                    .unwrap_or(false);
+                if settled && !front {
+                    table.mark_unseen(&label);
+                }
+            }
             if matches!(ev, TermEvent::Status { .. } | TermEvent::Exit { .. }) {
                 let _ = TermSessionsChanged { project_id }.emit(&notify);
             }

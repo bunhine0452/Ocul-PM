@@ -176,6 +176,21 @@ fn attach_window_hooks(app: &AppHandle, window: &tauri::WebviewWindow, label: St
     window.on_window_event(move |ev| match ev {
         tauri::WindowEvent::Focused(true) => {
             handle.state::<WindowProjects>().lock().note_focus(&label);
+            // 그 창의 읽지 않은 터미널 소식을 지운다 — 다른 창의 프로젝트 목록이 다시 센다.
+            if let Some(terms) = handle.try_state::<crate::terminal::TermSessions>() {
+                if terms.clear_unseen(&label) {
+                    use tauri_specta::Event;
+                    let project_id = handle
+                        .state::<WindowProjects>()
+                        .lock()
+                        .project_of(&label)
+                        .flatten();
+                    if let Some(project_id) = project_id {
+                        let _ = crate::commands::terminal::TermSessionsChanged { project_id }
+                            .emit(&handle);
+                    }
+                }
+            }
         }
         // `Destroyed` 가 아니라 `CloseRequested` 를 쓴다 — 앱 종료 경로에서는
         // 발화하지 않아, 종료 중에 "마지막 창" 판정이 무언가를 다시 띄우는 사고를

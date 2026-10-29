@@ -55,16 +55,24 @@ function asList(infos: unknown): TermInfo[] {
 export interface ProjectTerms {
   alive: number;
   waiting: number;
+  /** 그 창이 뒤에 있는 동안 Claude 가 끝내거나 기다리기 시작했고 아직 그 창을 안 봤다. */
+  unseen: boolean;
 }
 
-/** 무언가 도는 세션을 프로젝트별로 센다 — 빈 셸과 끝난 세션은 세지 않는다(`busy`). */
+/**
+ * 무언가 도는 세션을 프로젝트별로 센다 — 빈 셸과 끝난 세션은 세지 않는다(`busy`). 읽지 않은 소식은
+ * 세션이 끝났어도 남는다(claude 가 끝내고 나간 뒤에도 「새 소식」).
+ */
 export function countByProject(infos: TermInfo[]): Map<number, ProjectTerms> {
   const out = new Map<number, ProjectTerms>();
   for (const s of infos) {
-    if (!s.busy) continue;
-    const row = out.get(s.project_id) ?? { alive: 0, waiting: 0 };
-    row.alive += 1;
-    if (needsMe(s.status)) row.waiting += 1;
+    if (!s.busy && !s.unseen) continue;
+    const row = out.get(s.project_id) ?? { alive: 0, waiting: 0, unseen: false };
+    if (s.busy) {
+      row.alive += 1;
+      if (needsMe(s.status)) row.waiting += 1;
+    }
+    if (s.unseen) row.unseen = true;
     out.set(s.project_id, row);
   }
   return out;

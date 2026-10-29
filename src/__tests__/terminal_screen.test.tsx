@@ -68,6 +68,7 @@ function info(id: number, label: string, extra: Partial<TermInfo> = {}): TermInf
     exit_code: null,
     status: null,
     busy: false,
+    unseen: false,
     ...extra,
   };
 }
