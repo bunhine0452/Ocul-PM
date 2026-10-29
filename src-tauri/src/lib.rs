@@ -154,6 +154,9 @@ use crate::commands::{
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_hooks_status,
     claude_plugin_status,
+    claude_question_answer,
+    // Claude 가 묻고 사람이 답한다 (MCP ask_user, #ask-user)
+    claude_questions,
     // 바깥 터미널의 Claude 기다림 (Notification 훅, #notify-hook)
     claude_waiting,
     claude_waiting_dismiss,
@@ -430,6 +433,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             claude_hooks_status,
             claude_waiting,
             claude_waiting_dismiss,
+            claude_questions,
+            claude_question_answer,
             // H3b — "일지 없이 끝난 세션" 신호 (Today 카드)
             journal_missing_signals,
             // first-record-loop — 첫 기록 원장 (Today 첫 기록 카드)
@@ -482,6 +487,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::commands::terminal::TermCloseAsked,
             // 바깥 터미널의 Claude 기다림이 바뀜 — 오늘이 다시 읽고 창이 뒤면 알린다
             crate::oculpm::claude_waiting::ClaudeWaitingChanged,
+            // Claude 의 질문이 바뀜(물음 · 답함 · 거둠) — 오늘이 다시 읽는다
+            crate::oculpm::claude_waiting::ClaudeQuestionsChanged,
             // 도움말 › 처음 쓰는 법 — 포커스된 창이 안내 모달을 연다
             crate::menu::TourRequested,
         ])

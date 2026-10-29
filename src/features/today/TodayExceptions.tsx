@@ -8,7 +8,7 @@
  * 없었는지를 말하되, 못 본 것(일지 없는 변경을 못 읽음)은 없다고 말하지 않는다.
  */
 
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 
 import { Check } from "@/components/Icons";
 import { SkeletonList } from "@/components/ui/Skeleton";
@@ -17,10 +17,12 @@ import { useT, type I18nKey } from "@/i18n";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { stripUserTag } from "@/features/planner/planMeta";
 import { sessionWord } from "@/features/terminal/status";
+import { blocked } from "@/lib/blocked";
 import { whenLabel } from "@/lib/whenLabel";
 import type { ExceptionKind, TodayException, TodaySplit } from "./todayModel";
 
 const PILL: Record<ExceptionKind, { key: I18nKey; tone: string }> = {
+  question: { key: "today.check.kind.question", tone: "warn" },
   waiting: { key: "today.check.kind.waiting", tone: "warn" },
   hookWaiting: { key: "today.check.kind.waiting", tone: "warn" },
   verdict: { key: "today.check.kind.verdict", tone: "danger" },
@@ -33,6 +35,7 @@ const PILL: Record<ExceptionKind, { key: I18nKey; tone: string }> = {
 };
 
 const PRIMARY: Record<ExceptionKind, I18nKey> = {
+  question: "send.submit",
   waiting: "today.check.openTerminal",
   hookWaiting: "today.check.dismissWaiting",
   verdict: "today.check.openOutput",
@@ -51,6 +54,8 @@ function shortId(id: string): string {
 function useRowText(ex: TodayException): { title: string; meta: string; mono: boolean } {
   const { t } = useT();
   switch (ex.kind) {
+    case "question":
+      return { title: ex.item.question, meta: whenLabel(ex.item.asked_at), mono: false };
     case "waiting": {
       // 프로그램이 붙인 한 줄(「approve Write: …」)이 곧 무엇을 기다리는지다 — 없으면 상태 말.
       const s = ex.session;
@@ -117,7 +122,52 @@ interface RowNav {
   onFocus: () => void;
 }
 
-function ExceptionRow({ ex, active, rowRef, onFocus, onPrimary }: RowNav & { ex: TodayException; onPrimary: (ex: TodayException) => void }) {
+/**
+ * Claude 의 질문에 답하는 칸 (MCP ask_user) — 고를 답이 있으면 단추로, 직접 쓸 수도 있다. 답하면 기다리던
+ * 도구가 그 답을 Claude 에게 돌려준다(앱 안 · 바깥 터미널 모두).
+ */
+function QuestionAnswer({ ex, onAnswer }: { ex: Extract<TodayException, { kind: "question" }>; onAnswer: (id: string, answer: string) => void }) {
+  const { t } = useT();
+  const [text, setText] = useState("");
+  const options = ex.item.options ?? [];
+  const send = (answer: string) => {
+    if (answer.trim()) onAnswer(ex.item.id, answer.trim());
+  };
+  return (
+    <div className="tdy-answer">
+      {options.map((o) => (
+        <button key={o} type="button" className="btn sm" onClick={() => send(o)}>
+          {o}
+        </button>
+      ))}
+      <input
+        className="tdy-answer-input"
+        value={text}
+        placeholder={options.length > 0 ? t("today.check.answerOther") : t("today.check.answerPlaceholder")}
+        aria-label={t("today.check.answerPlaceholder")}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            send(text);
+          }
+        }}
+      />
+      <button type="button" className="btn primary sm" {...blocked(text.trim() ? null : t("send.needsText"))} onClick={() => send(text)}>
+        {t("send.submit")}
+      </button>
+    </div>
+  );
+}
+
+function ExceptionRow({
+  ex,
+  active,
+  rowRef,
+  onFocus,
+  onPrimary,
+  onAnswer,
+}: RowNav & { ex: TodayException; onPrimary: (ex: TodayException) => void; onAnswer: (id: string, answer: string) => void }) {
   const { t } = useT();
   const { title, meta, mono } = useRowText(ex);
   const pill = PILL[ex.kind];
@@ -136,10 +186,13 @@ function ExceptionRow({ ex, active, rowRef, onFocus, onPrimary }: RowNav & { ex:
       <div className="tdy-row-t">
         <div className="tdy-row-title">{title}</div>
         {meta ? <div className={"tdy-meta" + (mono ? " mono" : "")}>{meta}</div> : null}
+        {ex.kind === "question" ? <QuestionAnswer ex={ex} onAnswer={onAnswer} /> : null}
       </div>
-      <button type="button" className="btn sm" onClick={() => onPrimary(ex)}>
-        {t(PRIMARY[ex.kind])}
-      </button>
+      {ex.kind === "question" ? null : (
+        <button type="button" className="btn sm" onClick={() => onPrimary(ex)}>
+          {t(PRIMARY[ex.kind])}
+        </button>
+      )}
     </li>
   );
 }
@@ -213,6 +266,8 @@ interface TodayExceptionsProps {
   setActiveIndex: (i: number) => void;
   rowRefs: RefObject<Array<HTMLLIElement | null>>;
   onPrimary: (ex: TodayException) => void;
+  /** Claude 의 질문에 답한다 (MCP ask_user). */
+  onAnswer: (id: string, answer: string) => void;
   onVerify: (entry: JournalEntrySummary) => void;
   onVerifyAll: (entries: JournalEntrySummary[]) => void;
 }
@@ -226,6 +281,7 @@ export function TodayExceptions({
   setActiveIndex,
   rowRefs,
   onPrimary,
+  onAnswer,
   onVerify,
   onVerifyAll,
 }: TodayExceptionsProps) {
@@ -277,7 +333,7 @@ export function TodayExceptions({
           ) : (
             <ul className="tdy-rows" aria-label={t("today.check.title")}>
               {first.map((ex, i) => (
-                <ExceptionRow key={ex.key} ex={ex} {...nav(i)} onPrimary={onPrimary} />
+                <ExceptionRow key={ex.key} ex={ex} {...nav(i)} onPrimary={onPrimary} onAnswer={onAnswer} />
               ))}
             </ul>
           )}

@@ -22,7 +22,7 @@ import { useJournalEvents, useOculpmDataEvents } from "@/features/oculpm/useOcul
 import { useWindowTerms } from "@/features/terminal/status";
 import { tError } from "@/i18n/errors";
 import { safeUnlisten } from "@/lib/unlisten";
-import type { ClaudeWaiting, JournalEntrySummary, JournalMissingSignal, TodayDigest } from "@/lib/bindings";
+import type { ClaudeQuestion, ClaudeWaiting, JournalEntrySummary, JournalMissingSignal, TodayDigest } from "@/lib/bindings";
 import { buildExceptions, splitExceptions, workdayStartMs, type TodayException } from "./todayModel";
 
 interface Loaded<T> {
@@ -182,6 +182,7 @@ export function useTodayExceptions(
   const sideSettled = unrecorded.settled && silent.settled && plugin.settled;
   const terms = useWindowTerms(enabled);
   const hookWaiting = useHookWaiting(projectId, enabled);
+  const questions = useClaudeQuestions(projectId, enabled);
   const exceptions = useMemo(() => {
     if (!brief.value || !digest.value || !sideSettled) return null;
     return buildExceptions({
@@ -193,8 +194,9 @@ export function useTodayExceptions(
       verifiedLocally,
       terms,
       hookWaiting,
+      questions,
     });
-  }, [brief.value, digest.value, sideSettled, unrecorded.value, silent.value, pluginBehind, verifiedLocally, terms, hookWaiting]);
+  }, [brief.value, digest.value, sideSettled, unrecorded.value, silent.value, pluginBehind, verifiedLocally, terms, hookWaiting, questions]);
 
   return {
     data,
@@ -219,6 +221,29 @@ function useHookWaiting(projectId: number, enabled: boolean): ClaudeWaiting[] {
         .catch(() => {});
     load();
     const off = hooksApi.onWaitingChanged((pid) => {
+      if (pid === projectId) load();
+    });
+    return () => {
+      alive = false;
+      void off.then((fn) => fn());
+    };
+  }, [projectId, enabled]);
+  return list;
+}
+
+/** Claude 가 앱에 물은 질문 (MCP ask_user) — 처음 한 번, 이 프로젝트의 질문이 바뀌면 다시. */
+function useClaudeQuestions(projectId: number, enabled: boolean): ClaudeQuestion[] {
+  const [list, setList] = useState<ClaudeQuestion[]>([]);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    const load = () =>
+      void hooksApi
+        .questions(projectId)
+        .then((next) => alive && setList(Array.isArray(next) ? next : []))
+        .catch(() => {});
+    load();
+    const off = hooksApi.onQuestionsChanged((pid) => {
       if (pid === projectId) load();
     });
     return () => {

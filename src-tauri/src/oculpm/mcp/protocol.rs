@@ -39,6 +39,7 @@ const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
 /// 프로토콜엔 답하되 도구 목록을 비운다 (죽으면 CLI 가 MCP 실패를 떠든다).
 pub const ACP_HOST_ENV: &str = "OCULPM_ACP_HOST";
 
+#[derive(Clone)]
 pub struct McpServer {
     root: PathBuf,
     /// 휴면 — 프로토콜엔 답하되 도구를 내놓지 않는다 ([`ACP_HOST_ENV`]).
@@ -60,6 +61,18 @@ impl McpServer {
             root,
             dormant: true,
         }
+    }
+
+    /// 이 줄이 사람의 답을 기다리는 호출(`ask_user`)인가 — 바이너리가 따로 스레드에서 돌려, 그사이
+    /// 다른 도구 호출(journal_write 등)이 막히지 않게 한다.
+    pub fn is_long_call(&self, line: &str) -> bool {
+        if self.dormant {
+            return false;
+        }
+        serde_json::from_str::<Value>(line.trim()).is_ok_and(|m| {
+            m.get("method").and_then(Value::as_str) == Some("tools/call")
+                && m.pointer("/params/name").and_then(Value::as_str) == Some("ask_user")
+        })
     }
 
     /// 한 입력 라인 → 응답 라인 (없으면 None: 알림/빈 줄).
@@ -108,7 +121,13 @@ impl McpServer {
             }
             "ping" => ok_response(id, json!({})),
             "tools/list" if self.dormant => ok_response(id, json!({ "tools": [] })),
-            "tools/list" => ok_response(id, json!({ "tools": tools::tool_definitions() })),
+            "tools/list" => {
+                let mut defs = tools::tool_definitions();
+                if let Some(list) = defs.as_array_mut() {
+                    list.push(tools::ask::definition());
+                }
+                ok_response(id, json!({ "tools": defs }))
+            }
             "tools/call" if self.dormant => ok_response(
                 id,
                 json!({
@@ -123,7 +142,13 @@ impl McpServer {
                     .unwrap_or("");
                 let empty = json!({});
                 let args = msg.pointer("/params/arguments").unwrap_or(&empty);
-                match tools::call_tool(&self.root, name, args) {
+                // ask_user 는 사람의 답을 기다린다 — 바이너리가 이 호출만 따로 스레드에서 돌린다.
+                let result = if name == "ask_user" {
+                    tools::ask::ask_user(&self.root, args, tools::ask::ASK_WAIT)
+                } else {
+                    tools::call_tool(&self.root, name, args)
+                };
+                match result {
                     Ok(v) => ok_response(
                         id,
                         json!({
@@ -174,6 +199,26 @@ fn error_response(id: Value, code: i64, message: &str) -> Value {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    /// ask_user 만 따로 스레드에서 돈다 — 나머지 호출이 그 답을 기다리느라 막히지 않게 (#ask-user).
+    #[test]
+    fn only_ask_user_is_a_long_call_and_it_is_listed() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = server(tmp.path());
+        let call = |name: &str| {
+            format!(
+                r#"{{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{{"name":"{name}","arguments":{{}}}}}}"#
+            )
+        };
+        assert!(s.is_long_call(&call("ask_user")));
+        assert!(!s.is_long_call(&call("journal_write")));
+        assert!(!s.is_long_call(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#));
+        assert!(!McpServer::dormant(tmp.path().to_path_buf()).is_long_call(&call("ask_user")));
+        let list = s
+            .handle_line(r#"{"jsonrpc":"2.0","id":3,"method":"tools/list"}"#)
+            .unwrap();
+        assert!(list.contains("\"ask_user\""));
+    }
 
     fn server(root: &std::path::Path) -> McpServer {
         McpServer::new(root.to_path_buf())
@@ -253,7 +298,8 @@ mod tests {
                 "plan_status",
                 "plan_update",
                 "plan_create",
-                "project_init"
+                "project_init",
+                "ask_user"
             ]
         );
 

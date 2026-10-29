@@ -146,3 +146,12 @@
 .tdy-first { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px; }
 .tdy-first-ico { flex: none; margin-top: 2px; color: var(--accent-text); }
 .tdy-first p { margin: var(--space-2) 0 var(--space-5); }
+
+/* Claude 의 질문에 답하는 칸 (MCP ask_user) — 고를 답 단추 · 직접 쓰는 칸 · 보내기. */
+.tdy-answer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+.tdy-answer-input {
+  flex: 1 1 200px; min-width: 0; height: var(--ctl-3); padding: 0 var(--space-3);
+  border: 1px solid var(--border-card); border-radius: var(--radius-s);
+  background: var(--bg-card); color: var(--text); font: inherit; font-size: var(--fs-3);
+}
+.tdy-answer-input:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }

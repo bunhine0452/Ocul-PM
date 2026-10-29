@@ -171,6 +171,8 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
         case "waiting":
           requestTermFocus(ex.session.id);
           return onNavigate("terminal");
+        case "question":
+          return;
         case "hookWaiting":
           return void hooksApi.dismissWaiting(projectId, ex.item.session_id).catch(() => {});
         case "verdict":
@@ -279,6 +281,11 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                 setActiveIndex={setActive}
                 rowRefs={rowRefs}
                 onPrimary={runPrimary}
+                onAnswer={(id, answer) =>
+                  void hooksApi
+                    .answerQuestion(projectId, id, answer)
+                    .catch((e: unknown) => toast.destructive(t("send.failed", { error: tError(toAppError(e)) })))
+                }
                 onVerify={(entry) => void verify(entry)}
                 onVerifyAll={(list) => void verifyAll(list)}
               />
