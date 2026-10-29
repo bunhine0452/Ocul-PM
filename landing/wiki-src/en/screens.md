@@ -7,7 +7,7 @@ updated: 2026-10-29
 
 Ocul-PM 4.0 has five surfaces. One principle — **show only the exceptions.** The screen grows with what a person must see, not with how much the agent did, so someone with 3 entries a day and someone with 60 use the same screen, with no modes. The agent itself runs **in your own terminal**.
 
-Sidebar order = `⌘` number order (`⌘1` – `⌘4`). Settings sits at the foot of the sidebar (`⌘,`).
+Top-bar tab order = `⌘` number order (`⌘1` – `⌘4`). Settings is the gear at the end of the top bar (`⌘,`).
 
 | Screen | Key | What it does |
 |---|---|---|

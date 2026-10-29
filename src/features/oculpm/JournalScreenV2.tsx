@@ -383,7 +383,6 @@ export function JournalScreenV2({
     <>
       <Toolbar
         title={t("nav.journal")}
-        sub={countText}
         leading={
           fromExternal && onReturnToOrigin ? (
             <button type="button" className="iconbtn" onClick={onReturnToOrigin} aria-label={t("entry.back")} title={t("entry.back")}>
@@ -392,48 +391,6 @@ export function JournalScreenV2({
           ) : undefined
         }
       >
-        <div className="search-box jl-search">
-          <SearchIcon size={15} color="var(--text-3)" />
-          <input
-            ref={searchRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Escape") return;
-              e.stopPropagation();
-              if (search) setSearch("");
-              else {
-                e.currentTarget.blur();
-                splitRef.current?.focus({ preventScroll: true });
-              }
-            }}
-            placeholder={t("journal.searchPlaceholder")}
-            aria-label={t("journal.searchAria")}
-            spellCheck={false}
-          />
-          {search ? (
-            <button type="button" className="iconbtn sm" onClick={() => setSearch("")} aria-label={t("journal.clearSearch")}>
-              <X size={13} />
-            </button>
-          ) : (
-            <span className="kbd">/</span>
-          )}
-        </div>
-        <div className="seg" role="tablist" aria-label={t("journal.typeFilterAria")}>
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              role="tab"
-              aria-selected={filter === f.id}
-              className="seg-item"
-              onClick={() => changeFilter(f.id)}
-              title={f.id === "noevidence" ? t("journal.filterNoEvidenceTitle") : undefined}
-            >
-              {t(f.labelKey)}
-            </button>
-          ))}
-        </div>
         {newEntry}
       </Toolbar>
 
@@ -457,44 +414,93 @@ export function JournalScreenV2({
         </div>
       ) : (
         <div className="jl-split" ref={splitRef} tabIndex={-1} onKeyDown={onKeyDown}>
-          <JournalList
-            days={days ?? []}
-            todayKey={todayKey}
-            selectedPath={selected?.relative_path ?? null}
-            onSelect={(e) => choose(e)}
-            limit={rowLimit}
-            onMore={() => setRowLimit((n) => n + ROW_LIMIT)}
-            listRef={listRef}
-            notice={
-              <>
-                {error ? <ErrorCard title={t("journal.loadFailed")} error={error} onRetry={refresh} style={{ margin: 12 }} /> : null}
-                {truncated ? (
-                  <div className="jl-notice">
-                    <span>{t("journal.limited", { loaded: pageLoaded ?? 0, total: pageTotal ?? 0 })}</span>
-                    {canLoadMore ? (
-                      <button type="button" className="btn sm" onClick={feed.loadMore}>
-                        {t("journal.loadMorePage", { n: remaining })}
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </>
-            }
-            empty={
-              loading && days == null ? (
-                <SkeletonList rows={4} height={44} />
-              ) : (
-                <p className="jl-empty">{filtered ? t("journal.noMatch") : t("journal.empty")}</p>
-              )
-            }
-            footer={
-              !allPeriod && !searching && !(loading && days == null) ? (
-                <button type="button" className="btn sm jl-more" onClick={() => setShowAll(true)}>
-                  {t("journal.loadMore")}
-                </button>
-              ) : null
-            }
-          />
+          {/* 목록 칸 = 머리(검색 · 종류) + 목록. 검색과 필터는 목록을 거르므로 목록 위에 산다 —
+              셸 윗줄에 두면 탭 넷과 한 줄을 다퉜다 (4.0 윗줄 개편). */}
+          <div className="jl-col">
+            <div className="jl-head">
+              <div className="search-box jl-search">
+                <SearchIcon size={15} color="var(--text-3)" />
+                <input
+                  ref={searchRef}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Escape") return;
+                    e.stopPropagation();
+                    if (search) setSearch("");
+                    else {
+                      e.currentTarget.blur();
+                      splitRef.current?.focus({ preventScroll: true });
+                    }
+                  }}
+                  placeholder={t("journal.searchPlaceholder")}
+                  aria-label={t("journal.searchAria")}
+                  spellCheck={false}
+                />
+                {search ? (
+                  <button type="button" className="iconbtn sm" onClick={() => setSearch("")} aria-label={t("journal.clearSearch")}>
+                    <X size={13} />
+                  </button>
+                ) : (
+                  <span className="kbd">/</span>
+                )}
+              </div>
+              <div className="seg" role="tablist" aria-label={t("journal.typeFilterAria")}>
+                {FILTERS.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={filter === f.id}
+                    className="seg-item"
+                    onClick={() => changeFilter(f.id)}
+                    title={f.id === "noevidence" ? t("journal.filterNoEvidenceTitle") : undefined}
+                  >
+                    {t(f.labelKey)}
+                  </button>
+                ))}
+              </div>
+              {filtered ? <span className="jl-count">{countText}</span> : null}
+            </div>
+            <JournalList
+              days={days ?? []}
+              todayKey={todayKey}
+              selectedPath={selected?.relative_path ?? null}
+              onSelect={(e) => choose(e)}
+              limit={rowLimit}
+              onMore={() => setRowLimit((n) => n + ROW_LIMIT)}
+              listRef={listRef}
+              notice={
+                <>
+                  {error ? <ErrorCard title={t("journal.loadFailed")} error={error} onRetry={refresh} style={{ margin: 12 }} /> : null}
+                  {truncated ? (
+                    <div className="jl-notice">
+                      <span>{t("journal.limited", { loaded: pageLoaded ?? 0, total: pageTotal ?? 0 })}</span>
+                      {canLoadMore ? (
+                        <button type="button" className="btn sm" onClick={feed.loadMore}>
+                          {t("journal.loadMorePage", { n: remaining })}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
+              }
+              empty={
+                loading && days == null ? (
+                  <SkeletonList rows={4} height={44} />
+                ) : (
+                  <p className="jl-empty">{filtered ? t("journal.noMatch") : t("journal.empty")}</p>
+                )
+              }
+              footer={
+                !allPeriod && !searching && !(loading && days == null) ? (
+                  <button type="button" className="btn sm jl-more" onClick={() => setShowAll(true)}>
+                    {t("journal.loadMore")}
+                  </button>
+                ) : null
+              }
+            />
+          </div>
           {selected ? (
             <JournalDetail
               ref={detailRef}

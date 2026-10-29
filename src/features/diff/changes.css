@@ -46,8 +46,10 @@
 .chg-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--text-3)); flex: none; }
 /* 경로 — 디렉터리부터 줄어들고 파일명은 온전히 남는다. */
 .chg-name { display: flex; align-items: baseline; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); }
-.chg-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
-.chg-base { flex: none; }
+.chg-dir { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
+/* 이름도 칸을 넘으면 말줄임 — 폴더가 먼저 줄고(shrink 100) 이름은 마지막이다. 전부는 title 에.
+   `flex: none` 이던 때 긴 일지 파일 이름이 칸 밖 diff 쪽으로 넘쳤다. */
+.chg-base { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── 오른쪽 ───────────────────────────────────────────────────────────────── */
 .chg-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-card); outline: none; }

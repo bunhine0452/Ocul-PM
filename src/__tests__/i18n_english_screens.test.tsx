@@ -121,7 +121,7 @@ vi.mock("@/api/oculpm", () => ({
 import { __resetLangForTests, setLangSetting, t } from "@/i18n";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
-import { Sidebar } from "@/components/Sidebar";
+import { TopBar } from "@/features/shell/TopBar";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
@@ -181,10 +181,10 @@ afterEach(() => {
 const noop = () => {};
 
 describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () => {
-  it("사이드바 (펼침)", async () => {
+  it("윗줄", async () => {
     const { container } = render(
       <Wrap>
-        <Sidebar
+        <TopBar
           view="today"
           onNavigate={noop}
           projectName="ai-pm"
@@ -192,6 +192,7 @@ describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () =>
           projects={[]}
           onOpenProject={noop}
           badges={{ today: { n: 3, tone: "warn" }, journal: { n: 12, tone: "dim" } }}
+          slotRef={noop}
         />
       </Wrap>,
     );

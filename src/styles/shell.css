@@ -1,60 +1,93 @@
 /* ============================================================
-   shell.css — .app / .sidebar / .content / .toolbar / .scroll / .page
-   `.nav-item` / `.proj-switch` carry a <button> reset because the React
+   shell.css — .app / .topbar / .content / .toolbar / .scroll / .page
+   `.topnav-item` / `.proj-switch` carry a <button> reset because the React
    shell renders them as buttons (a11y).
    ============================================================ */
 
-/* ── 4.0 셸 (시안 Main.dc.html) ─────────────────────────────────────────────
-   사이드바(212px, 캔버스 색) | 콘텐츠(평평한 면). 3.x 의 "떠 있는 시트"(라운드 +
-   그림자 + 캔버스 여백)는 걷었다 — 화면이 다섯이면 사이드바와 화면 사이에 경계
-   하나면 된다. 경계는 사이드바의 오른쪽 hairline 이다. */
+/* ── 4.0 셸 ─────────────────────────────────────────────────────────────────
+   윗줄 하나 | 콘텐츠(평평한 면). 사이드바는 걷었다 (2026-10-29 사용자 지적 — 사이드바 옆에
+   일지·계획·파일 목록 칸이 또 서서 왼쪽이 두 겹이었다). 화면이 넷이면 탭 한 줄이면 되고,
+   그러면 화면마다 왼쪽 칸은 많아야 하나다. 경계는 윗줄의 아래 hairline 하나. */
 .app {
-  display: grid;
-  grid-template-columns: 212px 1fr;
+  display: flex; flex-direction: column;
   height: 100vh;
   background: var(--bg-content);
   overflow: hidden;
   position: relative;
 }
 
-/* ============================================================ SIDEBAR */
-/* 머리(신호등 띠 · 프로젝트 이름) → 행 넷 → 빈 자리(창을 잡는 띠) → 설정. */
-.sidebar {
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--sep);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-height: 0;
-  padding: var(--space-5) var(--space-4);
+/* ============================================================ TOP BAR */
+/* [신호등 자리] 프로젝트 ▾ │ 탭 넷 ···· [화면 동작] 찾기 ⌘K ⚙ — 높이는 툴바와 같은 44px. */
+.topbar {
+  height: var(--toolbar-h); flex: none;
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--sep);
+  background: var(--bg-window);
   user-select: none;
-  position: relative;
-  z-index: 1;
+  position: relative; z-index: 2;
 }
-/* macOS 오버레이 타이틀바의 신호등 자리 — 창을 잡는 띠이기도 하다. */
-.side-drag-strip { flex: none; height: 22px; }
-.side-fill { flex: 1 1 auto; min-height: var(--space-6); }
-.side-nav { display: flex; flex-direction: column; gap: 1px; }
+/* macOS 오버레이 타이틀바 — 신호등(x 16, 버튼 셋)이 이 줄 왼쪽에 앉는다
+   (tauri.conf.json `trafficLightPosition` · window/mod.rs `TRAFFIC_LIGHT_*`). */
+.is-mac .topbar { padding-left: 84px; }
+.topbar-fill { flex: 1; min-width: var(--space-4); align-self: stretch; }
+/* 화면 동작 — 화면의 <Toolbar> 가 포털로 채운다. 좁은 창에서는 압착 대신 가로 스크롤. */
+.topbar-actions {
+  display: flex; align-items: center; gap: var(--space-4);
+  min-width: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; padding: 2px 0;
+}
+.topbar-actions::-webkit-scrollbar { display: none; }
+.topbar-actions:empty { display: none; }
+.topbar-actions button { white-space: nowrap; }
+.topbar-settings.active { background: var(--bg-active); color: var(--text); }
 
-/* 프로젝트 이름 버튼 (⌘O) — 사이드바의 제목이다. 카드·타일 없이 활자 하나. */
-.proj-switch-wrap { position: relative; flex: none; margin-bottom: var(--space-3); }
+/* 탭 — 활성은 조용한 틴트와 무게. 밑줄·강조 막대는 없다. */
+.topnav {
+  display: flex; align-items: center; gap: 2px; flex: none;
+  padding-left: var(--space-4); border-left: 1px solid var(--sep);
+}
+.topnav-item {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  height: var(--ctl-4); padding: 0 var(--space-4); border-radius: var(--radius-s);
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-label);
+  color: var(--text-2); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.topnav-item:hover { background: var(--bg-hover); color: var(--text); }
+.topnav-item.active { background: var(--bg-active); color: var(--text); font-weight: var(--fw-strong); }
+.topnav-item:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+/* 탭 옆의 수 — 예외만. 경고색 = 확인할 것, 조용한 색 = 오늘 기록 수. */
+.nav-badge {
+  flex: none;
+  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-2); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums;
+}
+.nav-badge.warn { background: var(--warn-soft); color: var(--warn-text); }
+.nav-badge.dim { color: var(--text-3); font-weight: var(--fw-label); }
+
+/* 프로젝트 이름 버튼 (⌘O) — 윗줄의 제목이다. 카드·타일 없이 활자 하나와 ▾. */
+.proj-switch-wrap { position: relative; flex: 0 1 auto; min-width: 0; max-width: 220px; }
 .proj-switch {
-  display: flex; align-items: center; gap: var(--space-3); width: 100%; box-sizing: border-box;
-  padding: var(--space-2) var(--space-3);
+  display: flex; align-items: center; gap: var(--space-2); max-width: 100%; box-sizing: border-box;
+  height: var(--ctl-4); padding: 0 var(--space-3);
   background: transparent; border: none; border-radius: var(--radius-s);
   cursor: pointer;
   appearance: none; -webkit-appearance: none;
   font-family: var(--font); text-align: left; color: var(--text);
   transition: background-color var(--dur-1) var(--ease-out);
 }
+.proj-switch svg { flex: none; color: var(--text-3); }
 .proj-switch:hover { background: var(--bg-hover); }
 .proj-switch[aria-expanded="true"] { background: var(--bg-active); }
 .proj-name {
-  flex: 1; min-width: 0;
-  font-size: var(--fs-6); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); line-height: var(--lh-tight);
+  min-width: 0;
+  font-size: var(--fs-5); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); line-height: var(--lh-tight);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.proj-switch .kbd { flex: none; }
 
 /* 최근 프로젝트 목록 */
 .proj-pop {
@@ -82,42 +115,19 @@
 }
 .proj-pop-add:hover, .proj-pop-add:focus-visible { background: var(--bg-hover); color: var(--text); }
 
-/* 행 — 컨트롤 한 단(30px), 활성은 조용한 틴트와 무게. 왼쪽 강조 막대는 없다. */
-.nav-item {
-  display: flex; align-items: center; gap: var(--space-4);
-  height: var(--ctl-4); padding: 0 var(--space-4); border-radius: var(--radius-s);
-  color: var(--text); cursor: pointer;
-  font-size: var(--fs-4); font-weight: var(--fw-label);
-  appearance: none; -webkit-appearance: none;
-  border: none; background: transparent;
-  font-family: var(--font); text-align: left; width: 100%;
-  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
-}
-.nav-item:hover { background: var(--bg-hover); }
-.nav-item.active { background: var(--bg-active); font-weight: var(--fw-strong); }
-.nav-ico { color: var(--text-2); flex: none; width: 18px; display: grid; place-items: center; }
-.nav-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* 행 옆의 수 — 예외만. 경고색 = 확인할 것, 조용한 색 = 오늘 기록 수. */
-.nav-badge {
-  flex: none; margin-left: auto;
-  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: var(--radius-pill);
-  font-size: var(--fs-2); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums;
-}
-.nav-badge.warn { background: var(--warn-soft); color: var(--warn-text); }
-.nav-badge.dim { color: var(--text-2); font-weight: var(--fw-label); }
-
-/* 접는 화살표 — 사이드바는 더 쓰지 않지만 플래너 변경 로그가 같은 이름을 쓴다. */
+/* 접는 화살표 — 플래너 변경 로그가 쓴다(이름은 옛 사이드바의 것). */
 .nav-section-chev { flex-shrink: 0; transition: transform var(--dur-2) var(--ease-out); color: var(--text-3); }
 
 /* ============================================================ CONTENT */
-/* 콘텐츠 — 평평한 면. 화면마다 자기 툴바를 그린다. */
+/* 콘텐츠 — 평평한 면. 셸 안 화면의 툴바는 윗줄로 합쳐지고(`.toolbar` 는 셸 밖 렌더용). */
 .content {
+  flex: 1;
   display: flex; flex-direction: column;
   min-width: 0; min-height: 0;
   background: var(--bg-content);
-  position: relative;
+  /* 쌓임 맥락을 닫는다 — 화면 안의 고정 머리(일지 날짜 머리 z-sticky 등)가 윗줄의 프로젝트
+     목록 위로 새어 나와 그것을 덮었다. 윗줄(z 2)은 이 맥락(z 0) 위에 선다. */
+  position: relative; z-index: 0;
   overflow: hidden;
 }
 .content-main {

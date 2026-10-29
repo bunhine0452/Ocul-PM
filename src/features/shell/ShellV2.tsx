@@ -1,7 +1,8 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { Sidebar } from "@/components/Sidebar";
+import { ToolbarSlotContext } from "@/components/toolbarSlot";
+import { TopBar } from "./TopBar";
 import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { useT } from "@/i18n";
@@ -14,7 +15,7 @@ import { SettingsPage } from "./screens";
 import { KNOWN_VIEWS, useShellNav } from "./useShellNav";
 import { useNavBadges } from "./useNavBadges";
 import { useTodayExceptions } from "@/features/today/useTodayExceptions";
-import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
+import { SkeletonList } from "@/components/ui/Skeleton";
 import { events, type JournalEntrySummary, type Project } from "@/lib/bindings";
 import { isMac as isMacPlatform } from "@/lib/platform";
 
@@ -27,9 +28,10 @@ import { isMac as isMacPlatform } from "@/lib/platform";
 // legacy tokens.)
 import "@/styles/index.css";
 
-// 4.0 셸 — 212px 사이드바(머리 · 행 넷 · 설정) + 다섯 화면 라우터. 각 화면은 자기
-// <Toolbar> 를 그린다(UI-MASTER-PROMPT §7.4) — 셸은 사이드바와 라우터만 소유한다.
-// 화면 목록의 정본은 `lib/navRegistry.ts` 다.
+// 4.0 셸 — 윗줄 하나(프로젝트 · 탭 넷 · 화면 동작 · 찾기 · 설정) + 다섯 화면 라우터.
+// 사이드바는 걷었다 — 그 옆에 일지·계획·파일 목록 칸이 또 서면 왼쪽이 두 겹이었다.
+// 각 화면은 자기 <Toolbar> 를 그리고, 그 동작은 윗줄의 자리로 포털된다(`ToolbarSlotContext`).
+// 셸은 윗줄과 라우터만 소유한다. 화면 목록의 정본은 `lib/navRegistry.ts` 다.
 //
 // 셸이 소유하지 **않는** 두 결은 옆 파일에 있다: 지연 청크 목록은 `./screens`, 화면
 // 밖에서 온 이동 요청과 한 번짜리 핸드오프는 `./useShellNav`.
@@ -100,6 +102,8 @@ export default function ShellV2({
   }, [setUiV2View]);
 
   const isMac = isMacPlatform();
+  // 화면 동작이 포털될 윗줄의 자리 — 붙은 뒤에야 화면이 그 안으로 그린다.
+  const [actionSlot, setActionSlot] = useState<HTMLDivElement | null>(null);
 
   // 딥링크 이동 — 확인 시트가 open_project_nav 로 쏜 WindowNavigate 를 받아
   // 화면·일지로 이동한다.
@@ -145,7 +149,7 @@ export default function ShellV2({
 
   return (
     <div className={"app" + (isMac ? " is-mac" : "")}>
-      <Sidebar
+      <TopBar
         view={view}
         onNavigate={setUiV2View}
         projectName={projectName}
@@ -154,28 +158,25 @@ export default function ShellV2({
         onOpenProject={onOpenProject}
         onProjectsChanged={onProjectsChanged}
         badges={badges}
+        slotRef={setActionSlot}
       />
+      <ToolbarSlotContext.Provider value={actionSlot}>
       <main className="content">
         <div className="content-main">
-        {/* v2 U6 — lazy 화면 공용 fallback: 툴바 자리 + 콘텐츠 스켈레톤.
+        {/* v2 U6 — lazy 화면 공용 fallback: 콘텐츠 스켈레톤.
             스피너 대신 콘텐츠 형태를 유지해 화면 전환 점프를 줄인다. */}
         <Suspense
           fallback={
-            <>
-              <div className="toolbar" aria-hidden="true">
-                <Skeleton width={160} height={18} />
+            <div className="scroll">
+              <div className="page">
+                <SkeletonList rows={4} height={76} />
               </div>
-              <div className="scroll">
-                <div className="page">
-                  <SkeletonList rows={4} height={76} />
-                </div>
-              </div>
-            </>
+            </div>
           }
         >
         {/* 화면 단위 렌더 경계 (2026-09-04). 화면 하나가 렌더 중 throw 해도
-            사이드바는 살아 있고 다른 화면으로 걸어 나갈 수 있다 — 경계가 창 층에만
-            있으면 사이드바·탈출로까지 함께 대체 UI 로 바뀐다.
+            윗줄은 살아 있고 다른 화면으로 걸어 나갈 수 있다 — 경계가 창 층에만
+            있으면 윗줄·탈출로까지 함께 대체 UI 로 바뀐다.
 
             `key={view}` — 경계는 화면을 바꿔도 스스로 리셋되지 않는다. 키가
             없으면 한 번 깨진 뒤 다른 화면에 갔다 돌아와도 계속 깨진 채로
@@ -249,6 +250,7 @@ export default function ShellV2({
         </Suspense>
         </div>
       </main>
+      </ToolbarSlotContext.Provider>
     </div>
   );
 }

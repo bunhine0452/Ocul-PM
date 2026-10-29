@@ -495,7 +495,7 @@ export const en: Record<keyof typeof ko, string> = {
   // ── Today 4.0 — show only the exceptions (features/today) ──────────────
   "today.kbd.hint": "j k move · v verified · c copy",
   "today.day.records": "{n} entries",
-  "today.day.evidence": "{n} judged from outside",
+  "today.day.evidence": "{n} with evidence",
   "today.day.evidenceTitle": "Entries whose verification section holds the command the agent ran and its result — the command's output is the judge, not the agent's word",
   "today.day.sessions": "{n} sessions",
   "today.day.check": "{n} to check",
@@ -621,7 +621,7 @@ export const en: Record<keyof typeof ko, string> = {
   "journal.evidence.missing": "No evidence",
   "journal.count": "{n} shown · {total} total",
   "journal.countOnly": "{n} entries",
-  "journal.filter.fix": "Bug · Error",
+  "journal.filter.fix": "Bugs",
   "journal.pickOne": "Pick an entry on the left.",
   "journal.planLink": "Plan \"{plan}\" {item}",
   "journal.verify.aria": "Verification",

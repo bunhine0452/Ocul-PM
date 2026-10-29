@@ -145,11 +145,13 @@ export function NextCard({
           <>
             <div>
               <div className="tdy-strong">{next.item.title}</div>
-              <div className="tdy-meta">
-                {[next.plan.title, `#${next.item.item_id}`, next.plan.done_when ? t("today.nextUp.doneWhen", { text: next.plan.done_when }) : null]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </div>
+              <div className="tdy-meta">{`${next.plan.title} · #${next.item.item_id}`}</div>
+              {/* 완료 조건은 문단일 수 있다 — 두 줄까지만, 전부는 계획 화면에서. */}
+              {next.plan.done_when ? (
+                <div className="tdy-meta tdy-clamp" title={next.plan.done_when}>
+                  {t("today.nextUp.doneWhen", { text: next.plan.done_when })}
+                </div>
+              ) : null}
             </div>
             <div className="tdy-actions">
               <button type="button" className="btn primary sm" onClick={onCopy}>

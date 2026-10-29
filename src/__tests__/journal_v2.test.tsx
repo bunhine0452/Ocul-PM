@@ -261,14 +261,15 @@ describe("작업 일지 — 목록", () => {
     expect(container.querySelector('.jl-item[aria-current="true"] .jl-ti')?.textContent).toBe("기능 작업");
   });
 
-  it("툴바는 「N건 · 전체 M건 중」 — 지금 보이는 건수와 프로젝트 전체", async () => {
+  it("「N건 · 전체 M건 중」 은 거를 때만 목록 머리에 — 안 거를 때는 탭 옆 수가 같은 말을 한다", async () => {
     fixtures.byWorkday["20260531"] = [
       summary({ relative_path: "a", title: "하나" }),
       summary({ relative_path: "b", title: "둘" }),
     ];
     fixtures.allPeriod = [summary({ relative_path: "a" }), summary({ relative_path: "b" }), summary({ relative_path: "z" })];
-    const { findByText } = renderJournal();
-    expect(await findByText("2건 · 전체 3건 중")).toBeInTheDocument();
+    const { findByText, queryByText } = renderJournal();
+    expect(await findByText("하나")).toBeInTheDocument();
+    expect(queryByText("2건 · 전체 3건 중")).toBeNull();
   });
 
   it("종류 필터 — 버그·에러는 전체 기간에서 bug 와 error 를 함께 묻는다", async () => {

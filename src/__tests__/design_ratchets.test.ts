@@ -248,7 +248,8 @@ describe("좌측 목록 열", () => {
   it("목록 열이 한 토큰을 쓴다 (편집기·논의 열은 걷었고, 일지·변경의 두 칸은 4.0 시안의 400·340px 이다)", () => {
     expect(read("styles/tokens.css")).toContain("--panel-w: 284px;");
     // 4.0 시안이 정한 두 칸 — 목록 폭은 시안 그대로이고, 좁은 창에서는 45% 로 양보한다.
-    expect(read("features/oculpm/journal.css")).toMatch(/\.jl-list\s*\{[^}]*width: 400px;[^}]*max-width: 45%/);
+    // 일지 목록 칸은 머리(검색 · 종류) + 목록이라 폭은 칸(`.jl-col`)이 쥔다 (4.0 윗줄 개편).
+    expect(read("features/oculpm/journal.css")).toMatch(/\.jl-col\s*\{[^}]*width: 400px;[^}]*max-width: 45%/);
     expect(read("features/diff/changes.css")).toMatch(/\.chg-list\s*\{[^}]*width: 340px;[^}]*max-width: 45%/);
   });
 });

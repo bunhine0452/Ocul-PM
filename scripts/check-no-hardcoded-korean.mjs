@@ -114,6 +114,8 @@ const TESTS = new Set([
   // 「작업 일지」)과 한국어 테스트 이름이 검사 재료다. `os_path` 는 tildePath 가
   // home_model 에서 옮겨 오며 따라온 한국어 테스트 이름이다.
   "__tests__/shell_v4.test.tsx",
+  // 화면끼리 같은 말을 하는가(증거 비율의 분모 · `.oculpm/` 은 변경이 아니다) — 한국어 테스트 이름.
+  "__tests__/screens_agree.test.ts",
   "__tests__/settings_page.test.tsx",
   "__tests__/start_window.test.tsx",
   "__tests__/app_window.test.tsx",

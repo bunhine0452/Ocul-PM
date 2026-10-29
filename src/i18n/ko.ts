@@ -497,7 +497,7 @@ export const ko = {
   // ── 오늘 4.0 — 예외만 보여 준다 (features/today) ─────────────────────────
   "today.kbd.hint": "j k 이동 · v 확인함 · c 복사",
   "today.day.records": "기록 {n}건",
-  "today.day.evidence": "바깥 심판 증거 {n}건",
+  "today.day.evidence": "증거 있음 {n}건",
   "today.day.evidenceTitle": "검증 칸에 에이전트가 돌린 명령과 그 결과가 남은 기록 — 심판은 에이전트의 말이 아니라 명령의 결과예요",
   "today.day.sessions": "세션 {n}",
   "today.day.check": "확인할 것 {n}",

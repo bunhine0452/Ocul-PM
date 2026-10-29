@@ -52,7 +52,7 @@ vi.mock("@/features/diff/DiffScreenV2", () => ({ DiffScreenV2: () => <div data-t
 vi.mock("@/features/settings/SettingsPage", () => ({ SettingsPage: () => <div data-testid="screen">settings</div> }));
 
 import ShellV2 from "@/features/shell/ShellV2";
-import { Sidebar } from "@/components/Sidebar";
+import { TopBar } from "@/features/shell/TopBar";
 import { navBadgesOf } from "@/features/shell/useNavBadges";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
@@ -102,17 +102,19 @@ afterEach(() => {
   __resetLangForTests();
 });
 
-describe("사이드바 — 머리 · 행 넷 · 설정", () => {
-  it("행은 오늘 · 작업 일지 · 계획 · 변경이고 바닥에 설정이 있다", async () => {
-    await mountShell();
+describe("윗줄 — 프로젝트 · 탭 넷 · 찾기 · 설정 (사이드바 없음)", () => {
+  it("탭은 오늘 · 작업 일지 · 계획 · 변경이고, 설정은 윗줄 끝의 톱니다", async () => {
+    const { container } = await mountShell();
+    // 사이드바는 없다 — 그 옆에 목록 칸이 또 서면 왼쪽이 두 겹이었다.
+    expect(container.querySelector("nav.sidebar")).toBeNull();
     const nav = screen.getByRole("navigation", { name: t("nav.aria.main") });
     const labels = within(nav)
       .getAllByRole("button")
-      .map((b) => b.querySelector(".nav-label")?.textContent)
-      .filter(Boolean);
-    expect(labels).toEqual(["오늘", "작업 일지", "계획", "변경", "설정"]);
+      .map((b) => b.querySelector(".topnav-label")?.textContent);
+    expect(labels).toEqual(["오늘", "작업 일지", "계획", "변경"]);
+    expect(screen.getByRole("button", { name: t("sidebar.settings") })).toBeInTheDocument();
     // 머리는 프로젝트 이름 버튼 하나 — 최근 프로젝트 목록을 띄운다.
-    expect(within(nav).getByRole("button", { name: t("sidebar.switchProjectAria", { name: "ai-pm" }) })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: t("sidebar.switchProjectAria", { name: "ai-pm" }) })).toHaveAttribute(
       "aria-haspopup",
       "menu",
     );
@@ -120,7 +122,7 @@ describe("사이드바 — 머리 · 행 넷 · 설정", () => {
 
   it("배지는 예외만 — 확인할 것은 경고색, 오늘 기록 수는 조용한 색", async () => {
     render(
-      <Sidebar
+      <TopBar
         view="today"
         onNavigate={() => {}}
         projectName="ai-pm"
@@ -128,6 +130,7 @@ describe("사이드바 — 머리 · 행 넷 · 설정", () => {
         projects={PROJECTS}
         onOpenProject={() => {}}
         badges={navBadgesOf(2, 3)}
+        slotRef={() => {}}
       />,
     );
     const today = screen.getByRole("button", { name: /오늘/ });
@@ -145,7 +148,7 @@ describe("사이드바 — 머리 · 행 넷 · 설정", () => {
 });
 
 describe("라우터 — 다섯 화면", () => {
-  it("사이드바 행을 누르면 그 화면이 서고, 활성 행이 aria-current 를 갖는다", async () => {
+  it("윗줄 탭을 누르면 그 화면이 서고, 활성 탭이 aria-current 를 갖는다", async () => {
     await mountShell();
     expect(current()).toBe("today");
     for (const [label, view] of [
@@ -155,14 +158,17 @@ describe("라우터 — 다섯 화면", () => {
       ["설정", "settings"],
       ["오늘", "today"],
     ] as const) {
-      const row = screen.getAllByRole("button").find((b) => b.querySelector(".nav-label")?.textContent === label)!;
+      const row =
+        view === "settings"
+          ? screen.getByRole("button", { name: t("sidebar.settings") })
+          : screen.getAllByRole("button").find((b) => b.querySelector(".topnav-label")?.textContent === label)!;
       fireEvent.click(row);
       expect(await screen.findByText(view)).toBeInTheDocument();
       expect(row).toHaveAttribute("aria-current", "page");
     }
   });
 
-  it("⌘1~⌘4 는 사이드바 순서, ⌘, 는 설정, ⌘5 는 아무것도 아니다", async () => {
+  it("⌘1~⌘4 는 탭 순서, ⌘, 는 설정, ⌘5 는 아무것도 아니다", async () => {
     await mountShell();
     const press = (key: string) => act(() => void fireEvent.keyDown(window, { key, metaKey: true }));
     press("2");
