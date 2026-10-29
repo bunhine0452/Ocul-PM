@@ -83,10 +83,8 @@
   --warn: #c2810a;    --warn-text: #8a5b05;   --warn-soft: rgba(194,129,10,0.10);
   --danger: #e0524b;  --danger-text: #b3382f; --danger-soft: rgba(224,82,75,0.10);
   --info: #2570e0;    --info-text: #1a56b0;   --info-soft: rgba(37,112,224,0.10);
-  /* Claude 코랄 — 로고를 로고답게 보이는 자리에서만 (Phase 5, 단일 정의).
-     TS 쪽 짝은 components/ClaudeMark.tsx 의 `CLAUDE_ORANGE` 다 (SVG fill 은
-     CSS var 를 못 받는 자리가 있어 상수로 둔다). 값이 갈리지 않게
-     design_tokens.test 가 둘을 함께 못박는다. */
+  /* Claude 코랄 — 단일 정의. TS 쪽 짝은 features/today/agentColor.ts 의
+     "claude-code" 스와치다. 값이 갈리지 않게 design_tokens.test 가 둘을 함께 못박는다. */
   --claude: #d97757;
 
   /* ── 문법 강조 — 앱 전체 한 벌 (3.0 {#hljs-unify}) ────────────────────────

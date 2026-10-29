@@ -24,8 +24,6 @@ export const ALLOWLIST = new Set([
   "api/deeplink.ts",
   "api/session.ts",
   "api/projectFile.ts",
-  // `.oculpm/index/` 사용량 + diff 정리 (journal-scale-round {#index-usage}).
-  "api/indexUsage.ts",
   // git 커맨드 래퍼 (2026-09-11 편집기 IDE 라운드) — 트리·탭 git 상태 장식의 창구.
   "api/git.ts",
   "api/fileOpen.ts",
@@ -63,7 +61,7 @@ async function* walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name === "legacy" || entry.name === "__tests__") continue;
+      if (entry.name === "__tests__") continue;
       yield* walk(full);
     } else if (EXT.has(entry.name.slice(entry.name.lastIndexOf(".")))) yield full;
   }

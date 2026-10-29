@@ -17,16 +17,6 @@
 @import "./styles/primitives.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* EB Garamond 는 2026-08-12 폴리시에서 제거했다 — 산세리프 UI 위의 세리프
-   워드마크/제목은 "AI 가 만든 화면" 의 전형이고, 서체가 두 벌이면 그 자체로
-   위계가 흐려진다. 앱 전체가 --font(Pretendard) 한 벌로 간다. */
-/* highlight.js 의 벤더 테마(styles/github.css)는 2026-09-04 에 뺐다
-   ({#hljs-dedupe}). 같은 `.hljs-*` 정의가 네 곳(벤더 · 이 파일의 다크 재정의 ·
-   screens.css 라이트 · screens.css 다크)에 있었고, 넷이 **같은 명시도
-   (0,2,0)** 라 승자를 주입 순서가 정했다 — `.hljs-section`(#1f6feb+bold vs
-   #d2a8ff) · `.hljs-bullet` · `.hljs-addition` · `.hljs-deletion` 이 실제로
-   갈렸다. screens.css 가 ShellV2 청크로 나중에 주입돼 셸 안에서는 늘 그쪽이
-   이겼으므로, 이기던 한 벌만 남긴다. SSOT = styles/screens.css 의 hljs 블록. */
 
 /* Pretendard Variable — UI 본문 서체 (2026-08-11, SUITE 7종 OTF 에서 교체).
    재생성은 scripts/build-pretendard-subset.py (한자·가나를 덜어낸 서브셋).
@@ -372,13 +362,6 @@
   }
 }
 
-/* `.project-card` 3블록 삭제 (2026-07-31, 메인 화면 재구성).
-   유일한 소비처가 StartScreen 의 프로젝트 카드였고, hover 그림자의
-   rgba(204,120,92,…) 는 2026-07-16 "Atelier Ivory" 리스킨 이전의 코랄
-   액센트라 Nord/Dracula/고대비 프리셋에서 코랄 기가 섞였다. 새 메인 화면은
-   tokens.css 의 --shadow-card / --shadow-raise / --shadow-sheet 4단 스케일을
-   쓴다 (features/onboarding/home.css). 되살리지 말 것. */
-
 /* Custom minimal scrollbar */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
@@ -396,9 +379,6 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--text-3) 55%, transparent);
 }
-
-/* (Phase 5 정리) 옛 textarea 편집기의 `.editor-*` 규칙과 `--editor-*` 토큰은 CodeMirror 로
-   옮겨간 뒤 소비처가 없어 지웠다. */
 
 /* ── Update notifier banner (1.0 release) ──────────────────────────────────
    Rendered globally from App.tsx (above both the shadcn StartScreen and the

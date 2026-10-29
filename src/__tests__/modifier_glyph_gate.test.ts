@@ -34,7 +34,7 @@ const ALLOWED: Record<string, string> = {
 function* walk(dir: string): Generator<string> {
   for (const name of readdirSync(dir)) {
     const full = posix(join(dir, name));
-    if (name === "__tests__" || name === "legacy") continue;
+    if (name === "__tests__") continue;
     if (statSync(full).isDirectory()) yield* walk(full);
     else if (/\.(ts|tsx)$/.test(name) && !/\.(test|spec)\.tsx?$/.test(name)) yield full;
   }

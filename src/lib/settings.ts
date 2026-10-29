@@ -43,32 +43,9 @@ export const KEYS = {
   // UI 는 즉시 되돌릴 수 있지만 일지는 디스크에 남아 되돌릴 수 없다.
   contentLanguage: "content_language",
 
-  // (--- LLM --- 공급자·모델·폴백·배경 모델·생성 옵션 키는 4.0 에서 앱 안 LLM 호출과
-  // 함께 걷었다. DB 에 남은 값은 읽지 않는다 — `entriesToSettings` 가 모르는 키를 건너뛴다.)
-
-  // (--- Indexing / RAG · AI 작업 맥락 --- 청크·RAG·자동 색인·일지 의미검색·맥락 주입 키는
-  // 4.0 에서 코드 색인과 함께 걷었다. DB 에 남은 값은 읽지 않는다.)
-
   // --- External editor (Lite-W6 PR8 Part 2) ---
+  // DB 에 남은 걷은 기능의 키는 읽지 않는다 — `entriesToSettings` 가 모르는 키를 건너뛴다.
   externalEditorCommand: "external_editor_command",
-
-  // (첫 실행 마법사의 `onboarded` 는 4.0 에서 걷었다 — 시작 창의 「처음이라면 세
-  // 단계」가 늘 보이므로 한 번 봤는지 적을 일이 없다.)
-
-  // --- 업데이트 ---
-  // 마지막으로 What's-new 카드를 본 앱 버전. 앱 버전이 이보다 새로우면 Today 가
-  // 한 번 릴리스 노트를 보여 준다. 빈 문자열 = 아직 한 번도 기록 안 함(첫 설치).
-  lastSeenVersion: "last_seen_version",
-  // Today 플러그인 안내 카드를 사용자가 닫았는가 (v3-release
-  // {#plugin-card-dismiss}). 카드의 표시 조건은 이미 좁지만(일지 0건 + Claude
-  // Code 설치됨 + 플러그인 못 찾음) "안 깔 것"을 고른 사람에게는 그 셋이 다
-  // 참인 채로 남는다 — 닫을 길이 없으면 카드가 사용자를 이긴다.
-  pluginCardDismissed: "plugin_card_dismissed",
-  // 첫 실행 세 단계 시트를 「이미 알아요 — 건너뛰기」로 내렸는가 (UI 밀도 라운드 3).
-  // 첫 일지가 서면 시트는 스스로 접히므로 이 키는 건너뛴 사람만 적는다.
-  firstRunSheetDismissed: "first_run_sheet_dismissed",
-
-  // (streamResponses / logLevel 은 감사 2026-07-16 에서 제거 — 소비처 없음.)
 } as const;
 
 export type SettingKey = (typeof KEYS)[keyof typeof KEYS];
@@ -98,17 +75,6 @@ export interface Settings {
    * VS Code CLI; users on Cursor / Sublime / etc. override here.
    */
   externalEditorCommand: string;
-
-
-
-  /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
-  lastSeenVersion: string;
-
-  /** Today 플러그인 안내 카드를 닫았는가 (`true` = 다시 뜨지 않는다). */
-  pluginCardDismissed: boolean;
-
-  /** 첫 실행 세 단계 시트를 건너뛰었는가 (첫 일지가 서면 시트는 어차피 접힌다). */
-  firstRunSheetDismissed: boolean;
 }
 
 export const DEFAULTS: Settings = {
@@ -119,12 +85,6 @@ export const DEFAULTS: Settings = {
   contentLanguage: "system",
 
   externalEditorCommand: 'code "%path"',
-
-
-  lastSeenVersion: "",
-  pluginCardDismissed: false,
-
-  firstRunSheetDismissed: false,
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -134,9 +94,6 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.language]: "language",
   [KEYS.contentLanguage]: "contentLanguage",
   [KEYS.externalEditorCommand]: "externalEditorCommand",
-  [KEYS.lastSeenVersion]: "lastSeenVersion",
-  [KEYS.pluginCardDismissed]: "pluginCardDismissed",
-  [KEYS.firstRunSheetDismissed]: "firstRunSheetDismissed",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(
@@ -149,9 +106,6 @@ export function keyForField<K extends keyof Settings>(field: K): SettingKey {
 
 function coerce<K extends keyof Settings>(field: K, raw: string): Settings[K] {
   const def = DEFAULTS[field];
-  if (typeof def === "boolean") {
-    return (raw === "true") as Settings[K];
-  }
   if (typeof def === "number") {
     const n = Number(raw);
     return (Number.isFinite(n) ? n : def) as Settings[K];
@@ -163,7 +117,6 @@ function coerce<K extends keyof Settings>(field: K, raw: string): Settings[K] {
 }
 
 export function serialize<K extends keyof Settings>(_field: K, value: Settings[K]): string {
-  if (typeof value === "boolean") return value ? "true" : "false";
   return String(value);
 }
 

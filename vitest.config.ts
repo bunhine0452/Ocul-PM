@@ -13,7 +13,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/__tests__/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
-    exclude: ["node_modules/**", "src-tauri/**", "dist/**", "src/legacy/**"],
+    exclude: ["node_modules/**", "src-tauri/**", "dist/**"],
     css: false,
     // Vitest 5 는 clearMocks 기본값을 true 로 바꿨다 — v4 의 동작(테스트 사이에 mock 기록을
     // 지우지 않음)을 그대로 둔다. 바꾸려면 테스트들이 기대하는 바를 먼저 훑어야 한다.

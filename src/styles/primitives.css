@@ -44,9 +44,7 @@
    각자 들고 있었다. 바탕은 여기 한 곳이고, 각 화면 파일엔 그 화면만의 차이
    (크기·테두리·색)만 남는다. TSX 는 손대지 않았다 — 옛 이름은 이 규칙의
    셀렉터 목록에 들어 있다. */
-.iconbtn,
-.pln-iconbtn, .pm-iconbtn, .gr-iconbtn, .home-iconbtn, .sk-iconbtn,
-.side-collapse-btn, .code-tool-btn {
+.iconbtn {
   --iconbtn-size: var(--ctl-4);
   width: var(--iconbtn-size); height: var(--iconbtn-size);
   flex: none; padding: 0;
@@ -68,17 +66,16 @@
      `.sm` 26px — 사이드바·레일처럼 촘촘한 자리
    `.md`/`.lg` 는 지웠다: 남겨 두면 `.sm`·기본과 픽셀이 같은 이름이 둘 더
    생겨, 다음 사람이 넷 중에서 고르게 된다. */
-.iconbtn.sm, .pln-iconbtn, .pm-iconbtn, .gr-iconbtn, .home-iconbtn, .side-collapse-btn {
+.iconbtn.sm {
   --iconbtn-size: var(--ctl-3);
 }
-.iconbtn:hover, .pln-iconbtn:hover, .pm-iconbtn:hover, .home-iconbtn:hover,
-.side-collapse-btn:hover, .code-tool-btn:hover { background: var(--bg-hover); color: var(--text); }
+.iconbtn:hover { background: var(--bg-hover); color: var(--text); }
 .iconbtn:active { transform: scale(0.92); }
-.iconbtn:is(:disabled, [aria-disabled="true"]), .pln-iconbtn:is(:disabled, [aria-disabled="true"]), .code-tool-btn:is(:disabled, [aria-disabled="true"]) {
+.iconbtn:is(:disabled, [aria-disabled="true"]) {
   opacity: var(--dim-disabled); cursor: default; background: transparent; color: var(--text-3);
 }
 /* 위험 동작(삭제) — 어느 화면이든 같은 붉은 hover. */
-.iconbtn.danger:hover, .pln-iconbtn.danger:hover, .pm-iconbtn--danger:hover, .home-iconbtn--danger:hover {
+.iconbtn.danger:hover {
   background: var(--danger-soft); color: var(--danger);
 }
 
@@ -97,8 +94,7 @@
    높이·둥글기·색의 차이만 남는다. (.ai-suggest-chip 은 2026-09-02 에 목록형
    `.ai-start-item` 으로 바뀌어 칩 가족에서 나갔다.) */
 .chip,
-.attach-chip, .usage-chip, .sk-chip, .sk-path-chip, .code-debug-chip,
-.scope-chip, .file-pill, .queue-chip, .hl-chip {
+.scope-chip {
   display: inline-flex; align-items: center; gap: var(--space-2);
   white-space: nowrap; flex: none; max-width: 100%;
   font-family: var(--font);
@@ -202,10 +198,6 @@
 .t-error { background: var(--t-error-soft); color: var(--t-error); }
 .t-chore { background: var(--t-chore-soft); color: var(--t-chore); }
 
-/* 구조 라벨은 meta 가 아니다 — `--text-3` 는 타임스탬프·placeholder 의 색이고,
-   섹션 제목에 그 색을 쓰면 목차가 각주보다 흐려진다 (2026-09-09 {#hierarchy-by-weight-only}). */
-.section-title { font-size: var(--fs-3); font-weight: var(--fw-bold); letter-spacing: var(--caps-track); text-transform: var(--caps-transform); color: var(--text-2); }
-
 /* 화면 진입 — 얕은 상승 + 페이드. 모든 스크린 전환이 같은 곡선을 공유한다.
 
    **어디에 붙이는가** ({#layout-page-enter}). 실측 19곳을 분류했더니 규칙은
@@ -234,26 +226,6 @@
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
-
-.divider { height: 1px; background: var(--sep); border: none; margin: 0; }
-
-/* file path pill */
-.fpath { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); }
-.fpath b { color: var(--text); font-weight: var(--fw-strong); }
-
-/* ── 인라인 마크다운 (components/InlineMarkdown) ─────────────────────────────
-   제목·메모 같은 **한 줄** 텍스트에 쓰는 최소 강조. 블록 문서는 Markdown.tsx.
-   크기는 전부 `em` 기준이라 13px 항목 제목이든 17px 계획 제목이든 따라간다. */
-.imd-strong { font-weight: var(--fw-bold); }
-.imd-del { color: var(--text-3); }
-.imd-code {
-  font-family: var(--mono); font-size: 0.92em;
-  background: var(--bg-inset); border-radius: var(--radius-xs); padding: 0.05em 0.35em;
-  /* 좁은 칸에서 긴 식별자가 줄을 밀어내지 않게 안에서 끊는다. */
-  overflow-wrap: anywhere;
-}
-.imd-link { color: var(--accent-text); text-decoration: none; }
-.imd-link:hover { text-decoration: underline; }
 
 /* ── 스크림 — 모달 뒤를 어둡게 하는 한 벌 (2026-09-02) ─────────────────────
    blur 는 쓰지 않는다. 유리 스크림은 뒤를 매 프레임 다시 그리고, 앱 어디에도
@@ -306,28 +278,6 @@
   color: var(--text);
   box-shadow: var(--shadow-card);
 }
-
-/* ── 하위 내비 (설정 탭) — 강조색 채움이 없는 텍스트 탭 ─────────────────────
-   활성은 들어간 면(--bg-inset)과 본문색, 비활성은 2차 텍스트. 강조색 10% 틴트
-   (`bg-primary/10 text-primary`)는 shadcn 기본값이라 사이드바 nav-item 과
-   다른 문법이었다. aria-current / aria-selected 가 상태다. */
-.subnav { display: flex; gap: 2px; min-width: 0; }
-.subnav.vertical { flex-direction: column; }
-.subnav-item {
-  display: inline-flex; align-items: center; gap: var(--space-4);
-  height: var(--ctl-4); padding: 0 11px;
-  border: none; border-radius: var(--radius-s);
-  background: transparent; color: var(--text-2);
-  font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-label);
-  cursor: pointer; white-space: nowrap; flex: none;
-  transition:
-    background-color var(--dur-1) var(--ease-out),
-    color var(--dur-1) var(--ease-out);
-}
-.subnav.vertical .subnav-item { width: 100%; justify-content: flex-start; }
-.subnav-item:hover { background: var(--bg-hover); color: var(--text); }
-.subnav-item[aria-current="page"],
-.subnav-item[aria-selected="true"] { background: var(--bg-inset); color: var(--text); font-weight: var(--fw-strong); }
 
 /* ── 스켈레톤 — 한 벌 ──────────────────────────────────────────────────────
    screens.css `.skel` · home.css `.home-skel` · docs.css `.docs-img-skeleton`

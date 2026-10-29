@@ -162,7 +162,6 @@ export const en: Record<keyof typeof ko, string> = {
   "sidebar.openProject": "Open",
   "plan.copyCheck": "Copy",
   "plan.copiedCheck": "Copied the check command — run it and log the last result line in the plan.",
-  "toolbar.beta": "beta · bug fixes only",
   "toolbar.find": "Find",
   "palette.footHint": "Journal search starts at two characters",
   "journal.filterNoEvidence": "Unverified only",
@@ -211,20 +210,11 @@ export const en: Record<keyof typeof ko, string> = {
     "AGENTS.md is on the latest rules (the previous master is backed up as _template.md.bak).",
   "agents.upgrade.failed": "Could not update the rules file — {error}",
 
-  // ── Settings screen (SettingsPanel) ─────────────────────────────────────
-  "settings.accent.green": "Green",
-  "settings.accent.blue": "Blue",
-  "settings.accent.purple": "Purple",
-  "settings.accent.orange": "Orange",
-  "settings.accent.rose": "Rose",
-  "settings.accent.teal": "Teal",
-
   // Theme files (Osaurus benchmark round, phase 4) — gallery, editor, import/export.
   "settings.saveFailed": "Couldn't save that setting: {error}",
 
   // Terminal font size — separate from app scale (a terminal is a fixed-width
   // grid, so an exact px value is the right control).
-  "err.code.plan_has_open_items": "This plan still has open items, so it cannot be closed as done.",
   // ── Deep-link confirmation sheet (Osaurus round Phase 6) ──────────────
   "deeplink.origin": "Origin",
   "deeplink.open.title": "Open this project?",
@@ -657,22 +647,6 @@ export const en: Record<keyof typeof ko, string> = {
   "keys.startAdd": "Open folder",
   // v3 {#revive-recovery-cmds} — re-arm the watcher + rebuild the journal cache
   // ── Source badges (Osaurus round Phase 3) — who made this record
-  "source.direct": "By hand",
-  "source.agent": "Agent",
-  "source.draft": "Auto draft",
-  "source.schedule": "Schedule",
-  "source.automation": "Watcher",
-  "source.mcp": "MCP",
-  "source.backfill": "Backfill",
-  "source.imported": "Imported",
-  "source.hint.direct": "Written by you in the app's composer.",
-  "source.hint.agent": "Written by an agent such as Claude Code, following the journaling rules.",
-  "source.hint.draft": "Drafted by the background model after your work settled.",
-  "source.hint.schedule": "Produced by a time-based automation.",
-  "source.hint.automation": "Produced by a folder-watching automation.",
-  "source.hint.mcp": "Created through an MCP tool call.",
-  "source.hint.backfill": "Reconstructed from git commit history.",
-  "source.hint.imported": "Imported from an outside conversation.",
   // ── First-run wizard (WelcomeWizard.tsx) ───────────────────────────────
   // ── Error codes (Phase 4 #error-convention) — backend AppError.code → sentence
   "err.code.not_initialized": "ocul-pm isn't active in this project yet — activate it from Today.",
@@ -691,24 +665,7 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.file_not_found": "File not found: {detail}",
   "err.code.actor_closed": "The session worker has stopped — please restart the app.",
   "err.code.acp_not_running": "The Claude Code agent isn't running.",
-  "err.code.acp_npm_missing": "npm not found — install Node.js.",
-  "err.code.acp_node_missing": "Couldn't resolve the node binary.",
-  "err.code.project_untrusted": "You haven't trusted this project on this device yet.",
   "err.code.project_not_found": "Couldn't find the project — it may have been removed from the list.",
-  "err.code.acp_node_too_old": "Node.js is too old: {detail}",
-  "err.code.acp_app_data_dir": "Couldn't find the app data folder: {detail}",
-  "err.code.acp_adapter_install_failed": "Installing the ACP adapter failed — retry from Settings → ocul-pm.",
-  "err.code.acp_session_create_failed": "Couldn't create a session: {detail}",
-  "err.code.acp_auth_required": "The agent needs a sign-in. Run codex login in a terminal, then try again.",
-  "err.code.acp_codex_adapter_missing": "The Codex adapter isn't installed yet — install it to get started.",
-  "err.code.acp_cancel_failed": "Couldn't send cancel: {detail}",
-  "err.code.acp_config_failed": "Couldn't change the setting: {detail}",
-  "err.code.acp_session_list_failed": "Couldn't load conversations: {detail}",
-  "err.code.acp_session_delete_failed": "Couldn't delete the conversation: {detail}",
-  "err.code.acp_session_load_failed": "Couldn't open the conversation: {detail}",
-  "err.code.acp_usage_failed": "Couldn't load usage: {detail}",
-  "err.code.acp_prompt_failed": "The request failed: {detail}",
-  "err.code.acp_session_busy": "This conversation is still answering. Wait for it to finish, or stop it first.",
 
   // ── v3-surface / firstrun ────────────────────────────────────────────────
   "journal.emptyTitle": "Not one entry yet",

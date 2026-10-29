@@ -33,9 +33,8 @@ describe("size policy table", () => {
     ]);
   });
 
-  it("excludes exactly these six entries, in order", () => {
+  it("excludes exactly these five entries, in order", () => {
     expect(EXCLUDED).toEqual([
-      "src/legacy/",
       "src/lib/bindings.ts",
       "src/i18n/ko.ts",
       "src/i18n/en.ts",

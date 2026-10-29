@@ -18,17 +18,11 @@ interface ToolbarProps {
   /** Optional element rendered before the title (e.g. a back button). */
   leading?: React.ReactNode;
   children?: React.ReactNode;
-  /**
-   * 보류 등급 화면(docs/PROMISE.md) — 제목 옆에 「베타 · 결함 수정만」 알약. 랜딩·README 가
-   * 말하는 것과 앱이 말하는 것이 같아야 한다 (UI 밀도 라운드 3).
-   */
-  beta?: boolean;
   /** 오른쪽 끝에 「찾기 ⌘K」 — 팔레트를 연다 (셸 밖 렌더에서만; 셸 윗줄은 늘 갖고 있다). */
   find?: boolean;
 }
 
-export function Toolbar({ title, sub, leading, children, beta = false, find = false }: ToolbarProps) {
-  const { t } = useT();
+export function Toolbar({ title, sub, leading, children, find = false }: ToolbarProps) {
   const slot = useContext(ToolbarSlotContext);
   if (slot) {
     return createPortal(
@@ -51,7 +45,6 @@ export function Toolbar({ title, sub, leading, children, beta = false, find = fa
     <div className="toolbar" {...drag}>
       {leading}
       <div className="toolbar-title" {...drag}>{title}</div>
-      {beta ? <span className="toolbar-beta" {...drag}>{t("toolbar.beta")}</span> : null}
       {sub ? <span className="toolbar-sub" {...drag}>{sub}</span> : null}
       <div className="toolbar-spacer" {...drag} />
       {/* 좁은 창 방어 (2026-07-20): 액션 묶음은 압착 대신 가로 스크롤로

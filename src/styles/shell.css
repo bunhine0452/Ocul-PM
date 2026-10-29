@@ -114,9 +114,6 @@
 }
 .proj-pop-add:hover, .proj-pop-add:focus-visible { background: var(--bg-hover); color: var(--text); }
 
-/* 접는 화살표 — 플래너 변경 로그가 쓴다(이름은 옛 사이드바의 것). */
-.nav-section-chev { flex-shrink: 0; transition: transform var(--dur-2) var(--ease-out); color: var(--text-3); }
-
 /* ============================================================ CONTENT */
 /* 콘텐츠 — 평평한 면. 셸 안 화면의 툴바는 윗줄로 합쳐지고(`.toolbar` 는 셸 밖 렌더용). */
 .content {
@@ -142,9 +139,6 @@
      앱의 다른 크롬(사이드바·카드)은 전부 불투명이라 재료가 어긋났다. */
   background: var(--bg-window);
 }
-/* 좁은 창 방어 (2026-07-20): 제목은 절대 내부 줄바꿈하지 않고(CJK 가 한 글자씩
-   세로로 꺾이던 버그), 부제는 넘치면 말줄임으로 양보한다. 액션 묶음은
-   .toolbar-actions 가 가로 스크롤로 흡수 (스크롤바는 숨김 — 트랙패드/휠). */
 /* 14px semibold (2026-10-07 {#compact-chrome}) — 툴바 제목은 문서의 제목이 아니라
    크롬의 이름표다. 큰 제목이 필요한 것은 화면 안의 문서(플랜·일지 제목)다. */
 .toolbar-title { font-size: var(--fs-5); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); white-space: nowrap; flex: none; }
