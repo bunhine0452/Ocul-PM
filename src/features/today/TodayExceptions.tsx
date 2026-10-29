@@ -116,24 +116,26 @@ function ExceptionRow({ ex, active, rowRef, onFocus, onPrimary, onVerify }: RowP
     >
       <span className={"chip sm " + pill.tone}>{t(pill.key)}</span>
       <div className="tdy-row-t">
-        <div className="tdy-row-title">{title}</div>
+        {/* 일지 행은 버튼이 「확인함」 하나다 — 그 일지(검증 상자 · diff)는 제목을 눌러 연다. */}
+        {ex.kind === "evidence" ? (
+          <button type="button" className="tdy-row-title tdy-row-open" title={t(PRIMARY[ex.kind])} onClick={() => onPrimary(ex)}>
+            {title}
+          </button>
+        ) : (
+          <div className="tdy-row-title">{title}</div>
+        )}
         {meta ? <div className={"tdy-meta" + (mono ? " mono" : "")}>{meta}</div> : null}
       </div>
       {ex.kind === "evidence" ? (
-        <>
-          <button type="button" className="btn ghost sm" onClick={() => onPrimary(ex)}>
-            {t(PRIMARY[ex.kind])}
-          </button>
-          <button
-            type="button"
-            className="btn sm"
-            aria-label={t("today.check.verifyAria", { title: ex.entry.title })}
-            onClick={() => onVerify(ex.entry)}
-          >
-            <Check size={13} aria-hidden="true" />
-            {t("today.check.verify")}
-          </button>
-        </>
+        <button
+          type="button"
+          className="btn sm"
+          aria-label={t("today.check.verifyAria", { title: ex.entry.title })}
+          onClick={() => onVerify(ex.entry)}
+        >
+          <Check size={13} aria-hidden="true" />
+          {t("today.check.verify")}
+        </button>
       ) : (
         <button type="button" className="btn sm" onClick={() => onPrimary(ex)}>
           {t(PRIMARY[ex.kind])}

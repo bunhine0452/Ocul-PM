@@ -32,10 +32,10 @@ import { consumeResumeOnOpen } from "@/lib/resumeIntent";
 import { openSettings } from "@/lib/settingsNav";
 import { toast } from "@/lib/toast";
 import { TodayExceptions } from "./TodayExceptions";
-import { LiveCard, NextCard, PlansCard } from "./TodaySide";
+import { LiveCard, NextCard } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
 import { Num } from "./todayFormat";
-import { dayStats, firstNext, type TodayException } from "./todayModel";
+import { firstNext, type TodayException } from "./todayModel";
 import { useTodayExceptions } from "./useTodayExceptions";
 import { liveSessionsOf, useLiveSessions } from "./useLiveSessions";
 import "./today.css";
@@ -194,7 +194,6 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   };
 
   const entries = data.entries ?? [];
-  const stats = dayStats(entries);
   const live = sessions ? liveSessionsOf(sessions, entries) : [];
   const firstRun = data.totalEntries === 0;
 
@@ -239,17 +238,8 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
               {data.entries ? (
                 <div className="tdy-day">
                   <span className="tdy-date">{dateLabel}</span>
-                  <Num k="today.day.records" n={stats.total} />
-                  {stats.judged > 0 ? (
-                    <span title={t("today.day.evidenceTitle")}>
-                      <Num k="today.day.evidence" n={stats.withEvidence} />
-                      {stats.pct != null ? ` · ${stats.pct}%` : null}
-                    </span>
-                  ) : null}
-                  {sessions && sessions.length > 1 ? <Num k="today.day.sessions" n={sessions.length} /> : null}
-                  {exceptions ? (
-                    <Num k="today.day.check" n={exceptions.length} className={exceptions.length > 0 ? "tdy-warn" : undefined} />
-                  ) : null}
+                  {/* 증거 수는 「오늘 한 일」 머리가 한 번만 말한다 — 여기서도 세면 기준이 달라 두 수가 섰다. */}
+                  <Num k="today.day.records" n={entries.length} />
                 </div>
               ) : null}
               <TodayExceptions
@@ -262,6 +252,8 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                 onPrimary={runPrimary}
                 onVerify={(entry) => void verify(entry)}
               />
+              {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onCopy={() => void copyNext()} /> : null}
+              <LiveCard sessions={live} now={now} />
               {/* 오늘 기록이 없으면 이 카드는 위 문단을 되풀이할 뿐이다. */}
               {entries.length > 0 && data.digest ? (
                 <TodayWork entries={entries} digest={data.digest} onOpenEntry={openEntry} />
@@ -270,13 +262,6 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
               {entries.length > 0 ? <p className="tdy-keys">{t("today.kbd.hint")}</p> : null}
             </>
           )}
-        </div>
-        <div className="tdy-col tdy-side">
-          <LiveCard sessions={live} now={now} />
-          {data.digest ? <PlansCard digest={data.digest} onOpenPlan={openPlan} /> : null}
-          {data.digest && data.digest.plans.length > 0 ? (
-            <NextCard next={next} onCopy={() => void copyNext()} onOther={() => onNavigate("planner")} />
-          ) : null}
         </div>
       </div>
     );

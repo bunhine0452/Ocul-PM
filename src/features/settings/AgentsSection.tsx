@@ -3,7 +3,8 @@
  *
  * 앱이 직접 설치하지 않는다 — 플러그인은 각 CLI 가 마켓플레이스를 받아 캐시까지
  * 펼쳐야 완성되므로(설정 파일만 흉내 내면 반쪽 상태), 여기서는 **상태를 읽고 붙여
- * 넣을 명령을 준다**. Cursor·Gemini CLI 는 연결할 것이 없다 — AGENTS.md 하나로 기록한다.
+ * 넣을 명령을 준다**. 할 일이 없는 행은 세우지 않는다 — Codex 가 없는 기기의 Codex 행, Windows 밖의
+ * 「MCP 직접 등록」, 연결할 것이 없는 Cursor·Gemini CLI(AGENTS.md 하나로 기록한다).
  */
 import { useEffect, useState } from "react";
 
@@ -15,6 +16,7 @@ import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import type { ClaudePluginStatus, CodexPluginStatus, McpRegistrationStatus } from "@/lib/bindings";
+import { getPlatform } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { CLAUDE_PLUGIN_INSTALL, CLAUDE_PLUGIN_UPDATE, CODEX_PLUGIN_INSTALL } from "@/lib/agentCommands";
 import { PrefsCard, PrefsRow } from "./prefsUi";
@@ -95,8 +97,9 @@ function CodexRow() {
     const installed = c.enabled && !!c.cached_version;
     // 고아 — 플러그인 항목은 있는데 그 마켓플레이스가 설정에 없다. Codex 는 조용히 못 싣는다.
     const orphaned = c.enabled && !c.marketplace_configured;
-    if (!c.codex_installed) body = <span className="prefs-dim">{t("prefs.agents.noCodex")}</span>;
-    else if (orphaned)
+    // Codex 가 없는 기기에는 이 행이 없다 — 「없어요」 한 줄은 할 일이 아니다.
+    if (!c.codex_installed) return null;
+    if (orphaned)
       body = (
         <>
           <span className="chip sm warn">{t("prefs.agents.orphan")}</span>
@@ -148,6 +151,9 @@ function McpRow() {
     };
   }, [projectId]);
   if (projectId == null) return null;
+  // Windows 의 우회로다 — 다른 OS 에서는 이미 등록해 둔 경우(풀 수 있어야 한다)에만 선다.
+  const registered = probe.state === "ok" && probe.value.registered;
+  if (getPlatform() !== "windows" && !registered) return null;
 
   const toggle = async (on: boolean) => {
     setBusy(true);
@@ -195,9 +201,6 @@ export function AgentsSection({ id }: { id: string }) {
       <ClaudeRow />
       <CodexRow />
       <McpRow />
-      <PrefsRow label={t("prefs.agents.others")} meta={t("prefs.agents.othersMeta")}>
-        <span className="prefs-dim">{t("prefs.agents.othersBody")}</span>
-      </PrefsRow>
     </PrefsCard>
   );
 }

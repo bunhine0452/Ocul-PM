@@ -267,13 +267,15 @@ describe("확인할 것 — 동작", () => {
     await waitFor(() => expect(pills()).toHaveLength(0));
   });
 
-  it("[diff] 는 그 일지 상세로, [출력 보기]·[계획 열기] 는 그 계획으로 간다", async () => {
+  it("일지 행은 제목이 그 일지 상세로(버튼은 「확인함」 하나), [출력 보기]·[계획 열기] 는 그 계획으로 간다", async () => {
     fx.entries = [entry(1, { type: "bug", evidence: 0 })];
     fx.digest = digest({
       plans: [plan("a", { last_verdict: { passed: false, summary: "1 failed", ts: new Date().toISOString(), agent_id: "codex", item_id: "x" } })],
     });
     const { onNavigate, onOpenEntry } = renderToday();
-    fireEvent.click(await screen.findByRole("button", { name: t("today.check.diff") }));
+    const row = await screen.findByRole("listitem", { name: new RegExp((fx.entries[0] as JournalEntrySummary).title) });
+    expect(within(row).getAllByRole("button")).toHaveLength(2); // 제목 · 확인함
+    fireEvent.click(within(row).getByRole("button", { name: (fx.entries[0] as JournalEntrySummary).title }));
     expect(onOpenEntry).toHaveBeenCalledWith({ relative_path: (fx.entries[0] as JournalEntrySummary).relative_path });
     fireEvent.click(screen.getByRole("button", { name: t("today.check.openOutput") }));
     expect(onNavigate).toHaveBeenCalledWith("planner");
@@ -384,8 +386,8 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
   });
 });
 
-describe("오른쪽 칼럼과 첫 기록 전", () => {
-  it("계획은 판정 줄(✓/✗/없음)을, 오래 조용한 세션은 경고 한 줄을 갖는다", async () => {
+describe("한 칼럼과 첫 기록 전", () => {
+  it("계획 카드는 없고(계획 탭 몫), 오래 조용한 세션은 경고 한 줄을 갖는다", async () => {
     fx.entries = [entry(1)];
     fx.digest = digest({
       plans: [
@@ -411,10 +413,9 @@ describe("오른쪽 칼럼과 첫 기록 전", () => {
       } satisfies Session,
     ];
     renderToday();
-    const plans = await screen.findByRole("region", { name: t("today.plans.title") });
-    expect(within(plans).getByText(t("today.plans.pass"))).toBeInTheDocument();
-    expect(within(plans).getByText(t("today.plans.notRun"))).toBeInTheDocument();
     const live = await screen.findByRole("region", { name: t("today.live.title") });
+    // 통과한 판정은 예외가 아니다 — 오늘에는 서지 않고 계획 탭에 있다.
+    expect(screen.queryByText("통과한 계획")).toBeNull();
     expect(within(live).getByText(t("today.live.quiet", { n: 50 }))).toBeInTheDocument();
   });
 

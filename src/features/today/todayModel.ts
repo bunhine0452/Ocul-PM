@@ -191,30 +191,6 @@ export function initialFold(group: WorkGroup, totalToday: number): GroupFold {
   return group.counts.missing > 0 ? "partial" : "closed";
 }
 
-export interface DayStats {
-  total: number;
-  /** 증거를 요구하는 종류(결함·기능·리팩토링)의 일지 수 — 증거 비율의 분모. */
-  judged: number;
-  /** 그중 검증 칸에 명령 증거가 있는 일지. */
-  withEvidence: number;
-  /** 증거 비율(%) — 전부 섰으면 `null` (100% 는 말할 거리가 아니다). */
-  pct: number | null;
-}
-
-/**
- * 오늘의 수. 증거 비율은 「확인할 것」 과 **같은 분모**(`JUDGED_TYPES`, 백엔드 `JournalScore`)다 —
- * 종류 무관으로 세던 때 잡일 한 건만 쓴 날이 「확인할 것 없음」 옆에 「증거 0건 · 0%」 를 띄웠다
- * (4.0 E2E 화면에서 잡음).
- */
-export function dayStats(entries: readonly JournalEntrySummary[]): DayStats {
-  const total = entries.length;
-  const judgedEntries = entries.filter((e) => JUDGED_TYPES.has(e.type));
-  const judged = judgedEntries.length;
-  const withEvidence = judgedEntries.filter((e) => e.evidence >= EVIDENCE_COMMAND).length;
-  const pct = judged > 0 && withEvidence < judged ? Math.round((withEvidence / judged) * 100) : null;
-  return { total, judged, withEvidence, pct };
-}
-
 /** 다음에 잡을 것 — 최근 갱신된 계획부터 첫 `next`. */
 export function firstNext(digest: TodayDigest | null): { plan: DigestPlan; item: DigestItem } | null {
   for (const plan of digest?.plans ?? []) {

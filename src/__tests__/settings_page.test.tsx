@@ -68,6 +68,7 @@ import { SettingsProvider } from "@/contexts/SettingsContext";
 import { WorkspaceProvider, useProjectRuntime } from "@/contexts/WorkspaceContext";
 import { __resetLangForTests, setLangSetting, t } from "@/i18n";
 import { CLAUDE_PLUGIN_INSTALL } from "@/lib/agentCommands";
+import { __setPlatformForTests } from "@/lib/platform";
 import { useEffect } from "react";
 
 /** 기록이 켜진 프로젝트로 띄운다 — 규칙 파일 판은 기록이 켜졌을 때만 묻는다. */
@@ -125,7 +126,6 @@ describe("에이전트 연결", () => {
     const agents = section(t("prefs.agents.title"));
     expect(await within(agents).findByText(CLAUDE_PLUGIN_INSTALL[1])).toBeInTheDocument();
     expect(within(agents).getByText(CLAUDE_PLUGIN_INSTALL[0])).toBeInTheDocument();
-    expect(within(agents).getByText(t("prefs.agents.othersBody"))).toBeInTheDocument();
   });
 
   it("깔린 판이 낮으면 판 차이와 업데이트 명령", async () => {
@@ -140,7 +140,19 @@ describe("에이전트 연결", () => {
 });
 
 describe("에이전트 연결 — MCP 직접 등록 (플러그인 MCP 가 안 뜨는 Windows 의 우회로)", () => {
+  afterEach(() => __setPlatformForTests(null));
+
+  it("Windows 밖에서는 행이 없다 — 할 일이 없는 행은 세우지 않는다", async () => {
+    __setPlatformForTests("mac");
+    renderPage();
+    const agents = section(t("prefs.agents.title"));
+    // 다른 행이 다 읽힌 뒤에도 없다.
+    expect(await within(agents).findByText(CLAUDE_PLUGIN_INSTALL[1])).toBeInTheDocument();
+    expect(within(agents).queryByText(t("prefs.agents.mcp"))).toBeNull();
+  });
+
   it("등록 안 됨이면 「등록」이 그 프로젝트의 .mcp.json 등록을 부르고, 등록됨으로 바뀐다", async () => {
+    __setPlatformForTests("windows");
     renderPage();
     const agents = section(t("prefs.agents.title"));
     fireEvent.click(await within(agents).findByRole("button", { name: t("prefs.agents.mcpRegister") }));

@@ -191,7 +191,7 @@ describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () =>
           currentProjectId={1}
           projects={[]}
           onOpenProject={noop}
-          badges={{ today: { n: 3, tone: "warn" }, journal: { n: 12, tone: "dim" } }}
+          badges={{ today: { n: 3 }, diff: { n: 2 } }}
           slotRef={noop}
         />
       </Wrap>,

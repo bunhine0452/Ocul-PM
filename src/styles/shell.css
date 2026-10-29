@@ -58,16 +58,15 @@
 .topnav-item:hover { background: var(--bg-hover); color: var(--text); }
 .topnav-item.active { background: var(--bg-active); color: var(--text); font-weight: var(--fw-strong); }
 .topnav-item:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
-/* 탭 옆의 수 — 예외만. 경고색 = 확인할 것, 조용한 색 = 오늘 기록 수. */
+/* 탭 옆의 수 — 예외만(확인할 것), 경고색 하나. */
 .nav-badge {
   flex: none;
   min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--radius-pill);
   font-size: var(--fs-2); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums;
+  background: var(--warn-soft); color: var(--warn-text);
 }
-.nav-badge.warn { background: var(--warn-soft); color: var(--warn-text); }
-.nav-badge.dim { color: var(--text-3); font-weight: var(--fw-label); }
 
 /* 프로젝트 이름 버튼 (⌘O) — 윗줄의 제목이다. 카드·타일 없이 활자 하나와 ▾. */
 .proj-switch-wrap { position: relative; flex: 0 1 auto; min-width: 0; max-width: 220px; }

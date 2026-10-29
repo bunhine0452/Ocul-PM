@@ -129,14 +129,15 @@ describe("윗줄 — 프로젝트 · 탭 넷 · 찾기 · 설정 (사이드바 �
         currentProjectId={1}
         projects={PROJECTS}
         onOpenProject={() => {}}
-        badges={navBadgesOf(2, 3)}
+        badges={navBadgesOf(2)}
         slotRef={() => {}}
       />,
     );
     const today = screen.getByRole("button", { name: /오늘/ });
-    expect(today.querySelector(".nav-badge.warn")?.textContent).toBe("2");
-    expect(screen.getByRole("button", { name: /작업 일지/ }).querySelector(".nav-badge.dim")?.textContent).toBe("3");
-    expect(screen.getByRole("button", { name: /변경/ }).querySelector(".nav-badge.warn")?.textContent).toBe("2");
+    expect(today.querySelector(".nav-badge")?.textContent).toBe("2");
+    // 작업 일지에는 수가 없다 — 오늘 기록 수는 예외가 아니다.
+    expect(screen.getByRole("button", { name: /작업 일지/ }).querySelector(".nav-badge")).toBeNull();
+    expect(screen.getByRole("button", { name: /변경/ }).querySelector(".nav-badge")?.textContent).toBe("2");
     expect(screen.getByRole("button", { name: /계획/ }).querySelector(".nav-badge")).toBeNull();
   });
 
@@ -224,11 +225,11 @@ describe("⌘O — 최근 프로젝트 목록", () => {
 
 describe("배지 수", () => {
   it("0 과 모름은 배지가 없다 — 오늘 칸은 오늘 화면의 예외 수를 받는다", () => {
-    expect(navBadgesOf(0, 0)).toEqual({});
-    expect(navBadgesOf(null, null)).toEqual({});
+    expect(navBadgesOf(0)).toEqual({});
+    expect(navBadgesOf(null)).toEqual({});
     // 오늘 화면의 예외 목록 길이가 오면 그것이 오늘 칸이다 (변경 칸은 그대로 미기록 파일).
-    expect(navBadgesOf(2, null, 5)).toEqual({ today: { n: 5, tone: "warn" }, diff: { n: 2, tone: "warn" } });
+    expect(navBadgesOf(2, 5)).toEqual({ today: { n: 5 }, diff: { n: 2 } });
     // 예외 수를 「모름」으로 받으면 오늘 칸을 비운다 — 미기록 수로 대신하지 않는다.
-    expect(navBadgesOf(2, null, null)).toEqual({ diff: { n: 2, tone: "warn" } });
+    expect(navBadgesOf(2, null)).toEqual({ diff: { n: 2 } });
   });
 });

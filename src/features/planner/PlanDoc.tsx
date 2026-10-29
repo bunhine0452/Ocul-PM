@@ -52,7 +52,6 @@ function JudgeCard({ detail }: { detail: PlanDetail }) {
           )}
         </div>
       </div>
-      <p className="plv-meta">{t("plan.judge.rule")}</p>
     </section>
   );
 }

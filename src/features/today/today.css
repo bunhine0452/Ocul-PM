@@ -1,6 +1,7 @@
 /* ============================================================
    오늘 (4.0 {#ui-today}) — 예외만 보여 준다.
-   왼쪽 칼럼(하루 한 줄 · 확인할 것 · 오늘 한 일) + 오른쪽 320px(지금 · 계획 · 다음).
+   한 칼럼: 하루 한 줄 · 확인할 것 · 다음(한 줄) · 지금 일하는 중 · 오늘 한 일. 오른쪽 칼럼
+   (계획 카드)은 걷었다 — 계획 탭과 같은 것을 두 번 보여 줬다.
    값은 전부 토큰이다. 강조는 면(배경)으로만 — 왼쪽 세로줄은 쓰지 않는다.
    ============================================================ */
 
@@ -8,15 +9,7 @@
 .page.tdy:focus,
 .page.tdy:focus-visible { outline: none; }
 
-.tdy-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: var(--space-7);
-  align-items: start;
-}
-@container screen (max-width: 640px) {
-  .tdy-body { grid-template-columns: minmax(0, 1fr); }
-}
+.tdy-body { max-width: 820px; margin: 0 auto; }
 .tdy-col { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
 
 /* ── 하루 한 줄 ─────────────────────────────────────────────── */
@@ -67,6 +60,12 @@
 .tdy-row-t { flex: 1; min-width: 0; }
 .tdy-row-title,
 .tdy-row .tdy-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 일지 행의 제목 = 그 일지 열기. 버튼이지만 글자처럼 — 밑줄은 hover 에만. */
+.tdy-row-open {
+  display: block; width: 100%; padding: 0; border: 0; background: none;
+  font: inherit; color: var(--text); text-align: left; cursor: pointer;
+}
+.tdy-row-open:hover { text-decoration: underline; text-underline-offset: 2px; }
 .tdy-empty { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px 14px; }
 .tdy-empty-ico { flex: none; margin-top: 1px; color: var(--accent); }
 
@@ -124,7 +123,7 @@
 }
 .tdy-more:hover { background: var(--bg-hover); }
 
-/* ── 오른쪽 칼럼 ───────────────────────────────────────────── */
+/* ── 지금 일하는 중 ────────────────────────────────────────── */
 .tdy-sess {
   display: flex; align-items: flex-start; gap: var(--space-4);
   padding: var(--space-4) 14px;
@@ -134,34 +133,10 @@
 .tdy-sess-dot { margin-top: 6px; background: var(--ok); }
 .tdy-sess-dot.is-quiet { background: var(--warn); }
 
-.tdy-plan {
-  display: flex; flex-direction: column; gap: var(--space-2);
-  width: 100%; padding: 11px 14px;
-  border: 0; border-bottom: 1px solid var(--border-card);
-  background: transparent; color: var(--text);
-  font: inherit; font-size: var(--fs-4); text-align: left;
-  cursor: pointer;
-  transition: background-color var(--dur-1) var(--ease-out);
-}
-.tdy-list li:last-child > .tdy-plan { border-bottom: 0; }
-.tdy-plan:hover { background: var(--bg-hover); }
-.tdy-plan-r1 { display: flex; align-items: baseline; gap: var(--space-3); }
-.tdy-plan-r1 b { font-weight: var(--fw-strong); }
-.tdy-plan-r3 { display: flex; flex-wrap: wrap; gap: 0 var(--space-2); }
-.tdy-bar {
-  display: block; height: 4px; overflow: hidden;
-  border-radius: var(--radius-pill); background: var(--bg-inset);
-}
-.tdy-bar > i { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--accent); }
-
-.tdy-next { display: flex; flex-direction: column; gap: var(--space-4); padding: 14px; }
+/* ── 다음 — 한 줄 ──────────────────────────────────────────── */
+.tdy-next { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-4) 14px; }
 .tdy-next p { margin: 0; }
-.tdy-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.tdy-code {
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-xs); background: var(--bg-inset);
-  font-size: var(--fs-3); color: var(--text);
-}
+.tdy-next-k { flex: none; margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); color: var(--text-2); }
 
 /* ── 첫 기록 전 ────────────────────────────────────────────── */
 .tdy-first { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px; }
