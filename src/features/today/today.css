@@ -34,9 +34,9 @@
 .tdy-sp { flex: 1; }
 .tdy-meta { font-size: var(--fs-3); color: var(--text-2); }
 .tdy-strong { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
-.tdy-ok { color: var(--ok-text); font-weight: var(--fw-strong); }
+
 .tdy-warn { color: var(--warn-text); font-weight: var(--fw-strong); }
-.tdy-bad { color: var(--danger-text); font-weight: var(--fw-strong); }
+
 .tdy-pad { margin: 0; padding: var(--space-5) 14px; }
 .tdy-grow { flex: 1; min-width: 0; }
 .tdy-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -126,14 +126,6 @@
 .tdy-grp[aria-expanded="true"] { border-bottom: 1px solid var(--border-card); }
 .tdy-grp b { font-weight: var(--fw-strong); }
 .tdy-grp > svg { flex: none; color: var(--text-2); }
-.tdy-more {
-  display: block; width: 100%; padding: var(--space-3) 14px;
-  border: 0; border-top: 1px solid var(--border-card);
-  background: transparent; color: var(--accent-text);
-  font: inherit; font-size: var(--fs-3); text-align: left;
-  cursor: pointer;
-}
-.tdy-more:hover { background: var(--bg-hover); }
 
 /* ── 지금 일하는 중 ────────────────────────────────────────── */
 .tdy-sess {

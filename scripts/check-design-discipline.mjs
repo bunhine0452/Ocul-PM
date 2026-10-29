@@ -146,7 +146,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
 const SRC = new URL("../src", import.meta.url).pathname;
-const SKIP_DIRS = new Set(["legacy", "__tests__"]);
+const SKIP_DIRS = new Set(["__tests__"]);
 
 /** 규칙별 예외 파일 (src 기준 상대 경로). 늘리지 말고 줄이는 방향으로만. */
 const ALLOW = {

@@ -137,8 +137,6 @@
 .jd-related-link:hover { text-decoration: underline; }
 .jd-related-why { color: var(--text-3); }
 
-/* 전체 본문 — 접혀 있다. 요약·검증·diff 로 충분하면 읽을 필요가 없다. */
-
 /* 전체 본문의 마크다운 — 읽는 글의 조판. 제목은 절 구분이고, 코드는 바탕 한 장이다. */
 .jd-prose { color: var(--text); font-size: var(--fs-4); line-height: var(--lh-prose); max-width: var(--read-wide); }
 .jd-prose > :first-child { margin-top: 0; }

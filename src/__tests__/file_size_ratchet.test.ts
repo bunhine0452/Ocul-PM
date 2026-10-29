@@ -89,10 +89,9 @@ describe("isGoverned — 손으로 쓰는 소스만", () => {
     expect(isGoverned("src/features/today/TodayScreenV2.tsx")).toBe(true);
   });
 
-  it("생성물·사전·죽은 코드는 뺀다", () => {
+  it("생성물·사전은 뺀다", () => {
     expect(isGoverned("src/lib/bindings.ts")).toBe(false);
     expect(isGoverned("src/i18n/ko.ts")).toBe(false);
-    expect(isGoverned("src/legacy/OldScreen.tsx")).toBe(false);
   });
 
   it("대상 밖 확장자·경로는 무시한다", () => {

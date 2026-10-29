@@ -22,11 +22,11 @@ const posix = (p: string) => p.split("\\").join("/");
 export const ROOT = posix(join(__dirname, ".."));
 export const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
-/** `src/` 아래의 손으로 쓰는 소스. 테스트와 보존된 죽은 코드는 뺀다. */
+/** `src/` 아래의 손으로 쓰는 소스. 테스트는 뺀다. */
 export function* walk(dir: string): Generator<string> {
   for (const name of readdirSync(dir)) {
     const full = posix(join(dir, name));
-    if (name === "legacy" || name === "__tests__") continue;
+    if (name === "__tests__") continue;
     if (statSync(full).isDirectory()) yield* walk(full);
     else if (/\.(tsx?|css)$/.test(name)) yield full;
   }

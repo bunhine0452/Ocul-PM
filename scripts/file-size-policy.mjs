@@ -29,7 +29,6 @@ export const GOVERNED = [
 ];
 
 export const EXCLUDED = [
-  "src/legacy/", // 빌드·lint 대상 밖 (보존된 죽은 코드)
   "src/lib/bindings.ts", // tauri-specta 생성물
   "src/i18n/ko.ts",
   "src/i18n/en.ts",

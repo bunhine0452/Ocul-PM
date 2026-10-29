@@ -133,27 +133,19 @@ const TESTS = new Set([
   "__tests__/seeded_event.test.tsx",
   "__tests__/app_dialog.test.tsx",
   "__tests__/blocked.test.ts",
-  // 2026-09-11 편집기 IDE 라운드 — 순수 모델(⌘P 순위·git 표식·심볼 사슬) 단언.
   "__tests__/console_bridge_format.test.ts",
   "__tests__/console_bridge_once.test.ts",
   "__tests__/deep_link.test.tsx",
   "__tests__/design_ratchets.test.ts",
   "__tests__/design_tokens.test.ts",
   "__tests__/diff_v2.test.tsx",
-  // 닥터 「워처 계측」 행 — 한국어 문장에 여섯 숫자가 실리는지가 검사 재료다.
-  "__tests__/drag_motion.test.ts",
-  "__tests__/entry_source.test.ts",
   "__tests__/error_boundary.test.tsx",
   "__tests__/external_links.test.ts",
   "__tests__/file_size_ratchet.test.ts",
-  "__tests__/framing.test.ts",
-  // {#index-usage} — 인덱스 사용량 섹션의 한국어 라벨·확인 대화상자 렌더 검사.
-  "__tests__/inline_markdown.test.tsx",
   "__tests__/journal_v2.test.tsx",
   // journal_v2 의 형제 — 검증 상자·「확인함」·인라인 diff 의 한국어 렌더를 검사한다 ({#reviewed-hash}).
   "__tests__/journal_verified.test.tsx",
   "__tests__/landing_pages.test.ts",
-  // Monaco URL ⌘클릭 오프너 — 쿼리 픽스처("두 번")가 인코딩 검사 재료다.
   "__tests__/multi_window.test.tsx",
   // bare 대화상자 가드 ({#no-bare-confirm-gate}) — 한국어 테스트 이름.
   "__tests__/native_dialogs.test.ts",
@@ -172,7 +164,6 @@ const TESTS = new Set([
   // bug-hunt C4 (2026-09-22) — 시작 탭의 설정 오버레이. 한국어 테스트 이름뿐이다.
   // 4.0 오늘 화면 — 일지·계획 픽스처 제목과 한국어 테스트 이름이 검사 재료다.
   "__tests__/today_v4.test.tsx",
-  "__tests__/token_estimate.test.ts",
   "__tests__/uiv2view_route_safety.test.ts",
   "__tests__/update_banner.test.tsx",
   "__tests__/updater_route.test.ts",
@@ -315,9 +306,6 @@ async function* walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      // src/legacy 는 빌드·tsconfig·vitest 에서 제외된 보존 사문 —
-      // check-no-localstorage.mjs 와 동일하게 건너뛴다.
-      if (entry.name === "legacy") continue;
       yield* walk(full);
     } else if (EXT.has(entry.name.slice(entry.name.lastIndexOf(".")))) yield full;
   }

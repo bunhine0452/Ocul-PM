@@ -25,10 +25,6 @@ const ALLOWLIST = new Set([
   // 키 규약(`storageKeyFor`)만 빌리고, 키 열거는 컨텍스트가 할 일이 아니다.
   "contexts/workspacePrune.ts",
   // (ChatPanel 항목은 감사 2026-07-16 에서 제거 — 파일이 오버레이 스택과 함께 은퇴.)
-  // PR-UI 8a — the W3-scope ocul-pm UI-state files that used to be allowlisted
-  // here (OculpmOnboardingModal / SessionCard / filters / TodayScreen /
-  // MigrationModal / ProjectMetaHeader) moved to src/legacy/ (dead in ui_v2)
-  // and are now skipped by the legacy walk-exclusion above.
   // Lite-W6 PR2 — vitest scenario seeds localStorage to verify the
   // BottomDrawerTab "problems" → "terminal" migration. Test-only.
   "__tests__/lite_w6_safety_net.test.ts",
@@ -92,9 +88,6 @@ async function* walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      // src/legacy is excluded from the build + tsconfig + vitest; exclude it
-      // from this lint too (PR-UI 8a — preserved dead code, not shipped).
-      if (entry.name === "legacy") continue;
       yield* walk(full);
     } else if (EXT.has(entry.name.slice(entry.name.lastIndexOf(".")))) yield full;
   }

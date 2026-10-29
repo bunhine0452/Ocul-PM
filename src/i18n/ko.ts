@@ -161,7 +161,6 @@ export const ko = {
   "sidebar.openProject": "열림",
   "plan.copyCheck": "복사",
   "plan.copiedCheck": "확인 명령을 복사했어요. 돌린 뒤 결과 끝 줄을 계획 로그에 적으세요.",
-  "toolbar.beta": "베타 · 결함 수정만",
   "toolbar.find": "찾기",
   "palette.footHint": "일지는 두 글자부터 찾아요",
   "journal.filterNoEvidence": "검증 없는 것만",
@@ -209,20 +208,11 @@ export const ko = {
   "agents.upgrade.done": "AGENTS.md 를 최신 규칙으로 갱신했어요 (이전 master 는 _template.md.bak 백업).",
   "agents.upgrade.failed": "규칙 파일을 업데이트하지 못했어요 — {error}",
 
-  // ── 설정 화면 (SettingsPanel) ───────────────────────────────────────────
-  "settings.accent.green": "그린",
-  "settings.accent.blue": "블루",
-  "settings.accent.purple": "퍼플",
-  "settings.accent.orange": "오렌지",
-  "settings.accent.rose": "로즈",
-  "settings.accent.teal": "틸",
-
   // 설정 쓰기가 거절됐다 (v2.42.0 `{#settings-set-unhandled}`). 예전에는 화면이
   // 새 값을 그린 채 아무 말도 하지 않아 "저장됐다" 는 착각만 남았다.
   "settings.saveFailed": "설정을 저장하지 못했어요: {error}",
 
   // 터미널 글자 크기 — 앱 배율과 별개 (터미널은 고정폭 격자라 px 가 정확하다)
-  "err.code.plan_has_open_items": "미완 항목이 남아 있어 계획을 완료로 닫을 수 없어요.",
   // ── 딥링크 확인 시트 (Osaurus 라운드 Phase 6) ─────────────────────────
   "deeplink.origin": "출처",
   "deeplink.open.title": "이 프로젝트를 열까요?",
@@ -669,22 +659,6 @@ export const ko = {
   "keys.startAdd": "폴더 열기",
   // v3 {#revive-recovery-cmds} — 워처 다시 시작 + 일지 캐시 복구
   // ── 출처 배지 (Osaurus 라운드 Phase 3) — 누가 이 기록을 만들었는가
-  "source.direct": "직접",
-  "source.agent": "에이전트",
-  "source.draft": "자동 초안",
-  "source.schedule": "스케줄",
-  "source.automation": "감시",
-  "source.mcp": "MCP",
-  "source.backfill": "백필",
-  "source.imported": "들여옴",
-  "source.hint.direct": "앱의 작성기로 사람이 남겼어요.",
-  "source.hint.agent": "Claude Code 같은 에이전트가 기록 규칙에 따라 썼어요.",
-  "source.hint.draft": "작업이 멎은 뒤 배경 모델이 초안을 만들었어요.",
-  "source.hint.schedule": "정해진 시각의 자동화가 만들었어요.",
-  "source.hint.automation": "폴더 감시 자동화가 만들었어요.",
-  "source.hint.mcp": "MCP 도구 호출로 만들어졌어요.",
-  "source.hint.backfill": "git 커밋 이력에서 복원했어요.",
-  "source.hint.imported": "외부 대화에서 들여왔어요.",
   // ── 첫 실행 마법사 (WelcomeWizard.tsx) ─────────────────────────────────
   // ── 오류 코드 (Phase 4 #error-convention) — 백엔드 AppError.code → 문장
   "err.code.not_initialized": "이 프로젝트에는 ocul-pm 이 아직 켜져 있지 않아요. 「오늘」 화면에서 켜세요.",
@@ -703,26 +677,9 @@ export const ko = {
   "err.code.file_not_found": "파일이 없어요: {detail}",
   "err.code.actor_closed": "세션 처리기가 멈췄어요. 앱을 다시 시작해 주세요.",
   "err.code.acp_not_running": "Claude Code 에이전트가 실행 중이 아니에요.",
-  "err.code.acp_npm_missing": "npm 을 찾을 수 없어요. Node.js 를 설치하세요.",
-  "err.code.acp_node_missing": "node 경로를 해석하지 못했어요.",
-  "err.code.project_untrusted": "이 기기에서 아직 신뢰하지 않은 프로젝트예요.",
   "err.code.project_not_found": "프로젝트를 찾지 못했어요. 목록에서 지워졌을 수 있어요.",
-  "err.code.acp_node_too_old": "Node.js 버전이 낮아요: {detail}",
-  "err.code.acp_app_data_dir": "앱 데이터 폴더를 찾을 수 없어요: {detail}",
-  "err.code.acp_adapter_install_failed": "ACP 어댑터를 설치하지 못했어요. 설정 → ocul-pm 에서 다시 시도하세요.",
-  "err.code.acp_session_create_failed": "세션을 만들지 못했어요: {detail}",
   // Codex 는 로그인돼 있어도 인증 방법을 광고한다 — 실패 문구까지 인증을
   // 가리킬 때만 이 문장을 쓴다 (commands/acp.rs session_create_error).
-  "err.code.acp_auth_required": "에이전트 로그인이 필요해요. 터미널에서 codex login 을 실행한 뒤 다시 시도해 주세요.",
-  "err.code.acp_codex_adapter_missing": "Codex 어댑터가 아직 없어요. 설치하면 바로 쓸 수 있어요.",
-  "err.code.acp_cancel_failed": "취소를 보내지 못했어요: {detail}",
-  "err.code.acp_config_failed": "설정을 바꾸지 못했어요: {detail}",
-  "err.code.acp_session_list_failed": "대화 목록을 불러오지 못했어요: {detail}",
-  "err.code.acp_session_delete_failed": "대화를 지우지 못했어요: {detail}",
-  "err.code.acp_session_load_failed": "대화를 열지 못했어요: {detail}",
-  "err.code.acp_usage_failed": "사용량을 불러오지 못했어요: {detail}",
-  "err.code.acp_prompt_failed": "요청이 실패했어요: {detail}",
-  "err.code.acp_session_busy": "이 대화는 이미 답하는 중이에요. 끝나거나 멈춘 뒤에 보내 주세요.",
 
   // ── v3-surface / firstrun ────────────────────────────────────────────────
   // 첫 5분의 화면이 아직 일어나지 않은 일을 말하지 않게 하는 문구들.
