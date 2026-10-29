@@ -1,6 +1,5 @@
 import { createLogger, defineConfig, type Plugin } from "vite";
 import path from "node:path";
-import { createRequire } from "node:module";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
 import react from "@vitejs/plugin-react";
@@ -56,16 +55,21 @@ const buildHash = (() => {
 // Vite 8 에서 `resolve.alias[].customResolver` 가 폐기 예정이라 공식 안내대로
 // `enforce: "pre"` 의 `resolveId` 플러그인으로 옮겼다 (2026-10-24). vitest 는
 // vitest.config.ts(별도)라 테스트에는 영향이 없다.
+//
+// 셤 자신의 임포트는 **Vite 의 기본 해석**에 넘긴다(`skipSelf`). `createRequire().resolve`
+// 로 경로를 박으면 `require` 조건의 `event.cjs` 가 잡혀 dev 서버가 그것을 그대로 ESM 으로
+// 내보내고, 웹뷰가 첫 줄에서 `require is not defined` 로 멈췄다(빌드는 rolldown 이 CJS 를
+// 풀어 줘서 안 드러났다 — 4.0 화면 하네스에서 잡음).
 function tauriEventShim(): Plugin {
   const shim = path.resolve(__dirname, "./src/lib/transport/event.ts");
   const transportDir = path.resolve(__dirname, "./src/lib/transport");
-  const real = createRequire(import.meta.url).resolve("@tauri-apps/api/event");
   return {
     name: "oculpm:tauri-event-shim",
     enforce: "pre",
-    resolveId(source, importer) {
+    resolveId(source, importer, options) {
       if (source !== "@tauri-apps/api/event") return null;
-      return importer?.startsWith(transportDir) ? real : shim;
+      if (importer?.startsWith(transportDir)) return this.resolve(source, importer, { ...options, skipSelf: true });
+      return shim;
     },
   };
 }
