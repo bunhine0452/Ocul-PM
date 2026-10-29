@@ -1,8 +1,8 @@
 /**
- * 「오늘 한 일」 — 계획별로 묶고, 증거가 다 선 묶음은 머리 한 줄로 접는다.
+ * 「오늘 한 일」 — 계획별로 묶고, 하루가 길면 묶음을 머리 한 줄로 접는다.
  *
- * 하루 60건이면 증거가 선 54건은 접혀 있고, 3건이면 셋 다 보인다 — 모드가 아니라
- * `todayModel.initialFold` 한 규칙이다. 묶음 머리를 누르면 펼치고 접는다.
+ * 하루 60건이면 묶음 머리만 서고(검증 없는 것은 위 칸이 보여 준다), 3건이면 셋 다 보인다 —
+ * 모드가 아니라 `todayModel.initialFold` 한 규칙이다. 묶음 머리를 누르면 펼치고 접는다.
  */
 
 import { useState } from "react";
@@ -74,7 +74,7 @@ export function TodayWork({ entries, digest, onOpenEntry }: TodayWorkProps) {
   const groups = groupByPlan(entries, digest);
   const flat = groups.length <= 1 && entries.length <= FOLD_MIN;
 
-  const foldOf = (g: WorkGroup) => folds[g.key] ?? initialFold(g, entries.length);
+  const foldOf = (g: WorkGroup) => folds[g.key] ?? initialFold(entries.length);
   const toggle = (g: WorkGroup) => setFolds((prev) => ({ ...prev, [g.key]: foldOf(g) === "closed" ? "open" : "closed" }));
 
   return (
@@ -109,8 +109,7 @@ export function TodayWork({ entries, digest, onOpenEntry }: TodayWorkProps) {
       ) : (
         groups.map((g) => {
           const fold = foldOf(g);
-          const shown = fold === "open" ? g.entries : fold === "partial" ? g.entries.filter((e) => evidenceOf(e) === "missing") : [];
-          const rest = g.entries.length - shown.length;
+          const shown = fold === "open" ? g.entries : [];
           return (
             <div key={g.key} className="tdy-grp-wrap">
               <GroupHead group={g} open={fold !== "closed"} onToggle={() => toggle(g)} />
@@ -120,15 +119,6 @@ export function TodayWork({ entries, digest, onOpenEntry }: TodayWorkProps) {
                     <EntryRow key={e.relative_path} entry={e} onOpen={onOpenEntry} />
                   ))}
                 </ul>
-              ) : null}
-              {fold === "partial" && rest > 0 ? (
-                <button
-                  type="button"
-                  className="tdy-more"
-                  onClick={() => setFolds((prev) => ({ ...prev, [g.key]: "open" }))}
-                >
-                  {t("today.work.showRest", { n: rest })}
-                </button>
               ) : null}
             </div>
           );

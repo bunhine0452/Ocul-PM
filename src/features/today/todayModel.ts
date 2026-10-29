@@ -120,6 +120,34 @@ export function buildExceptions(input: ExceptionInput): TodayException[] {
   return out;
 }
 
+type ExceptionOf<K extends ExceptionKind> = Extract<TodayException, { kind: K }>;
+
+/**
+ * 오늘 화면의 세 자리 (화면 검사 {#today-split} · {#today-mine}).
+ * - `first`  먼저 볼 것 — 지금 손댈 것(실패 · 일지 없는 변경 · 일지 없이 끝난 대화 · 막힘 · 플러그인).
+ * - `unread` 검증 없이 끝난 일지 — 한 묶음, 읽음 버튼 하나.
+ * - `mine`   내 차례 — 계획에 적힌 사람 몫. 날마다 바뀌는 일이 아니라 한 줄 링크로만 선다.
+ * `rows` 는 화면에 보이는 순서(first → unread)다 — j/k 이동이 따른다. 배지는 `first` 만 센다.
+ */
+export interface TodaySplit {
+  first: TodayException[];
+  unread: ExceptionOf<"evidence">[];
+  mine: ExceptionOf<"decision">[];
+  rows: TodayException[];
+}
+
+export function splitExceptions(list: readonly TodayException[]): TodaySplit {
+  const first: TodayException[] = [];
+  const unread: ExceptionOf<"evidence">[] = [];
+  const mine: ExceptionOf<"decision">[] = [];
+  for (const ex of list) {
+    if (ex.kind === "evidence") unread.push(ex);
+    else if (ex.kind === "decision") mine.push(ex);
+    else first.push(ex);
+  }
+  return { first, unread, mine, rows: [...first, ...unread] };
+}
+
 /** plan-log 의 일지 열(`.oculpm/` 기준)을 일지 화면의 경로(일지 루트 기준)로. */
 export function normalizeJournalRef(ref: string): string {
   return ref.replace(/^\.oculpm\//, "").replace(/^journal\//, "");
@@ -179,16 +207,16 @@ export function groupByPlan(entries: readonly JournalEntrySummary[], digest: Tod
 
 /**
  * 이만큼 이하면 다 보여 준다 — 3건 쓰는 사람에게 접힘은 클릭 하나를 더 시킬 뿐이다.
- * 이보다 많으면 증거가 다 선 묶음은 한 줄로 접힌다.
+ * 이보다 많으면 묶음은 머리 한 줄로 접힌다. 검증 없는 일지는 위 「검증 없이 끝난 일지」 칸이
+ * 이미 보여 주므로 여기서 다시 펼치지 않는다 — 같은 행이 두 번 섰다 (화면 검사 {#today-split}).
  */
 export const FOLD_MIN = 8;
 
-/** 묶음의 처음 모양 — 다 보임 / 볼 것만 / 머리 한 줄. */
-export type GroupFold = "open" | "partial" | "closed";
+/** 묶음의 처음 모양 — 다 보임 / 머리 한 줄. */
+export type GroupFold = "open" | "closed";
 
-export function initialFold(group: WorkGroup, totalToday: number): GroupFold {
-  if (totalToday <= FOLD_MIN) return "open";
-  return group.counts.missing > 0 ? "partial" : "closed";
+export function initialFold(totalToday: number): GroupFold {
+  return totalToday <= FOLD_MIN ? "open" : "closed";
 }
 
 /** 다음에 잡을 것 — 최근 갱신된 계획부터 첫 `next`. */

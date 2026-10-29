@@ -1,9 +1,9 @@
 /**
- * 오늘 화면의 두 줄 — 지금 일하는 중 · 다음.
+ * 오늘 화면의 세 줄 — 지금 일하는 중 · 다음 · 내 차례.
  *
- * 둘 다 「지금 무엇을 결정할까」에 답한다: 누가 돌고 있고(멈췄나), 다음에 무엇을 넘길까.
- * 계획별 진행·판정 카드는 걷었다 — 계획 탭이 같은 것을 보여 주고, 실패한 판정과 사람 몫은
- * 이미 「확인할 것」에 선다 (4.0 「더 단순하게」).
+ * 셋 다 「지금 무엇을 결정할까」에 답한다: 누가 돌고 있고(멈췄나), 다음에 무엇을 넘길까, 내가 할
+ * 것이 계획에 남았나. 계획별 진행·판정 카드는 걷었다 — 계획 탭이 같은 것을 보여 주고, 실패한
+ * 판정은 이미 「먼저 볼 것」에 선다 (4.0 「더 단순하게」).
  */
 
 import { SquareTerminal } from "@/components/Icons";
@@ -11,6 +11,7 @@ import { agentLabel } from "@/features/today/agentColor";
 import { useT } from "@/i18n";
 import { relativeTime } from "@/lib/format";
 import type { DigestItem, DigestPlan } from "@/lib/bindings";
+import type { TodaySplit } from "./todayModel";
 import type { LiveSession } from "./useLiveSessions";
 import { QUIET_MINUTES } from "./useLiveSessions";
 
@@ -68,7 +69,8 @@ export function NextCard({ next, onRun }: { next: { plan: DigestPlan; item: Dige
       {next ? (
         <>
           <div className="tdy-grow">
-            <div className="tdy-strong tdy-ellipsis">{next.item.title}</div>
+            {/* 제목은 두 줄까지 — 한 줄로 자르면 항목이 무슨 일인지가 잘린 쪽에 있었다. */}
+            <div className="tdy-strong tdy-clamp">{next.item.title}</div>
             <div className="tdy-meta tdy-ellipsis">{next.plan.title}</div>
           </div>
           <button
@@ -85,5 +87,23 @@ export function NextCard({ next, onRun }: { next: { plan: DigestPlan; item: Dige
         <p className="tdy-grow tdy-meta">{t("today.nextUp.none")}</p>
       )}
     </section>
+  );
+}
+
+/**
+ * 내 차례 — 계획에 적힌 사람 몫을 한 줄로 (화면 검사 {#today-mine}). 몇 주 걸리는 일(테스터 모집)이
+ * 날마다 「먼저 볼 것」에 서 있으면 사람은 그 칸 전체를 건너뛰는 법을 배운다. 그래서 수만 말하고
+ * 계획 화면으로 보낸다.
+ */
+export function MineLine({ mine, onOpen }: { mine: TodaySplit["mine"]; onOpen: (planId: string) => void }) {
+  const { t } = useT();
+  const n = mine.reduce((sum, m) => sum + m.items.length, 0);
+  return (
+    <p className="tdy-mine">
+      {t("today.mine.line", { p: mine.length, n })}
+      <button type="button" className="tdy-link" onClick={() => onOpen(mine[0].planId)}>
+        {t("today.mine.open")}
+      </button>
+    </p>
   );
 }
