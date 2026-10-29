@@ -55,6 +55,7 @@ export function JournalList({
   const { t } = useT();
   let drawn = 0;
   const total = days.reduce((s, d) => s + d.entries.length, 0);
+  const showAgent = new Set(days.flatMap((d) => d.entries.map((e) => e.agent_id))).size > 1;
   return (
     <div className="jl-list" ref={listRef} role="region" aria-label={t("journal.listAria")}>
       {notice}
@@ -73,6 +74,7 @@ export function JournalList({
                 entry={e}
                 selected={e.relative_path === selectedPath}
                 onSelect={onSelect}
+                showAgent={showAgent}
               />
             ))}
           </section>

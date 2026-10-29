@@ -42,15 +42,18 @@ interface JournalRowProps {
   entry: JournalEntrySummary;
   selected: boolean;
   onSelect: (entry: JournalEntrySummary) => void;
+  /** 목록에 에이전트가 둘 이상인가 — 하나면 줄마다 이름을 쓰지 않는다 (화면 검사 {#journal-list}). */
+  showAgent?: boolean;
 }
 
-export function JournalRow({ entry, selected, onSelect }: JournalRowProps) {
+export function JournalRow({ entry, selected, onSelect, showAgent = true }: JournalRowProps) {
   const { t } = useT();
   const kind = TRIGGER_META[entry.type] ?? TRIGGER_META.chore;
   const open = entry.status !== "done";
+  const evState = evidenceStateOf(entry);
   const meta = [
     timeLabel(entry.created_at),
-    agentLabel(entry.agent_id),
+    showAgent ? agentLabel(entry.agent_id) : "",
     entry.files_count > 0 ? t("journal.row.files", { n: entry.files_count }) : "",
   ]
     .filter(Boolean)
@@ -76,7 +79,8 @@ export function JournalRow({ entry, selected, onSelect }: JournalRowProps) {
             {entry.status === "abandoned" ? t("entry.status.abandoned") : t("entry.status.open")}
           </span>
         ) : null}
-        <EvidenceMark state={evidenceStateOf(entry)} />
+        {/* 목록은 예외만 — 「검증 없음」 칩. 통과 ✓ 는 「읽음」 으로 읽혀 상세에만 둔다. */}
+        {evState === "missing" ? <EvidenceMark state={evState} /> : null}
       </span>
       <span className="jl-meta">{meta}</span>
     </button>

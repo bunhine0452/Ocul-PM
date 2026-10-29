@@ -86,7 +86,7 @@ import { JournalDetail } from "@/features/oculpm/JournalDetail";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { isConfirmed, isStaleVerified } from "@/features/oculpm/verified";
 import { evidenceStateOf } from "@/features/oculpm/evidenceState";
-import { summaryOf, verificationLines } from "@/features/oculpm/verification";
+import { verificationLines, withoutVerification } from "@/features/oculpm/verification";
 
 function renderRow(entry: JournalEntrySummary) {
   return render(<JournalRow entry={entry} selected={false} onSelect={() => {}} />);
@@ -167,9 +167,10 @@ describe("검증 칸 읽기", () => {
     expect(verificationLines("## Verification\n- ran it\n")).toEqual(["ran it"]);
     expect(verificationLines("## 발생 원인\n경합\n")).toEqual([]);
   });
-  it("요약은 제목 줄과 소제목을 건너뛴 첫 문단이고, 검증 칸에 닿으면 멈춘다", () => {
-    expect(summaryOf(BODY_WITH_COMMAND, "샘플 작업")).toBe("새 폴더 이벤트보다 쓰기가 먼저 끝났다.");
-    expect(summaryOf("[x] 제목\n\n## 검증\n- 했다\n", "제목")).toBe("");
+  it("상세 본문은 검증 칸만 뺀다 — 검증은 상자가 따로 보인다 (화면 검사 {#journal-body})", () => {
+    const body = "## 발생 원인\n경합\n\n## 검증\n- cargo test ok\n\n## 메모\n다른 칸\n";
+    expect(withoutVerification(body)).toBe("## 발생 원인\n경합\n\n## 메모\n다른 칸");
+    expect(withoutVerification("## 변경 요약\n했다\n")).toBe("## 변경 요약\n했다\n");
   });
 });
 
@@ -178,12 +179,12 @@ describe("목록 행 — 증거 표시", () => {
     const { container } = renderRow(summary({ type: "bug", evidence: 0 }));
     expect(container.querySelector(".chip.warn")?.textContent).toBe("검증 없음");
   });
-  it("명령 증거는 체크, 사람 확인은 확인됨 체크", () => {
+  it("명령 증거도 사람의 읽음도 목록에는 표시하지 않는다 — 목록은 예외만 (화면 검사 {#journal-list})", () => {
     const a = renderRow(summary({ evidence: 2 }));
-    expect(a.container.querySelector('[role="img"][aria-label="검증 있음"]')).not.toBeNull();
+    expect(a.container.querySelector('[role="img"][aria-label="검증 있음"]')).toBeNull();
     a.unmount();
     const b = renderRow(summary({ type: "bug", verified_by_user: true }));
-    expect(b.container.querySelector('[role="img"][aria-label="읽음"]')).not.toBeNull();
+    expect(b.container.querySelector('[role="img"][aria-label="읽음"]')).toBeNull();
     expect(b.container.querySelector(".chip.warn")).toBeNull();
   });
   it("확인 뒤 바뀐 일지는 체크가 아니라 다시 경고 칩이다", () => {
@@ -228,11 +229,11 @@ describe("상세 — 검증 상자", () => {
     mocks.body = BODY_NO_SECTION;
     mocks.evidence = 0;
     const { container } = renderDetail(summary({ type: "chore", evidence: 0 }));
-    await waitFor(() => expect(container.querySelector(".jd-summary")).not.toBeNull());
+    await waitFor(() => expect(container.querySelector(".jd-prose")).not.toBeNull());
     expect(container.querySelector(".jd-verify")).toBeNull();
   });
 
-  it("헤더: 종류 · 증거 · 날짜 · 에이전트 · 모델 · 연결된 계획 → 제목 → 요약 문단", async () => {
+  it("헤더: 종류 · 증거 · 날짜 · 에이전트 · 모델 · 연결된 계획 → 제목 → 본문(검증 칸은 상자에만)", async () => {
     // 요약의 제목은 본문 첫 줄과 같다 (요약 행의 title 은 그 줄에서 온다).
     mocks.body = BODY_WITH_COMMAND.replace("샘플 작업", "새 폴더 감시 경합");
     mocks.evidence = 0;
@@ -243,7 +244,10 @@ describe("상세 — 검증 상자", () => {
       ],
     });
     expect(container.querySelector(".jd-title")?.textContent).toBe("새 폴더 감시 경합");
-    await waitFor(() => expect(container.querySelector(".jd-summary")?.textContent).toContain("쓰기가 먼저 끝났다"));
+    // 본문은 접지 않고 바로 — 검증 칸은 빼서 상자와 두 번 읽히지 않는다 (화면 검사 {#journal-body}).
+    await waitFor(() => expect(container.querySelector(".jd-prose")?.textContent).toContain("쓰기가 먼저 끝났다"));
+    expect(container.querySelector(".jd-prose")?.textContent).not.toContain("2064 passed");
+    expect(container.querySelector(".jd-full")).toBeNull();
     const meta = container.querySelector(".jd-meta")?.textContent ?? "";
     expect(meta).toContain("5월 31일 10:00");
     expect(meta).toContain("Claude Code");

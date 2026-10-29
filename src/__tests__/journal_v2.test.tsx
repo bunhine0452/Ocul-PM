@@ -254,8 +254,8 @@ describe("작업 일지 — 목록", () => {
     expect(await findByText("기능 작업")).toBeInTheDocument();
     expect(getByText("오늘 · 5월 31일")).toBeInTheDocument();
     expect(rowTitles(container)).toEqual(["기능 작업", "버그 작업"]);
-    // 메타 줄: 시각 · 에이전트 · 파일 수.
-    expect(container.querySelector(".jl-item .jl-meta")?.textContent).toBe("10:00 · Claude Code · 파일 2");
+    // 메타 줄: 시각 · 파일 수. 에이전트가 하나뿐이면 이름은 줄마다 쓰지 않는다 (화면 검사 {#journal-list}).
+    expect(container.querySelector(".jl-item .jl-meta")?.textContent).toBe("10:00 · 파일 2");
     // 가장 위 줄이 자동으로 골라져 상세가 선다.
     await waitFor(() => expect(detailTitle(container)).toBe("기능 작업"));
     expect(container.querySelector('.jl-item[aria-current="true"] .jl-ti')?.textContent).toBe("기능 작업");
@@ -303,13 +303,14 @@ describe("작업 일지 — 목록", () => {
     fixtures.allPeriod = entries;
     const { findByText, getByRole, container } = renderJournal();
     await findByText("증거 있음");
-    fireEvent.click(getByRole("tab", { name: "검증 없음" }));
+    // 종류 세그먼트와 따로 켜는 단추다 — 둘을 같이 걸 수 있다 (화면 검사 {#journal-filter}).
+    fireEvent.click(getByRole("button", { name: "검증 없는 것만" }));
     await waitFor(() => expect(rowTitles(container)).toEqual(["증거 없음 기능", "칸만 있는 결함"]));
     // 목록의 경고 칩도 같은 정의다.
     expect(container.querySelectorAll(".jl-item .chip.warn")).toHaveLength(2);
   });
 
-  it("행의 증거 표시 — 없으면 경고 칩, 명령 증거는 체크", async () => {
+  it("행의 증거 표시 — 없으면 경고 칩, 있으면 아무것도 (목록은 예외만)", async () => {
     fixtures.byWorkday["20260531"] = [
       summary({ relative_path: "a", title: "증거 없음 기능", type: "feature", evidence: 0 }),
       summary({ relative_path: "b", title: "증거 있는 결함", type: "bug", evidence: 2 }),
@@ -319,7 +320,7 @@ describe("작업 일지 — 목록", () => {
     const rows = container.querySelectorAll(".jl-item");
     expect(rows[0].querySelector(".chip.warn")?.textContent).toBe("검증 없음");
     expect(rows[1].querySelector(".chip.warn")).toBeNull();
-    expect(rows[1].querySelector('[role="img"][aria-label="검증 있음"]')).not.toBeNull();
+    expect(rows[1].querySelector(".jl-ok")).toBeNull();
   });
 
   it("빈 일지는 첫날 안내와 지난 커밋에서 가져오기를 보인다", async () => {

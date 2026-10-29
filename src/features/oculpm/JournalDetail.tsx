@@ -14,13 +14,14 @@ import { EvidenceMark, plainTitle } from "./JournalRow";
 import { JournalRelated } from "./JournalRelated";
 import { evidenceStateOf } from "./evidenceState";
 import { TriggerBadge } from "./triggerMeta";
-import { summaryOf, verificationLines, withoutTitle } from "./verification";
+import { verificationLines, withoutTitle, withoutVerification } from "./verification";
 import { isConfirmed, isStaleVerified } from "./verified";
 import { useJournalEvents } from "./useOculpmLive";
 
-// 작업 일지 상세 (4.0) — 한 건을 한 장에. 위에서 아래로: 무엇이었나(종류·증거·메타 → 제목 → 요약)
-// → 믿을 근거(검증 상자: 돌린 명령과 결과 끝 줄) → 실제로 바뀐 것(인라인 diff) → 관련 일지.
-// 에이전트의 말보다 증거가 먼저 읽히도록 검증 상자를 diff 앞에 둔다.
+// 작업 일지 상세 (4.0 → 화면 검사 {#journal-body}) — 한 건을 한 장에. 위에서 아래로: 무엇이었나
+// (종류·검증·메타 → 제목) → 사람이 읽는 본문(검증 칸만 뺀 그대로) → 믿을 근거(검증 상자: 돌린 명령과
+// 결과 끝 줄) → 실제로 바뀐 것(인라인 diff) → 관련 일지. 본문을 「전체 본문」 아래 접어 두고 그 앞에
+// 요약 한 문단을 따로 보이던 것은 걷었다 — 펼치면 요약과 검증이 한 번 더 나왔다.
 
 /** "2026-10-28T14:02:11+09:00" → "10월 28일 14:02". */
 function whenLabel(createdAt: string, t: ReturnType<typeof useT>["t"]): string {
@@ -48,7 +49,6 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
   const [diffs, setDiffs] = useState<EntryFileDiff[] | null>(null);
   const [diffError, setDiffError] = useState<string | null>(null);
   const [fileIdx, setFileIdx] = useState(0);
-  const [fullOpen, setFullOpen] = useState(false);
 
   // 사람 확인 — 목록 요약이 늦게 따라오므로 화면 지역 상태로 먼저 그린다.
   const [verified, setVerified] = useState(entry.verified_by_user);
@@ -70,7 +70,6 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
     setDiffs(null);
     setDiffError(null);
     setFileIdx(0);
-    setFullOpen(false);
   }, [entry.relative_path]);
 
   useEffect(() => {
@@ -133,7 +132,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
   const level = detail?.evidence ?? entry.evidence;
   const judged = entry.type === "bug" || entry.type === "feature" || entry.type === "refactor";
   const lines = useMemo(() => verificationLines(body, 12), [body]);
-  const summary = useMemo(() => summaryOf(body, entry.title), [body, entry.title]);
+  const prose = useMemo(() => withoutVerification(withoutTitle(body, entry.title)), [body, entry.title]);
   const confirmed = isConfirmed({ verified_by_user: verified, verified_stale: stale });
   const evState = evidenceStateOf({ ...entry, evidence: level, verified_by_user: verified, verified_stale: stale });
 
@@ -175,13 +174,18 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
           <span className="jd-meta">{metaText}</span>
         </div>
         <h2 className="jd-title">{plainTitle(entry.title) || entry.slug}</h2>
-        {summary ? <p className="jd-summary">{summary}</p> : null}
         <div className="jd-actions">
-          <button type="button" className="btn ghost sm" onClick={() => void openInEditor()} title={t("entry.openInEditorTitle")}>
+          <button type="button" className="btn sm" onClick={() => void openInEditor()} title={t("entry.openInEditorTitle")}>
             {t("entry.openInEditor")}
           </button>
         </div>
       </header>
+
+      {prose ? (
+        <div className="jd-prose">
+          <Markdown>{prose}</Markdown>
+        </div>
+      ) : null}
 
       {judged || level > 0 ? (
         <section className="jd-verify" aria-label={t("journal.verify.aria")}>
@@ -275,17 +279,6 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
         explicit={detail?.frontmatter.related ?? []}
         onOpen={onOpenRelated}
       />
-
-      {body.trim() ? (
-        <details className="jd-full" open={fullOpen} onToggle={(e) => setFullOpen((e.currentTarget as HTMLDetailsElement).open)}>
-          <summary>{t("journal.fullBody")}</summary>
-          {fullOpen ? (
-            <div className="jd-prose">
-              <Markdown>{withoutTitle(body, entry.title)}</Markdown>
-            </div>
-          ) : null}
-        </details>
-      ) : null}
     </article>
   );
 });
