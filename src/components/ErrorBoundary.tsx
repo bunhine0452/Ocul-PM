@@ -75,8 +75,8 @@ export class ErrorBoundary extends Component<Props, State> {
         <strong style={{ color: "var(--text)" }}>{t("crash.title")}</strong>
         <code
           style={{
-            fontSize: "var(--fs-2)",
-            color: "var(--text-3)",
+            fontSize: "var(--fs-3)",
+            color: "var(--text-2)",
             maxWidth: 480,
             overflow: "hidden",
             textOverflow: "ellipsis",

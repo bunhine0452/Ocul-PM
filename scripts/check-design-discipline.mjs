@@ -250,6 +250,15 @@ const RULES = [
     hint: "아이콘 크기는 className 이 아니라 size={11|13|15|18|22|30}",
   },
   {
+    id: "type-floor",
+    ext: /\.(tsx?|css)$/,
+    // 12px 아래(--fs-0 · 1 · 2)는 배지 · 단축키만 (화면 검사 #type-floor, 사용자 결정 10-29).
+    // 한 줄 규칙의 선택자(.chip.sm)와 <kbd> 는 여기서 가르고, 여러 줄 규칙 안은 design-ignore 로.
+    test: (line) =>
+      /var\(--fs-[012]\)|\btext-fs-[012]\b/.test(line) && !/\.chip\.sm\b|<kbd\b|--text-fs-[012]:/.test(line),
+    hint: "12px 아래 글자는 배지 · 단축키만 — 보조 글자는 --fs-3 (12px)",
+  },
+  {
     id: "type-literal",
     ext: /\.tsx?$/,
     re: /text-\[\d+px\]/,

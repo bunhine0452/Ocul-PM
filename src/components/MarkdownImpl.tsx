@@ -43,7 +43,7 @@ function RemoteImageLink({ src, alt }: { src: string; alt?: string }) {
     <a
       href={href}
       title={t("markdown.remoteImage", { url: href })}
-      className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 text-fs-1 text-muted-foreground no-underline hover:text-foreground"
+      className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 text-fs-3 text-muted-foreground no-underline hover:text-foreground"
     >
       <ImageOff size={13} aria-hidden="true" />
       <span>{label}</span>
@@ -86,7 +86,7 @@ function CodeBlockWrapper({ children, className }: { children: ReactNode; classN
         )}
       </button>
       {copied && (
-        <span className="absolute top-2 right-9 text-fs-1 font-bold text-primary bg-muted px-1.5 py-0.5 rounded-md border border-border opacity-0 group-hover/code:opacity-100 transition-opacity">
+        <span className="absolute top-2 right-9 text-fs-3 font-bold text-primary bg-muted px-1.5 py-0.5 rounded-md border border-border opacity-0 group-hover/code:opacity-100 transition-opacity">
           {t("common.copied")}
         </span>
       )}

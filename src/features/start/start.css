@@ -53,7 +53,7 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .start-row-day { flex: none; font-size: var(--fs-3); color: var(--text-2); }
-.start-row-forget { color: var(--text-3); }
+.start-row-forget { color: var(--text-2); }
 .start-empty { margin: 0; padding: var(--space-7) var(--space-6); color: var(--text-2); font-size: var(--fs-4); }
 .start-foot {
   margin: 0; flex: none;

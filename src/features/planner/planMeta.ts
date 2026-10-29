@@ -9,13 +9,13 @@ import type { I18nKey } from "@/i18n";
 import type { PlanItemDto } from "@/lib/bindings";
 
 export const STATUS_META: Record<string, { glyph: string; labelKey: I18nKey; color: string }> = {
-  todo: { glyph: "☐", labelKey: "plan.status.todo", color: "var(--text-3)" },
+  todo: { glyph: "☐", labelKey: "plan.status.todo", color: "var(--text-2)" },
   in_progress: { glyph: "▣", labelKey: "plan.status.in_progress", color: "var(--accent)" },
   done: { glyph: "☑", labelKey: "plan.status.done", color: "var(--accent)" },
   // U+FE0E (text presentation selector): ⚠ 는 기본이 컬러 이모지라 OS 이모지 폰트로 그려진다.
   blocked: { glyph: "⚠︎", labelKey: "plan.status.blocked", color: "var(--t-bug)" },
-  deferred: { glyph: "→", labelKey: "plan.status.deferred", color: "var(--text-3)" },
-  dropped: { glyph: "✗", labelKey: "plan.status.dropped", color: "var(--text-3)" },
+  deferred: { glyph: "→", labelKey: "plan.status.deferred", color: "var(--text-2)" },
+  dropped: { glyph: "✗", labelKey: "plan.status.dropped", color: "var(--text-2)" },
 };
 
 /** 옛 계획 화면의 보기(문서/보드) — `workspaceState` 가 아직 영속한다. 4.0 은 문서 하나다. */
