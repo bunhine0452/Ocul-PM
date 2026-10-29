@@ -80,9 +80,10 @@
   white-space: pre-wrap; word-break: break-all;
 }
 
-.plv-next { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
-.plv-next-label { font-weight: var(--fw-strong); }
-.plv-next-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plv-next { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); }
+.plv-next-label { flex: none; font-weight: var(--fw-strong); }
+/* 제목은 줄을 바꿔 끝까지 보인다 — 잘린 제목으로는 무엇을 실행하는지 모른다 (#plan-head). */
+.plv-next-title { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
 
 .plv-phases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) 22px; }
 @container plan (max-width: 640px) {
@@ -100,11 +101,12 @@
 .plv-phase-done:hover { background: var(--bg-hover); color: var(--text); }
 .plv-phase-done .plv-item-t { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plv-phase-ok { flex: none; color: var(--ok-text); }
-.plv-item { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-1) 0; font-size: var(--fs-4); }
+.plv-item { display: flex; align-items: baseline; gap: var(--space-4); padding: var(--space-1) 0; font-size: var(--fs-4); }
 .plv-item.is-parent .plv-item-t { font-weight: var(--fw-strong); }
 .plv-item.is-dropped .plv-item-t { color: var(--text-2); text-decoration: line-through; }
 .plv-item.is-deferred .plv-item-t { color: var(--text-2); }
-.plv-item-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 항목 제목은 줄을 바꿔 끝까지 (#plan-head) — 접힌 끝난 단계의 한 줄(.plv-phase-done)만 말줄임. */
+.plv-item-t { min-width: 0; overflow-wrap: anywhere; }
 .plv-item-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plv-item-j { margin-left: auto; }
 /* 「보내기」는 줄을 가리킬 때만 — 계획이 단추로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */

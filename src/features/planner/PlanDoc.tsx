@@ -83,8 +83,10 @@ function NextRow({
       <b className="plv-next-label">{t("plan.nextRow.label")}</b>
       {next ? (
         <>
-          <span className="plv-next-title">{next.title}</span>
-          <span className="plv-meta mono">#{next.item_id}</span>
+          {/* 제목은 줄을 바꿔 끝까지 — 항목 id 는 내부 이름이라 툴팁으로만 (화면 검사 #plan-head). */}
+          <span className="plv-next-title" title={`#${next.item_id}`}>
+            {next.title}
+          </span>
           <span className="plv-grow" />
           <button type="button" className="btn primary sm" onClick={() => onRun(next)}>
             <SquareTerminal size={13} aria-hidden="true" />
