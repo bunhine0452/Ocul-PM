@@ -30,7 +30,7 @@
 .jl-head .seg::-webkit-scrollbar { display: none; }
 /* 여섯 칸이 칸 폭(400 − 여백)에 들도록 안쪽 여백을 한 단 줄이고, 꺾지 않는다(영어 「No evidence」). */
 .jl-head .seg-item { padding: 0 var(--space-3); white-space: nowrap; }
-.jl-count { font-size: var(--fs-2); color: var(--text-2); }
+.jl-count { font-size: var(--fs-3); color: var(--text-2); }
 /* 「검증 없는 것만」 — 종류 세그먼트 옆의 켜고 끄는 단추. 켜진 모양은 세그먼트의 고른 칸과 같다. */
 .jl-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
 .jl-only { border: 1px solid var(--border-card); }
@@ -68,7 +68,7 @@
 .jl-meta { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jl-ok { display: inline-flex; align-items: center; flex: none; color: var(--ok-text); }
 /* `<i>` 는 인라인이라 flex 밖에서는 크기가 죽는다 — 블록으로. */
-.jl-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--text-3)); flex: none; }
+.jl-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--text-2)); flex: none; }
 .jl-more { margin: var(--space-5) var(--space-6); align-self: flex-start; }
 .jl-empty { padding: var(--space-6); font-size: var(--fs-3); color: var(--text-2); }
 
@@ -142,7 +142,7 @@
   font: inherit; color: var(--accent-text); cursor: pointer; text-align: left;
 }
 .jd-related-link:hover { text-decoration: underline; }
-.jd-related-why { color: var(--text-3); }
+.jd-related-why { color: var(--text-2); }
 
 /* 전체 본문의 마크다운 — 읽는 글의 조판. 제목은 절 구분이고, 코드는 바탕 한 장이다. */
 .jd-prose { color: var(--text); font-size: var(--fs-4); line-height: var(--lh-prose); max-width: var(--read-wide); }

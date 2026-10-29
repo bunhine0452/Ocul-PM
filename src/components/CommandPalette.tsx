@@ -58,7 +58,7 @@ const DEBOUNCE_MS = 120;
 const JOURNAL_LIMIT = 8;
 
 const HEADING =
-  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-fs-1 [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground";
+  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-fs-3 [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground";
 const ITEM =
   "flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm aria-selected:bg-accent aria-selected:text-foreground text-foreground/80";
 
@@ -265,7 +265,7 @@ export function CommandPalette({ open, onOpenChange, onOpenSettings, projects, o
                 >
                   <TargetIcon className="text-muted-foreground" size={15} />
                   <span className="flex-1 truncate">{p.title}</span>
-                  <span className="text-fs-1 text-muted-foreground shrink-0">
+                  <span className="text-fs-3 text-muted-foreground shrink-0">
                     {p.done_count}/{p.item_count}
                   </span>
                 </Command.Item>
@@ -285,7 +285,7 @@ export function CommandPalette({ open, onOpenChange, onOpenSettings, projects, o
                 >
                   <NotebookText className="text-muted-foreground" size={15} />
                   <span className="flex-1 truncate">{hit.title}</span>
-                  <span className="text-fs-1 text-muted-foreground shrink-0">{hit.workday}</span>
+                  <span className="text-fs-3 text-muted-foreground shrink-0">{hit.workday}</span>
                 </Command.Item>
               ))}
             </Command.Group>

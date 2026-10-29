@@ -422,7 +422,7 @@ export function JournalScreenV2({
           <div className="jl-col">
             <div className="jl-head">
               <div className="search-box jl-search">
-                <SearchIcon size={15} color="var(--text-3)" />
+                <SearchIcon size={15} color="var(--text-2)" />
                 <input
                   ref={searchRef}
                   value={search}

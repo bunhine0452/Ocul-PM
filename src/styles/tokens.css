@@ -26,14 +26,12 @@
   --bg-hover: rgba(56,48,36,0.05);
   --bg-active: rgba(56,48,36,0.085);
 
-  /* text — 잉크 계열(순수 검정 대신 웜 잉크).
-     --text-3 은 meta/placeholder 전용이지만 그래도 **읽히긴 해야 한다**.
-     예전 #9c9588 은 표면 다섯(window·sidebar·content·card·inset) 중 가장 불리한
-     --bg-inset 위에서 2.54:1 이었다 — 설계 SSOT(03-design-system.md §6)가
-     정한 하한도 못 넘었다. 4.0:1 로 한 단계 눌렀다 (2026-09-04 {#text3-promotion}). */
+  /* text — 잉크 계열(순수 검정 대신 웜 잉크). 글자색은 **두 단**이다: 본문 --text, 보조 --text-2.
+     예전엔 meta/placeholder 용 --text-3(#797369)이 따로 있었는데 --text-2 와 눈으로 거의 같으면서
+     사이드바 · 안쪽 바탕 위에서 4.0:1 로 본문 기준(4.5)을 못 넘었다. 화면 검사(10-29 #grey-one)에서
+     보조 회색을 --text-2 하나로 합쳤다 — 어느 바탕에서도 4.79:1 이상. */
   --text: #211e18;
   --text-2: #6d675c;
-  --text-3: #797369;
   --text-on-accent: #ffffff;
 
   /* 상태색 **배경 위에 얹는 글자** (2026-09-04 {#hardcoded-white}).
@@ -400,8 +398,6 @@
 
   --text: #f1f4f1;
   --text-2: #a6aea8;
-  /* 2.96:1(--bg-inset) → 4.02:1 — 라이트와 같은 이유. */
-  --text-3: #858c87;
   --text-on-accent: #06281c;
 
   --sep: rgba(255,255,255,0.08);

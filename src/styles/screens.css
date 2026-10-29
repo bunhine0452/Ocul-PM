@@ -25,13 +25,13 @@
 /* Clickable file chip (journal card foot → LIVE 변경 diff 화면). Button reset
    over the .file-pill base; an accent ring on hover signals it's interactive. */
 
-.tag { font-size: var(--fs-2); color: var(--text-3); }
+.tag { font-size: var(--fs-3); color: var(--text-2); }
 .tag::before { content: "#"; opacity: 0.6; }
 
 /* --- Diff 본문 렌더 (PatchView · 일지 상세 · 변경 화면이 같이 쓴다) --- */
 /* 변경 화면의 배치는 features/diff/changes.css, 일지 상세는 features/oculpm/journal.css. */
 .diff-code { overflow: auto; flex: 1; min-height: 0; font-family: var(--mono); font-size: var(--fs-3); line-height: var(--lh-prose); }
-.hunk-head { background: var(--bg-inset); color: var(--text-3); padding: 3px 14px; font-family: var(--mono); font-size: var(--fs-2); border-top: 1px solid var(--sep); border-bottom: 1px solid var(--sep); }
+.hunk-head { background: var(--bg-inset); color: var(--text-2); padding: 3px 14px; font-family: var(--mono); font-size: var(--fs-3); border-top: 1px solid var(--sep); border-bottom: 1px solid var(--sep); }
 /* Code rows wrap to the pane width so long lines are never clipped off-screen
    (Dogfooding 2026-06-14d — macOS overlay scrollbars hid the horizontal scroll,
    so lines looked cut off; wrapping adapts to the screen instead). The content
@@ -40,14 +40,14 @@
 .diff-content { min-width: 0; }
 .dl { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: stretch; }
 .dl.split { grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr); }
-.dl-gut { text-align: right; padding: 0 var(--space-3); color: var(--text-3); background: var(--diff-gutter); user-select: none; font-size: var(--fs-2); }
+.dl-gut { text-align: right; padding: 0 var(--space-3); color: var(--text-2); background: var(--diff-gutter); user-select: none; font-size: var(--fs-3); }
 .dl-x { padding: 0 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .dl.add .dl-x { background: var(--diff-add-bg); color: var(--diff-add-text); }
 .dl.add .dl-gut { background: color-mix(in srgb, var(--diff-add-bg) 80%, transparent); color: var(--diff-add-line); }
 .dl.del .dl-x { background: var(--diff-del-bg); color: var(--diff-del-text); }
 .dl.del .dl-gut { background: color-mix(in srgb, var(--diff-del-bg) 80%, transparent); color: var(--diff-del-line); }
 .dl.split .dl-x.empty { background: var(--bg-inset); opacity: 0.4; }
-.diff-foot { padding: 14px var(--space-6); color: var(--text-3); font-family: var(--font); font-size: var(--fs-3); border-top: 1px solid var(--sep); display: flex; align-items: center; gap: var(--space-3); }
+.diff-foot { padding: 14px var(--space-6); color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); border-top: 1px solid var(--sep); display: flex; align-items: center; gap: var(--space-3); }
 
 /* +N/−M 라인 요약 (변경 화면 파일 머리 · 일지 상세 diff 머리) */
 .diff-stat { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; flex: none; }
@@ -60,19 +60,19 @@
 .diff-binary-meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .diff-binary-kind { font-size: var(--fs-4); font-weight: var(--fw-strong); }
 .diff-binary-size { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); display: flex; align-items: center; gap: var(--space-3); font-variant-numeric: tabular-nums; }
-.diff-binary-arrow { color: var(--text-3); }
+.diff-binary-arrow { color: var(--text-2); }
 .diff-binary-delta { font-weight: var(--fw-strong); }
 .diff-binary-delta.add { color: var(--diff-add-line); }
 .diff-binary-delta.del { color: var(--diff-del-line); }
 .diff-binary-panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-5); }
 .diff-binary-pane { margin: 0; border: 1px solid var(--border-card); border-radius: var(--radius-m); overflow: hidden; display: flex; flex-direction: column; }
 .diff-binary-pane.dim .diff-binary-img img { opacity: 0.72; }
-.diff-binary-pane-head { padding: var(--space-2) var(--space-4); font-size: var(--fs-2); font-weight: var(--fw-strong); color: var(--text-2); border-bottom: 1px solid var(--sep); display: flex; justify-content: space-between; gap: var(--space-3); font-family: var(--font); }
-.diff-binary-pane-head .mono { color: var(--text-3); font-weight: var(--fw-label); }
+.diff-binary-pane-head { padding: var(--space-2) var(--space-4); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); border-bottom: 1px solid var(--sep); display: flex; justify-content: space-between; gap: var(--space-3); font-family: var(--font); }
+.diff-binary-pane-head .mono { color: var(--text-2); font-weight: var(--fw-label); }
 /* 투명 PNG 가 배경과 섞이지 않게 체커보드 밑판 */
 .diff-binary-img { display: grid; place-items: center; padding: 14px; min-height: 120px; background: repeating-conic-gradient(var(--bg-inset) 0% 25%, var(--bg-window) 0% 50%) 0 0 / 16px 16px; }
 .diff-binary-img img { max-width: 100%; max-height: 420px; object-fit: contain; }
-.diff-binary-broken { font-size: var(--fs-3); color: var(--text-3); font-family: var(--font); }
+.diff-binary-broken { font-size: var(--fs-3); color: var(--text-2); font-family: var(--font); }
 /* `.diff-mode-toggle` 은 `.seg`(primitives.css)로 접었다 (2026-09-10
    {#unify-toolbar-vocab}) — 테두리로 묶고 안쪽 곡률을 0 으로 지우던 자기
    문법이었는데, 세그먼트는 이미 동심원 규격을 가진 프리미티브다. */
@@ -207,17 +207,17 @@
 .entry-field { display: flex; flex-direction: column; gap: var(--space-2); }
 .entry-label { font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); }
 .entry-label .req { color: var(--t-bug); margin-left: 2px; }
-.entry-hint { font-size: var(--fs-2); color: var(--text-3); font-weight: var(--fw-body); margin-left: var(--space-2); }
+.entry-hint { font-size: var(--fs-3); color: var(--text-2); font-weight: var(--fw-body); margin-left: var(--space-2); }
 .entry-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .entry-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
-.entry-err { font-size: var(--fs-2); color: var(--t-bug); }
+.entry-err { font-size: var(--fs-3); color: var(--t-bug); }
 /* 수동 일지 모달의 후보 파일 칩 행 — 디테일 뷰의 `.entry-filelist` 와 다른 것. */
 .entry-files { display: flex; flex-wrap: wrap; gap: var(--space-2); max-height: 108px; overflow-y: auto;
   border: 1px solid var(--border-card); border-radius: var(--radius-m); background: var(--bg-inset); padding: var(--space-3); }
 .entry-textarea { width: 100%; min-height: 104px; resize: vertical; padding: var(--space-4) var(--space-5); border-radius: var(--radius-m);
   border: 1px solid var(--border-card); background: var(--bg-inset); font-family: var(--mono); font-size: var(--fs-4); color: var(--text); outline: none; }
 .entry-textarea:focus { border-color: var(--accent); box-shadow: var(--ring-soft); }
-.entry-tag { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-2); font-family: var(--mono);
+.entry-tag { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-3); font-family: var(--mono);
   background: var(--bg-inset); border: 1px solid var(--border-card); border-radius: var(--radius-pill); padding: 2px var(--space-3); cursor: pointer; color: var(--text-2);
   appearance: none; -webkit-appearance: none; }
 

@@ -488,17 +488,14 @@ describe("글자 램프는 어느 테마에서도 읽힌다", () => {
       const { ratio, surface } = worstOnSurfaces(t, token);
       expect(round(ratio), `${token} on ${surface}`).toBeGreaterThanOrEqual(4.5);
     }
-    // `--text-3` 은 meta/placeholder 전용이라 AA 를 요구하지 않는다. 다만
-    // "보이긴 해야 한다" 의 하한은 4.0 — 2026-09-04 이전엔 2.18~3.93 이었다.
-    const t3 = worstOnSurfaces(t, "--text-3");
-    expect(round(t3.ratio), `--text-3 on ${t3.surface}`).toBeGreaterThanOrEqual(4.0);
   });
 
-  it("램프가 뒤집히지 않는다 — text > text-2 > text-3", () => {
+  it("글자색은 두 단 — 본문 --text 가 보조 --text-2 보다 진하고, 셋째 회색(--text-3)은 없다", () => {
     for (const t of THEMES) {
       const on = (k: string) => contrast(t.tokens[k], t.tokens["--bg-content"]);
       expect(on("--text"), `${t.name} text vs text-2`).toBeGreaterThan(on("--text-2"));
-      expect(on("--text-2"), `${t.name} text-2 vs text-3`).toBeGreaterThan(on("--text-3"));
+      // 화면 검사 #grey-one (10-29) — 눈으로 구별 안 되는 둘째 보조 회색이 4.0:1 로 본문 기준을 못 넘었다.
+      expect(t.tokens["--text-3"], `${t.name} --text-3`).toBeUndefined();
     }
   });
 });

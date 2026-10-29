@@ -25,16 +25,16 @@
   font: inherit; text-align: left; cursor: pointer;
 }
 .tm-pick:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
-.tm-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
+.tm-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-2); }
 .tm-dot.is-live { background: var(--ok); }
 /* 안의 프로그램이 내 손을 기다린다(OSC 7501 blocked) — 초록(실행 중)과 갈라 본다. */
 .tm-dot.is-wait { background: var(--warn); }
 .tm-name { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tm-meta { grid-column: 2; font-size: var(--fs-2); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-meta { grid-column: 2; font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tm-rec { color: var(--ok-text); }
 /* 기다리는 까닭 — 프로그램이 붙인 한 줄(「approve Write: …」). 두 줄까지. */
 .tm-msg {
-  grid-column: 2; font-size: var(--fs-2); color: var(--text);
+  grid-column: 2; font-size: var(--fs-3); color: var(--text);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
 }
 /* 닫기는 줄을 가리킬 때만 — 목록이 × 로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */

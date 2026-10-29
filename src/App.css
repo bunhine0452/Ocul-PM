@@ -373,11 +373,11 @@
 /* 손잡이 색은 base.css 의 전역 스크롤바와 같은 재료다 — 가족(light/dark)별
    하드코딩 두 벌이 필요 없다 ({#scrollbar-theme}). 프리셋도 따라온다. */
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--text-3) 32%, transparent);
+  background: color-mix(in srgb, var(--text-2) 32%, transparent);
   border-radius: var(--radius-pill);
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--text-3) 55%, transparent);
+  background: color-mix(in srgb, var(--text-2) 55%, transparent);
 }
 
 /* ── Update notifier banner (1.0 release) ──────────────────────────────────

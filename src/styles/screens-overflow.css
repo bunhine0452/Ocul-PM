@@ -4,13 +4,13 @@
    설정 밀도 카드·터미널 열은 걷었고, 전문 밀도의 행 높이는 이제 기본값이다. */
 
 /* ⌘K 바닥 */
-.palette-foot { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-4); border-top: 1px solid var(--border-card); font-size: var(--fs-1); color: var(--text-3); }
+.palette-foot { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-4); border-top: 1px solid var(--border-card); font-size: var(--fs-3); color: var(--text-2); }
 .palette-foot kbd { font-family: var(--mono); color: var(--text-2); }
 .palette-foot-hint { margin-left: auto; }
 
 .diff-entry-foot {
   display: flex; align-items: center; gap: var(--space-3); min-height: var(--ctl-5); padding: 0 var(--space-4);
-  border-top: 1px solid var(--border-card); background: var(--bg-inset); font-size: var(--fs-2); color: var(--text-2);
+  border-top: 1px solid var(--border-card); background: var(--bg-inset); font-size: var(--fs-3); color: var(--text-2);
 }
 .diff-entry-foot[data-evidence="on"] > svg { color: var(--ok-text); }
 .diff-entry-foot[data-evidence="off"] > svg { color: var(--warn-text); }

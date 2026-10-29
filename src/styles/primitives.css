@@ -72,7 +72,7 @@
 .iconbtn:hover { background: var(--bg-hover); color: var(--text); }
 .iconbtn:active { transform: scale(0.92); }
 .iconbtn:is(:disabled, [aria-disabled="true"]) {
-  opacity: var(--dim-disabled); cursor: default; background: transparent; color: var(--text-3);
+  opacity: var(--dim-disabled); cursor: default; background: transparent; color: var(--text-2);
 }
 /* 위험 동작(삭제) — 어느 화면이든 같은 붉은 hover. */
 .iconbtn.danger:hover {
@@ -125,7 +125,7 @@
 .chip.danger { background: var(--danger-soft); color: var(--danger-text); }
 .chip.info { background: var(--info-soft); color: var(--info-text); }
 .kbd {
-  font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-strong);
+  font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-strong); /* design-ignore -- 단축키 표시는 12px 아래 예외 */
   background: var(--bg-inset); border: 1px solid var(--sep);
   border-radius: var(--radius-xs); padding: 1px var(--space-2); color: var(--text-2);
   box-shadow: 0 1px 0 var(--sep);
@@ -151,7 +151,7 @@
   display: flex; align-items: center; gap: var(--space-3);
   height: var(--ctl-4); padding: 0 var(--space-4);
   background: var(--bg-inset); border: 1px solid transparent;
-  border-radius: var(--radius-s); color: var(--text-3);
+  border-radius: var(--radius-s); color: var(--text-2);
   /* **바닥이 아니라 기본 폭이다.** 예전 `min-width: 220px` 은 바닥이라
      좁은 툴바에서 줄어들지 못하고 넘쳤고, 기본을 쓰는 다섯 자리 중 넷이
      그것을 아래로 되돌리고 있었다(200 · 180 · 0 · flex). 되돌리는 값이
@@ -173,7 +173,7 @@
 .search-box.sm input { font-size: var(--fs-3); }
 /* 플레이스홀더를 브라우저 기본(글자색의 불투명도 파생)에 맡기면 테마마다
    다른 회색이 나온다 — 접힌 13벌 중 넷이 이미 이 줄을 손으로 갖고 있었다. */
-.search-box input::placeholder { color: var(--text-3); }
+.search-box input::placeholder { color: var(--text-2); }
 .search-box input::-webkit-search-cancel-button { display: none; }
 .search-box:focus-within { background: var(--bg-card); border-color: var(--accent); box-shadow: var(--ring-soft); }
 
@@ -181,7 +181,7 @@
 .tbadge {
   display: inline-flex; align-items: center; gap: var(--space-2);
   height: var(--ctl-2); padding: 0 var(--space-3) 0 var(--space-2); border-radius: var(--radius-s);
-  font-size: var(--fs-2); font-weight: var(--fw-strong); letter-spacing: var(--track-wide);
+  font-size: var(--fs-2); font-weight: var(--fw-strong); letter-spacing: var(--track-wide); /* design-ignore -- 종류 배지는 12px 아래 예외 */
   /* .chip 과 같은 이유 — 배지는 꺾이지 않는다. */
   white-space: nowrap; flex: none;
 }
@@ -327,7 +327,7 @@
   gap: var(--space-3);
   padding: 14px var(--space-7) 0;
 }
-.sk-modal-sub { margin-left: auto; font-size: var(--fs-2); color: var(--text-2); }
+.sk-modal-sub { margin-left: auto; font-size: var(--fs-3); color: var(--text-2); }
 .sk-modal-warn,
 .set-modal-desc {
   font-size: var(--fs-4);
@@ -402,7 +402,7 @@
 /* ⌘/ 단축키 치트시트 — 같은 이유로 전역. 좌우 여백은 모달 크롬(20px)에 맞춘다
    (screens.css 시절엔 0 이라 표가 패널 가장자리에 붙어 있었다). */
 .keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: var(--space-1) var(--space-7) var(--space-6); }
-.keys-group h4 { font-size: var(--fs-2); text-transform: var(--caps-transform); letter-spacing: var(--caps-track-lg); color: var(--text-3); margin: 0 0 var(--space-2); }
+.keys-group h4 { font-size: var(--fs-3); text-transform: var(--caps-transform); letter-spacing: var(--caps-track-lg); color: var(--text-2); margin: 0 0 var(--space-2); }
 .keys-group dl { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .keys-row { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-3); }
 .keys-row dt { flex: 1; min-width: 0; color: var(--text-2); }

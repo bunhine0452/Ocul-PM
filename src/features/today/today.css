@@ -42,7 +42,7 @@
 .tdy-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tdy-dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; }
 .tdy-rows, .tdy-ents, .tdy-list { margin: 0; padding: 0; list-style: none; }
-.tdy-keys { margin: var(--space-2) 0 0; font-size: var(--fs-2); color: var(--text-3); }
+.tdy-keys { margin: var(--space-2) 0 0; font-size: var(--fs-3); color: var(--text-2); }
 .tdy-date { color: var(--text); font-weight: var(--fw-strong); }
 .tdy-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .tdy-notice { display: flex; align-items: center; gap: var(--space-5); }
@@ -107,7 +107,7 @@
 .tdy-ent-ev.is-command { color: var(--ok-text); font-weight: var(--fw-strong); }
 .tdy-ent-ev.is-missing { color: var(--warn-text); font-weight: var(--fw-strong); }
 .tdy-ent-ev.is-verified { color: var(--text-2); }
-.tdy-ent-ev.is-none { color: var(--text-3); }
+.tdy-ent-ev.is-none { color: var(--text-2); }
 @container screen (max-width: 460px) {
   .tdy-ent { grid-template-columns: 44px minmax(0, 1fr) auto; }
   .tdy-ent-ty, .tdy-ent-ln { display: none; }

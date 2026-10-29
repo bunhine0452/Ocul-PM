@@ -64,7 +64,7 @@
   min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--radius-pill);
-  font-size: var(--fs-2); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums;
+  font-size: var(--fs-2); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; /* design-ignore -- 탭 수 배지는 12px 아래 예외 */
   background: var(--warn-soft); color: var(--warn-text);
 }
 
@@ -79,7 +79,7 @@
   font-family: var(--font); text-align: left; color: var(--text);
   transition: background-color var(--dur-1) var(--ease-out);
 }
-.proj-switch svg { flex: none; color: var(--text-3); }
+.proj-switch svg { flex: none; color: var(--text-2); }
 .proj-switch:hover { background: var(--bg-hover); }
 .proj-switch[aria-expanded="true"] { background: var(--bg-active); }
 .proj-name {
@@ -107,7 +107,7 @@
 .proj-pop-name { font-weight: var(--fw-strong); font-size: var(--fs-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 그 줄을 부르는 키 — 줄 끝, 목록이 눈에 걸리지 않게 옅게. */
 .proj-pop-key { flex: none; color: var(--text-2); }
-.proj-pop-path { font-size: var(--fs-2); color: var(--text-2); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-pop-path { font-size: var(--fs-3); color: var(--text-2); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .proj-pop-add {
   display: flex; align-items: center; width: 100%; text-align: left;
   margin-top: var(--space-1); padding: var(--space-3); cursor: pointer;
