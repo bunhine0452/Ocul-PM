@@ -391,24 +391,4 @@ impl OculpmManager {
         };
         Ok(agents::detect(&root))
     }
-
-    /// Return the on-disk master template (`.oculpm/agents/_template.md`).
-    /// Falls back to the embedded `MASTER_KO` if the file is missing — this
-    /// lets the UI's "프롬프트 복사" action work even before the first sync
-    /// has written the template to disk.
-    pub async fn read_master_template(&self, project_id: u32) -> Result<String, OculpmError> {
-        let root = {
-            let projects = self.projects.read().await;
-            let entry = projects
-                .get(&project_id)
-                .ok_or(OculpmError::NotInitialized(project_id))?;
-            entry.root.clone()
-        };
-        let path = root.join(".oculpm").join("agents").join("_template.md");
-        match tokio::fs::read_to_string(&path).await {
-            Ok(text) => Ok(text),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(agents::MASTER_KO.to_string()),
-            Err(source) => Err(OculpmError::Io { path, source }),
-        }
-    }
 }

@@ -102,20 +102,6 @@ pub struct PlanItemUpdateDto {
     pub note: Option<String>,
 }
 
-/// Recent plan activity across all plans — drives the Today "계획 업데이트" block.
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct PlanActivityDto {
-    pub plan_id: String,
-    pub plan_title: String,
-    pub item_id: String,
-    pub item_title: String,
-    pub agent_id: String,
-    pub ts: String,
-    pub from_status: Option<String>,
-    pub to_status: Option<String>,
-    pub note: Option<String>,
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading
 // ─────────────────────────────────────────────────────────────────────────────
@@ -633,83 +619,6 @@ impl<'a> PlanCache<'a> {
             .await
             .map_err(|e| e.to_string())
     }
-
-    /// Recent plan activity across all plans (for the Today dashboard).
-    /// Reprojects first, then reads the update log joined with item/plan titles.
-    pub async fn recent_activity(
-        &self,
-        project_id: u32,
-        planner_root: &Path,
-        limit: u32,
-    ) -> Result<Vec<PlanActivityDto>, String> {
-        let loaded = self.reproject_all(project_id, planner_root).await?;
-        // (plan_id, phase_id) → phase name, to resolve plan-log refs that point
-        // at a phase heading rather than a leaf item.
-        let mut phase_names: HashMap<(String, String), String> = HashMap::new();
-        for lp in &loaded {
-            for ph in &lp.parsed.phases {
-                if let Some(id) = &ph.id {
-                    phase_names.insert((lp.plan_id.clone(), id.clone()), ph.name.clone());
-                }
-            }
-        }
-        let pid = project_id as i64;
-        let lim = limit.max(1) as i64;
-        let rows = self
-            .db
-            .conn()
-            .call(
-                move |c| -> Result<Vec<PlanActivityDto>, tokio_rusqlite::Error> {
-                    let mut stmt = c.prepare(
-                        "SELECT u.plan_id, COALESCE(p.title, u.plan_id), u.item_id,
-                            COALESCE(it.title, u.item_id), u.agent_id, u.ts,
-                            u.from_status, u.to_status, u.note
-                     FROM oculpm_plan_item_updates u
-                     LEFT JOIN oculpm_plans p
-                       ON p.project_id = u.project_id AND p.plan_id = u.plan_id
-                     LEFT JOIN oculpm_plan_items it
-                       ON it.project_id = u.project_id AND it.plan_id = u.plan_id
-                          AND it.item_id = u.item_id
-                     WHERE u.project_id = ?1
-                     ORDER BY u.ts DESC
-                     LIMIT ?2",
-                    )?;
-                    let rows = stmt
-                        .query_map(params![pid, lim], |r| {
-                            Ok(PlanActivityDto {
-                                plan_id: r.get(0)?,
-                                plan_title: r.get(1)?,
-                                item_id: r.get(2)?,
-                                item_title: r.get(3)?,
-                                agent_id: r.get(4)?,
-                                ts: r.get(5)?,
-                                from_status: r.get(6)?,
-                                to_status: r.get(7)?,
-                                note: r.get(8)?,
-                            })
-                        })?
-                        .collect::<rusqlite::Result<Vec<_>>>()?;
-                    Ok(rows)
-                },
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-
-        // Resolve phase refs: when item_id matched no leaf item, the SQL
-        // COALESCE returned the raw id — swap in the phase name if it's a phase.
-        let resolved = rows
-            .into_iter()
-            .map(|mut r| {
-                if r.item_title == r.item_id {
-                    if let Some(name) = phase_names.get(&(r.plan_id.clone(), r.item_id.clone())) {
-                        r.item_title = name.clone();
-                    }
-                }
-                r
-            })
-            .collect();
-        Ok(resolved)
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -827,10 +736,5 @@ updated: 2026-06-07
         // a done + b in_progress → rollup in_progress
         assert_eq!(ph.status, "in_progress");
         assert_eq!(ph.last_agent.as_deref(), Some("claude-code"));
-
-        // recent activity resolves #p1 to the phase name (not the raw id)
-        let act = cache.recent_activity(pid, &pr, 10).await.unwrap();
-        let phase_act = act.iter().find(|a| a.item_id == "p1").unwrap();
-        assert_eq!(phase_act.item_title, "Phase 1 — 핵심");
     }
 }

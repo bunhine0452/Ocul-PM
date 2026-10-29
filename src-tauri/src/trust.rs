@@ -50,23 +50,6 @@ const AGENT_EXEC_FILES: &[&str] = &[
     ".codex/config.toml",
 ];
 
-/// 앱 안 에이전트를 띄워도 되는가 — 아니면 `project_untrusted`.
-///
-/// `acp_start` 는 화면이 열리는 순간 불리므로, 묻지 않으면 화면 하나 여는 것으로
-/// 저장소의 훅이 돈다. 설치보다 먼저 막는다 — 신뢰하지 않을 프로젝트 때문에
-/// 어댑터를 내려받을 이유가 없다. detail = 그 저장소에 실제로 있는 실행 가능한
-/// 설정 파일 (줄바꿈 구분 — 화면이 목록으로 보인다).
-pub async fn require_for_agent(db: &Db, project_id: u32) -> Result<(), crate::app_error::AppError> {
-    if is_trusted(db, project_id).await {
-        return Ok(());
-    }
-    let files = match db.project_root(project_id).await {
-        Ok(root) => agent_exec_files(&root).join("\n"),
-        Err(_) => String::new(),
-    };
-    Err(crate::app_error::AppError::new("project_untrusted", files))
-}
-
 /// [`AGENT_EXEC_FILES`] 중 이 루트에 있는 것.
 pub fn agent_exec_files(root: &Path) -> Vec<&'static str> {
     AGENT_EXEC_FILES

@@ -36,42 +36,6 @@ pub fn create_plan_skeleton(id: &str, title: &str, owner: &str, date: &str) -> S
 // 않는다 (`v3-release` `{#done-transition-guard}`). 순수 수술 함수를 여기 두면
 // 문지기를 지나지 않고 쓸 수 있으므로 통째로 옮겼다.
 
-/// Set the plan-level frontmatter `title:` (and bump `updated:`), preserving
-/// everything else (PR — plan rename). The plan `id` / filename are unchanged.
-pub fn set_plan_title(md: &str, title: &str, date: &str) -> String {
-    eol::keeping(md, |md| set_plan_title_lf(md, title, date))
-}
-
-fn set_plan_title_lf(md: &str, title: &str, date: &str) -> String {
-    let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
-    let start = match lines.iter().position(|l| l.trim() == "---") {
-        Some(s) => s,
-        None => return md.to_string(),
-    };
-    let end = match lines[start + 1..].iter().position(|l| l.trim() == "---") {
-        Some(e) => start + 1 + e,
-        None => return md.to_string(),
-    };
-    let mut title_set = false;
-    for line in lines.iter_mut().take(end).skip(start + 1) {
-        let t = line.trim_start();
-        if t.starts_with("title:") {
-            *line = format!("title: \"{}\"", escape_yaml(title));
-            title_set = true;
-        } else if t.starts_with("updated:") {
-            *line = format!("updated: {date}");
-        }
-    }
-    if !title_set {
-        let at = ((start + 1)..end)
-            .find(|&i| lines[i].trim_start().starts_with("id:"))
-            .map(|i| i + 1)
-            .unwrap_or(start + 1);
-        lines.insert(at, format!("title: \"{}\"", escape_yaml(title)));
-    }
-    lines.join("\n")
-}
-
 #[derive(Debug)]
 pub struct SetStatusResult {
     pub md: String,

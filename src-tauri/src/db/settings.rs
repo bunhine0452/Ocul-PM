@@ -98,14 +98,4 @@ impl Db {
             .await?;
         Ok(rows)
     }
-
-    pub async fn settings_clear(&self) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute("DELETE FROM settings", [])?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
 }

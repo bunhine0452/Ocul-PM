@@ -394,14 +394,8 @@ pub fn current_disk_hash(adapter: &AgentAdapter, abs: &Path) -> Option<String> {
     post_write_hash(adapter, abs)
 }
 
-/// Look up an adapter by its `agent_id`. Returns `None` for unknown ids so
-/// the watcher can fall back to "treat as user file" rather than panic.
-pub fn lookup_adapter(agent_id: &str) -> Option<&'static AgentAdapter> {
-    known_adapters().iter().find(|a| a.id == agent_id)
-}
-
-/// Inverse of `lookup_adapter` — given a project-relative path that the
-/// watcher saw change, return the matching adapter if it's one of ours.
+/// Given a project-relative path that the watcher saw change, return the
+/// matching adapter if it's one of ours.
 pub fn lookup_adapter_by_path(relative_path: &str) -> Option<&'static AgentAdapter> {
     known_adapters()
         .iter()

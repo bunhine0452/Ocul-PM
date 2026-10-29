@@ -4,7 +4,7 @@
 //! The deep edge-case coverage already lives in `oculpm::manager::tests::
 //! agents_w4_pr*`. These tests run through the *public* API path so any
 //! accidentally-private regression on `sync_agents` / `compare_layers` /
-//! `check_agent_drift` / `detect_agents` / `read_master_template` surfaces
+//! `check_agent_drift` / `detect_agents` surfaces
 //! at the integration boundary. None of them try to re-test the
 //! parser/diff semantics — that's the unit suite's job.
 
@@ -114,18 +114,4 @@ async fn compare_layers_returns_ok_when_no_activity() {
     assert_eq!(cmp.mismatch_severity, Severity::Ok);
     assert!(cmp.index_files.is_empty());
     assert!(cmp.journal_files.is_empty());
-}
-
-// ─── (5) read_master_template returns non-empty content ───────────────────
-
-#[tokio::test]
-async fn read_master_template_returns_korean_template() {
-    let (_db, manager, _dir, _root, project_id) = fresh_with_active_agents(&[]).await;
-    let template = manager.read_master_template(project_id).await.unwrap();
-    assert!(!template.is_empty(), "master template must not be empty");
-    assert!(
-        template.len() > 100,
-        "expected substantive template body, got {} chars",
-        template.len()
-    );
 }

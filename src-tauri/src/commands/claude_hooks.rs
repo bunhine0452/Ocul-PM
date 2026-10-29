@@ -32,28 +32,6 @@ pub async fn claude_hooks_status(
     claude_hooks::status(&root).map_err(|e| e.to_string())
 }
 
-/// 훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다).
-#[tauri::command]
-#[specta::specta]
-pub async fn claude_hooks_install(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<ClaudeHooksStatus, String> {
-    let root = project_root(&db, project_id).await?;
-    claude_hooks::install(&root).map_err(|e| e.to_string())
-}
-
-/// 훅 제거 (우리 서명 엔트리만 — 사용자 훅·인박스 파일은 보존).
-#[tauri::command]
-#[specta::specta]
-pub async fn claude_hooks_uninstall(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<ClaudeHooksStatus, String> {
-    let root = project_root(&db, project_id).await?;
-    claude_hooks::uninstall(&root).map_err(|e| e.to_string())
-}
-
 /// H3b — 플러그인 SessionEnd 훅이 남긴 "일지 없이 끝난 세션" 신호를 최근
 /// `days`일 범위로 반환한다 (읽기 전용, 최신 우선). 신호 파일이 없으면 빈
 /// 배열 — 플러그인 미설치 프로젝트에서 에러 경로를 만들지 않는다.

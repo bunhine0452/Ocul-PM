@@ -541,41 +541,6 @@ pub fn read_snapshot(root: &Path, rel_path: &str, ts_ms: i64) -> Option<Vec<u8>>
     std::fs::read(dir.join(snap_name(entry))).ok()
 }
 
-/// 이 파일의 판 전부 삭제 (사용자 요청 · 민감 파일).
-pub fn forget(root: &Path, rel_path: &str) -> std::io::Result<()> {
-    let dir = dir_for(root, rel_path);
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir)?;
-    }
-    Ok(())
-}
-
-/// 프로젝트의 히스토리 전부 삭제.
-pub fn clear_all(root: &Path) -> std::io::Result<()> {
-    let dir = history_root(root);
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir)?;
-    }
-    Ok(())
-}
-
-/// 지금 쓰는 용량 (스냅샷 + meta). 보이지 않는 곳에서 디스크를 먹는 기능은
-/// 반드시 자기 크기를 보여 줘야 한다.
-pub fn usage_bytes(root: &Path) -> u64 {
-    let mut total = 0u64;
-    for (dir, _) in walk_history(root) {
-        let Ok(rd) = std::fs::read_dir(&dir) else {
-            continue;
-        };
-        for e in rd.flatten() {
-            if let Ok(m) = e.metadata() {
-                total = total.saturating_add(m.len());
-            }
-        }
-    }
-    total
-}
-
 /// 이름이 바뀐 파일의 판을 따라 옮긴다. `from_rel` 이 디렉터리면 그 아래
 /// 모든 파일의 판을 함께 옮긴다 (meta 에 경로가 적혀 있어 가능하다).
 ///
