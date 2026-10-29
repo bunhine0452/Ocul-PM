@@ -46,6 +46,7 @@ export const KEYS = {
   // --- External editor (Lite-W6 PR8 Part 2) ---
   // DB 에 남은 걷은 기능의 키는 읽지 않는다 — `entriesToSettings` 가 모르는 키를 건너뛴다.
   externalEditorCommand: "external_editor_command",
+  tourSeen: "tour_seen",
 } as const;
 
 export type SettingKey = (typeof KEYS)[keyof typeof KEYS];
@@ -75,6 +76,9 @@ export interface Settings {
    * VS Code CLI; users on Cursor / Sublime / etc. override here.
    */
   externalEditorCommand: string;
+
+  /** 첫 실행 안내(처음 쓰는 법)를 한 번 띄웠다 — `"1"`. 모든 창이 함께 본다(SQLite). */
+  tourSeen: string;
 }
 
 export const DEFAULTS: Settings = {
@@ -85,6 +89,7 @@ export const DEFAULTS: Settings = {
   contentLanguage: "system",
 
   externalEditorCommand: 'code "%path"',
+  tourSeen: "",
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -94,6 +99,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.language]: "language",
   [KEYS.contentLanguage]: "contentLanguage",
   [KEYS.externalEditorCommand]: "externalEditorCommand",
+  [KEYS.tourSeen]: "tourSeen",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(

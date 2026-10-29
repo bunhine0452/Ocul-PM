@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Command } from "cmdk";
 import {
   Settings as SettingsIcon,
+  BookText,
   FolderGit2,
   NotebookText,
   TargetIcon,
@@ -15,6 +16,7 @@ import { oculpmApi } from "@/api/oculpm";
 import { planApi } from "@/api/plan";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { kbd } from "@/lib/kbd";
+import { requestTour } from "@/lib/projectActions";
 
 // ⌘K 팔레트 (MASTER-GUIDE §5.9 → 4.0) — 네 가지만 싣는다: 화면 · 프로젝트 · 일지 · 계획.
 //
@@ -152,6 +154,18 @@ export function CommandPalette({ open, onOpenChange, onOpenSettings, projects, o
         onSelect: () => {
           onOpenSettings();
           onOpenChange(false);
+        },
+      },
+      // 첫 실행 안내를 다시 — 도움말 메뉴가 없는 Windows·Linux 에서는 여기가 유일한 길이다.
+      {
+        id: "help-tour",
+        label: t("tour.title"),
+        alias: tAll("tour.title").join(" "),
+        group: "nav" as const,
+        icon: BookText,
+        onSelect: () => {
+          onOpenChange(false);
+          requestTour();
         },
       },
       // ── 프로젝트 — 다른 프로젝트는 다른 창이다.

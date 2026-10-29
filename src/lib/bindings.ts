@@ -749,6 +749,7 @@ export const events = {
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 	termCloseAsked: makeEvent<TermCloseAsked>("term-close-asked"),
 	termSessionsChanged: makeEvent<TermSessionsChanged>("term-sessions-changed"),
+	tourRequested: makeEvent<TourRequested>("tour-requested"),
 	windowNavigate: makeEvent<WindowNavigate>("window-navigate"),
 	windowProjectChanged: makeEvent<WindowProjectChanged>("window-project-changed"),
 };
@@ -2319,6 +2320,9 @@ export type TodayDigest = {
 	blocked: DigestItem[],
 	journal_plan: JournalPlanLink[],
 };
+
+/**  메뉴의 「처음 쓰는 법」 — 그 창의 프런트가 안내 모달을 연다. */
+export type TourRequested = Record<string, never>;
 
 export type TypeCounts = {
 	feature: number,

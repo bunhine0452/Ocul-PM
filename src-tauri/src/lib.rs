@@ -475,6 +475,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 앱 안 터미널 — 어디서든 세션 · 상태가 바뀜 / 도는 세션이 있는 창을 닫으려 함
             crate::commands::terminal::TermSessionsChanged,
             crate::commands::terminal::TermCloseAsked,
+            // 도움말 › 처음 쓰는 법 — 포커스된 창이 안내 모달을 연다
+            crate::menu::TourRequested,
         ])
 }
 

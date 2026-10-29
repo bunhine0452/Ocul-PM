@@ -30,7 +30,9 @@ const REQUIRED = [
   ".start-body",
   ".start-card",
   ".start-row",
-  ".start-steps",
+  // 처음 쓰는 법 — 시작 창이든 프로젝트 창이든 처음 열자마자 뜬다(세 단계 칸을 대신한다).
+  ".tour",
+  ".tour-foot",
   ".copy-cmd",
   // 창 최상위 모달 — 탭 닫기 확인창(useConfirm) · ⌘/ 치트시트. 스킬 화면을
   // 한 번도 안 연 창에서도 뜨므로 lazy 청크에 있으면 뼈대만 남아 나온다
