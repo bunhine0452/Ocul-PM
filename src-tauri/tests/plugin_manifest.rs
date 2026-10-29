@@ -481,7 +481,7 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
             "landing/plugin.html 에 {cmd} 문서 누락 — 커맨드를 추가했으면 문서도 갱신하라"
         );
     }
-    // MCP 도구 7종 — tools/list 계약(protocol 테스트)과 같은 목록.
+    // MCP 도구 8종 — tools/list 계약(protocol 테스트)과 같은 목록.
     for tool in [
         "journal_write",
         "journal_search",
@@ -490,6 +490,7 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
         "plan_update",
         "plan_create",
         "project_init",
+        "ask_user",
     ] {
         assert!(
             page.contains(tool),

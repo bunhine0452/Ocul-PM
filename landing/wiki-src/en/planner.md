@@ -63,7 +63,7 @@ verdict ✗ 2 failed, 418 passed
 판정 ✓ …          (Korean template — same shape)
 ```
 
-The newest such line is the plan's **last verdict**. The plugin's start hook and the app's Plan screen read it by **the same rule** (`^(판정|verdict) (✓|✗)`), so the next session's agent and you see the same verdict. A plain note with a colon, like "verdict:", is not a verdict. **All items closed is not done until the verdict passes** — a failed verdict goes to the top of Today's "To check".
+The newest such line is the plan's **last verdict**. The plugin's start hook and the app's Plan screen read it by **the same rule** (`^(판정|verdict) (✓|✗)`), so the next session's agent and you see the same verdict. A plain note with a colon, like "verdict:", is not a verdict. **All items closed is not done until the verdict passes** — a failed verdict goes to the top of Today's "Look first".
 
 ## The change log — who moved what, when, why
 
@@ -108,7 +108,7 @@ Agents **will not modify** a `done` or `archived` plan. That keeps a finished pl
 
 - **Rail** — each active plan with a progress bar · verdict (✓ / ✗ / none) · updated time, most recently updated first
 - **Verdict card** — done condition · check command · last verdict (last line of output) right under the title; "Not run yet" when there is none
-- **Next** — the first open item (human-owned ones skipped) with **[Copy prompt]** · **[Copy with until-done]**. Paste it and the agent in your terminal picks the item up; with until-done it keeps going until the verdict passes
+- **Next up** — the first open item (human-owned ones skipped) with **[Run in terminal]** · **[To the end (/goal)]**. The first has `claude` pick the item up in a new session of the in-app terminal; the second hands the plan's done condition and check command to Claude Code's `/goal`, so it keeps going until the condition holds. Every item also has "Send to Claude".
 - **Item status** — click an item's box to pick one of six states. Marking it done without a verifying entry asks once
 - "Change log N lines · decisions M" stays folded
 

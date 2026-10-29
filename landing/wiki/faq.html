@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>자주 묻는 질문 — Ocul-PM 위키</title>
+<title>자주 묻는 질문 — Ocul 위키</title>
 <meta name="description" content="처음 쓰는 사람이 가장 자주 막히는 지점 — 일지는 누가 쓰나, 돈이 드나, git 에 커밋해야 하나, 워크데이가 뭔가." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/faq" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/faq" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="자주 묻는 질문 — Ocul-PM 위키" />
+<meta property="og:title" content="자주 묻는 질문 — Ocul 위키" />
 <meta property="og:description" content="처음 쓰는 사람이 가장 자주 막히는 지점 — 일지는 누가 쓰나, 돈이 드나, git 에 커밋해야 하나, 워크데이가 뭔가." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki">위키</a></div>
-    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki">Ocul 위키</a>
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link on" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
@@ -68,7 +68,7 @@
 <h2 id="이게-뭘-해주나요">이게 뭘 해주나요</h2>
 <h3 id="한-줄로">한 줄로</h3>
 <p><b>AI 에이전트가 여러분의 코드에 무슨 짓을 했는지, 사람이 읽을 수 있는 기록으로 남깁니다.</b></p>
-<p>커밋 메시지는 <i>무엇이 바뀌었나</i>만 말합니다. Ocul-PM 은 <i>왜 그렇게 했고, 무엇을 시도했다 실패했고, 어떻게 확인했는지</i>를 남기고, 앱은 그중 <b>사람이 볼 것만</b> 펼칩니다 — 판정 실패 · 증거 없는 일지 · 기록 없는 변경. 목표는 에이전트가 한 일을 3분 안에 믿고 다음을 결정하는 것입니다.</p>
+<p>커밋 메시지는 <i>무엇이 바뀌었나</i>만 말합니다. Ocul 은 <i>왜 그렇게 했고, 무엇을 시도했다 실패했고, 어떻게 확인했는지</i>를 남기고, 앱은 그중 <b>사람이 볼 것만</b> 펼칩니다 — 판정 실패 · 증거 없는 일지 · 기록 없는 변경. 목표는 에이전트가 한 일을 3분 안에 믿고 다음을 결정하는 것입니다.</p>
 <h3 id="일지는-제가-써야-하나요">일지는 제가 써야 하나요?</h3>
 <p><b>아니요. 에이전트가 씁니다.</b> 여러분은 읽기만 하면 됩니다.</p>
 <p>프로젝트를 추가하면 루트에 <code>AGENTS.md</code> 라는 규칙 파일이 생기고, Claude Code·Cursor·Gemini CLI 같은 에이전트가 이 파일을 읽습니다. "작업 하나를 끝내면 일지를 남겨라" 가 그 규칙입니다. 여러분이 시킬 필요조차 없습니다.</p>
@@ -119,7 +119,7 @@
 <h2 id="쓰다-보면">쓰다 보면</h2>
 <h3 id="일지가-안-쌓여요">일지가 안 쌓여요</h3>
 <p>가장 흔한 원인은 <b>터미널에서 에이전트를 쓰는데 플러그인을 안 깐 경우</b>입니다. <code>AGENTS.md</code> 규칙만으로는 모델이 긴 세션 끝에 기록을 잊을 수 있습니다. <a href="/wiki/claude-code">플러그인을 설치</a>하면 세션 종료 훅이 걸려 구조적으로 남습니다.</p>
-<p>빠진 게 있는지는 <b>오늘 화면의 「확인할 것」</b>이 알려 줍니다 — 관측된 변경 중 어느 일지에도 안 적힌 파일과 일지 없이 끝난 대화를 짚습니다. (<a href="/wiki/troubleshooting">자세히</a>)</p>
+<p>빠진 게 있는지는 <b>오늘 화면의 「먼저 볼 것」</b>이 알려 줍니다 — 관측된 변경 중 어느 일지에도 안 적힌 파일과 일지 없이 끝난 대화를 짚습니다. (<a href="/wiki/troubleshooting">자세히</a>)</p>
 <h3 id="일지를-고쳐도-되나요">일지를 고쳐도 되나요?</h3>
 <p>됩니다. 평범한 마크다운이고, 고치면 앱이 알아서 다시 읽습니다. 다만 <b>에이전트에게는 기존 일지를 고치지 말라</b>고 규칙이 걸려 있습니다 — 이력이 조용히 바뀌면 신뢰할 수 없게 되니까요. 에이전트는 새 일지를 쓰고 <code>related</code> 로 잇습니다.</p>
 <h3 id="일지가-너무-많아지면요">일지가 너무 많아지면요?</h3>

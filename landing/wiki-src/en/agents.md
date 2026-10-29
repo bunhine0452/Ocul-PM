@@ -5,7 +5,7 @@ order: 10
 updated: 2026-10-29
 ---
 
-Ocul-PM isn't Claude Code–only. **Any agent that reads `AGENTS.md`** can write entries, and for agents that don't read it, a thin delegating stub goes into their own rules file.
+Ocul isn't Claude Code–only. **Any agent that reads `AGENTS.md`** can write entries, and for agents that don't read it, a thin delegating stub goes into their own rules file.
 
 ## Why AGENTS.md is the center
 

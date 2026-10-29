@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>문제 해결 — Ocul-PM 위키</title>
+<title>문제 해결 — Ocul 위키</title>
 <meta name="description" content="일지가 안 쌓일 때, 4.0 에서 사라진 화면을 찾을 때, 권한을 물을 때 — 자주 겪는 불편 모음." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/troubleshooting" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/troubleshooting" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="문제 해결 — Ocul-PM 위키" />
+<meta property="og:title" content="문제 해결 — Ocul 위키" />
 <meta property="og:description" content="일지가 안 쌓일 때, 4.0 에서 사라진 화면을 찾을 때, 권한을 물을 때 — 자주 겪는 불편 모음." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki">위키</a></div>
-    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki">Ocul 위키</a>
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
@@ -74,7 +74,7 @@
 <p>정상입니다. 4.0 으로 올린 뒤 첫 실행에 3.x 의 코드 색인 · 임베딩 표를 지웁니다. 지우기 전에 앱 데이터 폴더에 <code>ocul-pm.db.bak-v42</code> 사본을 남기고, 지운 자리는 설정 → 데이터 → 「정리해서 돌려받기」가 디스크에 돌려줍니다. 일지 · 계획은 프로젝트의 마크다운이라 영향이 없습니다.</p>
 <h2 id="macos-가-파일-다른-앱-데이터-접근-권한을-물어봐요">macOS 가 파일·다른 앱 데이터 접근 권한을 물어봐요</h2>
 <p>정상입니다. 두 관문을 구분하면 이해가 쉽습니다.</p>
-<ul><li><b>공증(notarization)</b> 은 "이 앱을 <b>실행</b>해도 되는가"를 묻습니다. Ocul-PM 은 Apple Developer ID 로 서명하고 공증까지 마친 빌드라 여기는 그냥 통과합니다.</li><li><b>권한 프롬프트</b>는 "이 앱이 <b>저 데이터</b>를 읽어도 되는가"를 묻는 별개 관문입니다. 공증과 무관하고, 공증했다고 사라지지 않습니다.</li></ul>
+<ul><li><b>공증(notarization)</b> 은 "이 앱을 <b>실행</b>해도 되는가"를 묻습니다. Ocul 은 Apple Developer ID 로 서명하고 공증까지 마친 빌드라 여기는 그냥 통과합니다.</li><li><b>권한 프롬프트</b>는 "이 앱이 <b>저 데이터</b>를 읽어도 되는가"를 묻는 별개 관문입니다. 공증과 무관하고, 공증했다고 사라지지 않습니다.</li></ul>
 <p>물어보는 경우는 크게 둘입니다.</p>
 <p><b>프로젝트가 데스크탑·문서·다운로드 폴더 안에 있을 때.</b> macOS 가 보호하는 자리라 그 안의 파일을 읽으려면 한 번 승인이 필요합니다.</p>
 <p><b>앱이 띄운 프로그램이 파일을 읽을 때.</b> 외부 편집기 명령처럼 앱이 대신 실행한 프로그램이 보호 폴더를 읽으면, macOS 는 그 접근을 <b>프로그램이 아니라 띄운 앱</b>에 귀속시킵니다.</p>

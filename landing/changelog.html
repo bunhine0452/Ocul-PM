@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v4.0.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 132개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul (최신 v4.1.0)</title>
+<meta name="description" content="Ocul 의 전체 릴리스 노트 133개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v4.0.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 132개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul (최신 v4.1.0)" />
+<meta property="og:description" content="Ocul 의 전체 릴리스 노트 133개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -23,8 +23,8 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v4.0.0</span>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
+    <span class="nav-ver" data-version>v4.1.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>132개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>133개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v4-1-0">v4.1.0</a>
       <a href="#v4-0-0">v4.0.0</a>
       <a href="#v3-17-0">v3.17.0</a>
       <a href="#v3-16-0">v3.16.0</a>
@@ -60,10 +61,27 @@
       <a href="#v3-13-4">v3.13.4</a>
       <a href="#v3-13-2">v3.13.2</a>
       <a href="#v3-13-1">v3.13.1</a>
-      <a href="#v3-13-0">v3.13.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v4-1-0"><a href="#v4-1-0">v4.1.0</a></h2>
+      <div class="cl-body">
+<p><b>확인 날 없이 내는 마이너 판입니다 — 사용자 결정(2026-10-30).</b> 코드 게이트(프런트 테스트 944건 · Rust 1,153건 · typecheck · lint · build · clippy)와 Windows · Linux 의 설치 스모크 · 실제 앱 E2E 는 통과했습니다. 그러나 macOS 설치본에서 새 기능을 눈으로 본 것은 아직 없습니다. 그 빚은 계획 <code>ocul-next-20261029</code> 의 「설치본에서 눈으로 확인」과 확인 날 받은함(육안 확인 25건 대기)에 남아 있습니다. 마지막 외부 리뷰 반영(v3.11.0) 이후 다음 리뷰를 청할 때도 지났습니다.</p>
+<p><b>보이는 이름이 Ocul 이 됐습니다.</b> 메뉴바 · 창 제목 · 메뉴 · 정보 창 · 앱 안 문구가 「Ocul」 입니다. 설치 이름은 그대로 <code>Ocul-PM</code> 입니다. Finder 의 <code>Ocul-PM.app</code>, Windows 시작 메뉴, 내려받는 파일 이름, 데이터 폴더, 플러그인 <code>oculpm</code>, 프로젝트의 <code>.oculpm/</code> 이 그대로라서 업데이트는 같은 자리에 깔리고 기록도 그대로 이어집니다. 「ocul-pm 이 켜졌어요」 같은 문구는 무엇이 켜지는지를 말하도록 「기록이 켜졌어요」로 바꿨습니다.</p>
+<p><b>Claude 가 기다리면 압니다.</b> 앱 안 터미널은 Claude Code 가 일하는 중인지, 사람을 기다리는지, 끝났는지를 Claude 가 직접 보내는 신호(OSC 7501)로 압니다.</p>
+<ul><li>Claude 가 기다리면 오늘 화면 「먼저 볼 것」 맨 위에 「Claude 가 기다려요」 한 줄이 서고, 창이 뒤에 있으면 OS 알림이 옵니다.</li><li>앱 밖 터미널의 Claude 도 같습니다. 플러그인의 Notification 훅이 같은 줄을 세웁니다(플러그인 업데이트가 필요합니다).</li><li>프로젝트 목록(▾)은 프로젝트마다 「내 차례 · 새 소식 · 실행 중 N」 을 보여 줍니다. 뒤에 있는 창의 Claude 가 끝났는지를 창을 열지 않고 압니다.</li><li>셸 위에서 무언가 돌고 있는 창을 닫거나 앱을 끄면 먼저 묻습니다. 빈 셸은 묻지 않고, ⌘Q 를 한 번 더 누르면 그냥 끕니다.</li></ul>
+<p><b>Claude 가 묻고, 앱에서 답합니다.</b> 플러그인에 새 MCP 도구 <code>ask_user</code> 가 생겼습니다. Claude 는 사람의 결정이 필요할 때 이 도구로 오늘 화면에 질문을 띄웁니다. 고를 수 있는 답이 있으면 버튼으로, 없으면 직접 써서 답합니다. 답은 도구의 결과로 그 Claude 에게 돌아가므로 터미널을 보고 있지 않아도 됩니다. 25분 안에 답이 없으면 질문을 거두고, Claude 는 터미널에서 다시 묻습니다.</p>
+<p><b>앱에서 Claude 에게 보냅니다.</b></p>
+<ul><li>일지 · 계획 항목 · 변경 파일에 「Claude 에게 보내기」 가 생겼습니다. 그 맥락을 붙인 글을 입력을 기다리는 앱 안 claude 세션에 넣고, 그런 세션이 없으면 새 세션을 엽니다.</li><li>변경 화면의 「일지 없음」 은 이제 복사 대신 「Claude 에게 맡기기」 로 그 자리에서 기록을 부탁합니다.</li><li>계획의 「끝까지」 는 Claude Code 의 <code>/goal</code> 로 계획의 완료 조건과 확인 명령을 그대로 넘깁니다.</li><li>「터미널에서 실행」 뒤에 <code>claude</code> 명령을 찾지 못하면 그렇다고 알려 줍니다.</li></ul>
+<p><b>윗줄까지 가지 않고 오갑니다.</b> ⌃Tab · ⌃⇧Tab 으로 다섯 화면을 돌고, 트랙패드 두 손가락 쓸기로 화면을 뒤로 · 앞으로 넘깁니다. ⌥⌘1~9(Windows · Linux 는 Alt+1~9)는 목록을 열지 않고 다른 프로젝트 창으로 갑니다.</p>
+<p><b>처음 쓰는 법이 생겼습니다.</b> 처음 켜면 네 쪽짜리 안내(이 앱이 하는 일 · 다섯 화면 · 에이전트 연결 · 손에 익히기)가 뜹니다. 도움말 메뉴와 ⌘K 에서 다시 열 수 있습니다. 시작 창의 세 단계 칸은 걷었습니다. 이제 폴더를 고르면 바로 그 프로젝트가 됩니다.</p>
+<p><b>화면을 다시 봤습니다 — 더 단순하게, 사람 쪽에서.</b></p>
+<ul><li>한 개념은 한 이름으로 부릅니다. 화면의 수는 서로 맞게 합니다 — 단위가 다른 수를 나란히 두지 않고, 0 은 쓰지 않습니다.</li><li>오늘은 세 자리입니다 — 먼저 볼 것 · 검증 없이 끝난 일지 · 내 차례 한 줄.</li><li>일지는 본문부터 보입니다. 일지 머리의 「계획 … #항목」 은 그 항목으로 가는 링크입니다.</li><li>12px 아래 글자는 배지와 단축키뿐이고, 보조 회색은 한 단입니다. 초록은 주 버튼과 통과에만 씁니다.</li><li>터미널은 세션이 하나면 칸 없이 터미널만, 둘 이상이면 위에 탭 줄이 섭니다.</li><li>변경 파일 행은 한 줄(M · A · D)입니다. 계획 항목 제목은 줄을 바꿔 끝까지 보입니다. 빈 화면은 한 모양(문장 하나, 버튼 하나)입니다.</li></ul>
+<p><b>덜어냈습니다.</b> 화면이 부르지 않던 명령 13개, 앱에서 닿지 않던 모듈 21개, 걷은 화면의 문구 631개를 지웠습니다.</p>
+<ul><li>플러그인을 쓰는 분은 <code>/plugin update oculpm@oculpm</code> 으로 4.1 판을 받으세요. 새 훅(Notification · UserPromptSubmit)과 MCP 도구 <code>ask_user</code>(여덟째)는 플러그인에 들어 있습니다. 도구 설명과 일지 규격은 일지 · 계획 항목 제목을 40자 안으로 쓰라고 안내합니다.</li><li>macOS 는 첫 알림을 보낼 때 알림 권한을 묻습니다.</li><li>OSC 7501 파서는 Orca(MIT)에서 가져왔습니다 — <code>THIRD_PARTY_NOTICES.md</code>.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v4-0-0"><a href="#v4-0-0">v4.0.0</a></h2>
       <div class="cl-body">
@@ -1279,7 +1297,7 @@
 
 <footer class="footer">
   <div class="footer-inner">
-    <span>© 2026 Ocul-PM</span>
+    <span>© 2026 Ocul</span>
     <a href="/keynote">키노트</a>
     <a href="/wiki">위키</a>
     <a href="/plugin">플러그인</a>

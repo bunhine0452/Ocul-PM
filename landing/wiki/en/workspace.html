@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Windows · projects · external editor — Ocul-PM Wiki</title>
+<title>Windows · projects · external editor — Ocul Wiki</title>
 <meta name="description" content="One window = one project — moving between projects and the external editor files open in." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/workspace" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/workspace" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Windows · projects · external editor — Ocul-PM Wiki" />
+<meta property="og:title" content="Windows · projects · external editor — Ocul Wiki" />
 <meta property="og:description" content="One window = one project — moving between projects and the external editor files open in." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/en#acts">Features</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
-    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en">Ocul Wiki</a>
     <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
@@ -67,8 +67,8 @@
       <p><i>What</i> each screen shows is in the <a href="/wiki/en/screens">Screens tour</a>. This page is about <b>how you lay them out and run them</b>.</p>
 <h2 id="one-window-one-project">One window = one project</h2>
 <p>Since 4.0 one window holds one project. The 3.x Chrome-style tabs, tear-off and menu-bar tray are gone; your OS switches between project windows (⌘` · Mission Control).</p>
-<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘O</code></td><td>Recent projects — picking one opens its window, or brings it forward if it is already open</td></tr><tr><td><code>⇧⌘N</code></td><td>New window — a <b>start window</b> with no project</td></tr><tr><td><code>⌘W</code></td><td>Close window</td></tr></tbody></table></div>
-<ul><li>Pick a project in the start window and <b>that window becomes the project</b></li><li>The window title is the project name, so the window switcher tells them apart</li><li>Each project remembers its own screen and filters</li><li><b>On macOS the app stays alive after the last window closes</b>, and a Dock click opens one again. Windows · Linux quit when the last window closes</li><li>An update restart brings each window back with the project it had open</li></ul>
+<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘O</code></td><td>Recent projects — picking one opens its window, or brings it forward if it is already open</td></tr><tr><td><code>⇧⌘N</code></td><td>New window — a <b>start window</b> with no project</td></tr><tr><td><code>⌘W</code></td><td>Close window</td></tr><tr><td><code>⌥⌘1</code> – <code>⌥⌘9</code></td><td>Straight to an open project window (<code>Alt+1</code> – <code>Alt+9</code> on Windows · Linux)</td></tr></tbody></table></div>
+<ul><li>Pick a project in the start window and <b>that window becomes the project</b></li><li>The window title is the project name, so the window switcher tells them apart</li><li>Click the project name (▾) in the top bar to see "Your turn · New · N running" per project — you know whether Claude finished in a background window without opening it</li><li>Each project remembers its own screen and filters</li><li><b>On macOS the app stays alive after the last window closes</b>, and a Dock click opens one again. Windows · Linux quit when the last window closes</li><li>An update restart brings each window back with the project it had open</li></ul>
 <div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Watching (entries · changes) continues as long as the app is alive. On macOS the app stays alive with every window closed, so watching carries on.</p></div></div>
 <h2 id="opening-files-the-external-editor">Opening files — the external editor</h2>
 <p>The in-app editor and terminal were removed on 2026-10-28. "Open" on Diff and in an entry's detail hands the file to the editor you already use. In the command template <code>%path</code> becomes the absolute path and <code>%line</code> the line number — the default is VS Code.</p>

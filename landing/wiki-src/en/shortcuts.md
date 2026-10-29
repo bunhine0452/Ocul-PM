@@ -17,6 +17,8 @@ updated: 2026-10-29
 | `⌘,` | Settings |
 | `⌘[` / `⌘]` | Back / forward between screens — like a browser |
 | `⌘/` | Shortcut cheatsheet |
+| `⌃Tab` / `⌃⇧Tab` | Next / previous screen (cycles) |
+| Two-finger swipe | Back / forward between screens (trackpad) |
 
 ## Windows
 
@@ -27,6 +29,7 @@ One window is one project — there are no tabs.
 | `⌘O` | Recent projects — if it is already open, its window comes forward |
 | `⇧⌘N` | New window (start window) |
 | `⌘W` | Close window — on macOS the app stays alive after the last one; a Dock click reopens |
+| `⌥⌘1` – `⌥⌘9` | Jump to an open project window — without opening a list (`Alt+1` – `Alt+9` on Windows · Linux) |
 
 ## Today · Work Journal
 
@@ -36,10 +39,10 @@ These keys listen only inside that screen.
 |---|---|
 | `j` / `k` | Next / previous item |
 | `Enter` | The item's default action (see diff · open plan …) |
-| `v` | Today — mark checked |
+| `v` | Today — mark read |
 | `r` | Today — run the next item in the terminal |
 | `/` | Work Journal — journal search |
 
 :::note
-The in-app terminal was removed on 2026-10-28 and came back, smaller, on 10-29 — sessions live inside the app and end when the window closes. `r` on Today and the Plan screen's [Run in terminal] · [To the end (until-done)] open `claude` in a new session. The editor and agent chat screens did not come back.
+The in-app terminal was removed on 2026-10-28 and came back, smaller, on 10-29 — sessions live inside the app and end when the window closes. `r` on Today and the Plan screen's [Run in terminal] · [To the end (/goal)] open `claude` in a new session. The editor and agent chat screens did not come back.
 :::

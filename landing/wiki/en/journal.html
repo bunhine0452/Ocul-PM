@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Work Journal — Ocul-PM Wiki</title>
+<title>Work Journal — Ocul Wiki</title>
 <meta name="description" content="When and how entries accumulate, the file layout, the verification box and change diffs, journal search, and unrecorded changes." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/journal" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/journal" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Work Journal — Ocul-PM Wiki" />
+<meta property="og:title" content="Work Journal — Ocul Wiki" />
 <meta property="og:description" content="When and how entries accumulate, the file layout, the verification box and change diffs, journal search, and unrecorded changes." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/en#acts">Features</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
-    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en">Ocul Wiki</a>
     <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
@@ -112,8 +112,8 @@ tags: [dogfooding]
 <p>The app watches file changes and <b>opens a session</b> when an agent starts working, closing it after things go quiet. A session is roughly "one sitting" and is named by date and sequence, like <code>20260821-002</code>.</p>
 <p>Entries are grouped by which session produced them. Even when an agent can't know the session number (writing the file directly from a terminal, say), the app <b>attributes it by write time</b>, so there's nothing for you to manage.</p>
 <h2 id="unrecorded-changes">Unrecorded changes</h2>
-<p>The app reconciles the file changes it observed against <code>files_touched</code> in entries and points at <b>changes no entry anywhere records</b> — in Today's "To check", and as the "Unrecorded" group at the top of Diff (<code>⌘4</code>).</p>
-<ul><li>If everything changed today is recorded somewhere, <b>nothing shows</b> — no noise on clean days</li><li>Temp files, editor artifacts, and agent internal state are never counted</li><li>On Diff, <b>[Copy record request]</b> turns that file list into text to paste to your agent, and <b>[Record it myself]</b> opens the composer pre-filled with those files</li></ul>
+<p>The app reconciles the file changes it observed against <code>files_touched</code> in entries and points at <b>changes no entry anywhere records</b> — in Today's "Look first", and as the "No journal" group at the top of Diff (<code>⌘4</code>).</p>
+<ul><li>If everything changed today is recorded somewhere, <b>nothing shows</b> — no noise on clean days</li><li>Temp files, editor artifacts, and agent internal state are never counted</li><li>On Diff, <b>[Ask Claude]</b> hands that file list to the in-app terminal's claude to record, and <b>[Record it myself]</b> opens the composer pre-filled with those files</li></ul>
 <p>If this shows up often, <a href="/wiki/en/claude-code">installing the plugin</a> is the surest fix. Recording moves from "as much as the model remembers the rules" to "structurally, when the session ends."</p>
 <h2 id="working-with-entries">Working with entries</h2>
 <ul><li><b>Checked</b> — a human's check mark is stored with a fingerprint of the body at that moment; if an agent edits the body later, it stops counting as checked</li><li><b>Edit directly</b> — it's plain markdown; save and the app re-reads it</li></ul>

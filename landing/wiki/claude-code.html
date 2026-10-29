@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Claude Code 연동 — Ocul-PM 위키</title>
-<meta name="description" content="터미널의 Claude Code 와 Ocul-PM 이 만나는 세 자리 — 규칙 파일, 플러그인(훅 · MCP 도구 · 커맨드), 앱의 화면." />
+<title>Claude Code 연동 — Ocul 위키</title>
+<meta name="description" content="터미널의 Claude Code 와 Ocul 이 만나는 세 자리 — 규칙 파일, 플러그인(훅 · MCP 도구 · 커맨드), 앱의 화면." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/claude-code" />
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/claude-code" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/claude-code" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="Claude Code 연동 — Ocul-PM 위키" />
-<meta property="og:description" content="터미널의 Claude Code 와 Ocul-PM 이 만나는 세 자리 — 규칙 파일, 플러그인(훅 · MCP 도구 · 커맨드), 앱의 화면." />
+<meta property="og:title" content="Claude Code 연동 — Ocul 위키" />
+<meta property="og:description" content="터미널의 Claude Code 와 Ocul 이 만나는 세 자리 — 규칙 파일, 플러그인(훅 · MCP 도구 · 커맨드), 앱의 화면." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki">위키</a></div>
-    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki">Ocul 위키</a>
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
@@ -64,7 +64,7 @@
       <h1>Claude Code 연동</h1>
       <p class="wk-updated">마지막 수정 2026-10-29</p>
       <nav class="wk-toc"><span>이 페이지에서</span><a href="#플러그인을-설치하세요">플러그인을 설치하세요</a><a href="#판정-한-줄">판정 한 줄</a><a href="#앱이-터미널에-넘기는-것">앱이 터미널에 넘기는 것</a><a href="#정리-무엇을-설치해야-하나요">정리 — 무엇을 설치해야 하나요</a></nav>
-      <p>Ocul-PM 에서 Claude Code 는 <b>여러분의 터미널에서</b> 돕니다. 터미널의 <code>claude</code> 가 하는 일을 앱이 <b>기록 · 증거 · 계획</b>으로 받아 두고, 그중 사람이 볼 것만 펼치는 것이 이 앱의 자리입니다. 앱은 LLM 을 부르지 않습니다.</p>
+      <p>Ocul 에서 Claude Code 는 <b>여러분의 터미널에서</b> 돕니다. 터미널의 <code>claude</code> 가 하는 일을 앱이 <b>기록 · 증거 · 계획</b>으로 받아 두고, 그중 사람이 볼 것만 펼치는 것이 이 앱의 자리입니다. 앱은 LLM 을 부르지 않습니다.</p>
 <div class="wk-table"><table><thead><tr><th>자리</th><th>무엇을 하나</th><th>설치</th></tr></thead><tbody><tr><td><b>규칙 파일</b> <code>AGENTS.md</code></td><td>작업 하나를 끝낼 때마다 일지를 남기라고, 코드 전에 완료 조건을 결과로 말하고 판정은 확인 명령에 맡기라고 알려 줍니다 (템플릿 v20)</td><td>기록을 켜면 자동</td></tr><tr><td><b>플러그인</b> <code>oculpm</code></td><td>훅(세션 시작 · 끝) · MCP 기록 도구 · 커맨드 — 기록이 규칙이 아니라 <b>구조</b>가 됩니다</td><td>아래 두 줄</td></tr><tr><td><b>앱</b></td><td>일지가 몇 초 안에 화면에 서고, diff 가 붙고, 판정 실패와 증거 없는 일지가 오늘 화면에 섭니다</td><td>받기만</td></tr></tbody></table></div>
 <h2 id="플러그인을-설치하세요">플러그인을 설치하세요</h2>
 <p>AGENTS.md 규칙만으로도 일지를 남기지만, 그건 <b>모델이 규칙을 따라 주는 만큼</b>입니다 — 긴 세션 끝에 잊고 넘어갈 수 있습니다. 플러그인을 설치하면 세션이 끝날 때 훅이 판정하고, 코드를 고쳤는데 일지가 없으면 턴을 한 번 막아 기록하라고 말합니다.</p>
@@ -73,13 +73,13 @@
 /plugin install oculpm@oculpm</code></pre>
 <div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>이 명령은 앱의 <b>설정 → 에이전트 연결</b>에도 복사 버튼과 함께 있습니다. 깔린 판이 앱보다 낮으면 같은 자리와 오늘 화면이 업데이트 명령을 줍니다.</p></div></div>
 <p>플러그인이 설치되면:</p>
-<ul><li><b>시작 훅</b> — 최근 갱신된 계획마다 완료 조건 · 확인 명령 · <b>마지막 판정</b> · 미완 항목, 그리고 마지막 일지 3건을 시작 컨텍스트에 싣습니다. 어제를 다시 설명하지 않습니다</li><li><b>끝 훅</b> — 일지 없이 끝났는지 판정합니다</li><li><b>MCP 도구 7종</b> — <code>journal_search</code> · <code>journal_read</code> · <code>journal_write</code> · <code>plan_status</code> · <code>plan_update</code> · <code>plan_create</code> · <code>project_init</code></li><li><b>커맨드</b> — <code>/oculpm:inception</code>(그다음 → 깊이 네 질문 → 분야의 방법 → 어려운 숫자 목표 → 첫 항목이 지금 빨간 확인 명령인 계획) · <code>/oculpm:next</code>(잡은 항목을 <code>[~]</code> 로 먼저 선점 → 구현 → 확인 명령 → 일지 → 계획, <code>until-done</code> 이면 판정이 통과할 때까지) · <code>/oculpm:redteam</code>(주장을 직접 돌려 반례만) · <code>/oculpm:help</code></li></ul>
+<ul><li><b>시작 훅</b> — 최근 갱신된 계획마다 완료 조건 · 확인 명령 · <b>마지막 판정</b> · 미완 항목, 그리고 마지막 일지 3건을 시작 컨텍스트에 싣습니다. 어제를 다시 설명하지 않습니다</li><li><b>끝 훅</b> — 일지 없이 끝났는지 판정합니다</li><li><b>알림 훅</b> — Claude 가 사람을 기다리면(Notification) 앱 오늘 화면 맨 위에 「Claude 가 기다려요」 가 서고, 창이 뒤에 있으면 OS 알림이 옵니다</li><li><b>MCP 도구 8종</b> — <code>journal_search</code> · <code>journal_read</code> · <code>journal_write</code> · <code>plan_status</code> · <code>plan_update</code> · <code>plan_create</code> · <code>project_init</code> · <code>ask_user</code>(사람의 결정을 앱 오늘 화면에 묻고 답을 기다림, 25분 안)</li><li><b>커맨드</b> — <code>/oculpm:inception</code>(그다음 → 깊이 네 질문 → 분야의 방법 → 어려운 숫자 목표 → 첫 항목이 지금 빨간 확인 명령인 계획) · <code>/oculpm:next</code>(잡은 항목을 <code>[~]</code> 로 먼저 선점 → 구현 → 확인 명령 → 일지 → 계획, <code>until-done</code> 이면 판정이 통과할 때까지) · <code>/oculpm:redteam</code>(주장을 직접 돌려 반례만) · <code>/oculpm:help</code></li></ul>
 <p>전부 <code>~/.claude</code> 전역에 설정되므로 <b>모든 프로젝트에서</b> 동작합니다(<code>.oculpm/</code> 이 있는 프로젝트에서만 기록합니다). 앱 없이 플러그인만 먼저 써도 됩니다 — 기록은 <code>.oculpm/</code> 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다. 자세한 것은 <a href="/plugin">플러그인 페이지</a>에.</p>
 <h2 id="판정-한-줄">판정 한 줄</h2>
 <p>확인 명령을 돌린 에이전트는 결과를 <code>plan_update</code> 의 메모로 <code>판정 ✓|✗ &lt;결과 끝 줄&gt;</code> 한 줄로 남깁니다. 시작 훅과 계획 화면이 같은 규칙으로 그 줄을 읽어 「마지막 판정」으로 보여 줍니다. 자세한 것은 <a href="/wiki/planner">계획</a>에.</p>
 <h2 id="앱이-터미널에-넘기는-것">앱이 터미널에 넘기는 것</h2>
-<ul><li><b>계획 화면 [프롬프트 복사]</b> · 오늘 화면 <code>c</code> — 다음 항목을 잡는 프롬프트를 <b>클립보드</b>에 담습니다. 터미널의 <code>claude</code> 에 붙여 넣고 Enter.</li><li><b>[until-done 으로 복사]</b> — 같은 프롬프트에 「판정이 통과할 때까지 이어 가라」를 붙입니다.</li><li><b>변경 화면 [기록 요청 복사]</b> — 어느 일지에도 없는 파일 목록으로 기록을 부탁하는 글을 만듭니다.</li></ul>
-<p>보내는 것은 언제나 여러분입니다 — 앱이 터미널에 직접 쓰는 길은 없습니다.</p>
+<ul><li><b>[터미널에서 실행]</b>(계획 화면 · 오늘 화면 <code>r</code>) — 앱 안 터미널에 새 세션을 열고 다음 항목을 잡는 프롬프트로 <code>claude</code> 를 띄웁니다. <code>claude</code> 명령을 찾지 못하면 그렇다고 알려 줍니다.</li><li><b>[끝까지 (/goal)]</b> — <code>claude</code> 를 띄우고 입력을 기다리면 계획의 완료 조건 · 확인 명령을 Claude Code 의 <code>/goal</code> 로 넘깁니다. 조건이 참이 될 때까지 이어 갑니다.</li><li><b>「Claude 에게 보내기」</b>(일지 · 계획 항목 · 변경 파일) — 그 맥락을 붙인 글을, 입력을 기다리는 앱 안 claude 세션에 붙여 넣습니다. 그런 세션이 없으면 새로 엽니다.</li><li><b>변경 화면 [Claude 에게 맡기기]</b> — 어느 일지에도 없는 파일 목록으로 기록을 부탁합니다.</li></ul>
+<p>앱이 터미널에 쓰는 것은 여러분이 이 버튼을 누를 때뿐이고, 앱 밖 터미널에는 쓰지 않습니다. 반대 방향 — Claude 가 사람에게 묻는 것 — 은 <code>ask_user</code> 도구가 맡습니다: 질문이 오늘 화면에 서고, 고르거나 쓴 답이 그대로 Claude 에게 돌아갑니다.</p>
 <h2 id="정리-무엇을-설치해야-하나요">정리 — 무엇을 설치해야 하나요</h2>
 <ul><li><b>Claude Code 를 터미널에서 쓴다</b> → 위 두 줄로 플러그인 설치. 이걸 안 하면 세션의 기록이 빠질 수 있습니다.</li><li><b>Codex · Cursor · Gemini CLI</b> → <a href="/wiki/agents">다른 에이전트 연동</a>.</li></ul>
     </article>

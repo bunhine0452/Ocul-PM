@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ocul-PM — Stop re-explaining to your AI where you left off yesterday. · AI project manager for coding agents</title>
-<meta name="description" content="Stop re-explaining to your AI where you left off yesterday. When Claude Code finishes a unit of work, a journal entry lands in Ocul-PM and the next conversation starts from it. The app unfolds only what a person must see — failed verdicts, entries without evidence, unrecorded changes — and reads the verdict from a check command's last line of output. Codex, Cursor and Gemini CLI record through the rules file. The app calls no LLM. Local-first · no account · no telemetry." />
-<meta name="keywords" content="AI PM, AI project manager, ai pm tool, Ocul-PM, coding agent, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, dev journal, agent work log, work journal, code change tracking, AI pair programming record, vibe coding management, Claude Code work log, Cursor change tracking, check command, verdict, done condition, Claude Code plugin, AI developer tools, local-first, macOS developer tools, developer productivity" />
-<meta name="author" content="Ocul-PM" />
+<title>Ocul — Stop re-explaining to your AI where you left off yesterday. · AI project manager for coding agents</title>
+<meta name="description" content="Stop re-explaining to your AI where you left off yesterday. When Claude Code finishes a unit of work, a journal entry lands in Ocul and the next conversation starts from it. The app unfolds only what a person must see — failed verdicts, entries without evidence, unrecorded changes — and reads the verdict from a check command's last line of output. Codex, Cursor and Gemini CLI record through the rules file. The app calls no LLM. Local-first · no account · no telemetry." />
+<meta name="keywords" content="AI PM, AI project manager, ai pm tool, Ocul, Ocul-PM, coding agent, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, dev journal, agent work log, work journal, code change tracking, AI pair programming record, vibe coding management, Claude Code work log, Cursor change tracking, check command, verdict, done condition, Claude Code plugin, AI developer tools, local-first, macOS developer tools, developer productivity" />
+<meta name="author" content="Ocul" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 <meta name="theme-color" content="#0f5b43" />
 <link rel="canonical" href="https://oculpm.com/en" />
@@ -16,20 +16,20 @@
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
 <meta property="og:locale:alternate" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/en" />
-<meta property="og:title" content="Ocul-PM — Stop re-explaining to your AI where you left off yesterday." />
+<meta property="og:title" content="Ocul — Stop re-explaining to your AI where you left off yesterday." />
 <meta property="og:description" content="When Claude Code finishes a unit of work, a journal entry is left behind and the next conversation starts from it. Only what you must see unfolds, and the verdict is a check command's last line. Local-first · no account · no telemetry." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="1200" />
-<meta property="og:image:alt" content="Ocul-PM — AI project manager for coding agents" />
+<meta property="og:image:alt" content="Ocul — AI project manager for coding agents" />
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Ocul-PM — Stop re-explaining to your AI where you left off yesterday." />
+<meta name="twitter:title" content="Ocul — Stop re-explaining to your AI where you left off yesterday." />
 <meta name="twitter:description" content="When Claude Code finishes a unit of work, a journal entry is left behind and the next conversation starts from it. Local-first · native macOS." />
 <meta name="twitter:image" content="https://oculpm.com/og.png" />
 
@@ -41,32 +41,36 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Ocul-PM",
-  "alternateName": ["Ocul-PM AI PM", "Ocul PM", "AI project manager", "AI coding agent manager", "coding agent work recorder"],
+  "name": "Ocul",
+  "alternateName": ["Ocul-PM", "Ocul AI PM", "Ocul PM", "AI project manager", "AI coding agent manager", "coding agent work recorder"],
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "4.0.0",
+  "softwareVersion": "4.1.0",
   "inLanguage": "en",
   "description": "Stop re-explaining to your AI where you left off yesterday. A local-first AI project manager for people who build with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends) every day — when the agent finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan items as its starting context. The app unfolds only what a person must see (failed verdicts · entries without evidence · unrecorded changes) and reads the verdict from a check command's last line of output. The app calls no LLM. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
-    "Five surfaces — Today · Work Journal · Plan · Diff · Settings, plus a start window when no project is open. One principle, show only the exceptions: the screen grows with what a person must see, not with how much the agent did, so 3 entries a day or 60 use the same screen with no modes",
+    "Five screens — Today · Work Journal · Plan · Diff · Terminal, plus Settings and a start window when no project is open. One principle, show only the exceptions: the screen grows with what a person must see, not with how much the agent did, so 3 entries a day or 60 use the same screen with no modes",
     "Today's \"To check\" — only failed verdicts · entries without command evidence · changes no entry mentions · blocked items · decisions that are yours · a new plugin version unfold; work with evidence folds into one line per plan. A line at the top shows, every day, the share of entries with outside-judge evidence",
     "Last verdict — log a check command's result as one line, \"verdict ✓|✗ <last line>\", and the plugin's start hook and the Plan screen read it by the same rule. The Plan screen shows done condition · check command · last verdict right under the title; all items closed is not done until the verdict passes",
-    "Resume — the Claude Code plugin's SessionStart hook carries the recent plans' done condition · check command · last verdict · open items and the last three entries into the starting context, and the Plan screen's [Copy prompt] · [Copy with until-done] put a prompt that picks up the next item on your clipboard",
+    "Resume — the Claude Code plugin's SessionStart hook carries the recent plans' done condition · check command · last verdict · open items and the last three entries into the starting context, and [Run in terminal] on Today and Plan has claude pick up the next item in a new session of the in-app terminal, and [To the end (/goal)] hands the done condition and check command to Claude Code's /goal",
     "Work Journal — a list on the left and the detail on the right (verification box · inline diff per recorded file · related entries). With no command evidence it calls the entry a claim, and journal search (/) covers titles · files · tags · body",
-    "Diff — uncommitted / last-commit diffs, offline, line by line. Files no entry mentions come first, and [Copy record request] turns them into text to paste to your agent",
+    "Diff — uncommitted / last-commit diffs, offline, line by line. Files no entry mentions come first, and [Ask Claude] asks the in-app terminal's claude to record them",
+    "Talking with Claude — the in-app terminal reads Claude Code's status signal (OSC 7501) for working · waiting · done; when Claude waits, one line tops Today, plus an OS notification. Claude in an outside terminal works the same through the plugin's Notification hook. With the MCP tool ask_user, Claude asks and you answer on Today",
+    "Send to Claude — entries · plan items · changed files go as context into an in-app claude session that's waiting for input. The project list shows your turn · new · N running per project, and closing a window while something runs asks first",
     "The app calls no LLM — no summaries · rollups · AI refresh · API keys, and the screens (the webview) reach no outside host. Only the update check and links you open leave the machine, and the repository's tests keep that list honest in the build",
-    "One window = one project — ⌘1–⌘4 screens, ⌘K screens · projects · entries · plans, ⌘O recent projects, ⇧⌘N new window, ⌘W close window. On macOS the app stays alive after the last window closes",
+    "One window = one project — ⌘1–⌘5 · ⌃Tab screens, a two-finger swipe back · forward, ⌘K screens · projects · entries · plans, ⌘O recent projects, ⌥⌘1–9 open project windows, ⇧⌘N new window, ⌘W close window. On macOS the app stays alive after the last window closes",
+    "Getting started — a four-page first-run guide (what it does · five screens · connecting an agent · getting the feel), reopened from the Help menu or ⌘K",
     "A review bound to the content — verifying an entry stores a fingerprint of the body at that moment, and if an agent edits the body afterwards it stops counting as verified",
-    "Claude Code plugin — two lines in /plugin for a hook bridge · 7 MCP tools · /oculpm:inception · /oculpm:next · /oculpm:redteam · /oculpm:help. next claims its item as [~] first and, with until-done, keeps going until the verdict passes",
+    "Claude Code plugin — two lines in /plugin for a hook bridge · 8 MCP tools · /oculpm:inception · /oculpm:next · /oculpm:redteam · /oculpm:help. next claims its item as [~] first and, with until-done, keeps going until the verdict passes",
     "Rules template v20 — done conditions as outcomes · the verdict comes from something that isn't you · raw material and an expert's tools · hard numeric goals are normal · record failures too",
     "Codex · Cursor · Gemini CLI record through one rules file (AGENTS.md) — Codex with plugin hooks too",
     "Signed distribution — Apple Developer ID signed and notarized. A release is created as a draft after the tag's commit passed CI, and published only once code-signing, notarization and the updater signature have been verified",
     "Windows · Linux beta — Windows 10 2004+ and 11 (x64) and Linux x64 (AppImage · deb, glibc 2.35+). Each release only ships the OS builds that passed an install smoke test and a real-app E2E run on CI runners",
-    "English and Korean UI"
+    "English and Korean UI",
+    "The visible name is Ocul — the installed app (Ocul-PM.app) · download files · data folder · the oculpm plugin keep their names, so updates land in the same place"
   ]
 }
 </script>
@@ -105,8 +109,18 @@
     },
     {
       "@type": "Question",
-      "name": "What is Ocul-PM?",
+      "name": "What is Ocul?",
       "acceptedAnswer": { "@type": "Answer", "text": "A local-first AI project manager for developers who work with AI coding agents. It gets a person to trust what the agent did, and decide what's next, in three minutes — and gets the agent to lay down a verdict first, whatever it starts. Of the journals, diffs and plans the agent leaves, it unfolds only what a person must see, and it reads the verdict from a check command's last line of output, not from the agent's word. The app calls no LLM." }
+    },
+    {
+      "@type": "Question",
+      "name": "Are Ocul-PM and Ocul the same app?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Since 4.1 the name you see in the app is Ocul. The installed app (Ocul-PM.app), the download files, the data folder, the oculpm plugin and your projects' .oculpm/ keep their names, so updates land in the same place and your records carry on." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I answer Claude from the app when it needs a decision?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The Claude Code plugin's MCP tool ask_user puts the question on the Today screen and returns the answer you pick or type straight to Claude (within 25 minutes). When Claude waits for you in a terminal — the in-app one or an outside one — \"Claude is waiting\" tops Today, plus an OS notification if the window is in the background." }
     },
     {
       "@type": "Question",
@@ -151,7 +165,7 @@
     {
       "@type": "Question",
       "name": "Can I open several projects at once?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes, in several windows. Since 4.0 one window is one project — the 3.x Chrome-style tabs and tear-off are gone, and your OS switches between project windows. ⌘O opens a recent project (if it's already open, its window comes forward), ⇧⌘N opens a new start window, ⌘W closes the window. Each project remembers its own screen and filters, and on macOS closing the last window keeps the app alive — a Dock click reopens one." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, in several windows. Since 4.0 one window is one project — the 3.x Chrome-style tabs and tear-off are gone, and your OS switches between project windows. ⌘O opens a recent project (if it's already open, its window comes forward), ⇧⌘N opens a new start window, ⌘W closes the window, and ⌥⌘1–9 jumps to an open project window without opening a list. The project name (▾) in the top bar shows \"Your turn · New · N running\" per project. Each project remembers its own screen and filters, and on macOS closing the last window keeps the app alive — a Dock click reopens one." }
     },
     {
       "@type": "Question",
@@ -171,7 +185,7 @@
     {
       "@type": "Question",
       "name": "Can I use it without the app, just the Claude Code plugin?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes. In Claude Code, run /plugin marketplace add bunhine0452/Ocul-PM and then /plugin install oculpm@oculpm — two lines that set up the hook bridge, 7 MCP tools and 5 skills across all your projects. Journals and plans accumulate as markdown under .oculpm/, and if you install the app later it reads those records as they are." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. In Claude Code, run /plugin marketplace add bunhine0452/Ocul-PM and then /plugin install oculpm@oculpm — two lines that set up the hook bridge, 8 MCP tools and 5 skills across all your projects. Journals and plans accumulate as markdown under .oculpm/, and if you install the app later it reads those records as they are." }
     },
     {
       "@type": "Question",
@@ -191,7 +205,7 @@
     {
       "@type": "Question",
       "name": "Can I ask about team, enterprise or partnership use?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Because Ocul-PM is local-first, adopting it on a team does not move your code or your records anywhere. For enterprise rollouts, team adoption and partnership proposals, write to bunhine0452@gmail.com — the person who built it reads and answers." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Because Ocul is local-first, adopting it on a team does not move your code or your records anywhere. For enterprise rollouts, team adoption and partnership proposals, write to bunhine0452@gmail.com — the person who built it reads and answers." }
     }
   ]
 }
@@ -202,8 +216,8 @@
 <!-- ══════════ nav ══════════ -->
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v4.0.0</span>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
+    <span class="nav-ver" data-version>v4.1.0</span>
     <div class="nav-links">
       <a href="#acts">Features</a>
       <a href="/wiki/en">Wiki</a>
@@ -220,16 +234,16 @@
 <!-- ══════════ hero ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v4.0.0 — Five surfaces, exceptions only — Today shows what needs you, plans end in a verdict</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v4.1.0 — Talking with Claude — the name is Ocul</a>
   <h1 class="reveal on">Stop re-explaining to your AI<br /><span class="g">where you left off yesterday.</span></h1>
   <p class="hero-sub reveal on">
-    <b>Ocul-PM</b> gets a person to <b>trust what the agent did, and decide what's next, in three minutes</b> —
+    <b>Ocul</b> gets a person to <b>trust what the agent did, and decide what's next, in three minutes</b> —
     and gets the agent to <b>lay down a verdict first</b>, whatever it starts. Journal, diff and plan are the evidence,
     and the verdict is a check command's last line of output, not the agent's word. <b>Local-first.</b> No account, no server, no telemetry — and the app calls no LLM.
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v4.0.0</span><span class="sub">Free · macOS (Apple Silicon)</span>
+      <span class="lg">Get v4.1.0</span><span class="sub">Free · macOS (Apple Silicon)</span>
     </a>
   </div>
   <p class="dl-os reveal on" data-dl-os>
@@ -241,11 +255,11 @@
   <p class="hero-fine">Built for people who build with AI every day · On Claude Code? <a href="/en/plugin">Two lines in /plugin</a> is another way in</p>
   <p class="hero-ph reveal on">
     <a href="https://www.producthunt.com/products/ocul-pm?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ocul-pm" target="_blank" rel="noreferrer">
-      <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1237239&amp;theme=dark" alt="Ocul-PM — find us on Product Hunt" width="250" height="54" loading="lazy" />
+      <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1237239&amp;theme=dark" alt="Ocul — find us on Product Hunt" width="250" height="54" loading="lazy" />
     </a>
   </p>
   <figure class="hero-shot reveal">
-    <video src="/demo.mp4" poster="/demo-poster.jpg" width="1512" height="950" autoplay muted loop playsinline preload="metadata" aria-label="Ocul-PM demo — ask the agent for a change and watch the work journal write itself, 28 seconds"></video>
+    <video src="/demo.mp4" poster="/demo-poster.jpg" width="1512" height="950" autoplay muted loop playsinline preload="metadata" aria-label="Ocul demo — ask the agent for a change and watch the work journal write itself, 28 seconds"></video>
     <figcaption><b>3.x screens.</b> One line — “add a delete command” — the agent does it and the journal fills itself. In 4.0 the in-app terminal is a single top-bar tab (⌘5), and running the agent in your own terminal leaves the same records. No server.</figcaption>
   </figure>
 </header>
@@ -274,7 +288,7 @@
       <span class="num">03 · Resume</span>
       <h3>The next conversation picks it up.</h3>
       <p>Open a new conversation the next day and the hook loads the recent plans' <b>done condition · check command · last verdict</b> · open items and the last three entries
-      into the <b>starting context</b>. The Plan screen's [Copy prompt] puts a prompt for the next item on your clipboard, and [Copy with until-done] one that keeps going until the verdict passes.
+      into the <b>starting context</b>. [Run in terminal] has <code>claude</code> pick up the next item in a new session of the in-app terminal, and [To the end (/goal)] keeps going until the verdict passes.
       You don't explain yesterday again.</p>
     </li>
   </ol>
@@ -290,7 +304,7 @@
     <span><span class="n dim">0</span><span class="lbl">lines you could explain</span></span>
   </div>
   <p class="reveal">Code has never been faster — and the first ten minutes of this morning's conversation went to explaining yesterday.
-  Speed bought with memory — that is the trade of the agent era, and Ocul-PM is where it stops.</p>
+  Speed bought with memory — that is the trade of the agent era, and Ocul is where it stops.</p>
 </section>
 
 <!-- ══════════ Why results get better ══════════ -->
@@ -298,7 +312,7 @@
   <div class="sec-head">
     <span class="eyebrow reveal">Five principles for getting the best out of an agent</span>
     <h2 class="reveal">How to use agents well is known.<br />The problem is forgetting it every session.</h2>
-    <p class="reveal">Anthropic's Claude Code guide, Simon Willison's agentic engineering patterns, Sonar's 2026 developer survey and METR's productivity measurements all say the same five lines. And all five <b>vanish on /clear</b>. Ocul-PM is the place where those five questions <b>survive the session boundary</b> — Rieseberg's altitude, depth and range, as is.</p>
+    <p class="reveal">Anthropic's Claude Code guide, Simon Willison's agentic engineering patterns, Sonar's 2026 developer survey and METR's productivity measurements all say the same five lines. And all five <b>vanish on /clear</b>. Ocul is the place where those five questions <b>survive the session boundary</b> — Rieseberg's altitude, depth and range, as is.</p>
   </div>
   <div class="bento">
     <div class="cell c-span2 reveal"><span class="cell-tag">① A done condition before code</span><h3>Write the goal behind the goal</h3><p>"Write the spec first, then build from it" — Anthropic. Every plan carries one <b>done condition</b>, and the session-start hook ships it <b>before the items</b>. The agent starts from an outcome, not a to-do list.</p></div>
@@ -306,7 +320,7 @@
     <div class="cell c-span2 reveal d2"><span class="cell-tag">③ Output, not claims</span><h3>Entries without evidence come first</h3><p>"'All tests pass' on its own tells you very little" — Anthropic. An entry whose verification section lacks <b>the command and its last result line</b> lands in Today's "To check", and the entry detail calls it a claim.</p></div>
     <div class="cell c-span2 reveal"><span class="cell-tag">④ Green is not running</span><h3>The verdict comes from something that isn't you</h3><p>"Just because the test suite passes doesn't mean the server will boot" — Willison. Rules template v20 says: with no check command, <b>make one first</b>, and even when green, launch it and use it once if you can. Failures get an error entry too.</p></div>
     <div class="cell c-span2 reveal d1"><span class="cell-tag">⑤ An outside judge</span><h3>Red team and a daily line</h3><p>96% of developers don't trust AI code, yet only 48% always check it (Sonar 2026). <code>/oculpm:redteam</code> hunts counter-examples before a merge, and the line at the top of Today shows the share of entries with <b>outside-judge evidence</b> every day — the target is a number, 97% (METR: feeling ≠ measurement).</p></div>
-    <div class="cell c-span2 reveal d2"><span class="cell-tag">What it can't give</span><h3>Ambition itself</h3><p>Asking the bigger question is the human's job. Ocul-PM <b>doesn't write the done condition for you</b> and <b>doesn't hand down the verdict</b> — it asks and points, never blocks. Past that line the model would be judging itself.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">What it can't give</span><h3>Ambition itself</h3><p>Asking the bigger question is the human's job. Ocul <b>doesn't write the done condition for you</b> and <b>doesn't hand down the verdict</b> — it asks and points, never blocks. Past that line the model would be judging itself.</p></div>
   </div>
 </section>
 
@@ -353,7 +367,7 @@
       <b>local diff</b> line by line before you commit — files no entry mentions come first.</p>
       <ul>
         <li><b>Last verdict</b> — "Not run yet" when there is none; a failure goes to the top of Today</li>
-        <li><b>Copy record request</b> — unrecorded changes become text to paste to your agent</li>
+        <li><b>Ask Claude</b> — changes with no journal go to the in-app terminal's claude to be recorded</li>
         <li><b>All local</b> — the app calls no LLM, and its screens reach no outside host</li>
       </ul>
     </div>
@@ -377,11 +391,14 @@
     <div class="cell c-span2 reveal"><span class="cell-tag">Last verdict</span><h3>What did the judge say?</h3><p>A check command's result as one line, <code>verdict ✓|✗ &lt;last line&gt;</code>. The start hook and the Plan screen read it by <b>the same rule</b>, so the next session and you see the same verdict.</p></div>
     <div class="cell c-span2 reveal d1"><span class="cell-tag">/oculpm:inception</span><h3>Lay the verdict down first</h3><p>"What should happen next" → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is <b>a check command that is red right now</b>.</p></div>
     <div class="cell c-span2 reveal d2"><span class="cell-tag">/oculpm:next</span><h3>Claim it, finish it</h3><p>It <b>claims the item as <code>[~]</code> first</b>, so parallel sessions don't grab the same work. With <code>until-done</code> it keeps going until the verdict passes.</p></div>
-    <div class="cell c-span2 reveal"><span class="cell-tag">Unrecorded changes</span><h3>It points at files nobody wrote down</h3><p>Files no entry mentions sit at the top of Diff. <b>[Copy record request]</b> turns that list into text to paste to your agent.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">Unrecorded changes</span><h3>It points at files nobody wrote down</h3><p>Files no entry mentions sit at the top of Diff. <b>[Ask Claude]</b> hands that list to the in-app terminal's claude to record.</p></div>
     <div class="cell c-span2 reveal d1"><span class="cell-tag">One window = one project</span><h3>OS windows instead of tabs</h3><p><b>⌘O</b> recent projects, <b>⇧⌘N</b> new window, <b>⌘W</b> close window. Pick a project that's already open and its window comes forward.</p></div>
-    <div class="cell c-span2 reveal d2"><span class="cell-tag">⌘K · ⌘1–4</span><h3>Command palette</h3><p>Find screens · projects · entries · plans by title and open them. Today is <b>finished from the keyboard</b> — j/k · v · c.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">⌘K · ⌃Tab · ⌥⌘1–9</span><h3>Without reaching for the top bar</h3><p>⌘K finds screens · projects · entries · plans, <b>⌃Tab</b> cycles screens, a two-finger swipe goes back · forward, and <b>⌥⌘1–9</b> jumps to another project window. Today is finished from the keyboard — <b>j/k · v · r</b>.</p></div>
     <div class="cell c-span2 reveal"><span class="cell-tag">Zero LLM</span><h3>The agent does the thinking</h3><p>In-app summaries · rollups · AI refresh · API keys are gone. The app shows <b>the evidence, deterministically</b>, and its screens reach no outside host.</p></div>
-    <div class="cell c-span2 reveal d1"><span class="cell-tag">/plugin, two lines</span><h3>Claude Code plugin</h3><p>You can start without the app — a hook bridge, 7 MCP tools and four commands install in two lines.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">/plugin, two lines</span><h3>Claude Code plugin</h3><p>You can start without the app — a hook bridge, 8 MCP tools and four commands install in two lines.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">OSC 7501 · Notification hook</span><h3>You know when Claude is waiting</h3><p>In the in-app terminal or outside it, when Claude waits for you, one line tops Today, plus an OS notification if the window is in the background. The project list shows <b>your turn · new · N running</b> per project.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">ask_user</span><h3>Claude asks, you answer in the app</h3><p>When Claude raises a question through the MCP tool, you pick or type the answer on Today. It goes straight back to that Claude — even if you weren't watching the terminal.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">Send to Claude · /goal</span><h3>From the app to Claude</h3><p>Entries · plan items · changed files go as context into a running claude session. The plan's <b>"To the end"</b> hands the done condition and check command over through <code>/goal</code>.</p></div>
     <div class="cell c-span2 reveal d2"><span class="cell-tag">What a review means</span><h3>Changed after review? It asks again</h3><p>A verified mark is stored with the body's <b>fingerprint</b>. If an agent edits the entry later it stops counting as verified; read it again, click again, and it binds to the current text.</p></div>
   </div>
 </section>
@@ -392,9 +409,10 @@
   <div class="sec-head">
     <span class="eyebrow reveal">Changelog</span>
     <h2 class="reveal">A little every week.</h2>
-    <p class="reveal">This app is built with itself — every line below came out of Ocul-PM's own work journal.</p>
+    <p class="reveal">This app is built with itself — every line below came out of Ocul's own work journal.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v4.1.0 — Talking with Claude — the name is Ocul</b> · The visible name is now <b>Ocul</b> (the installed app · download files · data folder · plugin keep their names, so updates land in the same place). The in-app terminal reads Claude's status signal (OSC 7501) for <b>working · waiting · done</b>; when Claude waits, one line tops Today's "Look first" plus an OS notification — Claude in an outside terminal works the same through the plugin's Notification hook. With the new MCP tool <code>ask_user</code>, <b>Claude asks and you answer in the app</b>. "Send to Claude" on entries · plan items · changed files, and the plan's "To the end" goes through <code>/goal</code>. ⌃Tab cycles screens, a two-finger swipe goes back, ⌥⌘1–9 jumps between project windows, and a first-run "Getting started" guide. The project list shows "Your turn · New · N running" per project, and closing a window while something runs asks first. A second look at every screen: one name per idea, no text under 12px, one shape for empty screens. Shipped <b>without a check day</b>.</li>
     <li class="reveal"><b>v4.0.0 — Five surfaces, exceptions only</b> · The app is now <b>Today · Work Journal · Plan · Diff · Settings</b>, on one bar across the top — no sidebar. A small in-app <b>Terminal</b> is back, and "Next" opens <code>claude</code> in a new session there. Semantic code search (an index that was half the app's database), in-app LLM calls, automation, the Discussion · Skills · Branch screens, the menu-bar tray, theme presets, the density toggle and tabs came out on measured evidence — no journal or plan file is touched. Today unfolds only <b>failed verdicts · no evidence · unrecorded changes · blocked · decisions</b> and folds work that carries evidence into one line — the same screen at 3 entries a day or 60. A plan ends in its <b>last verdict</b> (the check command's last result line), and the session-start context reads the same line. One window per project; the app calls no LLM and the UI reaches no outside host. Rules template v20 with <code>/oculpm:inception</code> and <code>/oculpm:next until-done</code> make any project start <b>with the verdict first</b>.</li>
     <li class="reveal"><b>v3.17.0 — From first run to terminal, the whole design</b> · A Start tab with no projects shows one action, <b>"Add the folder your agent works in"</b>; add one and Today gets a <b>three-step sheet</b> (rules file → plugin → first task). The Start tab header asks "Where to start today?" — the top project shows its three latest entries and <b>"Resume with this context"</b>, every row carries evidence · unrecorded · next up (unknown is —). <b>Three numbers</b> in the Today header and the resume card in column ③, a human-check line · next-action line · "no evidence" filter on entries, <b>group-by-entry</b> on Diff, a user-owned pill and change log on plans, outside judges on the branch receipt (CI is <b>"this app doesn't know"</b>), option cards and a Decide box on discussions, a <b>result-line bar · ⇧⌘J to verification</b> · error entry draft · one-line collapsed dock in the terminal (beta), and density cards · hide beta screens · shortcut hints under Settings › Display. <b>Second release of the day, shipped without a check day</b>; Windows and Linux are back.</li>
     <li class="reveal"><b>v3.16.0 — One app from first-timer to power user</b> · A <b>Simple / Pro</b> toggle at the right end of every toolbar (⌘.) changes only folding, row height and hints on the same screens. Simple is the default. The sidebar is <b>the screen tiers, as three sections</b> — the four core screens always show, Tools and Beta start folded and unfold by themselves when their screen is active (folded, not hidden; ⌘numbers and ⌘K always reach them). Today is <b>three questions</b> (what was done · can I trust it · what's next) in three columns plus "More". An entry's <b>evidence card</b> sits right under its title; a plan header reads <b>done condition → check command → items</b>, and a plan with every item closed but still open gets an "items done ≠ goal met" band. <b>Released without a verification day.</b></li>
@@ -520,7 +538,9 @@
     <details><summary>What is the "last verdict"?</summary><p>The result of <b>actually running</b> a plan's check command. When the agent logs it as one line in a plan-log note — <code>verdict ✓ 418 passed</code> or <code>verdict ✗ 2 failed</code> (<code>판정</code> in Korean) — the plugin's start hook and the app's Plan screen read it by <b>the same rule</b> (<code>^(판정|verdict) (✓|✗)</code>). The Plan screen puts done condition · check command · last verdict right under the title, and a failed verdict goes to the top of Today's "To check". <b>All items closed is not done until the verdict passes</b> — "done" is decided by the last line of output, not by the agent's word.</p></details>
     <details><summary>With 60 entries a day, doesn't Today overflow?</summary><p>No. The 4.0 principle is <b>"show only the exceptions"</b>. Today unfolds only what a person must see — failed verdicts · entries without command evidence · changes no entry mentions · blocked items · decisions that are yours · a new plugin version — and <b>folds work whose evidence is complete into one line</b> per plan. Someone with 3 entries a day and someone with 60 use the same screen, with no modes; that is why the 3.x simple/pro density toggle is gone.</p></details>
     <details><summary>Will macOS warn me when I install it?</summary><p>Not since v2.45.0. Builds are signed with an Apple Developer ID and notarized, so you open the <code>.dmg</code>, drag it into Applications and launch it. Earlier versions were unsigned, so macOS refused them with "is damaged and can't be opened" — not real damage, just the quarantine flag macOS puts on downloaded files — and you had to run <code>xattr -dr com.apple.quarantine</code> yourself.</p></details>
-    <details><summary>What is Ocul-PM?</summary><p>A local-first AI project manager for developers who work with AI coding agents. It gets a person to <b>trust what the agent did, and decide what's next, in three minutes</b> — and gets the agent to <b>lay down a verdict first</b>, whatever it starts. Of the journals, diffs and plans the agent leaves, it unfolds only what a person must see, and it reads the verdict from a check command's last line of output, not from the agent's word. The app calls no LLM.</p></details>
+    <details><summary>What is Ocul?</summary><p>A local-first AI project manager for developers who work with AI coding agents. It gets a person to <b>trust what the agent did, and decide what's next, in three minutes</b> — and gets the agent to <b>lay down a verdict first</b>, whatever it starts. Of the journals, diffs and plans the agent leaves, it unfolds only what a person must see, and it reads the verdict from a check command's last line of output, not from the agent's word. The app calls no LLM.</p></details>
+    <details><summary>Are Ocul-PM and Ocul the same app?</summary><p>Yes. Since 4.1 the name you see in the app is <b>Ocul</b>. The installed app (<code>Ocul-PM.app</code>), the download files, the data folder, the <code>oculpm</code> plugin and your projects' <code>.oculpm/</code> keep their names, so updates land in the same place and your records carry on.</p></details>
+    <details><summary>Can I answer Claude from the app when it needs a decision?</summary><p>Yes. The Claude Code plugin's MCP tool <code>ask_user</code> puts the question on the <b>Today</b> screen and returns the answer you pick or type straight to Claude (within 25 minutes). When Claude waits for you in a terminal — the in-app one or an outside one — <b>"Claude is waiting"</b> tops Today, plus an OS notification if the window is in the background.</p></details>
     <details><summary>Which AI coding agents does it work with?</summary><p>"Supported" hides three different promises, so we split them into tiers. ① <b>Rules-compatible</b> — we only plant a rules file, and journals get written as far as the model obeys it: Gemini CLI · Cursor · GitHub Copilot · Windsurf · Cline · aider · Zed · Antigravity · pi (anything that reads AGENTS.md lands here). ② <b>Structured journaling</b> — the agent calls the oculpm MCP journaling tools. ③ <b>Session observation</b> — hooks deliver start/stop and conversations that ended without a journal are flagged: Claude Code · Codex (each through its plugin, ② included). Agents run in your own terminal; the in-app tier went with its screens on 2026-10-28. Per-agent evidence and when each tier was last verified are in the <a href="/wiki/en/agents">wiki tier table</a>.</p></details>
     <details><summary>What leaves my machine?</summary><p><b>Two</b> things. ① <b>The update check</b> — one GitHub release file on launch and when you check manually; the destination is fixed in the app's configuration and the signature is verified. ② <b>Links you click</b> — the app doesn't send them; your OS default browser opens them. The 4.0 app <b>calls no LLM</b> (it doesn't even take an API key), its screens (the webview) <b>reach no outside host</b>, and it downloads no embedding model. Never leaves: journals · plans · everything under <code>.oculpm/</code> · your source code. <b>No usage statistics, no crash reporting</b> — there is no analytics SDK in the app. A test in the repository keeps this list honest in the build; the full list, and how to count it yourself, is on the <a href="/privacy">privacy page</a>.</p></details>
     <details><summary>What happens if an agent edits a journal entry after I verified it?</summary><p>Since <b>v3.2.0</b> the verified mark is stored with a <b>fingerprint</b> of the body you verified. If the body changes afterwards it stops counting as verified, and an entry without command evidence goes back into Today's <b>"To check"</b>. Read it again and mark it checked to bind the mark to the current content. Entries verified before 3.2.0 have no fingerprint and are <b>honoured as-is</b> — nothing is retroactively unverified. The fingerprint lives in the entry's front matter (<code>verified_hash</code>) under <code>.oculpm/</code>, so it is readable without the app.</p></details>
@@ -529,26 +549,26 @@
     <details><summary>What happens when the network drops?</summary><p><b>It keeps working.</b> The 4.0 app needs no network to draw its screens — journals, plans and diffs are read from the project folder and the local cache, and the app calls no LLM. The only thing that fails while you're offline is the update check, and the automatic check at launch passes quietly.</p></details>
     <details><summary>Can I change the theme colors?</summary><p>Settings → Display picks <b>light · dark · system</b> (follows the OS) and the text size. The 3.x theme files, five preset palettes and per-project themes were removed in 4.0 — a saved old theme setting is read as "system".</p></details>
     <details><summary>Can I tell my own journal entries apart from the ones AI wrote?</summary><p>Yes. Every record carries a <b>provenance badge</b> — by hand (a person writing in the app) · by agent (Claude Code and friends following the journaling rules) · MCP · backfill (restored from git history) and so on; 3.x auto-draft, schedule, watcher and imported entries still read with their badge. No new field was invented: it is read deterministically from the session id and agent id already written in the entry file.</p></details>
-    <details><summary>Can I open several projects at once?</summary><p>Yes, <b>in several windows</b>. Since 4.0 one window is one project — the 3.x Chrome-style tabs and tear-off are gone, and your OS switches between project windows. <b>⌘O</b> opens a recent project (if it's already open, its window comes forward), <b>⇧⌘N</b> opens a new start window, <b>⌘W</b> closes the window. Each project remembers its own screen and filters, and on macOS closing the last window keeps the app alive — a Dock click reopens one.</p></details>
+    <details><summary>Can I open several projects at once?</summary><p>Yes, <b>in several windows</b>. Since 4.0 one window is one project — the 3.x Chrome-style tabs and tear-off are gone, and your OS switches between project windows. <b>⌘O</b> opens a recent project (if it's already open, its window comes forward), <b>⇧⌘N</b> opens a new start window, <b>⌘W</b> closes the window, and <b>⌥⌘1–9</b> jumps to an open project window without opening a list. The project name (▾) in the top bar shows "Your turn · New · N running" per project. Each project remembers its own screen and filters, and on macOS closing the last window keeps the app alive — a Dock click reopens one.</p></details>
     <details><summary>Can I use it from a phone or tablet?</summary><p>The app is desktop-only. The mobile beta added in v2.18.0 (a phone browser inside your Tailscale network) has been removed — its surface was large for how much it was used. The v3.13.0 claude.ai board skill (<code>/oculpm:board</code>) went on 2026-10-28 too. To follow progress away from your Mac, read the plan files in <code>.oculpm/planner/</code> wherever your repository is — the markdown is always the source.</p></details>
     <details><summary>Does the app notice when an agent finishes without writing an entry?</summary><p>Yes. A plugin hook judges each conversation as it ends, and if code changed with no entry it <b>blocks the turn once</b> and asks for the record (once per conversation). <b>From v2.43.0 that verdict is per conversation.</b> It used to be a single number — the newest journal timestamp anywhere in the project — so with several terminals open a neighbour's entry hid your own miss, and a neighbour's edits were read as yours. Counting the record showed the 164 signals were session <i>segments</i>, not sessions, and of 117 unique conversations only 2 had genuinely skipped. Now, <b>with no grounds it says "undecided"</b> rather than folding not-knowing into not-recorded. One deliberate trade-off: <b>while several conversations are alive at once the gate stays silent</b> — rather than accuse the wrong one when attribution is not certain, it says nothing, and still records "undecided" in the ledger. On the app side, Today flags conversations that ended without an entry and changes no entry mentions under <b>"To check"</b>.</p></details>
     <details><summary>Does my code or data leave the machine?</summary><p>No. Everything lives in your project's .oculpm/ folder and a local SQLite cache. The app calls no LLM and its screens reach no outside host. Only two things leave, and you start both: the update check, and links you click (your OS browser opens them).</p></details>
-    <details><summary>Can I use it without the app, just the Claude Code plugin?</summary><p>Yes. In Claude Code, run <code>/plugin marketplace add bunhine0452/Ocul-PM</code> and then <code>/plugin install oculpm@oculpm</code> — two lines that set up the hook bridge, 7 MCP tools and 5 skills across all your projects. Journals and plans accumulate as markdown under .oculpm/, and if you install the app later it reads those records exactly as they are.</p></details>
+    <details><summary>Can I use it without the app, just the Claude Code plugin?</summary><p>Yes. In Claude Code, run <code>/plugin marketplace add bunhine0452/Ocul-PM</code> and then <code>/plugin install oculpm@oculpm</code> — two lines that set up the hook bridge, 8 MCP tools and 5 skills across all your projects. Journals and plans accumulate as markdown under .oculpm/, and if you install the app later it reads those records exactly as they are.</p></details>
     <details><summary>Is the app available in English?</summary><p>Yes. Settings → Display lets you pick English or 한국어 and every screen plus the error messages follow. The language your agent writes journals in is separate from the UI language, and documents already written are never rewritten.</p></details>
     <details><summary>Can I download it now?</summary><p>Yes. It is a free download from GitHub Releases — macOS (Apple Silicon), plus Windows (x64) and Linux (x64, AppImage and deb) as a beta. Once installed, later versions update themselves from inside the app (the Linux deb updates through your package manager). There is no Intel Mac build yet.</p></details>
     <details><summary>Does it run on Windows or Linux?</summary><p>Yes, as a beta. Windows gets an x64 installer (<code>.exe</code>) for Windows 10 2004 (build 19041) or later and Windows 11; Linux gets an x64 AppImage and a deb. Linux needs glibc 2.35 or later (Ubuntu 22.04 · Debian 12 onward) plus libEGL and libGLESv2, and the AppImage needs FUSE 2. The Windows build is not code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click "More info → Run anyway". If the Visual C++ runtime is missing, the installer installs it first. The Windows install and the AppImage auto-update in-app; the deb updates with the next <code>.deb</code>. Each release only ships the OS builds that passed an install test and a real-app E2E run on CI runners — a version that did not pass has no file for that OS. The beta label comes off once reports from real PCs accumulate.</p></details>
-    <details><summary>Can I ask about team, enterprise or partnership use?</summary><p>Yes. Because Ocul-PM is local-first, adopting it on a team does not move your code or your records anywhere. For enterprise rollouts, team adoption and partnership proposals, write to <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">bunhine0452@gmail.com</a> — the person who built it reads and answers.</p></details>
+    <details><summary>Can I ask about team, enterprise or partnership use?</summary><p>Yes. Because Ocul is local-first, adopting it on a team does not move your code or your records anywhere. For enterprise rollouts, team adoption and partnership proposals, write to <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">bunhine0452@gmail.com</a> — the person who built it reads and answers.</p></details>
   </div>
 </section>
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v4.0.0 — download now · macOS · Windows · Linux (beta)</span>
+  <span class="eyebrow reveal">v4.1.0 — download now · macOS · Windows · Linux (beta)</span>
   <h2 class="reveal">Nothing is required<br />to start.</h2>
   <p class="sub reveal">No sign-up, no setup, no fee. You download it, and that is the whole thing.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v4.0.0</span><span class="sub">Free · auto-updating</span>
+      <span class="lg">Get v4.1.0</span><span class="sub">Free · auto-updating</span>
     </a>
     <a class="dl-btn ghost" href="/en/plugin">Start with the plugin →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Enterprise · partnerships</a>
@@ -565,7 +585,7 @@
 <!-- ══════════ footer ══════════ -->
 <footer class="footer">
   <div class="footer-inner">
-    <span>© 2026 Ocul-PM</span>
+    <span>© 2026 Ocul</span>
     <a href="/wiki/en">Wiki</a>
     <a href="/en/plugin">Plugin</a>
     <a href="/changelog">Changelog</a>

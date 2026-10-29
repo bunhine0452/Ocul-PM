@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Claude Code — Ocul-PM Wiki</title>
-<meta name="description" content="The three places terminal Claude Code meets Ocul-PM — the rules file, the plugin (hooks · MCP tools · commands), and the app's screens." />
+<title>Claude Code — Ocul Wiki</title>
+<meta name="description" content="The three places terminal Claude Code meets Ocul — the rules file, the plugin (hooks · MCP tools · commands), and the app's screens." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/claude-code" />
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/claude-code" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/claude-code" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Claude Code — Ocul-PM Wiki" />
-<meta property="og:description" content="The three places terminal Claude Code meets Ocul-PM — the rules file, the plugin (hooks · MCP tools · commands), and the app's screens." />
+<meta property="og:title" content="Claude Code — Ocul Wiki" />
+<meta property="og:description" content="The three places terminal Claude Code meets Ocul — the rules file, the plugin (hooks · MCP tools · commands), and the app's screens." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/en#acts">Features</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
-    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en">Ocul Wiki</a>
     <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
@@ -64,7 +64,7 @@
       <h1>Claude Code</h1>
       <p class="wk-updated">Last updated 2026-10-29</p>
       <nav class="wk-toc"><span>On this page</span><a href="#install-the-plugin">Install the plugin</a><a href="#the-verdict-line">The verdict line</a><a href="#what-the-app-hands-to-your-terminal">What the app hands to your terminal</a><a href="#summary-what-should-i-install">Summary — what should I install?</a></nav>
-      <p>In Ocul-PM, Claude Code runs <b>in your own terminal</b>. The app's place is to receive what the terminal <code>claude</code> does as <b>record · evidence · plan</b>, and to unfold only what a person must see. The app calls no LLM.</p>
+      <p>In Ocul, Claude Code runs <b>in your own terminal</b>. The app's place is to receive what the terminal <code>claude</code> does as <b>record · evidence · plan</b>, and to unfold only what a person must see. The app calls no LLM.</p>
 <div class="wk-table"><table><thead><tr><th>Place</th><th>What it does</th><th>Install</th></tr></thead><tbody><tr><td><b>Rules file</b> <code>AGENTS.md</code></td><td>Tells the agent to write an entry after every unit of work, to state a done condition as an outcome before code, and to leave the verdict to a check command (template v20)</td><td>Automatic when you turn recording on</td></tr><tr><td><b>Plugin</b> <code>oculpm</code></td><td>Hooks (session start · end) · MCP recording tools · commands — recording becomes <b>structure</b>, not a rule</td><td>The two lines below</td></tr><tr><td><b>App</b></td><td>Entries show up within seconds, diffs are attached, and failed verdicts and entries without evidence land on Today</td><td>Just download it</td></tr></tbody></table></div>
 <h2 id="install-the-plugin">Install the plugin</h2>
 <p>AGENTS.md alone does get entries written, but only <b>as far as the model follows the rule</b> — it can forget at the end of a long session. With the plugin installed, a hook judges each session as it ends, and if code changed with no entry it blocks the turn once and asks for the record.</p>
@@ -73,13 +73,13 @@
 /plugin install oculpm@oculpm</code></pre>
 <div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>The same commands sit in the app under <b>Settings → Agent connections</b> with copy buttons. When the installed version is older than the app, that spot and Today hand you the update command.</p></div></div>
 <p>Once installed:</p>
-<ul><li><b>Start hook</b> — for each recently updated plan: done condition · check command · <b>last verdict</b> · open items, plus the last three entries, go into the starting context. You don't explain yesterday again</li><li><b>End hook</b> — judges whether the session ended without an entry</li><li><b>7 MCP tools</b> — <code>journal_search</code> · <code>journal_read</code> · <code>journal_write</code> · <code>plan_status</code> · <code>plan_update</code> · <code>plan_create</code> · <code>project_init</code></li><li><b>Commands</b> — <code>/oculpm:inception</code> (what happens next → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is a check command that is red now) · <code>/oculpm:next</code> (claim the item as <code>[~]</code> → implement → check command → entry → plan; with <code>until-done</code>, until the verdict passes) · <code>/oculpm:redteam</code> (runs the claims, reports only counter-examples) · <code>/oculpm:help</code></li></ul>
+<ul><li><b>Start hook</b> — for each recently updated plan: done condition · check command · <b>last verdict</b> · open items, plus the last three entries, go into the starting context. You don't explain yesterday again</li><li><b>End hook</b> — judges whether the session ended without an entry</li><li><b>Notification hook</b> — when Claude waits for you (Notification), "Claude is waiting" tops Today in the app, plus an OS notification if the window is in the background</li><li><b>8 MCP tools</b> — <code>journal_search</code> · <code>journal_read</code> · <code>journal_write</code> · <code>plan_status</code> · <code>plan_update</code> · <code>plan_create</code> · <code>project_init</code> · <code>ask_user</code> (asks for your decision on Today in the app and waits for the answer, up to 25 minutes)</li><li><b>Commands</b> — <code>/oculpm:inception</code> (what happens next → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is a check command that is red now) · <code>/oculpm:next</code> (claim the item as <code>[~]</code> → implement → check command → entry → plan; with <code>until-done</code>, until the verdict passes) · <code>/oculpm:redteam</code> (runs the claims, reports only counter-examples) · <code>/oculpm:help</code></li></ul>
 <p>It is all configured globally under <code>~/.claude</code>, so it works in <b>every project</b> (it records only where <code>.oculpm/</code> exists). You can use the plugin before installing the app — records pile up as <code>.oculpm/</code> markdown, and the app reads them as-is whenever you install it. More on the <a href="/en/plugin">plugin page</a>.</p>
 <h2 id="the-verdict-line">The verdict line</h2>
 <p>An agent that ran the check command logs the result as a <code>plan_update</code> note, one line: <code>verdict ✓|✗ &lt;last line of output&gt;</code> (<code>판정</code> in Korean). The start hook and the Plan screen read that line by the same rule and show it as the "last verdict". More in <a href="/wiki/en/planner">Plan</a>.</p>
 <h2 id="what-the-app-hands-to-your-terminal">What the app hands to your terminal</h2>
-<ul><li><b>Plan screen [Copy prompt]</b> · <code>c</code> on Today — a prompt that picks up the next item, on your <b>clipboard</b>. Paste it into the terminal <code>claude</code> and press Enter.</li><li><b>[Copy with until-done]</b> — the same prompt plus "keep going until the verdict passes".</li><li><b>Diff [Copy record request]</b> — a request for an entry, built from the files no entry mentions.</li></ul>
-<p>You always do the sending — the app has no way to write into your terminal.</p>
+<ul><li><b>[Run in terminal]</b> (Plan screen · <code>r</code> on Today) — opens a new session in the in-app terminal and starts <code>claude</code> with a prompt that picks up the next item. If the <code>claude</code> command isn't found, it says so.</li><li><b>[To the end (/goal)]</b> — starts <code>claude</code> and, once it waits for input, hands the plan's done condition and check command to Claude Code's <code>/goal</code>. It keeps going until the condition holds.</li><li><b>"Send to Claude"</b> (entries · plan items · changed files) — pastes text carrying that context into an in-app claude session that's waiting for input, or opens a new one if there is none.</li><li><b>Diff [Ask Claude]</b> — asks for an entry covering the files no entry mentions.</li></ul>
+<p>The app writes into a terminal only when you press one of these, and never into a terminal outside the app. The other direction — Claude asking you — is the <code>ask_user</code> tool: the question shows up on Today, and the answer you pick or type goes straight back to Claude.</p>
 <h2 id="summary-what-should-i-install">Summary — what should I install?</h2>
 <ul><li><b>You use Claude Code in a terminal</b> → install the plugin with the two lines above. Without it, sessions can go unrecorded.</li><li><b>Codex · Cursor · Gemini CLI</b> → <a href="/wiki/en/agents">Other agents</a>.</li></ul>
     </article>

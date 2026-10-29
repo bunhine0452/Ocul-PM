@@ -97,11 +97,11 @@ Entries are grouped by which session produced them. Even when an agent can't kno
 
 ## Unrecorded changes
 
-The app reconciles the file changes it observed against `files_touched` in entries and points at **changes no entry anywhere records** — in Today's "To check", and as the "Unrecorded" group at the top of Diff (`⌘4`).
+The app reconciles the file changes it observed against `files_touched` in entries and points at **changes no entry anywhere records** — in Today's "Look first", and as the "No journal" group at the top of Diff (`⌘4`).
 
 - If everything changed today is recorded somewhere, **nothing shows** — no noise on clean days
 - Temp files, editor artifacts, and agent internal state are never counted
-- On Diff, **[Copy record request]** turns that file list into text to paste to your agent, and **[Record it myself]** opens the composer pre-filled with those files
+- On Diff, **[Ask Claude]** hands that file list to the in-app terminal's claude to record, and **[Record it myself]** opens the composer pre-filled with those files
 
 If this shows up often, [installing the plugin](/wiki/en/claude-code) is the surest fix. Recording moves from "as much as the model remembers the rules" to "structurally, when the session ends."
 

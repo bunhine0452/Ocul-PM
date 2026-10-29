@@ -1,11 +1,11 @@
 ---
 title: Claude Code
-desc: The three places terminal Claude Code meets Ocul-PM — the rules file, the plugin (hooks · MCP tools · commands), and the app's screens.
+desc: The three places terminal Claude Code meets Ocul — the rules file, the plugin (hooks · MCP tools · commands), and the app's screens.
 order: 9
 updated: 2026-10-29
 ---
 
-In Ocul-PM, Claude Code runs **in your own terminal**. The app's place is to receive what the terminal `claude` does as **record · evidence · plan**, and to unfold only what a person must see. The app calls no LLM.
+In Ocul, Claude Code runs **in your own terminal**. The app's place is to receive what the terminal `claude` does as **record · evidence · plan**, and to unfold only what a person must see. The app calls no LLM.
 
 | Place | What it does | Install |
 |---|---|---|
@@ -32,7 +32,8 @@ Once installed:
 
 - **Start hook** — for each recently updated plan: done condition · check command · **last verdict** · open items, plus the last three entries, go into the starting context. You don't explain yesterday again
 - **End hook** — judges whether the session ended without an entry
-- **7 MCP tools** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init`
+- **Notification hook** — when Claude waits for you (Notification), "Claude is waiting" tops Today in the app, plus an OS notification if the window is in the background
+- **8 MCP tools** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` · `ask_user` (asks for your decision on Today in the app and waits for the answer, up to 25 minutes)
 - **Commands** — `/oculpm:inception` (what happens next → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is a check command that is red now) · `/oculpm:next` (claim the item as `[~]` → implement → check command → entry → plan; with `until-done`, until the verdict passes) · `/oculpm:redteam` (runs the claims, reports only counter-examples) · `/oculpm:help`
 
 It is all configured globally under `~/.claude`, so it works in **every project** (it records only where `.oculpm/` exists). You can use the plugin before installing the app — records pile up as `.oculpm/` markdown, and the app reads them as-is whenever you install it. More on the [plugin page](/en/plugin).
@@ -43,11 +44,12 @@ An agent that ran the check command logs the result as a `plan_update` note, one
 
 ## What the app hands to your terminal
 
-- **Plan screen [Copy prompt]** · `c` on Today — a prompt that picks up the next item, on your **clipboard**. Paste it into the terminal `claude` and press Enter.
-- **[Copy with until-done]** — the same prompt plus "keep going until the verdict passes".
-- **Diff [Copy record request]** — a request for an entry, built from the files no entry mentions.
+- **[Run in terminal]** (Plan screen · `r` on Today) — opens a new session in the in-app terminal and starts `claude` with a prompt that picks up the next item. If the `claude` command isn't found, it says so.
+- **[To the end (/goal)]** — starts `claude` and, once it waits for input, hands the plan's done condition and check command to Claude Code's `/goal`. It keeps going until the condition holds.
+- **"Send to Claude"** (entries · plan items · changed files) — pastes text carrying that context into an in-app claude session that's waiting for input, or opens a new one if there is none.
+- **Diff [Ask Claude]** — asks for an entry covering the files no entry mentions.
 
-You always do the sending — the app has no way to write into your terminal.
+The app writes into a terminal only when you press one of these, and never into a terminal outside the app. The other direction — Claude asking you — is the `ask_user` tool: the question shows up on Today, and the answer you pick or type goes straight back to Claude.
 
 ## Summary — what should I install?
 

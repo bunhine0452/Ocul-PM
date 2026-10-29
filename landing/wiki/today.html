@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>오늘 — Ocul-PM 위키</title>
-<meta name="description" content="앱을 열면 처음 보는 화면 — 한 칼럼에 「확인할 것」, 「다음」 한 줄, 계획별로 접히는 「오늘 한 일」." />
+<title>오늘 — Ocul 위키</title>
+<meta name="description" content="앱을 열면 처음 보는 화면 — 「먼저 볼 것」, 검증 없이 끝난 일지, 다음 한 줄, 계획별로 접히는 「오늘 한 일」." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/today" />
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/today" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/today" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="오늘 — Ocul-PM 위키" />
-<meta property="og:description" content="앱을 열면 처음 보는 화면 — 한 칼럼에 「확인할 것」, 「다음」 한 줄, 계획별로 접히는 「오늘 한 일」." />
+<meta property="og:title" content="오늘 — Ocul 위키" />
+<meta property="og:description" content="앱을 열면 처음 보는 화면 — 「먼저 볼 것」, 검증 없이 끝난 일지, 다음 한 줄, 계획별로 접히는 「오늘 한 일」." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki">위키</a></div>
-    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki">Ocul 위키</a>
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
@@ -62,20 +62,24 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>오늘</h1>
-      <p class="wk-updated">마지막 수정 2026-10-29</p>
-      <nav class="wk-toc"><span>이 페이지에서</span><a href="#한-칼럼">한 칼럼</a><a href="#확인할-것">확인할 것</a><a href="#다음">다음</a><a href="#오늘-한-일">오늘 한 일</a><a href="#키">키</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <p class="wk-updated">마지막 수정 2026-10-30</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#한-칼럼">한 칼럼</a><a href="#먼저-볼-것">먼저 볼 것</a><a href="#검증-없이-끝난-일지">검증 없이 끝난 일지</a><a href="#다음-내-차례">다음 · 내 차례</a><a href="#오늘-한-일">오늘 한 일</a><a href="#키">키</a><a href="#다음-걸음">다음 걸음</a></nav>
       <p><code>⌘1</code> 은 앱을 열면 처음 보는 화면입니다. 원칙은 <b>예외만 보여 준다</b> — 사람이 볼 것만 펼치고, 증거가 선 일은 한 줄로 접습니다. 하루 3건이든 60건이든 같은 화면입니다.</p>
 <h2 id="한-칼럼">한 칼럼</h2>
-<p>위에서 아래로: <b>날짜 · 기록 N</b> → <b>확인할 것</b> → <b>다음</b>(한 줄) → 지금 일하는 세션(있을 때만) → <b>오늘 한 일</b>. 계획별 진척과 통과한 판정은 <a href="/wiki/planner">계획</a> 탭에 있습니다 — 오늘에는 실패한 판정과 사람 몫만 「확인할 것」으로 섭니다.</p>
-<h2 id="확인할-것">확인할 것</h2>
-<p>심각도 순으로 섭니다. 비었으면 차분한 한 문단만 남습니다 — 다만 못 읽은 것이 있으면 「없다」고 말하지 않습니다.</p>
-<div class="wk-table"><table><thead><tr><th>종류</th><th>언제 서나</th><th>버튼</th></tr></thead><tbody><tr><td><b>판정 실패</b></td><td>계획의 마지막 판정이 <code>✗</code></td><td>출력 보기 → 그 계획</td></tr><tr><td><b>증거 없음</b></td><td>버그 · 기능 · 리팩토링 일지의 검증 칸에 명령 증거가 없고, 사람이 확인하지 않았거나 확인 뒤 바뀜</td><td>확인함 (제목을 누르면 그 일지)</td></tr><tr><td><b>기록 없는 변경</b></td><td>오늘 바뀐 파일 중 어느 일지에도 없는 것, 또는 일지 없이 끝난 대화</td><td>변경 보기</td></tr><tr><td><b>막힘</b></td><td>계획 항목이 <code>[!]</code></td><td>계획 열기</td></tr><tr><td><b>결정 필요</b></td><td>사람 몫(<code>[사용자]</code>) 항목이 열려 있음 — 계획마다 한 행</td><td>계획 열기</td></tr><tr><td><b>플러그인 새 판</b></td><td>프로젝트에 깔린 플러그인이 앱보다 낮음</td><td>명령 복사</td></tr></tbody></table></div>
-<h2 id="다음">다음</h2>
-<p>계획의 다음 항목(사람 몫이 아닌 첫 <code>[ ]</code>) 한 줄과 「터미널에서 실행」 하나입니다 — <a href="/wiki/screens">터미널</a> 탭의 새 세션에서 <code>claude</code> 가 그 항목부터 잡습니다. <code>r</code> 로도 됩니다. 끝까지 맡기려면 <code>/oculpm:next until-done</code>.</p>
+<p>위에서 아래로: <b>날짜 · 기록 N</b> → <b>먼저 볼 것</b> → <b>검증 없이 끝난 일지</b> → <b>다음</b>(한 줄) → <b>내 차례</b> 한 줄 → 지금 일하는 세션(있을 때만) → <b>오늘 한 일</b>. 계획별 진척과 통과한 판정은 <a href="/wiki/planner">계획</a> 탭에 있습니다. 윗줄 「오늘」 탭 옆의 수는 「먼저 볼 것」만 셉니다.</p>
+<h2 id="먼저-볼-것">먼저 볼 것</h2>
+<p>급한 순서로 섭니다. 비었으면 차분한 한 문단만 남습니다 — 다만 못 읽은 것이 있으면 「없다」고 말하지 않습니다.</p>
+<div class="wk-table"><table><thead><tr><th>종류</th><th>언제 서나</th><th>버튼</th></tr></thead><tbody><tr><td><b>Claude 가 물어요</b></td><td>Claude 가 플러그인의 <code>ask_user</code> 도구로 사람의 결정을 물음</td><td>고를 답 · 「다른 답」 — 답이 그대로 그 Claude 에게 갑니다</td></tr><tr><td><b>Claude 가 기다려요</b></td><td>앱 안 터미널의 Claude 가 사람을 기다림, 또는 앱 밖 터미널의 Claude 가 기다림(「바깥 터미널」, 플러그인 Notification 훅)</td><td>터미널에서 보기 · 알았어요</td></tr><tr><td><b>실패</b></td><td>계획의 마지막 판정이 <code>✗</code></td><td>출력 보기 → 그 계획</td></tr><tr><td><b>일지 없는 변경</b></td><td>오늘 바뀐 파일 중 어느 일지에도 없는 것, 또는 일지 없이 끝난 대화</td><td>변경 보기</td></tr><tr><td><b>막힘</b></td><td>계획 항목이 <code>[!]</code></td><td>계획 열기</td></tr><tr><td><b>플러그인 새 판</b></td><td>프로젝트에 깔린 플러그인이 앱보다 낮음</td><td>명령 복사</td></tr></tbody></table></div>
+<p>창이 뒤에 있는 동안 Claude 가 기다리기 시작하면 OS 알림도 옵니다(macOS 는 처음에 알림 권한을 묻습니다).</p>
+<h2 id="검증-없이-끝난-일지">검증 없이 끝난 일지</h2>
+<p>버그 · 기능 · 리팩토링 일지인데 검증 칸에 돌린 명령이 없거나, 읽은 뒤 내용이 바뀐 것을 한 묶음으로 둡니다. 행마다 <b>읽음</b>, 묶음 머리에 <b>모두 읽음</b>. 제목을 누르면 그 일지가 열립니다.</p>
+<h2 id="다음-내-차례">다음 · 내 차례</h2>
+<p>계획의 다음 항목(사람 몫이 아닌 첫 <code>[ ]</code>) 한 줄과 「터미널에서 실행」 하나입니다 — <a href="/wiki/screens">터미널</a> 탭의 새 세션에서 <code>claude</code> 가 그 항목부터 잡습니다. <code>r</code> 로도 됩니다. 끝까지 맡기려면 계획 화면의 「끝까지 (/goal)」.</p>
+<p>그 아래 한 줄이 사람 몫(<code>[사용자]</code>) 항목입니다 — 「계획 N곳에 내 차례 N건」 과 「계획에서 보기」. 날마다 바뀌는 일이 아니라서 펼치지 않습니다.</p>
 <h2 id="오늘-한-일">오늘 한 일</h2>
-<p>오늘의 일지를 계획별로 묶고, 어느 계획에도 없는 것은 「계획 밖」에 둡니다. 묶음 머리에 건수 · 증거 · 없음 · 확인함이 섭니다 — 증거 비율의 목표는 <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md" target="_blank" rel="noreferrer">약속 문서</a>에 숫자로(97%) 적혀 있습니다. 8건 이하면 전부 보이고, 넘으면 <b>증거가 다 선 묶음은 머리 한 줄로 접히고</b> 빠진 게 있는 묶음은 그 행만 보입니다(「나머지 N건 보기」). 계획별 / 시간순으로 바꿔 볼 수 있습니다.</p>
+<p>오늘의 일지를 계획별로 묶고, 어느 계획에도 없는 것은 「계획 밖」에 둡니다. 묶음 머리에 건수와 증거가 섭니다 — 증거 비율의 목표는 <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md" target="_blank" rel="noreferrer">약속 문서</a>에 숫자로(97%) 적혀 있습니다. 8건 이하면 전부 보이고, 넘으면 <b>증거가 다 선 묶음은 머리 한 줄로 접히고</b> 빠진 게 있는 묶음은 그 행만 보입니다(「나머지 N건 보기」). 계획별 / 시간순으로 바꿔 볼 수 있습니다.</p>
 <h2 id="키">키</h2>
-<p>화면 안에서만 듣습니다 — <code>j</code>/<code>k</code> 이동 · <code>Enter</code> 기본 동작 · <code>v</code> 확인함 · <code>r</code> 다음 항목을 터미널에서 실행.</p>
+<p>화면 안에서만 듣습니다 — <code>j</code>/<code>k</code> 이동 · <code>Enter</code> 기본 동작 · <code>v</code> 읽음 · <code>r</code> 다음 항목을 터미널에서 실행.</p>
 <div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>첫 일지가 남기 전에는 안내 하나만 섭니다 — 설정의 에이전트 연결로 갑니다. 3.x 의 통계 카드 · 활동 링 · 커밋 그래프 · 스탠드업 · 주간 요약은 4.0 에서 걷었습니다.</p></div></div>
 <h2 id="다음-걸음">다음 걸음</h2>
 <ul><li>일지가 어떻게 쌓이고 검증 상자가 무엇을 보는지 → <a href="/wiki/journal">작업 일지</a></li><li>판정과 「다음」의 출처 → <a href="/wiki/planner">계획</a></li></ul>

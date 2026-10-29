@@ -5,20 +5,20 @@ order: 3
 updated: 2026-10-29
 ---
 
-Ocul-PM 4.0 has five surfaces and a terminal. One principle — **show only the exceptions.** The screen grows with what a person must see, not with how much the agent did, so someone with 3 entries a day and someone with 60 use the same screen, with no modes. Run the agent in the in-app **Terminal** tab or in your own terminal — the records come out the same.
+Ocul Since 4.0 the app has five screens (Today · Work Journal · Plan · Diff · Terminal) plus Settings. One principle — **show only the exceptions.** The screen grows with what a person must see, not with how much the agent did, so someone with 3 entries a day and someone with 60 use the same screen, with no modes. Run the agent in the in-app **Terminal** tab or in your own terminal — the records come out the same.
 
-Top-bar tab order = `⌘` number order (`⌘1` – `⌘5`). Settings is the gear at the end of the top bar (`⌘,`).
+Top-bar tab order = `⌘` number order (`⌘1` – `⌘5`). `⌃Tab` · `⌃⇧Tab` cycle through them, and a two-finger trackpad swipe goes back · forward. Settings is the gear at the end of the top bar (`⌘,`). On first launch a four-page "Getting started" guide shows these screens briefly; reopen it from the Help menu or `⌘K`.
 
 | Screen | Key | What it does |
 |---|---|---|
-| **Today** | `⌘1` | "To check" — failed verdicts · entries without command evidence · changes no entry mentions · blocked · decisions that are yours · a new plugin version. Work with evidence folds to one line per plan |
-| **Work Journal** | `⌘2` | A list on the left, the detail on the right (verification box · inline diff per file · related entries). Journal search (`/`) lives here |
-| **Plan** | `⌘3` | Done condition · check command · last verdict right under the title, the next item run in the terminal. Finished phases fold to one line |
-| **Diff** | `⌘4` | Uncommitted / last-commit diffs. "Unrecorded" (files no entry mentions) comes first |
-| **Terminal** | `⌘5` | A shell in this project folder. Session list on the left (running · ended · entries since start) + the terminal. "Next" on Today and Plan opens `claude` here. Sessions end when the window closes |
+| **Today** | `⌘1` | "Look first" — Claude is waiting · Claude asks (answer right there) · failed verdicts · changes with no journal · blocked · a new plugin version. Below it, entries finished without verification and what was done today (work with evidence folds to one line per plan) |
+| **Work Journal** | `⌘2` | A list on the left, the detail on the right (body first — verification box · inline diff per file · related entries). The plan item in the header links to that item. Journal search (`/`) lives here |
+| **Plan** | `⌘3` | Done condition · check command · last verdict right under the title, the next item run in the terminal or taken to the end (`/goal`). "Send to Claude" on every item. Finished phases fold to one line |
+| **Diff** | `⌘4` | Uncommitted / last-commit diffs. "No journal" (files no entry mentions) comes first, and [Ask Claude] asks for an entry |
+| **Terminal** | `⌘5` | A shell in this project folder. One session is just the terminal; two or more get a tab row on top. Claude Code's status signal tells it working · waiting · done. "Next" on Today and Plan opens `claude` here. Sessions end when the window closes, and closing while something runs asks first |
 | **Settings** | `⌘,` | Agent connections · this project · display · data, on one page |
 
-A window with no project is the **start window** — recent projects and, the first time, three steps (folder → turn recording on → copy the plugin install command).
+A window with no project is the **start window** — recent projects and Open folder. Pick a folder and that window becomes the project.
 
 The journal and the plan are the app's two pillars — see [Work Journal](/wiki/en/journal) and [Plan](/wiki/en/planner).
 

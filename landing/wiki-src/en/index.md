@@ -1,11 +1,11 @@
 ---
-title: Ocul-PM Wiki
-desc: The Ocul-PM manual — getting started, the five surfaces, agent integration, troubleshooting, data layout and shortcuts.
+title: Ocul Wiki
+desc: The Ocul manual — getting started, the five surfaces, agent integration, troubleshooting, data layout and shortcuts.
 order: 0
 updated: 2026-10-29
 ---
 
-The places people get stuck with Ocul-PM, collected in one manual. Kept short, updated often. (As of 4.0.)
+The places people get stuck with Ocul, collected in one manual. Kept short, updated often. (As of 4.0.)
 
 The 4.0 app has five surfaces — **Today · Work Journal · Plan · Diff · Settings** — plus a start window when no project is open. One principle: **show only the exceptions.** It unfolds only what a person must see (failed verdicts · entries without evidence · unrecorded changes · blocked items · decisions that are yours) and folds work with evidence into one line. The app calls no LLM.
 
@@ -17,7 +17,7 @@ The 4.0 app has five surfaces — **Today · Work Journal · Plan · Diff · Set
 
 ## Concepts — what accumulates
 
-- **[Today](/wiki/en/today)** — the first screen you see. "To check" and one line a day
+- **[Today](/wiki/en/today)** — the first screen you see. "Look first" and one line a day
 - **[Work Journal](/wiki/en/journal)** — when and how entries pile up, the verification box, journal search
 - **[Plan](/wiki/en/planner)** — plan documents your agents update. Done condition · check command · last verdict
 

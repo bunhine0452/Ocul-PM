@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>플러그인 — Ocul-PM</title>
-<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 4종, MCP 도구 7종, 동봉 스킬 1종, 그리고 시작 훅이 싣는 완료 조건 · 확인 명령 · 마지막 판정." />
+<title>플러그인 — Ocul</title>
+<meta name="description" content="Claude Code 용 Ocul 플러그인의 전체 표면: 슬래시 커맨드 4종, MCP 도구 8종, 동봉 스킬 1종, 그리고 시작 훅이 싣는 완료 조건 · 확인 명령 · 마지막 판정." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/plugin" />
@@ -12,10 +12,10 @@
 <link rel="alternate" hreflang="en" href="https://oculpm.com/en/plugin" />
 <link rel="alternate" hreflang="x-default" href="https://oculpm.com/plugin" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/plugin" />
-<meta property="og:title" content="플러그인 — Ocul-PM" />
+<meta property="og:title" content="플러그인 — Ocul" />
 <meta property="og:description" content="설치 두 줄부터 /oculpm:inception → /oculpm:next 구현 루프까지. 판정은 에이전트의 말이 아니라 확인 명령의 결과 끝 줄입니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -26,8 +26,8 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v4.0.0</span>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
+    <span class="nav-ver" data-version>v4.1.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/wiki">위키</a>
@@ -88,13 +88,13 @@
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:help</code><span class="when">뭐가 있는지 잊었을 때</span></h3>
-        <p>플러그인 표면 전체(커맨드 4 · MCP 도구 7 · 스킬 1 · 훅)를 레퍼런스 카드 한 장으로 보여주고, 지금 상황에 맞는 다음 한 걸음을 추천합니다.</p>
+        <p>플러그인 표면 전체(커맨드 4 · MCP 도구 8 · 스킬 1 · 훅)를 레퍼런스 카드 한 장으로 보여주고, 지금 상황에 맞는 다음 한 걸음을 추천합니다.</p>
       </div>
       </div>
     </section>
 
     <section class="pg-sec">
-      <h2 id="tools">MCP 도구 7종</h2>
+      <h2 id="tools">MCP 도구 8종</h2>
       <p>에이전트가 마크다운 규격을 흉내 내는 대신 도구로 기록하고, 쌓인 기록을 도구로 되찾습니다 — 경로·frontmatter·항목 id 규격은 서버가 보장합니다. 모든 도구는 <code>.oculpm/</code> 이 있는 추적 프로젝트에서만 동작합니다 (유일한 예외: <code>project_init</code>).</p>
       <div class="pg-table">
         <table>
@@ -107,6 +107,7 @@
             <tr><td>plan_update</td><td>플랜 항목의 상태를 갱신하고 plan-log 를 남김. 하위를 가진 부모는 롤업 자동이라 직접 갱신 거부. 확인 명령을 돌렸으면 메모를 <code>판정 ✓ &lt;결과 끝 줄&gt;</code> / <code>판정 ✗ …</code> 로 — 시작 훅이 「마지막 판정」으로 싣습니다. <b><code>base_hash</code> 필수</b> — <code>plan_status</code> 로 읽은 해시와 디스크가 어긋나면 <b>덮어쓰지 않고</b> 현재 해시를 담아 거절합니다. 병렬 세션이 같은 플랜을 고칠 때 한쪽 변경이 조용히 사라지던 자리입니다.</td></tr>
             <tr><td>plan_create</td><td>새 계획을 3-depth(마일스톤→작업→하위 작업)로 생성 — frontmatter·id 규격 서버 보장. <code>done_when</code>(완료 조건)과 <code>check</code>(그것을 통과/실패로 판정하는 명령)을 받아 본문 첫 줄에 두고, 시작 훅이 항목보다 먼저 싣습니다. 제목·id 가 겹치는 활성 계획이 있으면 만들지 않고 그 후보를 돌려줘 재사용을 권합니다(<code>allow_similar</code> 로 통과). <code>check</code> 를 생략하면 매니페스트(package.json · Cargo.toml · pyproject · go.mod · Makefile)에서 확인 명령을 감지해 적고 <code>warnings</code> 로 알립니다 — 틀리면 그 줄을 고치세요.</td></tr>
             <tr><td>project_init</td><td>미추적 저장소의 추적 시작 — 사용자의 명시적 요청·확인(confirm)이 있을 때만. 심볼릭 링크 거부·홈 디렉터리 가드.</td></tr>
+            <tr><td>ask_user</td><td>사람의 결정이 필요한데 사람이 터미널을 보고 있지 않을 수 있을 때 — 질문(과 고를 수 있는 답, 최대 6개)을 Ocul 앱의 <b>오늘 화면</b>에 띄우고 답을 기다려 그대로 돌려줌. 25분 안에 답이 없으면 질문을 거두고 <code>answer: null</code> — 그때는 터미널에서 묻는다. 사소한 확인에는 쓰지 않는다.</td></tr>
           </tbody>
         </table>
       </div>
@@ -132,7 +133,7 @@
 
 <footer class="footer">
   <div class="footer-inner">
-    <span>© 2026 Ocul-PM</span>
+    <span>© 2026 Ocul</span>
     <a href="/wiki">위키</a>
     <a href="/plugin">플러그인</a>
     <a href="/changelog">변경 이력</a>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Data &amp; file layout — Ocul-PM Wiki</title>
+<title>Data &amp; file layout — Ocul Wiki</title>
 <meta name="description" content="The layout of the .oculpm folder, backup and moving, and what local-first actually means." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/data" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/data" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Data &amp; file layout — Ocul-PM Wiki" />
+<meta property="og:title" content="Data &amp; file layout — Ocul Wiki" />
 <meta property="og:description" content="The layout of the .oculpm folder, backup and moving, and what local-first actually means." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/en#acts">Features</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
-    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en">Ocul Wiki</a>
     <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
@@ -65,7 +65,7 @@
       <p class="wk-updated">Last updated 2026-10-29</p>
       <nav class="wk-toc"><span>On this page</span><a href="#the-rule-files-are-the-truth">The rule — files are the truth</a><a href="#the-oculpm-layout">The `.oculpm/` layout</a><a href="#backup-and-moving">Backup and moving</a><a href="#what-lives-where">What lives where</a><a href="#what-leaves-the-machine">What leaves the machine</a></nav>
       <h2 id="the-rule-files-are-the-truth">The rule — files are the truth</h2>
-<p>Every record in Ocul-PM is <b>a markdown file inside your project</b>. The app's database (SQLite) is only a <b>cache</b> for drawing screens quickly, and can always be rebuilt from the files (Settings → Data → "Rebuild from scratch"). So:</p>
+<p>Every record in Ocul is <b>a markdown file inside your project</b>. The app's database (SQLite) is only a <b>cache</b> for drawing screens quickly, and can always be rebuilt from the files (Settings → Data → "Rebuild from scratch"). So:</p>
 <ul><li>Uninstalling the app leaves your records behind</li><li>You can commit the records to git and share them with your team</li><li>You can read and edit them in any editor (it's plain markdown)</li></ul>
 <h2 id="the-oculpm-layout">The <code>.oculpm/</code> layout</h2>
 <pre class="wk-code"><code>.oculpm/

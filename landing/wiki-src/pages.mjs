@@ -69,7 +69,7 @@ export function shell({ slug, title, desc, hero, body, active, version, script }
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com${slug}" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com${slug}" />
 <meta property="og:title" content="${esc(title)}" />
@@ -83,7 +83,7 @@ export function shell({ slug, title, desc, hero, body, active, version, script }
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>${version}</span>
     <div class="nav-links">
       ${nav}
@@ -104,7 +104,7 @@ ${body}
 
 <footer class="footer">
   <div class="footer-inner">
-    <span>© 2026 Ocul-PM</span>
+    <span>© 2026 Ocul</span>
     ${foot}
     <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
     <a href="/en" hreflang="en">English</a>
@@ -220,8 +220,8 @@ ${html}
     version,
     slug: "/changelog",
     active: "/changelog",
-    title: `변경 이력 — Ocul-PM (최신 ${releases[0].version})`,
-    desc: `Ocul-PM 의 전체 릴리스 노트 ${releases.length}개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다.`,
+    title: `변경 이력 — Ocul (최신 ${releases[0].version})`,
+    desc: `Ocul 의 전체 릴리스 노트 ${releases.length}개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다.`,
     hero: hero(
       "Changelog",
       "매주 조금씩, 꾸준히.",
@@ -252,8 +252,8 @@ export function buildPrivacy(root) {
     version: appVersion(root),
     slug: "/privacy",
     active: null,
-    title: "무엇이 나가고, 무엇이 절대 나가지 않는가 — Ocul-PM",
-    desc: "Ocul-PM 은 계정도 서버도 텔레메트리도 없고, 앱은 LLM 을 부르지 않습니다. 앱에서 나가는 것 두 가지와, 절대 나가지 않는 것들을 목록으로 못박습니다.",
+    title: "무엇이 나가고, 무엇이 절대 나가지 않는가 — Ocul",
+    desc: "Ocul 은 계정도 서버도 텔레메트리도 없고, 앱은 LLM 을 부르지 않습니다. 앱에서 나가는 것 두 가지와, 절대 나가지 않는 것들을 목록으로 못박습니다.",
     hero: hero(
       "Privacy",
       "무엇이 나가고,<br />무엇이 절대 나가지 않는가.",
@@ -307,7 +307,7 @@ export function buildPrivacy(root) {
 
     <section class="pg-sec">
       <h2 id="english">English summary</h2>
-      <p>Ocul-PM is local-first: no account, no server of ours, <b>no telemetry and no crash reporting</b> — and since 4.0 <b>the app calls no LLM</b> and its screens (the webview) reach no outside host. Exactly two kinds of outbound connection exist, and you start both: (1) update checks against a GitHub release file, whose destination is fixed in the app configuration and whose signature is verified; (2) links you click, which the app hands to your OS default browser (only http, https and mailto). Tools the app launches for you do their own thing: the external-editor command you configured and the local <code>git</code> the Diff screen reads.</p>
+      <p>Ocul is local-first: no account, no server of ours, <b>no telemetry and no crash reporting</b> — and since 4.0 <b>the app calls no LLM</b> and its screens (the webview) reach no outside host. Exactly two kinds of outbound connection exist, and you start both: (1) update checks against a GitHub release file, whose destination is fixed in the app configuration and whose signature is verified; (2) links you click, which the app hands to your OS default browser (only http, https and mailto). Tools the app launches for you do their own thing: the external-editor command you configured and the local <code>git</code> the Diff screen reads.</p>
       <p>Never leaves the machine: your journal entries and plans, everything under <code>.oculpm/</code>, your source code (there is no LLM client in the app), usage statistics and crash reports (<b>not collected at all</b>). The app takes no API key. The core is MIT-licensed — the build keeps this list honest: <code>src-tauri/tests/egress_inventory.rs</code> fails on any outbound call that is not in its ledger, and <code>webview_csp.rs</code> fails if an outside host returns to the webview's <code>connect-src</code>.</p>
     </section>`,
   });

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Troubleshooting — Ocul-PM Wiki</title>
+<title>Troubleshooting — Ocul Wiki</title>
 <meta name="description" content="When entries don't pile up, when you're looking for a screen 4.0 removed, when macOS asks for permission — common snags." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/troubleshooting" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/troubleshooting" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Troubleshooting — Ocul-PM Wiki" />
+<meta property="og:title" content="Troubleshooting — Ocul Wiki" />
 <meta property="og:description" content="When entries don't pile up, when you're looking for a screen 4.0 removed, when macOS asks for permission — common snags." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/en#acts">Features</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
-    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en">Ocul Wiki</a>
     <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
@@ -74,7 +74,7 @@
 <p>That's expected. The first launch after updating to 4.0 drops the 3.x code-index and embedding tables. It keeps an <code>ocul-pm.db.bak-v42</code> copy in the app data folder first, and Settings → Data → "Compact" hands the freed space back to the disk. Entries and plans are markdown in your project and are not affected.</p>
 <h2 id="macos-asks-for-access-to-files-or-other-apps-data">macOS asks for access to files or other apps' data</h2>
 <p>That's normal. It helps to tell two gates apart.</p>
-<ul><li><b>Notarization</b> asks "may this app <b>run</b>?" Ocul-PM is signed with an Apple Developer ID and notarized, so it passes.</li><li><b>A permission prompt</b> asks "may this app read <b>that data</b>?" — a separate gate, unrelated to notarization, and notarization doesn't make it go away.</li></ul>
+<ul><li><b>Notarization</b> asks "may this app <b>run</b>?" Ocul is signed with an Apple Developer ID and notarized, so it passes.</li><li><b>A permission prompt</b> asks "may this app read <b>that data</b>?" — a separate gate, unrelated to notarization, and notarization doesn't make it go away.</li></ul>
 <p>It asks in roughly two cases.</p>
 <p><b>Your project is inside Desktop, Documents or Downloads.</b> macOS protects those, so reading files there needs one approval.</p>
 <p><b>A program the app launched reads a file.</b> When something the app ran for you — your external-editor command — reads a protected folder, macOS attributes the access <b>to the app that launched it</b>, not the program.</p>

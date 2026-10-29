@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>FAQ — Ocul-PM Wiki</title>
+<title>FAQ — Ocul Wiki</title>
 <meta name="description" content="Where first-time users get stuck most — who writes the journal, does it cost money, should I commit it, what's a workday." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/faq" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/faq" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="FAQ — Ocul-PM Wiki" />
+<meta property="og:title" content="FAQ — Ocul Wiki" />
 <meta property="og:description" content="Where first-time users get stuck most — who writes the journal, does it cost money, should I commit it, what's a workday." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/en#acts">Features</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
-    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en">Ocul Wiki</a>
     <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link on" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
@@ -68,7 +68,7 @@
 <h2 id="what-does-it-do">What does it do</h2>
 <h3 id="in-one-line">In one line</h3>
 <p><b>It leaves a human-readable record of what an AI agent did to your code.</b></p>
-<p>A commit message only says <i>what changed</i>. Ocul-PM records <i>why it was done that way, what was tried and failed, and how it was checked</i> — and the app unfolds only <b>what a person must see</b> from that record: failed verdicts · entries without evidence · unrecorded changes. The goal is to trust what the agent did, and decide what's next, in three minutes.</p>
+<p>A commit message only says <i>what changed</i>. Ocul records <i>why it was done that way, what was tried and failed, and how it was checked</i> — and the app unfolds only <b>what a person must see</b> from that record: failed verdicts · entries without evidence · unrecorded changes. The goal is to trust what the agent did, and decide what's next, in three minutes.</p>
 <h3 id="do-i-have-to-write-the-entries">Do I have to write the entries?</h3>
 <p><b>No. Your agent writes them.</b> You just read.</p>
 <p>Turning recording on creates a rules file called <code>AGENTS.md</code> at the root, and agents like Claude Code, Codex, Cursor and Gemini CLI read it. "When you finish a unit of work, write an entry" is the rule. You don't even have to ask.</p>
@@ -119,7 +119,7 @@
 <h2 id="day-to-day">Day to day</h2>
 <h3 id="no-entries-are-piling-up">No entries are piling up</h3>
 <p>The most common cause is <b>using an agent in the terminal without the plugin</b>. With <code>AGENTS.md</code> alone a model can forget to record at the end of a long session. <a href="/wiki/en/claude-code">Install the plugin</a> and a session-end hook makes it structural.</p>
-<p><b>Today's "To check"</b> tells you if anything's missing — it points at observed changes no entry records and at conversations that ended without an entry. (<a href="/wiki/en/troubleshooting">details</a>)</p>
+<p><b>Today's "Look first"</b> tells you if anything's missing — it points at observed changes no entry records and at conversations that ended without an entry. (<a href="/wiki/en/troubleshooting">details</a>)</p>
 <h3 id="can-i-edit-entries">Can I edit entries?</h3>
 <p>Yes. They're plain markdown and the app re-reads them when you save. But <b>agents are told not to edit existing entries</b> — a history that changes quietly can't be trusted. An agent writes a new entry and links it with <code>related</code>.</p>
 <h3 id="what-if-there-are-too-many-entries">What if there are too many entries?</h3>

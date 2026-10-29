@@ -1,6 +1,6 @@
 ---
 title: Getting started
-desc: From installing Ocul-PM to your first work-journal entry — five minutes of setup.
+desc: From installing Ocul to your first work-journal entry — five minutes of setup.
 order: 1
 updated: 2026-10-29
 ---
@@ -15,7 +15,7 @@ No account to create — the app opens straight into the **start window**.
 
 ## Pick a folder and turn recording on
 
-The start window shows recent projects and, the first time, three steps: **pick a folder → turn recording on → copy the plugin install command.** Turning recording on creates two things in the project:
+On first launch a four-page "Getting started" guide appears (what it does · five screens · connecting an agent · getting the feel). Close it and you're in the start window — recent projects and **Open folder**. Pick a folder and turn recording on, and two things appear in the project:
 
 - `.oculpm/` — the folder where entries and plans accumulate (all markdown)
 - `AGENTS.md` — the recording rules that tell your agent "write an entry when you finish · the verdict comes from something that isn't you"
@@ -31,7 +31,7 @@ Pick a project in the start window and **that window becomes the project** (one 
 Ask your agent in the terminal to do anything. Within seconds of it finishing:
 
 - a new entry appears in **Work Journal** (⌘2)
-- it shows up under "Done today" on **Today** (⌘1) — and if its verification section has no command evidence, it lands in "To check"
+- it shows up under "Done today" on **Today** (⌘1) — and if its verification section has no command evidence, it lands in "Finished without verification"
 - **Diff** (⌘4) shows that change line by line
 
 If no entry appears, see the first item in [Troubleshooting](/wiki/en/troubleshooting).

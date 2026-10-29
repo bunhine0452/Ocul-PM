@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ============================================================
-// Ocul-PM 랜딩 빌더 — 위키 · 변경 이력 · 개인정보 · sitemap.xml
+// Ocul 랜딩 빌더 — 위키 · 변경 이력 · 개인정보 · sitemap.xml
 //
 //   landing/wiki-src/*.md                        → landing/wiki/*.html
 //   CHANGELOG.md                                 → landing/changelog.html
@@ -45,7 +45,7 @@ const LOCALES = [
     // 「Features」를 눌렀는데 한국어 랜딩이 열리면 언어가 끊긴다.
     home: "/",
     srcRepoDir: "landing/wiki-src",
-    suffix: "Ocul-PM 위키",
+    suffix: "Ocul 위키",
     ui: {
       wiki: "위키",
       updated: "마지막 수정",
@@ -64,7 +64,7 @@ const LOCALES = [
     base: "/wiki/en",
     home: "/en",
     srcRepoDir: "landing/wiki-src/en",
-    suffix: "Ocul-PM Wiki",
+    suffix: "Ocul Wiki",
     ui: {
       wiki: "Wiki",
       updated: "Last updated",
@@ -129,7 +129,7 @@ ${LOCALES.filter((l) => l.pages.some((p) => p.file === page.file))
   .map((l) => `<link rel="alternate" hreflang="${l.code}" href="https://oculpm.com${urlOf(l, page.file)}" />`)
   .join("\n")}
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="${loc.code === "ko" ? "ko_KR" : "en_US"}" />
 <meta property="og:title" content="${title}" />
 <meta property="og:description" content="${esc(page.meta.desc)}" />
@@ -142,7 +142,7 @@ ${LOCALES.filter((l) => l.pages.some((p) => p.file === page.file))
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="${loc.home}"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="${loc.home}"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="${loc.home === "/" ? "/#acts" : `${loc.home}#acts`}">${ui.nav.features}</a>

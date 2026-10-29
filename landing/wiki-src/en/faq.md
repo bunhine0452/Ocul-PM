@@ -13,7 +13,7 @@ The questions that actually come up in the first few days. The confusing concept
 
 **It leaves a human-readable record of what an AI agent did to your code.**
 
-A commit message only says *what changed*. Ocul-PM records *why it was done that way, what was tried and failed, and how it was checked* — and the app unfolds only **what a person must see** from that record: failed verdicts · entries without evidence · unrecorded changes. The goal is to trust what the agent did, and decide what's next, in three minutes.
+A commit message only says *what changed*. Ocul records *why it was done that way, what was tried and failed, and how it was checked* — and the app unfolds only **what a person must see** from that record: failed verdicts · entries without evidence · unrecorded changes. The goal is to trust what the agent did, and decide what's next, in three minutes.
 
 ### Do I have to write the entries?
 
@@ -118,7 +118,7 @@ Yes. The UI language (Settings → Display) is the app's text; the language of e
 
 The most common cause is **using an agent in the terminal without the plugin**. With `AGENTS.md` alone a model can forget to record at the end of a long session. [Install the plugin](/wiki/en/claude-code) and a session-end hook makes it structural.
 
-**Today's "To check"** tells you if anything's missing — it points at observed changes no entry records and at conversations that ended without an entry. ([details](/wiki/en/troubleshooting))
+**Today's "Look first"** tells you if anything's missing — it points at observed changes no entry records and at conversations that ended without an entry. ([details](/wiki/en/troubleshooting))
 
 ### Can I edit entries?
 

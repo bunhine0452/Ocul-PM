@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>작업 일지 — Ocul-PM 위키</title>
+<title>작업 일지 — Ocul 위키</title>
 <meta name="description" content="일지가 언제 어떻게 쌓이는지, 파일 구조, 검증 상자와 변경 diff, 일지 검색, 그리고 기록 없는 변경." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/journal" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/journal" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="작업 일지 — Ocul-PM 위키" />
+<meta property="og:title" content="작업 일지 — Ocul 위키" />
 <meta property="og:description" content="일지가 언제 어떻게 쌓이는지, 파일 구조, 검증 상자와 변경 diff, 일지 검색, 그리고 기록 없는 변경." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki">위키</a></div>
-    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki">Ocul 위키</a>
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
@@ -112,8 +112,8 @@ tags: [dogfooding]
 <p>앱은 파일이 바뀌는 것을 지켜보다 <b>세션</b>을 엽니다. 에이전트가 일하기 시작하면 열리고, 한동안 조용하면 닫힙니다. 세션 하나는 보통 "한 번 앉아서 한 일" 에 해당하고, <code>20260821-002</code> 처럼 날짜와 순번으로 불립니다.</p>
 <p>일지는 어느 세션의 산물인지로 묶입니다. 에이전트가 세션 번호를 직접 알 수 없는 경우(터미널에서 파일을 직접 쓰는 등)에도 앱이 <b>작성 시각으로 알아서 귀속</b>시키므로, 여러분이 신경 쓸 것은 없습니다.</p>
 <h2 id="기록-없는-변경">기록 없는 변경</h2>
-<p>앱이 실제로 관측한 파일 변경과 일지에 적힌 <code>files_touched</code> 를 맞춰 보고, <b>어느 일지에도 안 적힌 변경</b>을 짚습니다 — 오늘 화면 「확인할 것」에, 그리고 변경 화면(<code>⌘4</code>)의 맨 위 「기록 없음」 묶음으로.</p>
-<ul><li>오늘 바뀐 파일이 전부 어딘가에 기록돼 있으면 <b>아무것도 서지 않습니다</b> — 깨끗한 날에 소음을 내지 않습니다</li><li>임시 파일·에디터 부산물·에이전트 내부 상태 파일은 애초에 세지 않습니다</li><li>변경 화면의 <b>[기록 요청 복사]</b> 는 그 파일 목록을 에이전트에게 붙여 넣을 글로, <b>[직접 기록]</b> 은 그 파일들로 미리 채운 작성기를 엽니다</li></ul>
+<p>앱이 실제로 관측한 파일 변경과 일지에 적힌 <code>files_touched</code> 를 맞춰 보고, <b>어느 일지에도 안 적힌 변경</b>을 짚습니다 — 오늘 화면 「먼저 볼 것」에, 그리고 변경 화면(<code>⌘4</code>)의 맨 위 「일지 없음」 묶음으로.</p>
+<ul><li>오늘 바뀐 파일이 전부 어딘가에 기록돼 있으면 <b>아무것도 서지 않습니다</b> — 깨끗한 날에 소음을 내지 않습니다</li><li>임시 파일·에디터 부산물·에이전트 내부 상태 파일은 애초에 세지 않습니다</li><li>변경 화면의 <b>[Claude 에게 맡기기]</b> 는 그 파일 목록으로 앱 안 터미널의 claude 에 기록을 부탁하고, <b>[직접 기록]</b> 은 그 파일들로 미리 채운 작성기를 엽니다</li></ul>
 <p>이것이 자주 뜬다면 <a href="/wiki/claude-code">플러그인을 설치</a>하는 게 가장 확실한 해법입니다. 기록이 "모델이 규칙을 기억해 주는 만큼" 에서 "세션이 끝나면 구조적으로" 로 바뀝니다.</p>
 <h2 id="일지를-다루는-법">일지를 다루는 법</h2>
 <ul><li><b>확인함</b> — 사람이 읽고 맞다고 확인한 표시는 그때 본문의 지문과 함께 남습니다. 에이전트가 뒤에 본문을 고치면 확인된 것으로 세지 않습니다</li><li><b>직접 고치기</b> — 평범한 마크다운입니다. 에디터로 열어 고치면 앱이 알아서 다시 읽습니다</li></ul>

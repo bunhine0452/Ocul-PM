@@ -36,7 +36,7 @@ That's expected. The first launch after updating to 4.0 drops the 3.x code-index
 
 That's normal. It helps to tell two gates apart.
 
-- **Notarization** asks "may this app **run**?" Ocul-PM is signed with an Apple Developer ID and notarized, so it passes.
+- **Notarization** asks "may this app **run**?" Ocul is signed with an Apple Developer ID and notarized, so it passes.
 - **A permission prompt** asks "may this app read **that data**?" — a separate gate, unrelated to notarization, and notarization doesn't make it go away.
 
 It asks in roughly two cases.

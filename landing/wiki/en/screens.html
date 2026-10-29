@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Screens tour — Ocul-PM Wiki</title>
+<title>Screens tour — Ocul Wiki</title>
 <meta name="description" content="The screens of 4.0 — Today · Work Journal · Plan · Diff · Terminal · Settings — and the start window, on one page." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/screens" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/screens" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Screens tour — Ocul-PM Wiki" />
+<meta property="og:title" content="Screens tour — Ocul Wiki" />
 <meta property="og:description" content="The screens of 4.0 — Today · Work Journal · Plan · Diff · Terminal · Settings — and the start window, on one page." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/en#acts">Features</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
-    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en">Ocul Wiki</a>
     <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link on" href="/wiki/en/screens">Screens tour</a>
@@ -64,10 +64,10 @@
       <h1>Screens tour</h1>
       <p class="wk-updated">Last updated 2026-10-29</p>
       
-      <p>Ocul-PM 4.0 has five surfaces and a terminal. One principle — <b>show only the exceptions.</b> The screen grows with what a person must see, not with how much the agent did, so someone with 3 entries a day and someone with 60 use the same screen, with no modes. Run the agent in the in-app <b>Terminal</b> tab or in your own terminal — the records come out the same.</p>
-<p>Top-bar tab order = <code>⌘</code> number order (<code>⌘1</code> – <code>⌘5</code>). Settings is the gear at the end of the top bar (<code>⌘,</code>).</p>
-<div class="wk-table"><table><thead><tr><th>Screen</th><th>Key</th><th>What it does</th></tr></thead><tbody><tr><td><b>Today</b></td><td><code>⌘1</code></td><td>"To check" — failed verdicts · entries without command evidence · changes no entry mentions · blocked · decisions that are yours · a new plugin version. Work with evidence folds to one line per plan</td></tr><tr><td><b>Work Journal</b></td><td><code>⌘2</code></td><td>A list on the left, the detail on the right (verification box · inline diff per file · related entries). Journal search (<code>/</code>) lives here</td></tr><tr><td><b>Plan</b></td><td><code>⌘3</code></td><td>Done condition · check command · last verdict right under the title, the next item run in the terminal. Finished phases fold to one line</td></tr><tr><td><b>Diff</b></td><td><code>⌘4</code></td><td>Uncommitted / last-commit diffs. "Unrecorded" (files no entry mentions) comes first</td></tr><tr><td><b>Terminal</b></td><td><code>⌘5</code></td><td>A shell in this project folder. Session list on the left (running · ended · entries since start) + the terminal. "Next" on Today and Plan opens <code>claude</code> here. Sessions end when the window closes</td></tr><tr><td><b>Settings</b></td><td><code>⌘,</code></td><td>Agent connections · this project · display · data, on one page</td></tr></tbody></table></div>
-<p>A window with no project is the <b>start window</b> — recent projects and, the first time, three steps (folder → turn recording on → copy the plugin install command).</p>
+      <p>Ocul Since 4.0 the app has five screens (Today · Work Journal · Plan · Diff · Terminal) plus Settings. One principle — <b>show only the exceptions.</b> The screen grows with what a person must see, not with how much the agent did, so someone with 3 entries a day and someone with 60 use the same screen, with no modes. Run the agent in the in-app <b>Terminal</b> tab or in your own terminal — the records come out the same.</p>
+<p>Top-bar tab order = <code>⌘</code> number order (<code>⌘1</code> – <code>⌘5</code>). <code>⌃Tab</code> · <code>⌃⇧Tab</code> cycle through them, and a two-finger trackpad swipe goes back · forward. Settings is the gear at the end of the top bar (<code>⌘,</code>). On first launch a four-page "Getting started" guide shows these screens briefly; reopen it from the Help menu or <code>⌘K</code>.</p>
+<div class="wk-table"><table><thead><tr><th>Screen</th><th>Key</th><th>What it does</th></tr></thead><tbody><tr><td><b>Today</b></td><td><code>⌘1</code></td><td>"Look first" — Claude is waiting · Claude asks (answer right there) · failed verdicts · changes with no journal · blocked · a new plugin version. Below it, entries finished without verification and what was done today (work with evidence folds to one line per plan)</td></tr><tr><td><b>Work Journal</b></td><td><code>⌘2</code></td><td>A list on the left, the detail on the right (body first — verification box · inline diff per file · related entries). The plan item in the header links to that item. Journal search (<code>/</code>) lives here</td></tr><tr><td><b>Plan</b></td><td><code>⌘3</code></td><td>Done condition · check command · last verdict right under the title, the next item run in the terminal or taken to the end (<code>/goal</code>). "Send to Claude" on every item. Finished phases fold to one line</td></tr><tr><td><b>Diff</b></td><td><code>⌘4</code></td><td>Uncommitted / last-commit diffs. "No journal" (files no entry mentions) comes first, and [Ask Claude] asks for an entry</td></tr><tr><td><b>Terminal</b></td><td><code>⌘5</code></td><td>A shell in this project folder. One session is just the terminal; two or more get a tab row on top. Claude Code's status signal tells it working · waiting · done. "Next" on Today and Plan opens <code>claude</code> here. Sessions end when the window closes, and closing while something runs asks first</td></tr><tr><td><b>Settings</b></td><td><code>⌘,</code></td><td>Agent connections · this project · display · data, on one page</td></tr></tbody></table></div>
+<p>A window with no project is the <b>start window</b> — recent projects and Open folder. Pick a folder and that window becomes the project.</p>
 <p>The journal and the plan are the app's two pillars — see <a href="/wiki/en/journal">Work Journal</a> and <a href="/wiki/en/planner">Plan</a>.</p>
 <div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>"Open" in an entry's detail and on Diff hands the file to your <b>external editor</b> command (VS Code · Cursor …). There is no editor inside the app.</p></div></div>
 <h2 id="screens-removed-in-4-0">Screens removed in 4.0</h2>

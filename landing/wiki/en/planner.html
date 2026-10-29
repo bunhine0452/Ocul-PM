@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Plan — Ocul-PM Wiki</title>
+<title>Plan — Ocul Wiki</title>
 <meta name="description" content="A plan document agents keep current — done condition · check command · last verdict, glyphs, the change log, decisions, and locking." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/planner" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/planner" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Plan — Ocul-PM Wiki" />
+<meta property="og:title" content="Plan — Ocul Wiki" />
 <meta property="og:description" content="A plan document agents keep current — done condition · check command · last verdict, glyphs, the change log, decisions, and locking." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/en#acts">Features</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
-    <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
+    <a class="wk-side-link" href="/wiki/en">Ocul Wiki</a>
     <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
@@ -95,7 +95,7 @@ owner: claude-code
 <pre class="wk-code"><code>verdict ✓ 418 passed · exit 0
 verdict ✗ 2 failed, 418 passed
 판정 ✓ …          (Korean template — same shape)</code></pre>
-<p>The newest such line is the plan's <b>last verdict</b>. The plugin's start hook and the app's Plan screen read it by <b>the same rule</b> (<code>^(판정|verdict) (✓|✗)</code>), so the next session's agent and you see the same verdict. A plain note with a colon, like "verdict:", is not a verdict. <b>All items closed is not done until the verdict passes</b> — a failed verdict goes to the top of Today's "To check".</p>
+<p>The newest such line is the plan's <b>last verdict</b>. The plugin's start hook and the app's Plan screen read it by <b>the same rule</b> (<code>^(판정|verdict) (✓|✗)</code>), so the next session's agent and you see the same verdict. A plain note with a colon, like "verdict:", is not a verdict. <b>All items closed is not done until the verdict passes</b> — a failed verdict goes to the top of Today's "Look first".</p>
 <h2 id="the-change-log-who-moved-what-when-why">The change log — who moved what, when, why</h2>
 <p>A table sits at the bottom of each plan. Every time an agent moves an item it <b>appends one row</b> and never edits existing ones:</p>
 <pre class="wk-code"><code>| time | #item-id | agent | old→new glyph | entry path | short note |</code></pre>
@@ -113,7 +113,7 @@ Affects: #resolve-by-time, #derive-links</code></pre>
 <div class="wk-table"><table><thead><tr><th>status</th><th>Meaning</th><th>Can agents edit it?</th></tr></thead><tbody><tr><td><code>active</code></td><td>In progress</td><td>Yes</td></tr><tr><td><code>done</code></td><td>Finished</td><td><b>No</b></td></tr><tr><td><code>archived</code></td><td>Archived</td><td><b>No</b></td></tr></tbody></table></div>
 <p>Agents <b>will not modify</b> a <code>done</code> or <code>archived</code> plan. That keeps a finished plan from quietly coming back to life and muddying the history; when there's follow-on work, a new plan is created. In the Plan screen's rail they fold into one "N finished plans" line.</p>
 <h2 id="the-plan-screen-3">The Plan screen (<code>⌘3</code>)</h2>
-<ul><li><b>Rail</b> — each active plan with a progress bar · verdict (✓ / ✗ / none) · updated time, most recently updated first</li><li><b>Verdict card</b> — done condition · check command · last verdict (last line of output) right under the title; "Not run yet" when there is none</li><li><b>Next</b> — the first open item (human-owned ones skipped) with <b>[Copy prompt]</b> · <b>[Copy with until-done]</b>. Paste it and the agent in your terminal picks the item up; with until-done it keeps going until the verdict passes</li><li><b>Item status</b> — click an item's box to pick one of six states. Marking it done without a verifying entry asks once</li><li>"Change log N lines · decisions M" stays folded</li></ul>
+<ul><li><b>Rail</b> — each active plan with a progress bar · verdict (✓ / ✗ / none) · updated time, most recently updated first</li><li><b>Verdict card</b> — done condition · check command · last verdict (last line of output) right under the title; "Not run yet" when there is none</li><li><b>Next up</b> — the first open item (human-owned ones skipped) with <b>[Run in terminal]</b> · <b>[To the end (/goal)]</b>. The first has <code>claude</code> pick the item up in a new session of the in-app terminal; the second hands the plan's done condition and check command to Claude Code's <code>/goal</code>, so it keeps going until the condition holds. Every item also has "Send to Claude".</li><li><b>Item status</b> — click an item's box to pick one of six states. Marking it done without a verifying entry asks once</li><li>"Change log N lines · decisions M" stays folded</li></ul>
 <h2 id="who-creates-a-new-plan">Who creates a new plan</h2>
 <p>In 4.0 <b>agents write plans</b> — there is no button in the app to create a plan or add items. For a new feature area, <code>/oculpm:inception</code> in the terminal goes through "what should happen next" and four depth questions and creates, with <code>plan_create</code>, a plan whose first item is a check command that is red right now. You can also write one by hand: frontmatter, done condition · check command, phase headings and item lines, in that order.</p>
 <div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>When writing item lines, <code>{#id}</code> must sit at the <b>end of the line</b> with no wrapping. An <code>{#id}</code> that spills onto a second line won't be read by the parser.</p></div></div>

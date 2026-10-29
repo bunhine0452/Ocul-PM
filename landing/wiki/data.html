@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>데이터와 파일 구조 — Ocul-PM 위키</title>
+<title>데이터와 파일 구조 — Ocul 위키</title>
 <meta name="description" content=".oculpm 폴더의 구조, 백업과 이동, 로컬-우선이 실제로 뜻하는 것." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/data" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/data" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="데이터와 파일 구조 — Ocul-PM 위키" />
+<meta property="og:title" content="데이터와 파일 구조 — Ocul 위키" />
 <meta property="og:description" content=".oculpm 폴더의 구조, 백업과 이동, 로컬-우선이 실제로 뜻하는 것." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki">위키</a></div>
-    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki">Ocul 위키</a>
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
@@ -65,7 +65,7 @@
       <p class="wk-updated">마지막 수정 2026-10-29</p>
       <nav class="wk-toc"><span>이 페이지에서</span><a href="#원칙-파일이-진실입니다">원칙 — 파일이 진실입니다</a><a href="#oculpm-구조">`.oculpm/` 구조</a><a href="#백업과-이동">백업과 이동</a><a href="#무엇이-어디에-있나">무엇이 어디에 있나</a><a href="#밖으로-나가는-것">밖으로 나가는 것</a></nav>
       <h2 id="원칙-파일이-진실입니다">원칙 — 파일이 진실입니다</h2>
-<p>Ocul-PM 의 모든 기록은 <b>프로젝트 안의 마크다운 파일</b>입니다. 앱의 데이터베이스(SQLite)는 화면을 빠르게 그리기 위한 <b>캐시</b>일 뿐이고, 언제든 파일에서 다시 만들어집니다(설정 → 데이터 → 「처음부터 다시 만들기」). 그래서:</p>
+<p>Ocul 의 모든 기록은 <b>프로젝트 안의 마크다운 파일</b>입니다. 앱의 데이터베이스(SQLite)는 화면을 빠르게 그리기 위한 <b>캐시</b>일 뿐이고, 언제든 파일에서 다시 만들어집니다(설정 → 데이터 → 「처음부터 다시 만들기」). 그래서:</p>
 <ul><li>앱을 지워도 기록은 남습니다</li><li>기록을 git 에 커밋해 팀과 나눌 수도 있습니다</li><li>에디터로 직접 읽고 고칠 수 있습니다 (평범한 마크다운입니다)</li></ul>
 <h2 id="oculpm-구조"><code>.oculpm/</code> 구조</h2>
 <pre class="wk-code"><code>.oculpm/

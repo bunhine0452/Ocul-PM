@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>계획 — Ocul-PM 위키</title>
+<title>계획 — Ocul 위키</title>
 <meta name="description" content="에이전트가 갱신하는 계획 문서 — 완료 조건 · 확인 명령 · 마지막 판정, 글리프, 변경 로그, 결정, 잠금." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -11,9 +11,9 @@
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/planner" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/planner" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="계획 — Ocul-PM 위키" />
+<meta property="og:title" content="계획 — Ocul 위키" />
 <meta property="og:description" content="에이전트가 갱신하는 계획 문서 — 완료 조건 · 확인 명령 · 마지막 판정, 글리프, 변경 로그, 결정, 잠금." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
@@ -39,7 +39,7 @@
 <div class="wk-layout">
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki">위키</a></div>
-    <a class="wk-side-link" href="/wiki">Ocul-PM 위키</a>
+    <a class="wk-side-link" href="/wiki">Ocul 위키</a>
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
@@ -95,7 +95,7 @@ owner: claude-code
 <pre class="wk-code"><code>판정 ✓ 418 passed · exit 0
 판정 ✗ 2 failed, 418 passed
 verdict ✓ …        (영어 템플릿 — 소문자, 공백 하나, 콜론 없음)</code></pre>
-<p>이 줄의 가장 최근 것이 그 계획의 <b>마지막 판정</b>입니다. 플러그인의 시작 훅과 앱의 계획 화면이 <b>같은 규칙</b>(<code>^(판정|verdict) (✓|✗)</code>)으로 읽으므로, 다음 세션의 에이전트와 사람이 같은 판정을 봅니다. 「판정:」 처럼 콜론이 붙은 평범한 메모는 판정이 아닙니다. <b>항목이 다 닫혀도 판정이 통과해야 끝</b>입니다 — 판정이 실패면 오늘 화면 「확인할 것」 맨 위에 섭니다.</p>
+<p>이 줄의 가장 최근 것이 그 계획의 <b>마지막 판정</b>입니다. 플러그인의 시작 훅과 앱의 계획 화면이 <b>같은 규칙</b>(<code>^(판정|verdict) (✓|✗)</code>)으로 읽으므로, 다음 세션의 에이전트와 사람이 같은 판정을 봅니다. 「판정:」 처럼 콜론이 붙은 평범한 메모는 판정이 아닙니다. <b>항목이 다 닫혀도 판정이 통과해야 끝</b>입니다 — 판정이 실패면 오늘 화면 「먼저 볼 것」 맨 위에 섭니다.</p>
 <h2 id="변경-로그-누가-언제-왜-바꿨나">변경 로그 — 누가 언제 왜 바꿨나</h2>
 <p>계획 문서 맨 아래에는 표가 하나 붙습니다. 에이전트는 항목을 옮길 때마다 여기에 <b>한 줄을 덧붙이기만</b> 합니다 (기존 행은 절대 고치지 않습니다):</p>
 <pre class="wk-code"><code>| 시각 | #항목id | 에이전트 | 이전→새 글리프 | 일지 경로 | 짧은 메모 |</code></pre>
@@ -113,7 +113,7 @@ verdict ✓ …        (영어 템플릿 — 소문자, 공백 하나, 콜론 �
 <div class="wk-table"><table><thead><tr><th>status</th><th>뜻</th><th>에이전트가 고칠 수 있나</th></tr></thead><tbody><tr><td><code>active</code></td><td>진행 중</td><td>예</td></tr><tr><td><code>done</code></td><td>끝남</td><td><b>아니오</b></td></tr><tr><td><code>archived</code></td><td>보관</td><td><b>아니오</b></td></tr></tbody></table></div>
 <p><code>done</code> 이나 <code>archived</code> 인 계획은 <b>에이전트가 수정하지 않습니다.</b> 끝난 계획이 슬금슬금 되살아나 이력이 흐려지는 것을 막기 위해서고, 이어서 할 일이 생기면 새 계획을 만듭니다. 계획 화면의 레일에서는 「끝난 계획 N」 한 줄로 접힙니다.</p>
 <h2 id="계획-화면-3">계획 화면(<code>⌘3</code>)</h2>
-<ul><li><b>레일</b> — 진행 중 계획마다 진척 막대 · 판정(✓ / ✗ / 없음) · 갱신 시각, 최근 갱신 먼저</li><li><b>판정 카드</b> — 제목 바로 아래 완료 조건 · 확인 명령 · 마지막 판정(결과 끝 줄). 아직 없으면 「아직 안 돌렸어요」</li><li><b>다음</b> — 첫 미완 항목(사람 몫은 건너뜀)과 <b>[프롬프트 복사]</b> · <b>[until-done 으로 복사]</b>. 붙여 넣으면 터미널의 에이전트가 그 항목을 잡고, until-done 이면 판정이 통과할 때까지 이어 갑니다</li><li><b>항목 상태</b> — 상자를 눌러 여섯 상태 중 고릅니다. 검증 일지 없이 완료로 바꾸면 한 번 묻습니다</li><li>「갱신 기록 N줄 · 결정 M」 은 접혀 있습니다</li></ul>
+<ul><li><b>레일</b> — 진행 중 계획마다 진척 막대 · 판정(✓ / ✗ / 없음) · 갱신 시각, 최근 갱신 먼저</li><li><b>판정 카드</b> — 제목 바로 아래 완료 조건 · 확인 명령 · 마지막 판정(결과 끝 줄). 아직 없으면 「아직 안 돌렸어요」</li><li><b>다음 할 일</b> — 첫 미완 항목(사람 몫은 건너뜀)과 <b>[터미널에서 실행]</b> · <b>[끝까지 (/goal)]</b>. 앞의 것은 앱 안 터미널의 새 세션에서 <code>claude</code> 가 그 항목을 잡게 하고, 뒤의 것은 계획의 완료 조건 · 확인 명령을 Claude Code 의 <code>/goal</code> 로 넘겨 조건이 참이 될 때까지 이어 가게 합니다. 항목마다 「Claude 에게 보내기」 도 있습니다</li><li><b>항목 상태</b> — 상자를 눌러 여섯 상태 중 고릅니다. 검증 일지 없이 완료로 바꾸면 한 번 묻습니다</li><li>「갱신 기록 N줄 · 결정 M」 은 접혀 있습니다</li></ul>
 <h2 id="새-계획은-누가-만드나">새 계획은 누가 만드나</h2>
 <p>4.0 에서 계획은 <b>에이전트가 씁니다</b> — 앱 화면에서 계획을 만들거나 항목을 더하는 버튼은 없습니다. 새 기능 영역이라면 터미널에서 <code>/oculpm:inception</code> 이 「그다음 무엇이 일어나야 하나」 와 깊이 네 질문을 거쳐, 첫 항목이 지금 빨간 확인 명령인 계획을 <code>plan_create</code> 로 만듭니다. 직접 만들어도 됩니다 — 위의 머리말 + 완료 조건 · 확인 명령 + Phase 헤딩 + 항목 줄 순서면 앱이 읽습니다.</p>
 <div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p>항목 줄을 쓸 때 <code>{#id}</code> 는 <b>반드시 줄 끝</b>에 두고 줄바꿈하지 마세요. 둘째 줄로 넘어간 <code>{#id}</code> 는 파서가 읽지 못합니다.</p></div></div>

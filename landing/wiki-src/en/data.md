@@ -7,7 +7,7 @@ updated: 2026-10-29
 
 ## The rule — files are the truth
 
-Every record in Ocul-PM is **a markdown file inside your project**. The app's database (SQLite) is only a **cache** for drawing screens quickly, and can always be rebuilt from the files (Settings → Data → "Rebuild from scratch"). So:
+Every record in Ocul is **a markdown file inside your project**. The app's database (SQLite) is only a **cache** for drawing screens quickly, and can always be rebuilt from the files (Settings → Data → "Rebuild from scratch"). So:
 
 - Uninstalling the app leaves your records behind
 - You can commit the records to git and share them with your team

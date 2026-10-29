@@ -16,9 +16,11 @@ Since 4.0 one window holds one project. The 3.x Chrome-style tabs, tear-off and 
 | `⌘O` | Recent projects — picking one opens its window, or brings it forward if it is already open |
 | `⇧⌘N` | New window — a **start window** with no project |
 | `⌘W` | Close window |
+| `⌥⌘1` – `⌥⌘9` | Straight to an open project window (`Alt+1` – `Alt+9` on Windows · Linux) |
 
 - Pick a project in the start window and **that window becomes the project**
 - The window title is the project name, so the window switcher tells them apart
+- Click the project name (▾) in the top bar to see "Your turn · New · N running" per project — you know whether Claude finished in a background window without opening it
 - Each project remembers its own screen and filters
 - **On macOS the app stays alive after the last window closes**, and a Dock click opens one again. Windows · Linux quit when the last window closes
 - An update restart brings each window back with the project it had open

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Plugin — Ocul-PM</title>
-<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 4 slash commands, 7 MCP tools, 1 bundled skill, and the done condition · check command · last verdict the start hook carries." />
+<title>Plugin — Ocul</title>
+<meta name="description" content="The full surface of the Ocul plugin for Claude Code: 4 slash commands, 8 MCP tools, 1 bundled skill, and the done condition · check command · last verdict the start hook carries." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/en/plugin" />
@@ -12,11 +12,11 @@
 <link rel="alternate" hreflang="en" href="https://oculpm.com/en/plugin" />
 <link rel="alternate" hreflang="x-default" href="https://oculpm.com/plugin" />
 <meta property="og:type" content="article" />
-<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
 <meta property="og:locale:alternate" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/en/plugin" />
-<meta property="og:title" content="Plugin — Ocul-PM" />
+<meta property="og:title" content="Plugin — Ocul" />
 <meta property="og:description" content="From a two-line install to the /oculpm:inception → /oculpm:next implementation loop. The verdict is a check command's last line of output, not the agent's word." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -27,8 +27,8 @@
 
 <nav class="nav">
   <div class="nav-inner">
-    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v4.0.0</span>
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
+    <span class="nav-ver" data-version>v4.1.0</span>
     <div class="nav-links">
       <a href="/en#acts">Features</a>
       <a href="/wiki/en">Wiki</a>
@@ -89,13 +89,13 @@
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:help</code><span class="when">When you've forgotten what's there</span></h3>
-        <p>Shows the entire plugin surface (4 commands · 7 MCP tools · 1 skill · hooks) as one reference card, and recommends the next step for where you are now.</p>
+        <p>Shows the entire plugin surface (4 commands · 8 MCP tools · 1 skill · hooks) as one reference card, and recommends the next step for where you are now.</p>
       </div>
       </div>
     </section>
 
     <section class="pg-sec">
-      <h2 id="tools">7 MCP tools</h2>
+      <h2 id="tools">8 MCP tools</h2>
       <p>Agents record through tools instead of imitating the markdown spec by hand, and pull the accumulated record back through tools — paths, frontmatter and item ids are guaranteed by the server. Every tool works only in a tracked project with <code>.oculpm/</code> (the sole exception: <code>project_init</code>).</p>
       <div class="pg-table">
         <table>
@@ -108,6 +108,7 @@
             <tr><td>plan_update</td><td>Updates a plan item's status and logs it. A parent with children rolls up automatically, so a direct update is refused. After running the check command, start the note with <code>verdict ✓ &lt;last result line&gt;</code> / <code>verdict ✗ …</code> — the start hook ships it as the plan's last verdict. <b><code>base_hash</code> is required</b> — if it doesn't match the disk, the write is <b>refused, never silently overwritten</b>, with the current hash attached instead. This is the spot where one parallel session's change used to vanish silently under another's.</td></tr>
             <tr><td>plan_create</td><td>Creates a new plan at 3 depths (milestone → task → subtask) — frontmatter and id spec guaranteed by the server. Takes <code>done_when</code> (the done condition) and <code>check</code> (the command that passes or fails it), writes them as the first lines of the body, and the session-start hook ships them before the items. If an active plan with an overlapping title or id already exists it refuses and returns that candidate, nudging reuse (<code>allow_similar</code> overrides). If <code>check</code> is omitted, the server infers one from the project manifests (package.json · Cargo.toml · pyproject · go.mod · Makefile), writes it and says so in <code>warnings</code> — fix the line if it guessed wrong.</td></tr>
             <tr><td>project_init</td><td>Starts tracking on an untracked repository — only on the user's explicit request and confirmation. Rejects symlinks and guards against the home directory.</td></tr>
+            <tr><td>ask_user</td><td>When a decision needs a person who may not be watching the terminal — puts the question (and up to 6 answers to pick from) on the Ocul app's <b>Today</b> screen, waits, and returns the answer as is. With no answer in 25 minutes it withdraws the question and returns <code>answer: null</code> — ask in the terminal then. Not for trivial confirmations.</td></tr>
           </tbody>
         </table>
       </div>
@@ -133,7 +134,7 @@
 
 <footer class="footer">
   <div class="footer-inner">
-    <span>© 2026 Ocul-PM</span>
+    <span>© 2026 Ocul</span>
     <a href="/wiki/en">Wiki</a>
     <a href="/en/plugin">Plugin</a>
     <a href="/changelog">Changelog</a>
