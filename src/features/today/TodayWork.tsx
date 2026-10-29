@@ -53,9 +53,9 @@ function GroupHead({ group, open, onToggle }: { group: WorkGroup; open: boolean;
       <b>{group.title ?? t("today.work.outside")}</b>
       <span className="tdy-meta">{t("today.work.count", { n: group.entries.length })}</span>
       <span className="tdy-sp" />
-      {group.counts.command > 0 ? <span className="tdy-ok">{t("today.work.ev", { n: group.counts.command })}</span> : null}
-      {group.counts.missing > 0 ? <span className="tdy-warn">· {t("today.work.missing", { n: group.counts.missing })}</span> : null}
-      {group.counts.verified > 0 ? <span className="tdy-meta">· {t("today.work.verifiedCount", { n: group.counts.verified })}</span> : null}
+      {/* 예외 수만 (화면 검사 {#today-sum}) — 「검증 41 · 없음 4」 는 잡일처럼 검증 대상이 아닌
+          일지를 어디에도 안 세서 합이 묶음 수와 맞지 않았다. */}
+      {group.counts.missing > 0 ? <span className="tdy-warn">{t("today.work.missing", { n: group.counts.missing })}</span> : null}
     </button>
   );
 }

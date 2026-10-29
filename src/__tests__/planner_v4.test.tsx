@@ -179,6 +179,35 @@ describe("판정 카드", () => {
   });
 });
 
+describe("한 칸에 한 상태 (화면 검사 {#plan-verdict} · {#hide-zero})", () => {
+  it("명령 줄이 없어도 결과가 있으면 결과만 — 「확인 명령이 아직 없어요」 와 「✗ 실패」 가 나란히 서지 않는다", async () => {
+    const p = summary("nocheck", { last_verdict: FAIL });
+    stage([p], [detail(p, [it_("a", "todo", 0)], { check: null })]);
+    renderPlanner();
+    const card = await screen.findByRole("region", { name: t("plan.judge.aria") });
+    expect(within(card).getByText(t("plan.judge.fail"))).toBeInTheDocument();
+    expect(within(card).queryByText(t("plan.judge.noCheck"))).toBeNull();
+  });
+
+  it("명령도 결과도 없으면 「없어요」 한 번 — 「아직 안 돌렸어요」 를 겹쳐 말하지 않는다", async () => {
+    const p = summary("bare");
+    stage([p], [detail(p, [it_("a", "todo", 0)], { check: null })]);
+    renderPlanner();
+    const card = await screen.findByRole("region", { name: t("plan.judge.aria") });
+    expect(within(card).getByText(t("plan.judge.noCheck"))).toBeInTheDocument();
+    expect(within(card).queryByText(t("plan.judge.notRun"))).toBeNull();
+  });
+
+  it("이력도 결정도 없으면 로그 줄을 세우지 않는다 — 「0줄 · 결정 0」 이 없다", async () => {
+    const p = summary("quiet");
+    stage([p], [detail(p, [it_("a", "todo", 0)])]);
+    renderPlanner();
+    await screen.findByRole("region", { name: t("plan.judge.aria") });
+    await waitFor(() => expect(document.querySelector(".plv-log")).toBeNull());
+    expect(screen.queryByText(/0줄/)).toBeNull();
+  });
+});
+
 describe("다음 · 터미널에서 실행", () => {
   it("다음은 사람 몫을 건너뛴 첫 할 일 — 터미널에서 실행 · until-done 실행", async () => {
     const p = summary("drop");

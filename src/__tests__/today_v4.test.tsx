@@ -357,7 +357,8 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
     });
     const { container } = renderToday();
     await waitFor(() => expect(pills()).toEqual([t("today.check.kind.evidence")]));
-    expect(screen.getByText(t("today.check.folded", { n: 59 }))).toBeInTheDocument();
+    // 「나머지 N건은 접었어요」 는 걷었다 — 9 와 44 처럼 단위가 다른 수가 나란히 섰다 (화면 검사 {#today-sum}).
+    expect(screen.queryByText(/접었어요/)).toBeNull();
 
     const work = screen.getByRole("region", { name: t("today.work.title") });
     const heads = within(work).getAllByRole("button", { expanded: true }).concat(within(work).getAllByRole("button", { expanded: false }));
@@ -365,6 +366,9 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
     expect(within(work).getByRole("button", { name: /4\.0 덜어내기/, expanded: true })).toBeInTheDocument();
     expect(within(work).getByRole("button", { name: /크로스플랫폼 포팅/, expanded: false })).toBeInTheDocument();
     expect(within(work).getByRole("button", { name: new RegExp(t("today.work.outside")), expanded: false })).toBeInTheDocument();
+    // 묶음 머리는 예외 수만 — 「검증 n · 없음 m」 은 검증 대상이 아닌 일지를 빼먹어 합이 안 맞았다.
+    expect(work.querySelector(".tdy-ok")).toBeNull();
+    expect(within(work).getByText(t("today.work.missing", { n: 1 }))).toBeInTheDocument();
     // 펼쳐진 묶음도 볼 것만 — 일지 행은 증거 없는 하나뿐이다.
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(1);
     expect(within(work).getByText("새 폴더 감시 경합")).toBeInTheDocument();

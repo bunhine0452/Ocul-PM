@@ -24,6 +24,11 @@ function dateOf(iso: string): string {
 function JudgeCard({ detail }: { detail: PlanDetail }) {
   const { t } = useT();
   const v = detail.plan.last_verdict;
+  // 한 칸에 한 상태 (화면 검사 {#plan-verdict}) — 명령이 없는데 결과가 있으면(명령 줄을 나중에 지운
+  // 계획) 결과만 말하고, 명령도 결과도 없으면 「없어요」 한 번만 말한다. 「확인 명령이 없어요」 옆에
+  // 「✗ 실패」 가, 또는 「아직 안 돌렸어요」 가 같이 서던 것을 걷는다.
+  const showCheck = detail.check != null || v == null;
+  const showLast = v != null || detail.check != null;
   return (
     <section className="card plv-judge" aria-label={t("plan.judge.aria")}>
       <div>
@@ -31,26 +36,30 @@ function JudgeCard({ detail }: { detail: PlanDetail }) {
         <p className={detail.done_when ? "plv-judge-text" : "plv-meta"}>{detail.done_when ?? t("plan.judge.noDoneWhen")}</p>
       </div>
       <div className="plv-judge-row">
-        <div className="plv-judge-check">
-          <h3 className="plv-sec-h">{t("plan.judge.check")}</h3>
-          {detail.check ? <code className="plv-code mono">{detail.check}</code> : <p className="plv-meta">{t("plan.judge.noCheck")}</p>}
-        </div>
-        <div className="plv-judge-last">
-          <h3 className="plv-sec-h">{t("plan.judge.last")}</h3>
-          {v ? (
-            <>
-              <div className="plv-judge-chip">
-                <span className={"chip sm " + (v.passed ? "ok" : "danger")}>{v.passed ? t("plan.judge.pass") : t("plan.judge.fail")}</span>
-                <span className="plv-meta">
-                  {whenLabel(v.ts)} · {agentLabel(v.agent_id)}
-                </span>
-              </div>
-              {v.summary ? <div className="plv-meta mono plv-judge-summary">{v.summary}</div> : null}
-            </>
-          ) : (
-            <p className="plv-meta">{t("plan.judge.notRun")}</p>
-          )}
-        </div>
+        {showCheck ? (
+          <div className="plv-judge-check">
+            <h3 className="plv-sec-h">{t("plan.judge.check")}</h3>
+            {detail.check ? <code className="plv-code mono">{detail.check}</code> : <p className="plv-meta">{t("plan.judge.noCheck")}</p>}
+          </div>
+        ) : null}
+        {showLast ? (
+          <div className="plv-judge-last">
+            <h3 className="plv-sec-h">{t("plan.judge.last")}</h3>
+            {v ? (
+              <>
+                <div className="plv-judge-chip">
+                  <span className={"chip sm " + (v.passed ? "ok" : "danger")}>{v.passed ? t("plan.judge.pass") : t("plan.judge.fail")}</span>
+                  <span className="plv-meta">
+                    {whenLabel(v.ts)} · {agentLabel(v.agent_id)}
+                  </span>
+                </div>
+                {v.summary ? <div className="plv-meta mono plv-judge-summary">{v.summary}</div> : null}
+              </>
+            ) : (
+              <p className="plv-meta">{t("plan.judge.notRun")}</p>
+            )}
+          </div>
+        ) : null}
       </div>
     </section>
   );

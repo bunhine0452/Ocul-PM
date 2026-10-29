@@ -147,7 +147,7 @@ function ExceptionRow({ ex, active, rowRef, onFocus, onPrimary, onVerify }: RowP
 
 interface TodayExceptionsProps {
   exceptions: TodayException[] | null;
-  /** 오늘 일지 수 — 빈 문단과 「나머지 N건은 접었어요」의 재료. */
+  /** 오늘 일지 수 — 빈 문단의 재료. */
   entryCount: number;
   /** 기록 없는 변경을 읽었는가 — 못 읽었으면 「없어요」라고 말하지 않는다. */
   unrecordedKnown: boolean;
@@ -170,17 +170,11 @@ export function TodayExceptions({
 }: TodayExceptionsProps) {
   const { t } = useT();
   const count = exceptions?.length ?? null;
-  const entryRows = exceptions?.filter((e) => e.kind === "evidence").length ?? 0;
-  const folded = entryCount - entryRows;
   return (
     <section className="card tdy-card" aria-labelledby="tdy-check-h">
       <header className="tdy-ch">
         <h2 id="tdy-check-h">{t("today.check.title")}</h2>
         {count != null ? <span className="tdy-cnt">{count}</span> : null}
-        <span className="tdy-sp" />
-        {count != null && count > 0 && folded > 0 ? (
-          <span className="tdy-meta">{t("today.check.folded", { n: folded })}</span>
-        ) : null}
       </header>
       {exceptions == null ? (
         <div className="tdy-pad">
