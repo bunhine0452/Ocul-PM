@@ -18,6 +18,6 @@ Process note: 첫 판(밝은 아이보리 스케치 셋)은 사용자가 「퀄�
 THESIS: 페이지가 곧 앱이다. 방문자는 설명을 읽기 전에 4.1 의 실제 창을 만지고, 「Claude 가 물어요」에 답해 Claude 가 그 답을 받는 것을 본다. 거부하는 것: 헤드라인 아래 정지된 스크린샷 · 기능 카드 격자.
 OWN-WORLD: 앱 어두운 테마 토큰 그대로(ground #121514, window #191d1b, card #232826, ink #f1f4f1, ink-2 #a6aea8, accent #34d095, on-accent #06281c). Pretendard 하나(자체 호스팅 서브셋), 코드는 시스템 모노. 둥근 창 하나에 깊은 그림자, 그 밖은 머리카락 선 · 표 · 정의 목록. 장식 없음.
 STORY: 무엇인지(헤드라인 · 한 문장) → 직접 해 보기(창의 탭 다섯, 질문에 답하기) → 하루 한 왕복(어제 18:40 · 18:41 · 오늘 09:02) → 다섯 원칙의 자리(표) → 작은 것들 → 로컬 → 플러그인 → 자기 자신으로 만들어짐(실제 수) → FAQ → 내려받기.
-FIRST VIEWPORT: 왼쪽 정렬 84px 헤드라인 두 줄, 그 아래 한 문장, 주 버튼 「v4.1.0 받기 · macOS · 무료」와 플러그인 명령 복사, OS 링크 한 줄, 「새 판」 한 줄. 화면 아래쪽으로 실제 앱 창의 윗줄과 「Claude 가 물어요」 행이 보이고, 답 버튼에 초록 테두리와 「눌러서 Claude 에게 답해 보세요」.
+FIRST VIEWPORT: 왼쪽 정렬 80px 헤드라인 두 줄, 그 아래 한 문장, 주 버튼 「v4.1.0 받기 · macOS · 무료」와 플러그인 두 줄 복사, OS 링크와 「새 판」 이 한 줄. 화면 아래쪽으로 실제 앱 창의 윗줄과 「Claude 가 물어요」 행이 보이고, 답 버튼에 초록 테두리와 「눌러서 Claude 에게 답해 보세요」.
 FORM: 「페이지가 곧 앱」 — 다시 뽑은 판(round 1)의 THE ROLL, 내 순위 목록 3번. seed:d104fbb58772c15e. Signature interaction: 답 버튼 → 터미널 탭으로 넘어가 answer · 이어진 작업 네 줄이 차례로 선다(사용자 행동에 답하는 한 번의 움직임). Motion grammar: 탭 전환 220ms 교차 페이드, 나머지는 정지.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

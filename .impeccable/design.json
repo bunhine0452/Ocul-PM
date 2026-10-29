@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-30T12:00:00+09:00",
+  "title": "Design System: Ocul",
+  "extensions": {
+    "scope": "Landing (landing/home.css), dark Deep Forest family only. Tokens mirror src/styles/tokens.css [data-theme=\"dark\"]; the app also ships a light family not recorded here.",
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Verdict Mint", "canonical": "#34d095", "appToken": "--accent", "tonalRamp": ["#06281c", "#0b4630", "#126647", "#1c8a60", "#2ac489", "#34d095", "#5fe0ab", "#b5f2d6"] },
+      "accent-strong": { "role": "primary", "displayName": "Pressed Mint", "canonical": "#2ac489", "appToken": "--accent-strong" },
+      "accent-text": { "role": "primary", "displayName": "Mint Text", "canonical": "#5fe0ab", "appToken": "--accent-text" },
+      "on-accent": { "role": "primary", "displayName": "Forest Ink", "canonical": "#06281c", "appToken": "--text-on-accent" },
+      "accent-soft": { "role": "primary", "displayName": "Mint Wash", "canonical": "rgba(52, 208, 149, 0.15)", "appToken": "--accent-soft" },
+      "ground": { "role": "neutral", "displayName": "Forest Ground", "canonical": "#121514", "appToken": "--bg-sidebar", "tonalRamp": ["#0b0d0c", "#121514", "#191d1b", "#1b1f1d", "#232826", "#282e2b", "#3a423e", "#a6aea8"] },
+      "window": { "role": "neutral", "displayName": "Window Sheet", "canonical": "#191d1b", "appToken": "--bg-window" },
+      "content": { "role": "neutral", "displayName": "Content Sheet", "canonical": "#1b1f1d", "appToken": "--bg-content" },
+      "card": { "role": "neutral", "displayName": "Card Sheet", "canonical": "#232826", "appToken": "--bg-card" },
+      "inset": { "role": "neutral", "displayName": "Inset Sheet", "canonical": "#282e2b", "appToken": "--bg-inset" },
+      "ink": { "role": "neutral", "displayName": "Paper Ink", "canonical": "#f1f4f1", "appToken": "--text" },
+      "ink-2": { "role": "neutral", "displayName": "Moss Grey", "canonical": "#a6aea8", "appToken": "--text-2" },
+      "sep": { "role": "neutral", "displayName": "Hairline", "canonical": "rgba(255, 255, 255, 0.08)", "appToken": "--sep" },
+      "sep-2": { "role": "neutral", "displayName": "Strong Hairline", "canonical": "rgba(255, 255, 255, 0.15)", "appToken": "--sep-strong" },
+      "warn-text": { "role": "status", "displayName": "Amber", "canonical": "#f0b660", "appToken": "--warn-text" },
+      "warn-soft": { "role": "status", "displayName": "Amber Wash", "canonical": "rgba(234, 162, 63, 0.16)", "appToken": "--warn-soft" },
+      "danger-text": { "role": "status", "displayName": "Danger Text", "canonical": "#f7918a", "appToken": "--danger-text" },
+      "add": { "role": "status", "displayName": "Added Green", "canonical": "#6cd584", "appToken": "--diff-add-text" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero headline only; closing headline is a sibling at clamp(36px, 4.6vw, 68px), -0.04em." },
+      "headline": { "displayName": "Headline", "purpose": "One per section, max 16em, text-wrap balance." },
+      "title": { "displayName": "Title", "purpose": "Timeline step titles; mono timestamp inline in Moss Grey." },
+      "lede": { "displayName": "Lede", "purpose": "The one sentence under the hero headline, Moss Grey, max 34em." },
+      "body": { "displayName": "Body", "purpose": "Running text; 16px on phones; word-break keep-all." },
+      "label": { "displayName": "Label", "purpose": "Table headers, button sub-labels, copy tag. Sentence case, never uppercase." },
+      "mono": { "displayName": "Mono", "purpose": "Commands, paths, versions, timestamps, transcripts. Hangul routed to Pretendard via the Ocul Mono Hangul unicode-range face; ligatures off." }
+    },
+    "shadows": [
+      { "name": "window-lift", "value": "0 0 0 1px rgba(255,255,255,0.09), 0 40px 90px -30px rgba(0,0,0,0.75), 0 12px 30px -12px rgba(0,0,0,0.5)", "purpose": "The hero app window only; the one elevated object." },
+      { "name": "screenshot-contact", "value": "0 14px 30px -18px rgba(0,0,0,0.7)", "purpose": "Small timeline screenshots (app imagery) only." },
+      { "name": "pointer-lift", "value": "0 8px 20px -6px rgba(0,0,0,0.6)", "purpose": "The hint pill floating over the window." },
+      { "name": "answer-ring", "value": "0 0 0 2px var(--accent)", "purpose": "Outline of the live answer target over the screenshot; a border, not elevation." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "The only easing curve." },
+      { "name": "tab-crossfade", "value": "opacity 220ms ease-out", "purpose": "Window tab switch." },
+      { "name": "control-hover", "value": "background-color, border-color 160ms ease-out", "purpose": "Button hover." },
+      { "name": "disclosure", "value": "transform 200ms ease-out", "purpose": "FAQ chevron rotation." },
+      { "name": "line-in", "value": "opacity 0→1, translateY(4px)→0, 280ms ease-out, staggered 160ms", "purpose": "Terminal lines after the visitor answers; the 'sent' chip at 240ms. Never on scroll or load." },
+      { "name": "reduced-motion", "value": "all transition/animation durations and delays 0ms; scroll-behavior auto", "purpose": "prefers-reduced-motion: reduce." }
+    ],
+    "breakpoints": [
+      { "name": "collapse", "value": "1000px", "purpose": "Timeline, definition list, local split go single-column; nav links hide." },
+      { "name": "phone", "value": "720px", "purpose": "Gutter 16px, body 16px, table stacks, CTAs full width, question block above the window." },
+      { "name": "short", "value": "max-height 820px and min-width 721px", "purpose": "Hero top padding 40px, window margin 32px." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single download action per viewport: mint fill, forest-ink text.",
+      "html": "<a class=\"ds-btn ds-btn-primary\" href=\"#\">v4.1.0 받기 <span class=\"ds-sub\">macOS · 무료</span></a>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 22px; border-radius: 10px; font-family: \"Pretendard Variable\", Pretendard, -apple-system, sans-serif; font-size: 16px; font-weight: 650; text-decoration: none; white-space: nowrap; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: #f1f4f1; cursor: pointer; transition: background-color 160ms cubic-bezier(0.16,1,0.3,1), border-color 160ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-primary { background: #34d095; border-color: #34d095; color: #06281c; } .ds-btn-primary:hover { background: #2ac489; border-color: #2ac489; } .ds-btn:focus-visible { outline: 2px solid #34d095; outline-offset: 3px; } .ds-sub { font-size: 13px; font-weight: 550; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Transparent with a strong hairline; for every non-primary action.",
+      "html": "<a class=\"ds-btn2\" href=\"#\">GitHub</a>",
+      "css": ".ds-btn2 { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 22px; border-radius: 10px; font-family: \"Pretendard Variable\", Pretendard, -apple-system, sans-serif; font-size: 16px; font-weight: 650; text-decoration: none; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: #f1f4f1; transition: background-color 160ms cubic-bezier(0.16,1,0.3,1), border-color 160ms cubic-bezier(0.16,1,0.3,1); } .ds-btn2:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.24); } .ds-btn2:focus-visible { outline: 2px solid #34d095; outline-offset: 3px; }"
+    },
+    {
+      "name": "Command Copy",
+      "kind": "custom",
+      "refersTo": "command-copy",
+      "description": "A shell line that copies itself; $ prompt in Moss Grey, copy tag turns mint when copied.",
+      "html": "<button class=\"ds-cmd\" type=\"button\"><code>/plugin marketplace add bunhine0452/Ocul-PM</code><span class=\"ds-copy\">복사</span></button>",
+      "css": ".ds-cmd { display: inline-flex; align-items: center; gap: 14px; height: 48px; padding: 0 8px 0 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: #191d1b; color: #f1f4f1; cursor: pointer; } .ds-cmd code { font-family: \"SF Mono\", ui-monospace, Menlo, monospace; font-size: 14px; font-variant-ligatures: none; } .ds-cmd code::before { content: \"$ \"; color: #a6aea8; } .ds-copy { font-size: 13px; font-weight: 600; color: #a6aea8; padding: 6px 10px; border-radius: 7px; background: #282e2b; } .ds-cmd:hover .ds-copy { color: #f1f4f1; } .ds-cmd:focus-visible { outline: 2px solid #34d095; outline-offset: 3px; }"
+    },
+    {
+      "name": "Window Tabs",
+      "kind": "nav",
+      "refersTo": "window-tab",
+      "description": "The app frame's top-bar tabs; selected tab on the inset sheet, amber count badge.",
+      "html": "<div class=\"ds-bar\"><button class=\"ds-tab\" aria-selected=\"true\">오늘 <span class=\"ds-n\">4</span></button><button class=\"ds-tab\">작업 일지</button><button class=\"ds-tab\">계획</button><button class=\"ds-tab\">변경 <span class=\"ds-n\">3</span></button><button class=\"ds-tab\">터미널</button></div>",
+      "css": ".ds-bar { display: flex; align-items: center; gap: 6px; height: 46px; padding: 0 14px; background: #191d1b; border-bottom: 1px solid rgba(255,255,255,0.08); } .ds-tab { height: 32px; padding: 0 12px; border-radius: 8px; border: 0; background: transparent; font-family: \"Pretendard Variable\", Pretendard, sans-serif; font-size: 14px; color: #a6aea8; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; } .ds-tab:hover { color: #f1f4f1; } .ds-tab:focus-visible { outline: 2px solid #34d095; outline-offset: 3px; } .ds-tab[aria-selected=\"true\"] { background: #282e2b; color: #f1f4f1; font-weight: 650; } .ds-n { font-size: 11px; font-weight: 700; color: #f0b660; background: rgba(234,162,63,0.16); border-radius: 999px; padding: 1px 7px; line-height: 1.5; }"
+    },
+    {
+      "name": "Verdict Pill",
+      "kind": "chip",
+      "refersTo": "verdict-pill",
+      "description": "The only chip inside machine-text panels: a passed check.",
+      "html": "<span class=\"ds-pass\">판정 ✓ Tests 944 passed</span>",
+      "css": ".ds-pass { display: inline-block; font-family: \"Pretendard Variable\", Pretendard, sans-serif; font-size: 12px; font-weight: 700; color: #5fe0ab; background: rgba(52,208,149,0.15); padding: 2px 9px; border-radius: 999px; }"
+    },
+    {
+      "name": "Machine-Text Panel",
+      "kind": "custom",
+      "description": "Artifact / folder tree / terminal: flat sheet, hairline border, mono transcript colors.",
+      "html": "<div class=\"ds-artifact\"><p class=\"ds-dim\">.oculpm/journal/20261030/</p><p><span class=\"ds-g\">⏺</span> journal_write · 보이는 이름은 Ocul</p><p class=\"ds-ok\">✓ 944 passed</p></div>",
+      "css": ".ds-artifact { padding: 14px 16px; border-radius: 10px; background: #191d1b; border: 1px solid rgba(255,255,255,0.08); font-family: \"SF Mono\", ui-monospace, Menlo, monospace; font-size: 12.5px; line-height: 1.75; color: #dfe5e0; } .ds-artifact p { margin: 0; white-space: pre-wrap; } .ds-dim { color: #8a948d; } .ds-ok { color: #6cd584; } .ds-g { color: #34d095; }"
+    },
+    {
+      "name": "Hairline Definition List",
+      "kind": "custom",
+      "description": "Two-column term/description pairs opened by hairlines, used instead of cards.",
+      "html": "<dl class=\"ds-facts\"><div><dt>⌘K 찾기</dt><dd>화면 · 프로젝트 · 일지 · 계획으로 바로 갑니다.</dd></div><div><dt>로컬 우선</dt><dd>기록은 프로젝트의 .oculpm/ 폴더에 있습니다.</dd></div></dl>",
+      "css": ".ds-facts { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); column-gap: 64px; font-family: \"Pretendard Variable\", Pretendard, sans-serif; color: #f1f4f1; word-break: keep-all; } .ds-facts div { padding: 22px 0; border-top: 1px solid rgba(255,255,255,0.08); } .ds-facts dt { font-weight: 680; font-size: 17px; } .ds-facts dd { margin: 6px 0 0; color: #a6aea8; font-size: 15.5px; line-height: 1.65; }"
+    },
+    {
+      "name": "App Window",
+      "kind": "card",
+      "description": "The signature and only elevated object: real app screens in a working frame.",
+      "html": "<figure class=\"ds-app\"><div class=\"ds-appbar\"><span class=\"ds-lights\"><i></i><i></i><i></i></span><b>ai-pm</b></div><div class=\"ds-appbody\"></div></figure>",
+      "css": ".ds-app { margin: 0; border-radius: 14px; overflow: hidden; background: #191d1b; box-shadow: 0 0 0 1px rgba(255,255,255,0.09), 0 40px 90px -30px rgba(0,0,0,0.75), 0 12px 30px -12px rgba(0,0,0,0.5); } .ds-appbar { display: flex; align-items: center; height: 46px; padding: 0 14px; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #f1f4f1; font-family: \"Pretendard Variable\", Pretendard, sans-serif; font-size: 15px; } .ds-lights { display: flex; gap: 8px; margin-right: 18px; } .ds-lights i { width: 12px; height: 12px; border-radius: 50%; background: #3a403d; } .ds-appbody { aspect-ratio: 1180 / 676; background: #1b1f1d; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Page Is the App",
+    "overview": "The landing is drawn from the same materials as the product. It sits on the app's own deep, green-tinged charcoal, and the hero is the real app window: real 4.1 screens in a frame that works, with tabs you can switch and a question you can answer. Because page and window share one palette, the screenshots sit in the page instead of floating on it.\n\nEverything outside that window stays flat and typographic. Structure comes from hairline rules, a table, a definition list, a three-step timeline and a release list, set in one sans family with mono for anything a terminal or a file would print. There is no decoration. Composition is left-aligned in a 1200px column. Type carries the hierarchy through weight and tight tracking, not color.",
+    "keyCharacteristics": [
+      "One palette shared with the app's dark theme; one green accent.",
+      "One elevated object, the app window. Hairlines everywhere else.",
+      "Left-aligned, single column, generous section spacing (152px).",
+      "Pretendard only, with Hangul inside code routed to Pretendard so mono text keeps its rhythm.",
+      "Motion only responds to the visitor: a tab cross-fade and terminal lines arriving after an answer."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Mint fills only the primary action and the live answer target. Everywhere else it appears as text and only for marks that mean \"done, passed, new or current\". Never use it for decoration, section tints or illustration.", "section": "colors" },
+      { "name": "The Shared Palette Rule", "body": "Every landing color is an app token. A color the app doesn't define doesn't go on the page. The transcript greys (#dfe5e0 text, #8a948d dim, #4a524d box) and the window-light grey (#3a403d) are the only literal values, and they reproduce what a terminal and a macOS frame look like.", "section": "colors" },
+      { "name": "The Keep-All Rule", "body": "Body text sets `word-break: keep-all` with `overflow-wrap: anywhere`, so Korean breaks between words (eojeol), never inside one.", "section": "typography" },
+      { "name": "The Hangul-in-Mono Rule", "body": "Any mono stack starts with Ocul Mono Hangul, a `unicode-range` face that sends only Hangul and CJK punctuation to Pretendard. A system monospace font gives each Hangul syllable two cells, which spreads Korean words apart. Latin text falls through to SF Mono.", "section": "typography" },
+      { "name": "The Weight-Not-Color Rule", "body": "Hierarchy comes from weight and tracking. Headings are Paper Ink; supporting text drops to Moss Grey. No colored headings.", "section": "typography" },
+      { "name": "The One Object Rule", "body": "Only app imagery gets lifted. Text panels, the table, the definition list, the tree and the command boxes sit flat on a sheet colour with a hairline border.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do take every color from the app's dark family in `src/styles/tokens.css` and update the landing when those tokens change.",
+      "Do keep the composition left-aligned in the 1200px container with 32px gutters (16px at ≤720px).",
+      "Do keep the app window as the only deeply shadowed object. Divide everything else with hairlines (sep, sep-2).",
+      "Do use a real table or definition list when content has two parts, and a hairline-ruled list for sequences.",
+      "Do set `word-break: keep-all` on Korean text and begin every mono stack with the Hangul-routing face.",
+      "Do keep motion tied to what the visitor does (the 220ms tab cross-fade, transcript lines after an answer) and remove it under `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "Don't use glow, gradients, glass or backdrop blur, or pulsing.",
+      "Don't fade, slide or animate anything in on scroll or page load.",
+      "Don't center a SaaS-style hero, or lay out features as a grid of identical cards.",
+      "Don't add uppercase or small-caps eyebrow labels above headings.",
+      "Don't fill anything with the accent except the primary action and the live answer target.",
+      "Don't introduce a second typeface or a system display face. Pretendard does display, body and labels."
+    ]
+  }
+}
