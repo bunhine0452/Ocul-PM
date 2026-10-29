@@ -18,6 +18,7 @@ import { verificationLines, withoutTitle, withoutVerification } from "./verifica
 import { isConfirmed, isStaleVerified } from "./verified";
 import { useJournalEvents } from "./useOculpmLive";
 import { requestSendToClaude } from "@/features/terminal/sendToClaude";
+import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 
 // 작업 일지 상세 (4.0 → 화면 검사 {#journal-body}) — 한 건을 한 장에. 위에서 아래로: 무엇이었나
 // (종류·검증·메타 → 제목) → 사람이 읽는 본문(검증 칸만 뺀 그대로) → 믿을 근거(검증 상자: 돌린 명령과
@@ -151,14 +152,15 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
         }`
       : null;
   const model = detail?.frontmatter.agent.version ?? entry.agent_version;
-  const metaText = [
-    whenLabel(entry.created_at, t),
-    agentLabel(entry.agent_id),
-    model,
-    planText,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const metaText = [whenLabel(entry.created_at, t), agentLabel(entry.agent_id), model].filter(Boolean).join(" · ");
+  // 이 일지가 갱신한 계획 — 누르면 그 계획으로 건너간다 (ocul-next #nav-links).
+  const openPlan = () =>
+    planLinks[0] &&
+    window.dispatchEvent(
+      new CustomEvent<OpenEntityDetail>(NAV_BUS.openEntity, {
+        detail: { kind: "plan_item", id: `${planLinks[0].plan_id}#${planLinks[0].item_id}` },
+      }),
+    );
 
   return (
     <article className="jd" ref={ref} tabIndex={-1} aria-label={plainTitle(entry.title) || entry.slug}>
@@ -172,7 +174,17 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
             </span>
           ) : null}
           {entry.parse_ok === false ? <span className="chip sm warn">{t("entry.parseWarnShort")}</span> : null}
-          <span className="jd-meta">{metaText}</span>
+          <span className="jd-meta">
+            {metaText}
+            {planText ? (
+              <>
+                {" · "}
+                <button type="button" className="jd-plan-link" onClick={openPlan} title={t("journal.planLinkTitle")}>
+                  {planText}
+                </button>
+              </>
+            ) : null}
+          </span>
         </div>
         <h2 className="jd-title">{plainTitle(entry.title) || entry.slug}</h2>
         <div className="jd-actions">
