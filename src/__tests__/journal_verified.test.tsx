@@ -87,6 +87,7 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { isConfirmed, isStaleVerified } from "@/features/oculpm/verified";
 import { evidenceStateOf } from "@/features/oculpm/evidenceState";
 import { verificationLines, withoutVerification } from "@/features/oculpm/verification";
+import { NAV_BUS } from "@/lib/navRegistry";
 
 function renderRow(entry: JournalEntrySummary) {
   return render(<JournalRow entry={entry} selected={false} onSelect={() => {}} />);
@@ -253,6 +254,13 @@ describe("상세 — 검증 상자", () => {
     expect(meta).toContain("Claude Code");
     expect(meta).toContain("Opus 5.5");
     expect(meta).toContain("계획 「4.0 덜어내기」 #drop-app-llm +1");
+    // 계획 줄은 글자 그대로의 링크 — 누르면 그 계획 항목으로 건너간다 (ocul-next #nav-links).
+    const seen: unknown[] = [];
+    const onOpen = (e: Event) => seen.push((e as CustomEvent).detail);
+    window.addEventListener(NAV_BUS.openEntity, onOpen);
+    fireEvent.click(container.querySelector(".jd-plan-link")!);
+    window.removeEventListener(NAV_BUS.openEntity, onOpen);
+    expect(seen).toEqual([{ kind: "plan_item", id: "p#drop-app-llm" }]);
     expect(container.querySelector(".tbadge")?.textContent).toContain("버그 수정");
     expect(container.querySelector(".jd-chips .chip.warn")?.textContent).toBe("검증 없음");
   });

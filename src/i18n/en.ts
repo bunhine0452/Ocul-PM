@@ -42,6 +42,7 @@ export const en: Record<keyof typeof ko, string> = {
   "sidebar.addFolder": "Open folder…",
   "palette.group.plans": "Plans",
   "palette.group.journal": "Work journal",
+  "journal.planLinkTitle": "Open this plan",
   "send.title": "Send to Claude",
   "send.context": "Context",
   "send.kind.journal": "Journal",

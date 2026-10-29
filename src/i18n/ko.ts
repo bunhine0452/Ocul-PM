@@ -38,6 +38,7 @@ export const ko = {
   "sidebar.addFolder": "폴더 열기…",
   "palette.group.plans": "계획",
   "palette.group.journal": "작업 일지",
+  "journal.planLinkTitle": "이 계획 열기",
   "send.title": "Claude 에게 보내기",
   "send.context": "함께 갈 맥락",
   "send.kind.journal": "일지",
