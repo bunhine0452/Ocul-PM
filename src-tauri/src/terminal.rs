@@ -62,6 +62,9 @@ pub struct TermInfo {
     /// 셸 위에서 무언가가 돈다 — 닫기 · 끄기 전에 묻고 프로젝트 목록이 센다. 빈 셸은 `false`.
     /// 표에 적어 두지 않고 목록을 줄 때마다 잰다(`Session::snapshot`).
     pub busy: bool,
+    /// 그 창이 뒤에 있는 동안 안의 프로그램이 기다림 · 끝냄 · 오류로 바뀌었고 아직 그 창을 안 봤다
+    /// (Orca 의 알림 규칙 — 읽지 않음은 프로젝트(= 창)마다). 창이 앞에 오면 지운다.
+    pub unseen: bool,
 }
 
 /// 여는 데 필요한 것.
@@ -118,6 +121,8 @@ struct Inner {
 #[derive(Default, Clone)]
 pub struct TermSessions {
     inner: Arc<Mutex<Inner>>,
+    /// 읽지 않은 소식이 있는 창 라벨 — `TermInfo.unseen` 의 출처.
+    unseen: Arc<Mutex<std::collections::HashSet<String>>>,
     /// 앱을 끄기 전에 물은 때 — 그 뒤 잠깐 안에 다시 끄려 하면 묻지 않고 끈다.
     quit_asked: Arc<Mutex<Option<std::time::Instant>>>,
 }
@@ -306,6 +311,7 @@ impl TermSessions {
             exit_code: None,
             status: None,
             busy: false,
+            unseen: false,
         };
         inner.map.insert(
             id,
@@ -408,7 +414,7 @@ impl TermSessions {
             .map
             .values()
             .filter(|s| s.window == window)
-            .map(Session::snapshot)
+            .map(|s| self.with_unseen(s.snapshot(), &s.window))
             .collect();
         out.sort_by_key(|i| i.id);
         out
@@ -420,7 +426,11 @@ impl TermSessions {
         let Ok(inner) = self.inner.lock() else {
             return Vec::new();
         };
-        let mut out: Vec<TermInfo> = inner.map.values().map(Session::snapshot).collect();
+        let mut out: Vec<TermInfo> = inner
+            .map
+            .values()
+            .map(|s| self.with_unseen(s.snapshot(), &s.window))
+            .collect();
         out.sort_by_key(|i| i.id);
         out
     }
@@ -441,12 +451,37 @@ impl TermSessions {
         Some((first.window.clone(), busy.len() as u32))
     }
 
+    fn with_unseen(&self, mut info: TermInfo, window: &str) -> TermInfo {
+        info.unseen = self
+            .unseen
+            .lock()
+            .map(|u| u.contains(window))
+            .unwrap_or(false);
+        info
+    }
+
+    /// 그 창에 읽지 않은 소식을 단다 — 상태가 기다림 · 끝냄 · 오류로 바뀌었는데 창이 뒤에 있을 때.
+    pub fn mark_unseen(&self, window: &str) {
+        if let Ok(mut u) = self.unseen.lock() {
+            u.insert(window.to_string());
+        }
+    }
+
+    /// 창이 앞에 왔다 — 소식을 지운다. 지운 것이 있었으면 `true`(목록을 다시 읽게 알린다).
+    pub fn clear_unseen(&self, window: &str) -> bool {
+        self.unseen
+            .lock()
+            .map(|mut u| u.remove(window))
+            .unwrap_or(false)
+    }
+
     /// 이 창에서 무언가 도는 세션 — 창을 닫기 전에 물을지 가른다.
     pub fn busy_in(&self, window: &str) -> Vec<TermInfo> {
         self.list(window).into_iter().filter(|i| i.busy).collect()
     }
 
     pub fn close_window(&self, window: &str) {
+        self.clear_unseen(window);
         let ids: Vec<u32> = self
             .inner
             .lock()
@@ -661,6 +696,25 @@ mod tests {
             "방금 물었으면 두 번째 ⌘Q 는 그대로 끈다"
         );
         sessions.close_all();
+    }
+
+    #[test]
+    fn unseen_news_is_per_window_and_clears_once_when_the_window_comes_to_front() {
+        let sessions = TermSessions::default();
+        assert!(
+            !sessions.clear_unseen("proj-1"),
+            "없던 소식은 지울 것도 없다"
+        );
+        sessions.mark_unseen("proj-1");
+        sessions.mark_unseen("proj-1");
+        assert!(sessions.clear_unseen("proj-1"), "앞에 오면 한 번 지운다");
+        assert!(!sessions.clear_unseen("proj-1"));
+        sessions.mark_unseen("proj-2");
+        sessions.close_window("proj-2");
+        assert!(
+            !sessions.clear_unseen("proj-2"),
+            "창을 닫으면 그 소식도 없다"
+        );
     }
 
     #[test]

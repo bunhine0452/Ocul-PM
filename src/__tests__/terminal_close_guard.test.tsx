@@ -49,6 +49,7 @@ function session(id: number, projectId: number, extra: Partial<TermInfo> = {}): 
     exit_code: null,
     status: null,
     busy: true,
+    unseen: false,
     ...extra,
   };
 }
@@ -141,8 +142,17 @@ describe("프로젝트별 세션 세기", () => {
       session(5, 1, { busy: false }),
       session(4, 2, { status: { state: "working", kind: null, msg: null, since: "" } }),
     ]);
-    expect(counts.get(1)).toEqual({ alive: 2, waiting: 1 });
-    expect(counts.get(2)).toEqual({ alive: 1, waiting: 0 });
+    expect(counts.get(1)).toEqual({ alive: 2, waiting: 1, unseen: false });
+    expect(counts.get(2)).toEqual({ alive: 1, waiting: 0, unseen: false });
     expect(counts.has(3)).toBe(false);
+  });
+
+  it("읽지 않은 소식은 claude 가 끝나고 나가도(빈 셸) 남는다 — 그 창이 앞에 올 때까지", () => {
+    const counts = countByProject([
+      session(1, 4, { busy: false, unseen: true, status: { state: "done", kind: null, msg: null, since: "" } }),
+      session(2, 5, { unseen: true, status: { state: "done", kind: null, msg: null, since: "" } }),
+    ]);
+    expect(counts.get(4)).toEqual({ alive: 0, waiting: 0, unseen: true });
+    expect(counts.get(5)).toEqual({ alive: 1, waiting: 0, unseen: true });
   });
 });

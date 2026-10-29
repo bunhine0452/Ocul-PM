@@ -283,6 +283,8 @@ export const ko = {
   "terminal.state.auth": "로그인을 기다려요",
   "terminal.sum.running": "실행 중 {n}",
   "terminal.sum.waiting": "내 차례",
+  "terminal.sum.unseen": "새 소식",
+  "terminal.sum.unseenTitle": "이 창을 본 뒤로 Claude 가 끝냈거나 멈췄어요. 그 창을 열면 사라져요",
   "terminal.sum.title": "이 프로젝트 창의 터미널에서 실행 중인 세션 {n}개",
   "terminal.closeAsk.title": "터미널 세션 {n}개가 아직 실행 중이에요",
   "terminal.closeAsk.body": "창을 닫으면 함께 끝나요.",

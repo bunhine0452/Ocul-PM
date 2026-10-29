@@ -281,6 +281,8 @@ export const en: Record<keyof typeof ko, string> = {
   "terminal.state.auth": "Needs sign-in",
   "terminal.sum.running": "{n} running",
   "terminal.sum.waiting": "Your turn",
+  "terminal.sum.unseen": "New",
+  "terminal.sum.unseenTitle": "Claude finished or stopped since you last looked at this window. Opening it clears this",
   "terminal.sum.title": "{n} terminal sessions running something in this project's window",
   "terminal.closeAsk.title": "{n} terminal sessions are still running",
   "terminal.closeAsk.body": "Closing the window ends them too.",

@@ -33,6 +33,7 @@ function session(id: number, extra: Partial<TermInfo> = {}): TermInfo {
     exit_code: null,
     status: { state: "idle", kind: null, msg: null, since: "" },
     busy: true,
+    unseen: false,
     ...extra,
   };
 }

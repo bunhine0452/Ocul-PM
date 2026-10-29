@@ -38,6 +38,7 @@ function info(status: TermStatus | null): TermInfo {
     exit_code: null,
     status,
     busy: true,
+    unseen: false,
   };
 }
 
