@@ -23,9 +23,14 @@ const fx = vi.hoisted(() => ({
 
 // 「다음」 은 앱 안 터미널에서 실행된다 — 터미널(xterm)은 띄우지 않고 넘긴 프롬프트만 본다.
 const runs: string[] = [];
+const goals: string[] = [];
 vi.mock("@/features/terminal/runPrompt", () => ({
   runPromptInTerminal: async (_projectId: number, prompt: string) => {
     runs.push(prompt);
+  },
+  runGoalInTerminal: async (_projectId: number, goal: string) => {
+    goals.push(goal);
+    return true;
   },
 }));
 
@@ -227,13 +232,15 @@ describe("다음 · 터미널에서 실행", () => {
     runs.length = 0;
     fireEvent.click(screen.getByRole("button", { name: t("plan.nextRow.run") }));
     await waitFor(() => expect(runs).toEqual(["PROMPT"]));
+    // 「끝까지」 — 완료 조건 · 확인 명령을 /goal 로 넘긴다(프롬프트를 짜지 않는다).
+    goals.length = 0;
     fireEvent.click(screen.getByRole("button", { name: t("plan.nextRow.untilDone") }));
-    await waitFor(() => expect(runs[1]).toBe(`PROMPT\n\n${t("plan.nextRow.untilDoneSuffix")}`));
-    expect(t("plan.nextRow.untilDoneSuffix")).toContain("/oculpm:next until-done");
-    expect(fx.dispatch).toEqual([
-      ["drop", "drop-tray"],
-      ["drop", "drop-tray"],
-    ]);
+    await waitFor(() => expect(goals).toHaveLength(1));
+    expect(goals[0]).toMatch(/^\/goal /);
+    expect(goals[0]).toContain("앱이 다섯 화면만 남는다");
+    expect(goals[0]).toContain("pnpm test && (cd src-tauri && cargo test --locked)");
+    expect(runs).toEqual(["PROMPT"]);
+    expect(fx.dispatch).toEqual([["drop", "drop-tray"]]);
     // 사람 몫은 칩으로, 머리표는 문구에서 뗀다.
     expect(screen.getByText("v4.0.0 태그")).toBeInTheDocument();
     expect(screen.getAllByText(t("plan.item.user")).length).toBeGreaterThan(0);
@@ -273,6 +280,18 @@ describe("상태 메뉴", () => {
     expect(fx.edits).toEqual([]);
     fireEvent.click(await screen.findByRole("button", { name: t("plan.confirmDoneAction") }));
     await waitFor(() => expect(fx.edits).toHaveLength(1));
+  });
+
+  it("완료 조건도 확인 명령도 없는 계획의 「끝까지」는 예전처럼 「이어 가라」는 문장을 붙인다", async () => {
+    const p = summary("bare");
+    stage([p], [detail(p, [it_("a", "todo", 0, { title: "할 일" })], { done_when: null, check: null })]);
+    renderPlanner();
+    await screen.findByText("할 일", { selector: ".plv-next-title" });
+    runs.length = 0;
+    goals.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: t("plan.nextRow.untilDone") }));
+    await waitFor(() => expect(runs).toEqual([`PROMPT\n\n${t("plan.nextRow.untilDoneSuffix")}`]));
+    expect(goals).toEqual([]);
   });
 
   it("끝난 계획은 고치지 않는다 — 상자가 잠기고 다음 줄이 없다", async () => {

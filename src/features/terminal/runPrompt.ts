@@ -13,3 +13,24 @@ export async function runPromptInTerminal(projectId: number, prompt: string): Pr
   await openTerm(projectId, prompt);
   window.dispatchEvent(new CustomEvent(NAV_BUS.setView, { detail: "terminal" }));
 }
+
+/** 「끝까지」가 claude 의 입력 대기를 기다리는 한도 — 첫 실행(로그인 · 플러그인 로드)까지 넉넉히. */
+export const GOAL_READY_MS = 60_000;
+
+/**
+ * 계획의 「끝까지」 — 새 세션에서 그냥 `claude` 를 띄우고, 입력 대기 신호(OSC 7501 idle)가 오면
+ * `/goal <조건>` 을 넣는다. Claude Code 가 조건이 참이 될 때까지 턴마다 판정한다. 신호가 오지 않으면
+ * (옛 Claude Code · 설치 안 됨) `false` — 부른 쪽이 그 문장을 사람에게 넘긴다.
+ */
+export async function runGoalInTerminal(projectId: number, goal: string): Promise<boolean> {
+  const [{ openTerm, waitForTermStatus }, { deliverToSession }] = await Promise.all([
+    import("./termStore"),
+    import("./sendToClaude"),
+  ]);
+  const id = await openTerm(projectId, "");
+  window.dispatchEvent(new CustomEvent(NAV_BUS.setView, { detail: "terminal" }));
+  const ready = await waitForTermStatus(id, (s) => s?.state === "idle", GOAL_READY_MS);
+  if (!ready) return false;
+  await deliverToSession(id, goal);
+  return true;
+}

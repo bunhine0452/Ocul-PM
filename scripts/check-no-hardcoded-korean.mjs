@@ -138,6 +138,7 @@ const TESTS = new Set([
   "__tests__/tour.test.tsx",
   "__tests__/terminal_launch_check.test.ts",
   "__tests__/send_to_claude.test.tsx",
+  "__tests__/plan_goal.test.ts",
   // SECURITY.md 「외부 리뷰 이력」 표 픽스처 — 「반영」·「다음 릴리스」 는 파서가 읽는 한국어 문서 형식이다.
   "__tests__/bump_version.test.ts",
   "__tests__/journal_toast_gate.test.ts",

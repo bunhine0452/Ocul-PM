@@ -92,7 +92,8 @@ export const commands = {
 	todayDigest: (projectId: number) => typedError<TodayDigest, string>(__TAURI_INVOKE("today_digest", { projectId })),
 	/**
 	 *  이 창에 세션을 연다 — 프로젝트 루트에서 사용자의 로그인 셸. `prompt` 가 있으면 그
-	 *  프롬프트로 `claude` 를 바로 실행한다(오늘·계획의 「다음」). 출력·끝은 `on_event` 로.
+	 *  프롬프트로 `claude` 를 바로 실행한다(오늘·계획의 「다음」). 빈 문자열이면 그냥 `claude`
+	 *  (계획의 「끝까지」가 입력 대기 신호 뒤에 `/goal …` 을 넣는다). 출력·끝은 `on_event` 로.
 	 */
 	termOpen: (projectId: number, cols: number, rows: number, prompt: string | null, onEvent: Channel<TermEvent>) => typedError<TermInfo, AppError>(__TAURI_INVOKE("term_open", { projectId, cols, rows, prompt, onEvent })),
 	termWrite: (id: number, data: string) => typedError<null, AppError>(__TAURI_INVOKE("term_write", { id, data })),

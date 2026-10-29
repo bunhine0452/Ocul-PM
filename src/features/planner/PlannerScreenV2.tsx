@@ -23,7 +23,8 @@ import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import type { PlanItemDto } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
-import { runPromptInTerminal } from "@/features/terminal/runPrompt";
+import { runGoalInTerminal, runPromptInTerminal } from "@/features/terminal/runPrompt";
+import { goalCommand } from "./goal";
 import { CarryInbox } from "./CarryInbox";
 import { PlanDoc } from "./PlanDoc";
 import { PlanRail } from "./PlanRail";
@@ -59,6 +60,15 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   const runPrompt = async (item: PlanItemDto, untilDone: boolean) => {
     if (selectedId == null) return;
     try {
+      // 「끝까지」 — 완료 조건 · 확인 명령이 있으면 Claude Code 의 /goal 로 (ocul-next #goal).
+      const goal = untilDone && detail ? goalCommand(t, selectedId, detail.done_when, detail.check) : null;
+      if (goal) {
+        if (!(await runGoalInTerminal(projectId, goal))) {
+          void navigator.clipboard?.writeText(goal).catch(() => {});
+          toast.warning(t("plan.goal.notReady"), { durationMs: 15000 });
+        }
+        return;
+      }
       const res = await planApi.dispatchPrompt(projectId, selectedId, item.item_id);
       const text = untilDone ? `${res.prompt}\n\n${t("plan.nextRow.untilDoneSuffix")}` : res.prompt;
       await runPromptInTerminal(projectId, text);
