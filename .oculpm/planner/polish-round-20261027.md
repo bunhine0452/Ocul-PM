@@ -72,6 +72,8 @@ owner: claude-code
 - [ ] [사용자] 플러그인 업데이트 뒤 .oculpm 만 있는 새 폴더에서 claude 새 세션 — 「플랜·일지 없음」 줄과 확인 명령 후보, Cursor 에서 AGENTS.md v19 만으로 완료 조건 한 줄 (← any-project-best-results-20261028) {#eyes-empty-project}
 - [ ] [사용자] 첫 기록 실제 왕복 1회 — 실제 대화의 첫 일지가 Today 카드에 도착하는지 + 촬영 (← first-record-loop #p1-verify #p3-intro) {#eyes-first-record}
 - [ ] [사용자] 새 플러그인 판으로 /oculpm:redteam 한 번 — 반례 보고를 이 플랜 로그에 (← ambition-round-20261027) {#redteam-dogfood}
+- [ ] [사용자] 4.0 설치본 — 윗줄(탭 다섯 · 찾기 · 설정 톱니) · 창 버튼(신호등)이 윗줄 가운데 · 오늘 한 칼럼 · 계획의 끝난 단계 접힘을 눈으로 (← v4-major-20261028) {#eyes-v4-shell}
+- [ ] [사용자] 4.0 터미널 — 설치본에서 한글 입력 · Claude Code 박스 문자(WebGL) · 창 닫기 뒤 셸 정리를 눈으로 (← terminal-v4-20261029 #ship-eyes) {#carry-ship-eyes}
 
 ## 사용자 액션 (닫은 플랜에서 옮김) {#user-actions}
 - [ ] [사용자 액션] release 환경 보호 — 필수 승인자 + 배포 정책(태그 v*) → 서명 비밀 7개(APPLE_* 6 · TAURI_PRIVATE_KEY)를 환경 비밀로 옮기고 저장소 비밀에서 삭제. 비밀을 옮기지 않으면 승인자는 막는 것이 없다. 키 재발급 금지 (← external-review-2026-10-08 #release-env) {#release-env}
@@ -83,18 +85,9 @@ owner: claude-code
 - [ ] [사용자 결정] app-data 의 ocul-pm.db.bak-v40(735MB, 10-14 마이그레이션 백업) 삭제 · 진단 탭 compact(DB 837MB) {#cache-app-decision}
 
 <!-- oculpm:plan-log begin v1 -->
+<!-- oculpm:plan-log archived: 10 rows → polish-round-20261027.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-10-27T19:32:04+09:00 | #promise-doc | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | docs/PROMISE.md — 10문장 · 등급 표 · 지키는 장치 표 |
-| 2026-10-27T19:32:11+09:00 | #promise-readme | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | README ko/en 약속 블록 + 화면 12개 등급 태그 |
-| 2026-10-27T19:32:20+09:00 | #promise-landing | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | landing ko/en 왕복 문장 + 콘솔·⌘J 베타 배지, wiki screens ko/en 등급 문단 (build.mjs). 배포는 다음 릴리스와 함께 |
-| 2026-10-27T19:32:28+09:00 | #promise-docs-index | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md |  |
-| 2026-10-27T19:32:37+09:00 | #tiers-claude-md | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | CLAUDE.md Screen tiers 규칙 — 보류는 결함 수정만 |
-| 2026-10-27T19:32:47+09:00 | #cadence-release-md | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | RELEASE.md §0-2 |
-| 2026-10-27T19:32:53+09:00 | #cadence-bump-same-day | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | tagsCutOn + todayIso, git tag 읽기 실패도 알림 |
-| 2026-10-27T19:33:03+09:00 | #cadence-bump-eyes | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | isMinorBump + pendingEyes(readPlans) — 실측 5플랜 28건 |
-| 2026-10-27T19:33:10+09:00 | #cadence-tests | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | 4건 — bump_version.test.ts 10/10 |
-| 2026-10-27T19:33:18+09:00 | #boundary-mcp-cache | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | mcp_write_to_cache.rs 2건 — 응답 path 는 루트 기준(.oculpm/journal/…) |
 | 2026-10-27T19:33:24+09:00 | #observe-protocol | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | docs/launch/first-user-observation.md |
 | 2026-10-27T19:33:34+09:00 | #endings-active-plans | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | 11개 플랜(이 플랜 포함) 본문에 완료 조건 한 줄 |
 | 2026-10-27T19:33:43+09:00 | #cache-dev | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | target 9.7→6.8GB · .vite 51MB · Caches/ai-pm 482MB · pnpm store prune 1831 패키지 |
@@ -133,4 +126,7 @@ owner: claude-code
 | 2026-10-28T23:26:30+09:00 | #release-env | claude-code | →☐ |  | ← external-review-2026-10-08 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:33+09:00 | #star-outreach | claude-code | →☐ |  | ← improvement-round-2026-09-14 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:36+09:00 | #carry-vscode-market | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-29T14:32:21+09:00 | #carry-ship-eyes | claude-code | ☐→☐ |  | ← terminal-v4-20261029 #ship-eyes (사용자 결정으로 그 플랜을 닫으며 이월) |
+| 2026-10-29T14:32:27+09:00 | #eyes-v4-shell | claude-code | ☐→☐ |  | ← v4-major-20261028 (v4.0.0 공개, 그 플랜을 닫으며 — macOS 설치본 육안은 아직 0건) |
+<!-- oculpm:plan-log archived: 10 rows → polish-round-20261027.log.md -->
 <!-- oculpm:plan-log end -->
