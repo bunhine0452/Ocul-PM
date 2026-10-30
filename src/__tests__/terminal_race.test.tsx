@@ -4,7 +4,18 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 // 같은 일을 worktree 여럿에서 (10-30, Orca 「Parallel Worktrees」) — 레인을 만들고 레인마다 claude,
 // 띠에서 크기를 보고 하나를 원래 폴더로 가져오고, 모두 정리한다. git 쪽은 Rust 테스트(git::race)가 본다.
 const h = vi.hoisted(() => ({
-  lanes: [] as Array<{ name: string; path: string; branch: string; files: number; added: number; removed: number }>,
+  lanes: [] as Array<{
+    name: string;
+    path: string;
+    branch: string;
+    files: number;
+    added: number;
+    removed: number;
+    journals?: number;
+    journal_title?: string | null;
+    evidence?: number;
+    proof?: string | null;
+  }>,
   started: [] as number[],
   taken: [] as string[],
   cleared: 0,
@@ -49,7 +60,7 @@ vi.mock("@/features/terminal/termStore", () => ({
 }));
 
 import { setLangSetting, t } from "@/i18n";
-import { RaceStartDialog, RaceStrip, splitByFile } from "@/features/terminal/RacePanel";
+import { RaceStartDialog, RaceStrip, recommendLane, splitByFile } from "@/features/terminal/RacePanel";
 import { __resetRaceForTests, laneNumberOf } from "@/features/terminal/race";
 
 beforeEach(() => {
@@ -119,5 +130,38 @@ describe("같은 일을 여럿에서", () => {
     // 확장 머리줄 · 끝의 빈 줄은 코드 줄로 그려지지 않게 뺀다.
     expect(splitByFile(patch)[1].patch).toBe("diff --git a/src/b c.ts b/src/b c.ts");
     expect(splitByFile(patch)[0].patch.endsWith("+y")).toBe(true);
+  });
+
+  it("증거로 고른다 — 명령 증거를 남긴 레인 중 바뀐 줄이 가장 적은 레인이 추천, 일지 없는 레인은 그 말", async () => {
+    const lane = (n: number, extra: Record<string, unknown>) => ({
+      name: `s-${n}`,
+      path: `/data/races/p1/s-${n}`,
+      branch: `ocul-race/s-${n}`,
+      files: 2,
+      added: 10,
+      removed: 2,
+      journals: 0,
+      journal_title: null,
+      evidence: 0,
+      proof: null,
+      ...extra,
+    });
+    h.lanes = [
+      lane(1, { added: 40, journals: 1, evidence: 2, journal_title: "캐시: 만료 고침", proof: "cargo test → 12 passed" }),
+      lane(2, { added: 9, journals: 2, evidence: 2, journal_title: "캐시: 만료를 본다", proof: "pnpm test → 3 passed" }),
+      lane(3, { added: 1, journals: 1, evidence: 1, journal_title: "캐시: 대충 고침" }),
+      lane(4, {}),
+    ];
+    expect(recommendLane(h.lanes as never)).toBe("/data/races/p1/s-2");
+    render(<RaceStrip projectId={1} />);
+    await waitFor(() => expect(screen.getByText("pnpm test → 3 passed")).toBeInTheDocument(), { timeout: 2000 });
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[1].textContent).toContain(t("race.recommended"));
+    expect(rows[0].textContent).not.toContain(t("race.recommended"));
+    expect(rows[0].textContent).toContain(t("journal.verify.hasCommand"));
+    expect(rows[2].textContent).toContain(t("journal.verify.noCommand"));
+    expect(rows[3].textContent).toContain(t("race.noJournal"));
+    // 증명한 레인이 없으면 추천도 없다.
+    expect(recommendLane([lane(1, { evidence: 1 })] as never)).toBeNull();
   });
 });

@@ -2142,6 +2142,12 @@ export type RaceLane = {
 	files: number,
 	added: number,
 	removed: number,
+	/**  레인을 만든 뒤 그 안의 Claude 가 쓴 일지 수 — Orca 는 diff 를 눈으로만 비교한다(10-30 #lane-evidence). */
+	journals: number,
+	/**  그 가운데 가장 최근 일지의 제목 · 증거 등급(`evidence::NONE|SECTION|COMMAND`) · 검증 칸의 끝 줄. */
+	journal_title: string | null,
+	evidence: number,
+	proof: string | null,
 };
 
 export type ReindexReport = {
