@@ -132,7 +132,7 @@ pub fn lanes(root: &Path) -> Result<Vec<RaceLane>, String> {
             let name = branch.trim_start_matches(BRANCH_PREFIX).to_string();
             let mut lane = RaceLane::bare(name, path, branch);
             (lane.files, lane.added, lane.removed) = (files, added, removed);
-            read_evidence(&mut lane);
+            read_evidence(root, &mut lane);
             lane
         })
         .collect())
@@ -186,36 +186,64 @@ fn seed_records(root: &Path, lane: &Path) {
 }
 
 /// 레인을 만든 뒤 그 안에서 쓰인 일지 — 수 · 가장 최근 것의 제목 · 증거 등급 · 검증 칸 끝 줄.
-/// 레인을 만든 때는 레인의 `.git` 파일(worktree 가 만들 때 한 번 쓴다)의 시각이다.
-fn read_evidence(lane: &mut RaceLane) {
+///
+/// 「레인의 것」은 git 으로 가린다. 파일 시각으로 가리던 때(레인 `.git` 파일 뒤에 쓰인 것)는 기록을 git 에
+/// 올리는 저장소에서 checkout 이 옛 일지를 `.git` 보다 몇 ms 늦게 써, 옛 일지가 전부 새 것으로 세어졌다
+/// (레드팀 10-31). 올리는 저장소: 기준 커밋에서 레인이 더하거나 고친 일지. 안 올리는 저장소: 심은 폴더라
+/// 거기 있는 일지가 전부 레인의 것이다.
+fn read_evidence(root: &Path, lane: &mut RaceLane) {
     let dir = Path::new(&lane.path);
-    let Some(since) = std::fs::metadata(dir.join(".git"))
-        .and_then(|m| m.modified())
-        .ok()
-    else {
-        return;
-    };
-    let mut fresh: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
-    let journal = dir.join(".oculpm").join("journal");
-    for day in std::fs::read_dir(&journal).into_iter().flatten().flatten() {
-        for kind in std::fs::read_dir(day.path())
-            .into_iter()
-            .flatten()
-            .flatten()
-        {
-            for f in std::fs::read_dir(kind.path())
+    let paths: Vec<PathBuf> = if records_tracked(root) {
+        let Ok(base) = base_of(root, &lane.branch) else {
+            return;
+        };
+        if run(dir, &["add", "-A", "--", ".oculpm/journal"]).is_err() {
+            return;
+        }
+        let names = run(
+            dir,
+            &[
+                "diff",
+                "--cached",
+                "--name-only",
+                "--diff-filter=AM",
+                &base,
+                "--",
+                ".oculpm/journal",
+            ],
+        )
+        .unwrap_or_default();
+        names
+            .lines()
+            .filter(|l| l.ends_with(".md"))
+            .map(|l| dir.join(l))
+            .collect()
+    } else {
+        let mut all = Vec::new();
+        let journal = dir.join(".oculpm").join("journal");
+        for day in std::fs::read_dir(&journal).into_iter().flatten().flatten() {
+            for kind in std::fs::read_dir(day.path())
                 .into_iter()
                 .flatten()
                 .flatten()
             {
-                let p = f.path();
-                let when = f.metadata().and_then(|m| m.modified()).ok();
-                if p.extension().is_some_and(|e| e == "md") && when.is_some_and(|w| w >= since) {
-                    fresh.push((when.unwrap_or(since), p));
+                for f in std::fs::read_dir(kind.path())
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                {
+                    if f.path().extension().is_some_and(|e| e == "md") {
+                        all.push(f.path());
+                    }
                 }
             }
         }
-    }
+        all
+    };
+    let fresh: Vec<(std::time::SystemTime, PathBuf)> = paths
+        .into_iter()
+        .filter_map(|p| Some((std::fs::metadata(&p).and_then(|m| m.modified()).ok()?, p)))
+        .collect();
     lane.journals = fresh.len() as u32;
     let Some((_, newest)) = fresh.into_iter().max_by_key(|(when, _)| *when) else {
         return;
