@@ -10,16 +10,21 @@
 }
 .tm-race-head { flex: none; padding-top: var(--space-2); font-weight: var(--fw-strong); color: var(--text); }
 .tm-race-lanes { flex: 1; min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
-.tm-race-lane { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+/* 줄마다 같은 칸 — 레인 · 상태 · 크기 · 증거 · 단추가 줄을 넘어 세로로 맞는다(10-30). 증거 칸이 남는 폭을 쓴다. */
+.tm-race-lane {
+  display: grid; grid-template-columns: 10em 6.5em 9em minmax(0, 34em) max-content max-content; justify-content: start;
+  align-items: center; gap: var(--space-3); min-width: 0;
+}
+.tm-race-who { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .tm-race-name {
   flex: none; padding: 0; border: 0; background: transparent; color: var(--text);
   font: inherit; font-weight: var(--fw-label); cursor: pointer;
 }
 .tm-race-name:hover:not([aria-disabled="true"]) { text-decoration: underline; }
 .tm-race-name:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
-.tm-race-word { flex: none; min-width: 7em; color: var(--text-2); }
+.tm-race-word { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 단추는 크기 바로 뒤에 — 줄 끝으로 밀려 가운데가 비던 것(10-30). */
-.tm-race-size { flex: none; min-width: 9em; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tm-race-size { color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tm-race .add, .tm-race-diff .add { color: var(--diff-add-line); }
 .tm-race .del, .tm-race-diff .del { color: var(--diff-del-line); }
 
@@ -30,3 +35,9 @@
   border-bottom: 1px solid var(--sep); background: var(--bg-window);
   font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text);
 }
+
+/* 레인의 증거 (10-30 #lane-evidence) — 등급 칩 + 검증 칸 끝 줄. 끝 줄은 줄어들며 잘린다. */
+.tm-race-ev { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.tm-race-proof { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.tm-race-muted { color: var(--text-2); }
+

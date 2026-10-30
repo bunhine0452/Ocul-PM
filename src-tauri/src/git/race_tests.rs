@@ -103,3 +103,57 @@ fn a_repo_without_commits_cannot_race() {
         "no_commit"
     );
 }
+
+/// `.oculpm` 을 git 에 안 올린 저장소 — 레인에 기록 폴더를 심어 레인의 Claude 가 일지를 쓰게 하고, 그 일지의
+/// 제목 · 증거 · 끝 줄을 띠에 싣는다. 기록 폴더는 코드 변경으로 세지도 가져오지도 않는다.
+#[test]
+fn a_lane_gets_records_and_reports_its_evidence() {
+    let root = repo();
+    std::fs::create_dir_all(root.path().join(".oculpm")).unwrap();
+    std::fs::write(
+        root.path().join(".oculpm/config.toml"),
+        "[agents]\ntemplate_language = \"ko\"\n",
+    )
+    .unwrap();
+    let data = tempfile::tempdir().unwrap();
+    let made = start(root.path(), &base_dir(data.path(), 1), 2, "s").unwrap();
+    let one = Path::new(&made[0].path);
+    assert!(
+        one.join(".oculpm/config.toml").is_file(),
+        "레인에 기록 폴더를 심는다"
+    );
+
+    // 레인의 Claude 가 코드를 고치고 일지를 쓴다.
+    std::fs::write(one.join("a.txt"), "one\nTWO\n").unwrap();
+    let day = one.join(".oculpm/journal/20261030/Bugs");
+    std::fs::create_dir_all(&day).unwrap();
+    std::fs::write(
+        day.join("1200_bug_cache.md"),
+        "---\nschema_version: 1\ntype: bug\nslug: \"cache\"\nstatus: done\n---\n[x] 캐시: 만료 고침\n\n\
+         ## 발생 원인\n만료를 안 봤다.\n\n## 해결 방법\n본다.\n\n## 검증\n- `cargo test` → 12 passed\n",
+    )
+    .unwrap();
+
+    let all = lanes(root.path()).unwrap();
+    let l1 = all.iter().find(|l| l.name == "s-1").unwrap();
+    assert_eq!(l1.files, 1, "기록 폴더는 코드 변경으로 세지 않는다");
+    assert_eq!(l1.journals, 1);
+    assert_eq!(l1.journal_title.as_deref(), Some("캐시: 만료 고침"));
+    assert_eq!(l1.evidence, crate::oculpm::evidence::COMMAND);
+    assert_eq!(l1.proof.as_deref(), Some("cargo test → 12 passed"));
+    let l2 = all.iter().find(|l| l.name == "s-2").unwrap();
+    assert_eq!(
+        (l2.journals, l2.evidence),
+        (0, 0),
+        "일지 없는 레인은 증거도 없다"
+    );
+
+    // 가져와도 원래 쪽 config.toml 과 부딪치지 않고, 레인의 일지는 코드처럼 섞이지 않는다.
+    take(root.path(), &find(root.path(), one).unwrap(), data.path()).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(root.path().join("a.txt")).unwrap(),
+        "one\nTWO\n"
+    );
+    assert!(!root.path().join(".oculpm/journal").exists());
+    assert_eq!(clear(root.path()).unwrap(), 2);
+}

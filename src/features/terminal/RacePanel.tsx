@@ -26,6 +26,18 @@ import { subscribeTerms, termsSnapshot } from "./termStore";
 import "./race.css";
 
 const COUNTS = [2, 3, 4] as const;
+/** `evidence::COMMAND` — 검증 칸에 명령 · 결과가 있다. */
+const PROVED = 2;
+
+/**
+ * 추천 레인 — 그 안의 Claude 가 검증 칸에 명령 증거를 남긴 레인 가운데 바뀐 줄이 가장 적은 것.
+ * Orca 는 diff 를 눈으로 비교한다. 여기서는 증명한 것부터, 같은 일을 더 작게 한 것부터.
+ */
+export function recommendLane(lanes: readonly RaceLane[]): string | null {
+  const proved = lanes.filter((l) => (l.evidence ?? 0) >= PROVED && l.files > 0);
+  if (proved.length === 0) return null;
+  return proved.reduce((best, l) => (l.added + l.removed < best.added + best.removed ? l : best)).path;
+}
 
 export function RaceStartDialog({ projectId, onClose }: { projectId: number; onClose: () => void }) {
   const { t } = useT();
@@ -125,6 +137,7 @@ export function RaceStrip({ projectId }: { projectId: number }) {
   }, [projectId, statusKey]);
 
   if (race.lanes.length === 0) return confirmDialog;
+  const recommended = recommendLane(race.lanes);
 
   const take = async (lane: RaceLane, n: number) => {
     const ok = await confirm({ title: t("race.takeTitle", { n }), message: t("race.takeBody"), confirmLabel: t("race.take") });
@@ -174,6 +187,7 @@ export function RaceStrip({ projectId }: { projectId: number }) {
             const empty = lane.files === 0;
             return (
               <li key={lane.path} className="tm-race-lane">
+                <span className="tm-race-who">
                 <button
                   type="button"
                   className="tm-race-name"
@@ -183,6 +197,12 @@ export function RaceStrip({ projectId }: { projectId: number }) {
                 >
                   {t("race.lane", { n })}
                 </button>
+                {lane.path === recommended ? (
+                  <span className="chip sm outline" title={t("race.recommendedTitle")}>
+                    {t("race.recommended")}
+                  </span>
+                ) : null}
+                </span>
                 <span className="tm-race-word">{info ? sessionWord(t, info) : t("race.noSession")}</span>
                 <span className="tm-race-size">
                   {empty ? (
@@ -194,6 +214,7 @@ export function RaceStrip({ projectId }: { projectId: number }) {
                     </>
                   )}
                 </span>
+                <LaneEvidence lane={lane} />
                 <button
                   type="button"
                   className="btn ghost sm"
@@ -227,6 +248,25 @@ export function RaceStrip({ projectId }: { projectId: number }) {
 
 /** git 의 확장 머리줄 — diff 파서가 코드 줄로 그리지 않게 뺀다(`index`·`---`·`+++` 는 파서가 안다). */
 const EXT_HEADER = /^(new file mode|deleted file mode|old mode|new mode|similarity index|dissimilarity index|rename from|rename to|copy from|copy to) /;
+
+/** 레인 안의 Claude 가 남긴 것 — 증거 등급 칩 · 검증 칸의 끝 줄(제목은 가리키면). 일지가 없으면 그 말. */
+function LaneEvidence({ lane }: { lane: RaceLane }) {
+  const { t } = useT();
+  if (!lane.journals) return <span className="tm-race-ev tm-race-muted">{t("race.noJournal")}</span>;
+  const level = lane.evidence ?? 0;
+  return (
+    <span className="tm-race-ev" title={lane.journal_title ?? undefined}>
+      <span className={"chip sm " + (level >= PROVED ? "ok" : "warn")}>
+        {level >= PROVED
+          ? t("journal.verify.hasCommand")
+          : level === 1
+            ? t("journal.verify.noCommand")
+            : t("journal.evidence.missing")}
+      </span>
+      <span className="tm-race-proof mono">{lane.proof ?? lane.journal_title ?? ""}</span>
+    </span>
+  );
+}
 
 /** 여러 파일 diff → 파일마다 한 장. 끝의 빈 줄도 뺀다(빈 문맥 줄로 그려진다). */
 export function splitByFile(patch: string): { file: string; patch: string }[] {
@@ -266,6 +306,11 @@ function LaneDiffDialog({ projectId, lane, n, onClose }: { projectId: number; la
             <span className="del">−{lane.removed}</span>
           </b>
         </div>
+        {lane.journals ? (
+          <p className="send-ctx">
+            {lane.journal_title} <LaneEvidence lane={lane} />
+          </p>
+        ) : null}
         <div className="tm-race-diff-body diff-code">
           {error ? <p className="send-ctx">{error}</p> : null}
           {files === null && !error ? <p className="send-ctx">{t("race.loading")}</p> : null}

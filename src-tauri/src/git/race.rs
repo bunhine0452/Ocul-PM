@@ -32,6 +32,29 @@ pub struct RaceLane {
     pub files: u32,
     pub added: u32,
     pub removed: u32,
+    /// 레인을 만든 뒤 그 안의 Claude 가 쓴 일지 수 — Orca 는 diff 를 눈으로만 비교한다(10-30 #lane-evidence).
+    pub journals: u32,
+    /// 그 가운데 가장 최근 일지의 제목 · 증거 등급(`evidence::NONE|SECTION|COMMAND`) · 검증 칸의 끝 줄.
+    pub journal_title: Option<String>,
+    pub evidence: u8,
+    pub proof: Option<String>,
+}
+
+impl RaceLane {
+    fn bare(name: String, path: String, branch: String) -> Self {
+        Self {
+            name,
+            path,
+            branch,
+            files: 0,
+            added: 0,
+            removed: 0,
+            journals: 0,
+            journal_title: None,
+            evidence: 0,
+            proof: None,
+        }
+    }
 }
 
 fn run(dir: &Path, args: &[&str]) -> Result<String, String> {
@@ -92,14 +115,8 @@ pub fn start(
             }
             return Err(e);
         }
-        made.push(RaceLane {
-            name,
-            path: dir_s,
-            branch,
-            files: 0,
-            added: 0,
-            removed: 0,
-        });
+        seed_records(root, &dir);
+        made.push(RaceLane::bare(name, dir_s, branch));
     }
     Ok(made)
 }
@@ -113,14 +130,10 @@ pub fn lanes(root: &Path) -> Result<Vec<RaceLane>, String> {
             let (files, added, removed) =
                 stats(root, Path::new(&path), &branch).unwrap_or((0, 0, 0));
             let name = branch.trim_start_matches(BRANCH_PREFIX).to_string();
-            RaceLane {
-                name,
-                path,
-                branch,
-                files,
-                added,
-                removed,
-            }
+            let mut lane = RaceLane::bare(name, path, branch);
+            (lane.files, lane.added, lane.removed) = (files, added, removed);
+            read_evidence(&mut lane);
+            lane
         })
         .collect())
 }
@@ -133,13 +146,102 @@ fn base_of(root: &Path, branch: &str) -> Result<String, String> {
 }
 
 /// 레인의 모든 변경(커밋 · 미커밋 · 새 파일)을 레인 자신의 인덱스에 올린 뒤 기준과 비교한다.
+/// `.oculpm` 을 git 에 올리지 않은 저장소면 레인의 기록 폴더는 [`seed_records`] 가 심은 것이다 — 코드
+/// 변경이 아니므로 크기 · 보기 · 가져오기에서 뺀다(가져오면 원래 쪽 config.toml 과 부딪친다).
+const NO_RECORDS: &str = ":(exclude).oculpm";
+
+fn records_tracked(root: &Path) -> bool {
+    run(root, &["ls-files", "--", ".oculpm"]).is_ok_and(|out| !out.trim().is_empty())
+}
+
 fn staged_diff(root: &Path, lane: &Path, branch: &str, extra: &[&str]) -> Result<String, String> {
     let base = base_of(root, branch)?;
-    run(lane, &["add", "-A"])?;
+    let tracked = records_tracked(root);
+    let scope: &[&str] = if tracked {
+        &[]
+    } else {
+        &["--", ".", NO_RECORDS]
+    };
+    let mut add = vec!["add", "-A"];
+    add.extend_from_slice(scope);
+    run(lane, &add)?;
     let mut args = vec!["diff", "--cached"];
     args.extend_from_slice(extra);
     args.push(&base);
+    args.extend_from_slice(scope);
     run(lane, &args)
+}
+
+/// 레인에 기록 폴더를 심는다 — 원래 프로젝트는 추적 중인데 레인 checkout 에 `.oculpm` 이 없으면(git 에
+/// 안 올린 저장소). 없으면 MCP 도구가 모두 거절해 레인의 Claude 가 일지를 못 쓴다. 설정(언어 · 시간대)만
+/// 옮긴다 — 일지 · 계획은 레인이 새로 쓴다.
+fn seed_records(root: &Path, lane: &Path) {
+    let (from, to) = (root.join(".oculpm"), lane.join(".oculpm"));
+    if !from.is_dir() || to.exists() {
+        return;
+    }
+    if std::fs::create_dir_all(&to).is_ok() {
+        let _ = std::fs::copy(from.join("config.toml"), to.join("config.toml"));
+    }
+}
+
+/// 레인을 만든 뒤 그 안에서 쓰인 일지 — 수 · 가장 최근 것의 제목 · 증거 등급 · 검증 칸 끝 줄.
+/// 레인을 만든 때는 레인의 `.git` 파일(worktree 가 만들 때 한 번 쓴다)의 시각이다.
+fn read_evidence(lane: &mut RaceLane) {
+    let dir = Path::new(&lane.path);
+    let Some(since) = std::fs::metadata(dir.join(".git"))
+        .and_then(|m| m.modified())
+        .ok()
+    else {
+        return;
+    };
+    let mut fresh: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
+    let journal = dir.join(".oculpm").join("journal");
+    for day in std::fs::read_dir(&journal).into_iter().flatten().flatten() {
+        for kind in std::fs::read_dir(day.path())
+            .into_iter()
+            .flatten()
+            .flatten()
+        {
+            for f in std::fs::read_dir(kind.path())
+                .into_iter()
+                .flatten()
+                .flatten()
+            {
+                let p = f.path();
+                let when = f.metadata().and_then(|m| m.modified()).ok();
+                if p.extension().is_some_and(|e| e == "md") && when.is_some_and(|w| w >= since) {
+                    fresh.push((when.unwrap_or(since), p));
+                }
+            }
+        }
+    }
+    lane.journals = fresh.len() as u32;
+    let Some((_, newest)) = fresh.into_iter().max_by_key(|(when, _)| *when) else {
+        return;
+    };
+    let Ok(raw) = std::fs::read_to_string(&newest) else {
+        return;
+    };
+    let (_, body) = crate::oculpm::frontmatter::parse_frontmatter_and_body(&raw);
+    let title = crate::oculpm::markdown::parse_body(&body).title;
+    lane.journal_title = (!title.is_empty()).then_some(title);
+    lane.evidence = crate::oculpm::evidence::evidence_level(&body);
+    lane.proof = crate::oculpm::evidence::verification_section(&body).and_then(proof_line);
+}
+
+/// 검증 칸의 끝 줄 — 결과가 보통 거기 있다. 목록 기호 · 백틱을 걷고 120자에서 자른다.
+fn proof_line(section: &str) -> Option<String> {
+    let line = section
+        .lines()
+        .map(|l| l.trim().trim_start_matches(['-', '*']).trim())
+        .rfind(|l| !l.is_empty() && !l.starts_with('#'))?
+        .replace('`', "");
+    let mut out: String = line.chars().take(120).collect();
+    if line.chars().count() > 120 {
+        out.push('…');
+    }
+    Some(out)
 }
 
 fn stats(root: &Path, lane: &Path, branch: &str) -> Result<(u32, u32, u32), String> {
@@ -163,13 +265,12 @@ pub fn find(root: &Path, path: &Path) -> Result<RaceLane, String> {
     parse_lanes(&porcelain)
         .into_iter()
         .find(|(p, _)| std::fs::canonicalize(p).is_ok_and(|c| c == want))
-        .map(|(path, branch)| RaceLane {
-            name: branch.trim_start_matches(BRANCH_PREFIX).to_string(),
-            path,
-            branch,
-            files: 0,
-            added: 0,
-            removed: 0,
+        .map(|(path, branch)| {
+            RaceLane::bare(
+                branch.trim_start_matches(BRANCH_PREFIX).to_string(),
+                path,
+                branch,
+            )
         })
         .ok_or_else(|| "not_a_lane".to_string())
 }
