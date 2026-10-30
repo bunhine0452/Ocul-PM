@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul (최신 v4.1.0)</title>
-<meta name="description" content="Ocul 의 전체 릴리스 노트 133개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul (최신 v4.2.0)</title>
+<meta name="description" content="Ocul 의 전체 릴리스 노트 134개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul (최신 v4.1.0)" />
-<meta property="og:description" content="Ocul 의 전체 릴리스 노트 133개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul (최신 v4.2.0)" />
+<meta property="og:description" content="Ocul 의 전체 릴리스 노트 134개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
-    <span class="nav-ver" data-version>v4.1.0</span>
+    <span class="nav-ver" data-version>v4.2.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>133개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>134개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v4-2-0">v4.2.0</a>
       <a href="#v4-1-0">v4.1.0</a>
       <a href="#v4-0-0">v4.0.0</a>
       <a href="#v3-17-0">v3.17.0</a>
@@ -60,10 +61,29 @@
       <a href="#v3-13-5">v3.13.5</a>
       <a href="#v3-13-4">v3.13.4</a>
       <a href="#v3-13-2">v3.13.2</a>
-      <a href="#v3-13-1">v3.13.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v4-2-0"><a href="#v4-2-0">v4.2.0</a></h2>
+      <div class="cl-body">
+<p><b>4.1.0 하루 뒤, 확인 날 없이 내는 마이너 판입니다 — 사용자 결정(2026-10-31).</b> 2주에 한 번이라는 리듬과 그 전날의 확인 날을 둘 다 건너뜁니다. 코드 게이트(프런트 테스트 973건 · Rust 1,167건 · typecheck · lint · build · clippy)와 Windows · Linux 의 좁은 창(504) E2E 는 통과했습니다. 내기 전 레드팀이 세 계획에서 반례 셋을 찾았고 모두 고쳤습니다(아래 「여럿에서」 · 줄 메모 · 좁은 창 문단). 그러나 실제 Finder 끌어다 놓기, 레인 안의 실제 claude, 좁은 창을 macOS 설치본에서 눈으로 본 것은 아직 없습니다. 그 빚은 확인 날 받은함(육안 확인 25건 대기)에 남아 있습니다. 마지막 외부 리뷰 반영(v3.11.0) 이후 다음 리뷰를 청할 때도 지났습니다.</p>
+<p><b>일지 제목이 한 모양이 됐습니다 — 「영역: 무엇을 했다」, 40자 안.</b> 이 저장소의 일지 934건 중 47% 가 「40자 안」 안내를 넘었고, 절반이 줄표로 두 문장을 이어 붙여 목록과 오늘 화면에서 잘렸습니다. 이제 기록 도구(<code>journal_write</code>)가 이 형식이 아닌 제목을 받지 않고, 무엇이 틀렸는지 · 예시 · 이 프로젝트가 이미 쓰는 영역을 돌려줍니다. 영역은 첫 태그로도 남아 태그 필터가 곧 영역별 보기입니다. 플러그인을 쓰는 분은 <code>/plugin update oculpm@oculpm</code> 으로 받으세요(규격 문서 · 기록 스킬도 같은 규칙).</p>
+<p><b>변경 화면에서 줄마다 메모를 달고, 한 번에 묶어 Claude 에게 보냅니다.</b> 줄에 마우스를 올리면 왼쪽에 「+」 가 뜹니다 — 눌러 메모를 적고 ⌘↩. 다 달았으면 위의 「메모 N개 → Claude」 가 파일 · 줄 번호 · 그 줄의 코드와 메모를 한 묶음으로 「Claude 에게 보내기」 칸에 채워 줍니다(보내기 전에 고칠 수 있고, 보내면 메모는 비웁니다). 하나씩 보내면 에이전트가 오락가락해서, 묶어 보내야 한 번에 고칩니다.</p>
+<p><b>같은 일을 worktree 여럿에서 돌리고, 가장 나은 하나를 가져옵니다.</b> 터미널의 「여럿에서」 에 프롬프트와 개수(2~4)를 넣으면, 지금 커밋에서 worktree 를 그만큼 만들어 각각 Claude 를 같은 프롬프트로 띄웁니다. 터미널 위 한 줄 띠가 레인마다 Claude 상태와 바뀐 파일 · 줄 수를 보여 주고, 「보기」로 그 레인의 변경을 열어 봅니다. 「이것으로」 를 누르면 그 레인의 변경이 원래 폴더에 커밋 전 변경으로 들어와 변경 화면에서 검토 · 메모 · 커밋할 수 있습니다. 「모두 정리」 는 세션을 닫고 worktree 와 가지(<code>ocul-race/…</code>)를 지웁니다. worktree 는 앱 데이터 폴더에 만들어 프로젝트 폴더를 어지럽히지 않고, git 은 저장소 설정의 훅 · 필터가 꺼진 채로 돕니다.</p>
+<p><b>터미널 세션 둘을 나란히 봅니다.</b> 툴바의 「나란히」나 ⌘\ (Windows · Linux 는 Ctrl+Shift+\)로 다른 세션을 오른쪽 칸에 붙입니다. 다른 세션이 없으면 새 셸을 엽니다. 오른쪽 세션의 탭을 누르면 두 칸이 자리를 바꾸고, 「하나로」 해도 오른쪽 세션은 탭에 남아 계속 돕니다.</p>
+<p><b>Finder 에서 파일 · 그림을 터미널에 끌어다 놓으면 경로가 입력됩니다.</b> 공백이나 한글이 든 경로는 따옴표로 감싸고, Claude Code 는 그림 경로를 첨부로 받습니다.</p>
+<p><b>터미널에 찍힌 이미지 경로에 마우스를 올리면 그림이 보입니다 (다시).</b> 3.x 터미널과 함께 걷혔던 미리보기를 4.x 터미널에 다시 들였습니다. Claude Code 가 만든 스크린숏 · 도표의 경로(<code>[image] /private/tmp/…/shot.png</code>)나 <code>ls</code> 로 찍은 절대경로에 올리면 카드가 뜨고, 누르면 크게 보며 경로를 복사할 수 있습니다. 투명한 그림은 바둑판 위에 보여 바탕에 묻히지 않습니다. 그림이 아닌 파일은 이름이 <code>.png</code> 여도 열지 않습니다(파일 첫 바이트로 확인). 같은 일로, 터미널의 하이퍼링크(<code>gh</code> 등이 내보내는 링크)를 눌러도 아무 일이 없던 것도 고쳤습니다 — 이제 브라우저로 열립니다.</p>
+<p><b>창을 맥북 프로 14 화면의 3분의 1(480pt)까지 줄일 수 있습니다.</b> 화면 한쪽에 Ocul 을 세워 두고 다른 일과 나란히 쓰세요. 좁아지면 윗줄의 탭은 아이콘으로, 찾기는 돋보기로 바뀌고, 화면의 동작(새 세션 · 나란히 · 새 일지 …)은 윗줄 끝 「⋯」 에 접힙니다. 일지 · 계획 · 변경은 목록이 위 · 본문이 아래로 섭니다.</p>
+<p><b>계획 화면은 단계마다 한 장의 카드입니다.</b> 머리 띠에 단계 이름 · 수 · 진행 막대가 서고 항목 사이에 줄이 있어, 어디까지가 한 단계인지와 「보내기」 가 어느 항목의 것인지가 보입니다.</p>
+<p><b>「여럿에서」 는 레인을 증거로 고르게 합니다.</b> 레인마다 그 안의 Claude 가 쓴 일지가 띠에 섭니다(레인을 만들 때 이미 있던 일지는 세지 않습니다) — 검증에 명령을 돌렸는지(「명령 있음 / 없음」)와 결과 끝 줄(<code>cargo test → 128 passed</code> 같은). 명령으로 검증한 레인 가운데 바뀐 줄이 가장 적은 레인에 「추천」 이 붙습니다. <code>.oculpm</code> 을 git 에 올리지 않은 저장소에서도 레인에 기록 폴더를 심어 레인의 Claude 가 일지를 쓸 수 있고, 그 기록 폴더는 가져오는 변경에 섞이지 않습니다.</p>
+<p><b>보낸 줄 메모가 고쳐졌는지 저절로 보입니다.</b> 메모를 보내도 지우지 않고 남겨, 그 줄의 코드가 지금 파일에서 사라졌으면 「고쳐짐」, 그대로면 「아직」 이 붙습니다. 줄이 옮겨 갔으면 메모도 따라가고, 툴바에 「고쳐짐 2/3」 처럼 셉니다. <code>}</code> · <code>&lt;/div&gt;</code> 처럼 파일에 흔한 줄은 옮겨 가면 어느 줄인지 가릴 수 없어 「보냄」 으로만 둡니다. 메모는 창을 다시 열어도 남습니다.</p>
+<p><b>화면의 빈 곳을 줄였습니다.</b></p>
+<ul><li><b>오늘</b> 은 넓은 창에서 두 칸입니다 — 왼쪽은 해야 할 것(먼저 볼 것 · 다음 · 내 차례 · 지금 일하는 중), 오른쪽은 기록(검증 없이 끝난 일지 · 오늘 한 일). 820px 한 기둥 양옆이 비던 것을 썼고, 창이 좁으면 저절로 한 칸입니다.</li><li><b>시작 창</b> 의 프로젝트는 한 줄에 하나입니다(이름 · 경로 · 날짜). 줄 전체를 누르면 열리고, 「일지 없는 파일」 은 있을 때만, × 는 줄을 가리킬 때만 보입니다. 카드는 내용만큼만 섭니다.</li><li><b>목록에서 빼기</b> 에 「기록 폴더(.oculpm)도 휴지통으로」 를 골라 넣을 수 있습니다. 일지와 계획이 함께 빠지고 휴지통에서 되살릴 수 있습니다(AGENTS.md 는 그대로). 예전에 내부에서 쓰던 「기록 지우기」 도 영구 삭제 대신 휴지통으로 바꿨습니다.</li></ul>
+<p><b>한 창에 보낸 확인이 열린 모든 창에 뜨던 것을 고쳤습니다.</b> 창마다 따로 와야 할 알림을 화면이 앱 전체 알림처럼 받고 있었습니다.</p>
+<ul><li>터미널에서 Claude 가 도는 창을 닫으려 하면 <b>「닫을까요」 확인이 다른 창에도</b> 떴고, 다른 창에서 「닫기」를 누르면 <b>그 창의 세션이 끝나고 그 창이 닫혔습니다.</b> 이제 닫으려는 창에만 뜹니다. ⌘Q 끄기 확인도 같습니다.</li><li>도움말 › 처음 쓰는 법이 열린 창마다 떴던 것 — 지금 보는 창에만 뜹니다.</li><li><code>oculpm://</code> 링크를 열면 프로젝트 창마다 확인 시트가 떠 뒤 창에 남던 것 — 프로젝트 창 하나에만 뜹니다.</li><li>계획 화면에서 남은 단계가 하나뿐이면 <b>반쪽 칸에 서서 항목이 좁게 꺾이던</b> 것, 좁은 창 · 큰 글자에서 단계가 두 칸으로 비좁게 나뉘던 것.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v4-1-0"><a href="#v4-1-0">v4.1.0</a></h2>
       <div class="cl-body">

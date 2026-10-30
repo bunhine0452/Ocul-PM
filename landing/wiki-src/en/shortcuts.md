@@ -14,6 +14,7 @@ updated: 2026-10-29
 | `⌘K` | Command palette — find screens · projects · entries · plans by title and open them |
 | `⌘1` – `⌘5` | Jump to a screen — `⌘1` Today · `⌘2` Work Journal · `⌘3` Plan · `⌘4` Diff · `⌘5` Terminal |
 | `⌘T` | Terminal — new session (`Ctrl+Shift+T` on Windows · Linux) |
+| `⌘\` | Terminal — another session side by side · back to one (`Ctrl+Shift+\` on Windows · Linux) |
 | `⌘,` | Settings |
 | `⌘[` / `⌘]` | Back / forward between screens — like a browser |
 | `⌘/` | Shortcut cheatsheet |

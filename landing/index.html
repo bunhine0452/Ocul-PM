@@ -48,7 +48,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "4.1.0",
+  "softwareVersion": "4.2.0",
   "description": "AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. 매일 AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)로 개발하는 사람을 위한 로컬-우선 AI 프로젝트 매니저 — 에이전트가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다. 앱은 사람이 볼 것(판정 실패 · 증거 없는 일지 · 기록 없는 변경)만 펼치고, 판정은 확인 명령의 결과 끝 줄로 읽습니다. 앱은 LLM 을 부르지 않습니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -69,6 +69,8 @@
     "Codex · Cursor · Gemini CLI 와 규칙 파일 한 장(AGENTS.md)으로 기록 — Codex 는 플러그인 훅도",
     "서명된 배포 — Apple Developer ID 서명 · 공증. 릴리스는 태그 커밋의 CI 통과를 확인한 뒤 draft 로 만들어져 서명 · 공증 · 업데이터 서명을 검사한 다음에만 공개됩니다",
     "Windows · Linux 베타 — Windows 10 2004 이상 · 11(x64)과 Linux x64(AppImage · deb, glibc 2.35+). 릴리스마다 CI 러너에서 설치 스모크와 실제 앱 E2E 를 통과한 OS 만 올라갑니다",
+    "같은 일을 worktree 여럿에서 — 터미널의 「여럿에서」 가 프롬프트 하나를 레인 2~4개의 claude 에 주고, 레인마다 바뀐 줄 · 그 안에서 쓴 일지 · 검증 명령의 끝 줄을 보여 줍니다. 명령으로 검증한 레인 가운데 가장 작은 변경에 「추천」 이 붙고, 「이것으로」 가 그 변경을 원래 폴더에 커밋 전 변경으로 가져옵니다",
+    "줄 메모 → Claude — 변경 화면의 줄마다 메모를 달아 한 묶음으로 보내고, 보낸 메모는 그 줄이 바뀌면 「고쳐짐」, 그대로면 「아직」 으로 저절로 표시됩니다. 터미널은 세션 둘을 나란히, Finder 에서 끌어다 놓으면 경로 입력, 이미지 경로에 올리면 미리보기. 창은 480pt 까지 줄어듭니다",
     "한국어 · English 화면 언어",
     "보이는 이름은 Ocul — 설치된 앱(Ocul-PM.app) · 내려받는 파일 · 데이터 폴더 · 플러그인 oculpm 은 이름이 그대로라 업데이트가 같은 자리에 깔립니다"
   ]
@@ -163,6 +165,11 @@
     },
     {
       "@type": "Question",
+      "name": "같은 일을 여러 에이전트에게 시켜 보고 고를 수 있나요?",
+      "acceptedAnswer": { "@type": "Answer", "text": "네. 앱 안 터미널의 「여럿에서」 에 프롬프트와 개수(2~4)를 넣으면, 지금 커밋에서 worktree 를 그만큼 만들어 각각 claude 를 띄웁니다. 터미널 위 띠가 레인마다 바뀐 파일 · 줄 수와 그 안의 Claude 가 쓴 일지 · 검증 명령의 끝 줄을 보여 주고, 명령으로 검증한 레인 가운데 바뀐 줄이 가장 적은 레인에 「추천」 이 붙습니다. 「이것으로」 는 그 레인의 변경을 원래 폴더에 커밋 전 변경으로 가져오고, 「모두 정리」 는 worktree 와 가지를 지웁니다. worktree 는 앱 데이터 폴더에 만들어 프로젝트 폴더를 어지럽히지 않습니다." }
+    },
+    {
+      "@type": "Question",
       "name": "Claude 가 사람에게 물어야 할 때 앱에서 답할 수 있나요?",
       "acceptedAnswer": { "@type": "Answer", "text": "네. Claude Code 플러그인의 MCP 도구 ask_user 가 질문을 오늘 화면에 띄우고, 고르거나 쓴 답을 그대로 Claude 에게 돌려줍니다(25분 안). Claude 가 터미널에서 사람을 기다리면 — 앱 안 터미널이든 앱 밖 터미널이든 — 오늘 화면 맨 위에 「Claude 가 기다려요」 가 서고, 창이 뒤에 있으면 OS 알림이 옵니다." }
     },
@@ -216,7 +223,7 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="/"><img src="icon.svg" alt="" width="24" height="24" />Ocul</a>
-    <span class="nav-ver" data-version>v4.1.0</span>
+    <span class="nav-ver" data-version>v4.2.0</span>
     <nav class="nav-links" aria-label="사이트">
       <a href="#screens">화면</a>
       <a href="/wiki">위키</a>
@@ -238,7 +245,7 @@
     <div class="ctas">
       <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">v4.1.0 받기</span><span class="sub">macOS · 무료</span>
+        <span class="lg">v4.2.0 받기</span><span class="sub">macOS · 무료</span>
       </a>
       <button class="cmd two" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Claude Code 플러그인 설치 명령 두 줄 복사"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">두 줄 복사</span></button>
     </div>
@@ -248,7 +255,7 @@
         <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
         <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
       </p>
-      <a class="whatsnew" href="#updates"><span class="ap-new">새 판</span>&nbsp; v4.1.0 — Claude 가 기다리면 알고, 앱에서 답합니다</a>
+      <a class="whatsnew" href="#updates"><span class="ap-new">새 판</span>&nbsp; v4.2.0 — 같은 일을 여럿에서 돌려 증거로 고릅니다</a>
     </div>
 
     <div class="stage" id="screens" data-app>
@@ -362,6 +369,8 @@
       <div><dt>창 하나가 프로젝트 하나</dt><dd><kbd>⌘O</kbd> 로 최근 프로젝트, <kbd>⌥⌘1</kbd>~<kbd>9</kbd> 로 열린 창. 프로젝트 목록이 내 차례 · 새 소식 · 실행 중을 보여 줍니다.</dd></div>
       <div><dt>윗줄까지 가지 않고 오갑니다</dt><dd><kbd>⌃Tab</kbd> 으로 화면을 돌고, 두 손가락 쓸기로 뒤로 · 앞으로, <kbd>⌘K</kbd> 로 무엇이든 찾습니다.</dd></div>
       <div><dt>확인은 내용에 묶입니다</dt><dd>확인 표시는 그때 본문의 지문과 함께 남고, 에이전트가 뒤에 고치면 다시 묻습니다.</dd></div>
+      <div><dt>같은 일을 여럿에서</dt><dd>프롬프트 하나를 worktree 2~4개의 claude 에. 검증 명령을 돌린 레인 가운데 가장 작은 변경에 「추천」 이 붙습니다.</dd></div>
+      <div><dt>줄마다 메모를 Claude 에게</dt><dd>변경 줄에 메모를 달아 한 번에 보내고, 그 줄이 바뀌면 「고쳐짐」 이 저절로 붙습니다.</dd></div>
       <div><dt>앱은 LLM 을 부르지 않습니다</dt><dd>요약도 API 키도 없습니다. 생각은 에이전트가 하고, 앱은 증거를 그대로 보여 줍니다.</dd></div>
     </dl>
   </div>
@@ -398,10 +407,10 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
     <h2 id="updates-h">이 앱은 이 앱으로 만들어집니다.</h2>
     <p class="intro">이 저장소의 <b>일지 932건 · 계획 89개 · 릴리스 133개</b>가 Ocul 로 쌓였습니다. 아래 이력도 그 일지에서 나왔습니다.</p>
     <ul class="releases">
+      <li class="rel"><span class="ver">v4.2.0</span><div><h3>여럿에서 고르고, 줄마다 말하고</h3><p>같은 일을 worktree 여럿에서 돌려 증거로 고르고, 변경 줄마다 메모를 달아 Claude 에게 보냅니다. 터미널 나란히 · 끌어다 놓기 · 이미지 미리보기, 창은 480pt 까지.</p></div></li>
       <li class="rel"><span class="ver">v4.1.0</span><div><h3>Claude 와 주고받기, 이름은 Ocul</h3><p>Claude 가 기다리면 알고, 앱에서 답하고, 앱에서 보냅니다. ⌃Tab · ⌥⌘1~9 로 오가고, 처음 쓰는 법이 생겼습니다.</p></div></li>
       <li class="rel"><span class="ver">v4.0.0</span><div><h3>다섯 면, 예외만</h3><p>오늘 화면은 판정 실패 · 증거 없는 일지 · 기록 없는 변경만 펼칩니다. 앱은 LLM 을 부르지 않고, 창 하나가 프로젝트 하나입니다.</p></div></li>
       <li class="rel"><span class="ver">v3.17.0</span><div><h3>첫 실행부터 터미널까지</h3><p>시안 열일곱 장을 전부 옮긴 판. 첫 실행의 한 가지 행동, 일지의 사람 확인 줄, 변경의 일지별 묶기.</p></div></li>
-      <li class="rel"><span class="ver">v3.15.1</span><div><h3>기록을 믿을 수 있게</h3><p>일지마다 「증거 있음」 등급, 플러그인 판 확인, 같은 모델의 서른 가지 표기를 한 이름으로.</p></div></li>
     </ul>
     <p class="more"><a href="/changelog">전체 변경 이력</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스</a></p>
   </div>
@@ -430,6 +439,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
     <details><summary>테마 색을 바꿀 수 있나요?</summary><p>설정 → 표시에서 <b>밝게 · 어둡게 · 시스템</b>(OS 를 따름)을 고르고 글자 크기를 정합니다. 3.x 의 테마 파일 · 프리셋 다섯 벌 · 프로젝트별 테마는 4.0 에서 걷었습니다 — 저장해 둔 옛 테마 설정은 「시스템」 으로 읽습니다.</p></details>
     <details><summary>내가 쓴 일지와 AI 가 쓴 일지를 구분할 수 있나요?</summary><p>네. 기록마다 <b>출처 배지</b>가 붙습니다 — 직접(앱에서 사람이 작성) · 에이전트(Claude Code 등이 기록 규칙대로) · MCP · 백필(git 이력에서 복원) 등이고, 3.x 의 자동 초안 · 스케줄 · 감시 · 들여옴 일지도 그 배지 그대로 읽힙니다. 새 필드를 만들지 않고 일지 파일에 이미 적혀 있는 세션 id 와 에이전트 id 에서 결정론적으로 읽습니다.</p></details>
     <details><summary>프로젝트를 여러 개 동시에 열 수 있나요?</summary><p>네, <b>창을 여러 개</b> 엽니다. 4.0 부터 창 하나가 프로젝트 하나입니다 — 3.x 의 크롬식 탭과 떼어내기는 걷었고, 프로젝트 사이는 OS 의 창 전환으로 오갑니다. <b>⌘O</b> 로 최근 프로젝트를 열고(이미 열린 프로젝트면 그 창이 앞으로 옵니다), <b>⇧⌘N</b> 은 새 시작 창, <b>⌘W</b> 는 창 닫기, <b>⌥⌘1~9</b> 는 목록을 열지 않고 열린 프로젝트 창으로 갑니다. 윗줄의 프로젝트 이름(▾)은 프로젝트마다 「내 차례 · 새 소식 · 실행 중 N」 을 보여 줍니다. 프로젝트마다 화면·필터 상태를 따로 기억하고, macOS 에서는 마지막 창을 닫아도 앱이 남아 독을 누르면 다시 열립니다.</p></details>
+    <details><summary>같은 일을 여러 에이전트에게 시켜 보고 고를 수 있나요?</summary><p>네. 앱 안 터미널의 <b>「여럿에서」</b> 에 프롬프트와 개수(2~4)를 넣으면, 지금 커밋에서 worktree 를 그만큼 만들어 각각 claude 를 띄웁니다. 터미널 위 띠가 레인마다 바뀐 파일 · 줄 수와 그 안의 Claude 가 쓴 일지 · 검증 명령의 끝 줄을 보여 주고, 명령으로 검증한 레인 가운데 바뀐 줄이 가장 적은 레인에 <b>「추천」</b> 이 붙습니다. 「이것으로」 는 그 레인의 변경을 원래 폴더에 커밋 전 변경으로 가져오고, 「모두 정리」 는 worktree 와 가지를 지웁니다. worktree 는 앱 데이터 폴더에 만들어 프로젝트 폴더를 어지럽히지 않습니다.</p></details>
     <details><summary>Claude 가 사람에게 물어야 할 때 앱에서 답할 수 있나요?</summary><p>네. Claude Code 플러그인의 MCP 도구 <code>ask_user</code> 가 질문을 <b>오늘 화면</b>에 띄우고, 고르거나 쓴 답을 그대로 Claude 에게 돌려줍니다(25분 안). Claude 가 터미널에서 사람을 기다리면 — 앱 안 터미널이든 앱 밖 터미널이든 — 오늘 화면 맨 위에 <b>「Claude 가 기다려요」</b> 가 서고, 창이 뒤에 있으면 OS 알림이 옵니다.</p></details>
     <details><summary>어떤 AI 코딩 에이전트와 함께 쓸 수 있나요?</summary><p>「지원」 한 마디에 약속 셋이 섞여 있어 등급으로 나눕니다. ① <b>규칙 호환</b> — 규칙 파일만 심고, 일지는 모델이 규칙을 지키는 만큼 남습니다: Gemini CLI · Cursor · GitHub Copilot · Windsurf · Cline · aider · Zed · Antigravity · pi (AGENTS.md 를 읽는 에이전트라면 무엇이든 이 등급). ② <b>구조화 기록</b> — 에이전트가 oculpm MCP 기록 도구를 부릅니다. ③ <b>세션 관측</b> — 훅으로 시작·종료를 받고 일지 없이 끝난 대화를 가려냅니다: Claude Code · Codex (각자의 플러그인으로, ② 포함). 에이전트는 여러분의 터미널에서 돌고, 앱 안에서 구동하던 등급은 2026-10-28 에 화면과 함께 걷었습니다. 등급별 근거와 실측 검증 시점은 <a href="/wiki/agents">위키의 등급표</a>에 있습니다.</p></details>
     <details><summary>폰이나 태블릿에서도 쓸 수 있나요?</summary><p>앱은 데스크톱 전용입니다. v2.18.0 에 베타로 넣었던 모바일 연동(Tailscale 사설망 안의 폰 브라우저)은 걷어냈습니다 — 표면이 컸는데 쓰임이 그에 못 미쳤습니다. v3.13.0 의 claude.ai 보드 스킬(<code>/oculpm:board</code>)도 2026-10-28 에 걷었습니다. 밖에서 진행을 보려면 <code>.oculpm/planner/</code> 의 플랜 파일을 저장소와 함께 보세요 — 원본은 늘 그 마크다운입니다.</p></details>
@@ -449,7 +459,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
     <div class="ctas">
       <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">v4.1.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+        <span class="lg">v4.2.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
       </a>
       <a class="btn" href="/plugin">플러그인으로 시작</a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>
@@ -459,7 +469,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
       <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
       <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
     </p>
-    <p class="cta-ver">v4.1.0 — macOS · Windows · Linux(베타)</p>
+    <p class="cta-ver">v4.2.0 — macOS · Windows · Linux(베타)</p>
   </div>
 </section>
 </main>
