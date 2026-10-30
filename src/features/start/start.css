@@ -20,10 +20,11 @@
 
 .start-body {
   flex: 1 1 auto; min-height: 0;
-  display: flex; justify-content: center;
+  /* 카드는 내용만큼 — 창 높이까지 늘어 목록 아래가 비던 것(10-30). 넘치면 목록이 스크롤한다. */
+  display: flex; justify-content: center; align-items: flex-start;
   padding: var(--space-5) 32px 32px;
 }
-.start-card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; width: 100%; max-width: 760px; }
+.start-card { display: flex; flex-direction: column; min-height: 0; max-height: 100%; overflow: hidden; width: 100%; max-width: 760px; }
 .start-card-head {
   height: 40px; flex: none;
   display: flex; align-items: center; gap: var(--space-3);
@@ -34,26 +35,39 @@
 .start-spacer { flex: 1; }
 .start-card-head .kbd { margin-left: var(--space-1); }
 
-/* 최근 프로젝트 */
-.start-list { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* 최근 프로젝트 — 한 줄에 하나(10-30): 이름 · 경로 · (예외 딱지) · 날짜 · ×. 줄 전체가 「열기」.
+   두 줄(이름 / 경로)에 줄마다 「열기」 단추 · 「일지 없는 파일 0」 이 서 있던 때는 열한 줄이 창을 넘었고
+   가운데가 비었다. */
+.start-list { list-style: none; margin: 0; padding: var(--space-1) 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .start-row {
-  display: flex; align-items: center; gap: var(--space-4);
-  padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--sep);
-}
-.start-row:last-child { border-bottom: 0; }
-.start-row-main { flex: 1 1 auto; min-width: 0; }
-.start-row-name {
   display: flex; align-items: center; gap: var(--space-3);
+  padding: 0 var(--space-4) 0 var(--space-2);
+}
+.start-row:hover, .start-row:focus-within { background: var(--bg-hover); }
+.start-row-open {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--space-4);
+  height: var(--ctl-5); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-s);
+  background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.start-row-open:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+.start-row-name {
+  flex: none; max-width: 45%;
   font-size: var(--fs-5); font-weight: var(--fw-strong);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .start-row-path {
-  margin-top: 2px; font-size: var(--fs-3); color: var(--text-2);
+  flex: 1 1 auto; min-width: 0; font-size: var(--fs-3); color: var(--text-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.start-row-day { flex: none; font-size: var(--fs-3); color: var(--text-2); }
-.start-row-forget { color: var(--text-2); }
+.start-row-day { flex: none; min-width: 5.5em; text-align: right; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* × 는 줄을 가리킬 때만 — 열한 줄이 × 로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */
+.start-row-forget { color: var(--text-2); opacity: 0; }
+.start-row:hover .start-row-forget, .start-row-forget:focus-visible { opacity: 1; }
+.start-forget-body { margin: 0 0 var(--space-4); }
+.start-forget-wipe { display: flex; align-items: flex-start; gap: var(--space-3); cursor: pointer; }
+.start-forget-wipe input { margin-top: 3px; flex: none; }
+.start-forget-wipe b { display: block; font-weight: var(--fw-label); color: var(--text); }
+.start-forget-sub { display: block; margin-top: 2px; color: var(--text-2); }
 .start-empty { margin: 0; padding: var(--space-7) var(--space-6); color: var(--text-2); font-size: var(--fs-4); }
 .start-foot {
   margin: 0; flex: none;
@@ -61,4 +75,4 @@
   border-top: 1px solid var(--sep);
   font-size: var(--fs-3); color: var(--text-2);
 }
-.start-card > .start-foot { margin-top: auto; }
+

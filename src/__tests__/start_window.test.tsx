@@ -114,12 +114,17 @@ describe("최근 프로젝트", () => {
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1);
   });
 
-  it("목록에서 빼기는 묻고 나서 뺀다 — 폴더는 그대로다", async () => {
+  it("목록에서 빼기는 묻고 나서 뺀다 — 기본은 폴더 그대로, 체크하면 기록 폴더를 휴지통으로", async () => {
     fx.projects = [project(3, "old", "/Users/me/old")];
     render(<StartWindow />);
     fireEvent.click(await screen.findByRole("button", { name: t("start.forgetAria", { name: "old" }) }));
     fireEvent.click(await screen.findByRole("button", { name: t("start.forget") }));
-    await waitFor(() => expect(fx.forget).toHaveBeenCalledWith(3));
+    await waitFor(() => expect(fx.forget).toHaveBeenCalledWith(3, false));
+
+    fireEvent.click(await screen.findByRole("button", { name: t("start.forgetAria", { name: "old" }) }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: new RegExp(t("start.forgetWipe").replace(/[().]/g, "\\$&")) }));
+    fireEvent.click(await screen.findByRole("button", { name: t("start.forget") }));
+    await waitFor(() => expect(fx.forget).toHaveBeenLastCalledWith(3, true));
   });
 });
 

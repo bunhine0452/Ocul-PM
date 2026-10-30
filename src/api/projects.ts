@@ -24,8 +24,12 @@ export const projectsApi = {
   create: (name: string, rootPath: string): Promise<number> =>
     call("create_project", commands.createProject(name, rootPath)),
 
-  /** 목록에서 뺀다 — 폴더의 `.oculpm`·`AGENTS.md` 는 그대로 둔다. */
-  forget: (projectId: number): Promise<null> => call("delete_project", commands.deleteProject(projectId, false, false)),
+  /**
+   * 목록에서 뺀다. `wipe` 면 그 폴더의 `.oculpm`(일지 · 계획)을 OS 휴지통으로 옮긴다 — 되살릴 수 있다.
+   * `AGENTS.md` 는 사용자가 쓴 규칙이 함께 들어 있을 수 있어 늘 그대로 둔다.
+   */
+  forget: (projectId: number, wipe = false): Promise<null> =>
+    call("delete_project", commands.deleteProject(projectId, wipe, false)),
 
   /** 프로젝트마다 오늘·최근 활동 — `days` 는 날짜별 수를 담을 창(오늘 포함). */
   brief: (days: number): Promise<HomeBrief> => call("home_brief", commands.homeBrief(days)),
