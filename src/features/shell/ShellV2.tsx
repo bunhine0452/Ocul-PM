@@ -224,7 +224,7 @@ export default function ShellV2({
             }}
           />
         ) : view === "terminal" ? (
-          <TerminalScreen projectId={projectId} workday={workday} />
+          <TerminalScreen projectId={projectId} workday={workday} projectRoot={projectRoot} />
         ) : view === "planner" ? (
           <PlannerScreenV2
             key={`planner-${jumpNonce}`}

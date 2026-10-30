@@ -171,6 +171,8 @@ const TESTS = new Set([
   "__tests__/recent_changes_store.test.tsx",
   // 터미널 이미지 미리보기 (10-30) — 한글 넓은 칸 · 한국어 문구가 검사 재료다.
   "__tests__/terminal_image_peek.test.tsx",
+  // 터미널 경로 메뉴(10-31) — 메뉴 이름 · 항목 · 거절 문장의 한국어 사전 값이 검사 재료다.
+  "__tests__/terminal_file_menu.test.tsx",
   // 터미널 파일 끌어다 놓기 (10-30) — 한글 경로의 따옴표 처리가 검사 재료다.
   "__tests__/terminal_drop_files.test.tsx",
   // worktree 여럿에서 (10-30) — 한국어 테스트 이름 · 프롬프트 픽스처.

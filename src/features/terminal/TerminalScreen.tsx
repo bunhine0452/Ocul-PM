@@ -26,6 +26,7 @@ import { RaceStartDialog, RaceStrip } from "./RacePanel";
 import { onTermFocus, takeTermFocus } from "./focusRequest";
 import { closePeek } from "./imagePeek";
 import { TermImagePeekHost } from "./TermImagePeek";
+import { TermFileMenuHost } from "./TermFileMenu";
 import { needsMe, sessionWord } from "./status";
 import "./terminal.css";
 
@@ -61,7 +62,16 @@ function useRecordsSince(projectId: number, workday: string | null, sessions: Te
 /** 나란히 보기의 오른쪽 세션 — 화면을 오가도 기억한다(창 하나에 하나, 모듈 범위). */
 let rememberedSplit: number | null = null;
 
-export function TerminalScreen({ projectId, workday }: { projectId: number; workday: string | null }) {
+export function TerminalScreen({
+  projectId,
+  workday,
+  projectRoot = null,
+}: {
+  projectId: number;
+  workday: string | null;
+  /** 경로 메뉴(Finder · 미리보기 · 편집기)가 프로젝트 안쪽인지 재는 루트. */
+  projectRoot?: string | null;
+}) {
   const { t } = useT();
   const sessions = useSyncExternalStore(subscribeTerms, termsSnapshot);
   // 오늘의 「Claude 가 기다려요」 줄에서 왔으면 그 세션부터.
@@ -297,6 +307,7 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
         </div>
       </div>
       <TermImagePeekHost />
+      <TermFileMenuHost projectRoot={projectRoot} />
       {raceOpen ? <RaceStartDialog projectId={projectId} onClose={() => setRaceOpen(false)} /> : null}
     </>
   );

@@ -21,6 +21,7 @@ import { t } from "@/i18n";
 import { toast } from "@/lib/toast";
 import { alertIfWaiting } from "./attention";
 import { createImagePathProvider, createOscLinkHandler } from "./fileLinks";
+import { createFileRefProvider, openFileMenu } from "./fileRefs";
 import { peekEvent } from "./imagePeek";
 import { attachImeBridge } from "./imeBridge";
 import { LAUNCH_WATCH_CHARS, launchFailed } from "./launchCheck";
@@ -131,8 +132,10 @@ export async function openTerm(
   term.loadAddon(new WebLinksAddon((_e, uri) => void fileOpenApi.url(uri)));
   // OSC 8 링크(없으면 xterm 기본 처리기가 웹뷰에서 막혀 아무 일도 없다) · 출력의 이미지 경로.
   const openUrl = (uri: string) => void fileOpenApi.url(uri).catch(() => {});
-  term.options.linkHandler = createOscLinkHandler({ openUrl, onImage: peekEvent });
+  term.options.linkHandler = createOscLinkHandler({ openUrl, onImage: peekEvent, onFile: openFileMenu });
   term.registerLinkProvider(createImagePathProvider((y) => term.buffer.active.getLine(y), peekEvent));
+  // 맨 글자 `src/foo.ts:12` — ⌘클릭이면 「이 파일로 할 일」(Finder · 빠른 미리보기 · 외부 편집기).
+  term.registerLinkProvider(createFileRefProvider((y) => term.buffer.active.getLine(y), openFileMenu));
   const host = document.createElement("div");
   host.className = "term-host";
 
