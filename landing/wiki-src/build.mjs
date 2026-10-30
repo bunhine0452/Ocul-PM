@@ -123,7 +123,7 @@ const shell = (loc, page, contentHtml, tocHtml) => {
 <title>${title}</title>
 <meta name="description" content="${esc(page.meta.desc)}" />
 <meta name="robots" content="index, follow" />
-<meta name="theme-color" content="#0a0f0c" />
+<meta name="theme-color" content="#121514" />
 <link rel="canonical" href="https://oculpm.com${url}" />
 ${LOCALES.filter((l) => l.pages.some((p) => p.file === page.file))
   .map((l) => `<link rel="alternate" hreflang="${l.code}" href="https://oculpm.com${urlOf(l, page.file)}" />`)
@@ -133,7 +133,7 @@ ${LOCALES.filter((l) => l.pages.some((p) => p.file === page.file))
 <meta property="og:locale" content="${loc.code === "ko" ? "ko_KR" : "en_US"}" />
 <meta property="og:title" content="${title}" />
 <meta property="og:description" content="${esc(page.meta.desc)}" />
-<meta property="og:image" content="https://oculpm.com/og.png" />
+<meta property="og:image" content="https://oculpm.com/${loc.code === "en" ? "og-en" : "og"}.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
 <link rel="stylesheet" href="/wiki.css" />

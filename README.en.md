@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="landing/banner.png" alt="Ocul — Agents write the code. You keep the memory." width="100%" />
+<img src="landing/banner-en.png" alt="Ocul: Stop re-explaining to your AI where you left off yesterday. The 4.1 app's Today screen on the right." width="100%" />
 
-<img src="landing/demo.gif" alt="Ocul demo (3.x screens) — ask the agent for a change and the work journal writes itself" width="100%" />
+<img src="landing/demo-en.gif" alt="Ocul 4.1 demo: answer Claude's question on Today, Claude receives it in the terminal and records an entry and a verdict, then Work Journal, Plan and Diff" width="100%" />
 
-<sub>The demo shows 3.x screens — in 4.0 the in-app terminal is a single top-bar tab (⌘5), and running the agent in your own terminal leaves the same records.</sub>
+<sub>Real 4.1 screens, filled with this repository's journal; only Claude's question is demo data. Running the agent in your own terminal leaves the same records.</sub>
 
 <h3>Stop re-explaining to your AI where you left off yesterday.</h3>
 
@@ -87,7 +87,14 @@ The per-release narrative is in the [web changelog](https://oculpm.com/changelog
 
 ## Screens
 
-The app is five screens (Today · Journal · Plan · Diff · Terminal) plus Settings. One principle — **show only the exceptions.** Screenshots are being retaken (the pictures on the landing page and wiki today are 3.x screens). On first launch, the four-page "Getting started" guide walks through this briefly; reopen it from the Help menu or ⌘K.
+The app is five screens (Today · Journal · Plan · Diff · Terminal) plus Settings. One principle — **show only the exceptions.** On first launch, the four-page "Getting started" guide walks through this briefly; reopen it from the Help menu or ⌘K.
+
+<p>
+<img src="landing/shots/v4/en/today.webp" alt="Today: Look first (Claude's question and wait, a failed verdict, changes with no journal) and entries finished without verification" width="49%" />
+<img src="landing/shots/v4/en/journal.webp" alt="Work Journal: the list and an entry's body" width="49%" />
+<img src="landing/shots/v4/en/planner.webp" alt="Plan: done condition, last result, items by phase" width="49%" />
+<img src="landing/shots/v4/en/diff.webp" alt="Diff: files with no journal first, Ask Claude, line-by-line diff" width="49%" />
+</p>
 
 - **Today** (⌘1) — **"Look first"** on top: Claude is waiting · Claude asks (answer it right there) · failed verdicts · changes with no journal · blocked items · a new plugin version. When it's empty, one calm paragraph. Below it, "Finished without verification" (Read · Mark all read), the next item with [Run in terminal], one "your turn" line counting human-owned items, who is working now, and "Done today" grouped by plan (a group whose evidence is complete folds to one line). `j`/`k` move · `v` read · `r` run next.
 - **Journal** (⌘2) — a list on the left (by date · type · evidence) and the detail on the right, body first — the verification box (the command that ran and its last result line, or "a claim" when there's none), an inline diff per recorded file, related entries. The "Plan … #item" in the header jumps to that plan item. Journal search (`/`) lives here — titles · files · tags · body.
