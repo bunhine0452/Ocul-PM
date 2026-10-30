@@ -8,6 +8,10 @@
 //! 「다음」 을 실행할 때는 프롬프트를 환경 변수(`OCULPM_PROMPT`)로 넘기고 셸에
 //! `claude "$OCULPM_PROMPT"` 한 줄을 쳐 넣는다 — 따옴표·줄바꿈을 셸 문법으로 이스케이프할
 //! 일이 없고, claude 가 끝나면 셸이 남는다.
+//!
+//! 업데이트 재시작은 세션을 끝낸다(프로세스는 살리지 않는다). 대신 claude 가 돌던 세션의 자리를
+//! 창 스냅숏에 적어 두었다가, 다시 뜬 창이 같은 폴더에서 `claude --continue` 로 대화를 잇는다
+//! (`TermResume` · 10-31 사용자 결정).
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -15,7 +19,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::program_status;
 
@@ -43,6 +47,24 @@ pub struct TermStatus {
     pub msg: Option<String>,
     /// 이 상태로 바뀐 시각 (RFC 3339) — 같은 상태가 이어지면 그대로다.
     pub since: String,
+}
+
+/// 업데이트 재시작을 건너 이을 claude 세션 하나 — 그 창의 프로젝트와, 레인이면 그 경로.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+pub struct TermResume {
+    pub project_id: u32,
+    /// 「여럿에서」 레인의 폴더(`term_open` 의 `cwd` 그대로). 프로젝트 루트면 `None`.
+    #[serde(default)]
+    pub lane: Option<String>,
+}
+
+/// 앱 전체에서 도는 세션 수 — 업데이트가 재시작 전에 묻는다.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, specta::Type)]
+pub struct TermBusy {
+    /// 셸 위에서 무언가 도는 세션.
+    pub busy: u32,
+    /// 그 가운데 claude 가 도는 세션 — 다시 뜨면 이어서 연다.
+    pub claude: u32,
 }
 
 /// 목록 한 줄.
@@ -76,10 +98,15 @@ pub struct OpenSpec {
     pub rows: u16,
     /// 있으면 그 프롬프트로 `claude` 를 바로 실행한다.
     pub prompt: Option<String>,
+    /// 레인에서 열었으면 그 경로(받은 그대로) — 업데이트 뒤 같은 자리에서 잇는다.
+    pub lane: Option<String>,
+    /// 업데이트 전 대화를 잇는다 — `claude --continue`.
+    pub resume: bool,
 }
 
 struct Session {
     window: String,
+    lane: Option<String>,
     info: TermInfo,
     master: Box<dyn MasterPty + Send>,
     writer: Box<dyn Write + Send>,
@@ -101,6 +128,11 @@ impl Session {
             return fg as u32 != shell;
         }
         self.info.status.is_some()
+    }
+
+    /// claude 가 돈다 — 무언가 돌고, 그것이 상태 신호를 보냈거나(OSC 7501) claude 로 연 세션이다.
+    fn runs_claude(&self) -> bool {
+        self.busy() && (self.info.status.is_some() || self.info.label == "claude")
     }
 
     fn snapshot(&self) -> TermInfo {
@@ -125,6 +157,8 @@ pub struct TermSessions {
     unseen: Arc<Mutex<std::collections::HashSet<String>>>,
     /// 앱을 끄기 전에 물은 때 — 그 뒤 잠깐 안에 다시 끄려 하면 묻지 않고 끈다.
     quit_asked: Arc<Mutex<Option<std::time::Instant>>>,
+    /// 업데이트 재시작 뒤 창 라벨마다 이을 claude 세션 — 창 복원이 채우고 그 창이 한 번 가져간다.
+    pending_resume: Arc<Mutex<HashMap<String, Vec<TermResume>>>>,
 }
 
 /// 끄기를 물은 뒤 이 안에 한 번 더 끄면(⌘Q 두 번) 그대로 끈다 — 묻는 창이 응답하지 못해도
@@ -167,6 +201,9 @@ fn shell_command() -> (CommandBuilder, String) {
         (cmd, name)
     }
 }
+
+/// 업데이트 전 대화를 잇는 한 줄 — 그 폴더의 가장 최근 대화.
+const RESUME_LINE: &str = "claude --continue\r";
 
 /// 「다음」 실행 때 셸에 쳐 넣는 한 줄. 프롬프트가 비었으면 그냥 `claude` — 「끝까지」가 띄운 뒤
 /// 입력 대기 신호를 받고 `/goal …` 을 넣는다(시작 인자로 넘기는 슬래시 명령은 문서에 없다).
@@ -249,7 +286,7 @@ impl TermSessions {
         F: Fn(TermEvent) + Send + 'static,
     {
         let (cmd, shell_name) = shell_command();
-        let label = if spec.prompt.is_some() {
+        let label = if spec.prompt.is_some() || spec.resume {
             "claude".to_string()
         } else {
             shell_name
@@ -297,9 +334,14 @@ impl TermSessions {
             .master
             .take_writer()
             .map_err(|e| format!("writer: {e}"))?;
-        if let Some(prompt) = &spec.prompt {
-            // 셸이 아직 프롬프트를 그리기 전이어도 tty 가 받아 둔다.
-            let _ = writer.write_all(run_line(prompt).as_bytes());
+        // 셸이 아직 프롬프트를 그리기 전이어도 tty 가 받아 둔다.
+        let launch = if spec.resume {
+            Some(RESUME_LINE.to_string())
+        } else {
+            spec.prompt.as_deref().map(run_line)
+        };
+        if let Some(line) = launch {
+            let _ = writer.write_all(line.as_bytes());
             let _ = writer.flush();
         }
 
@@ -321,6 +363,7 @@ impl TermSessions {
             id,
             Session {
                 window: spec.window,
+                lane: spec.lane,
                 info: info.clone(),
                 master: pair.master,
                 writer,
@@ -455,6 +498,52 @@ impl TermSessions {
         Some((first.window.clone(), busy.len() as u32))
     }
 
+    /// 앱 전체에서 도는 세션과 그 가운데 claude — 업데이트가 재시작 전에 묻는다.
+    pub fn busy_all(&self) -> TermBusy {
+        let Ok(inner) = self.inner.lock() else {
+            return TermBusy::default();
+        };
+        let busy = inner.map.values().filter(|s| s.busy()).count() as u32;
+        let claude = inner.map.values().filter(|s| s.runs_claude()).count() as u32;
+        TermBusy { busy, claude }
+    }
+
+    /// 업데이트 재시작 직전 — 창 라벨마다 claude 가 돌던 세션(창 스냅숏에 싣는다).
+    pub fn resumable(&self) -> HashMap<String, Vec<TermResume>> {
+        let mut out: HashMap<String, Vec<TermResume>> = HashMap::new();
+        let Ok(inner) = self.inner.lock() else {
+            return out;
+        };
+        let mut sessions: Vec<&Session> = inner.map.values().filter(|s| s.runs_claude()).collect();
+        sessions.sort_by_key(|s| s.info.id);
+        for s in sessions {
+            out.entry(s.window.clone()).or_default().push(TermResume {
+                project_id: s.info.project_id,
+                lane: s.lane.clone(),
+            });
+        }
+        out
+    }
+
+    /// 창 복원이 그 창(라벨)이 이을 세션을 맡긴다.
+    pub fn set_pending_resume(&self, window: &str, resume: Vec<TermResume>) {
+        if resume.is_empty() {
+            return;
+        }
+        if let Ok(mut p) = self.pending_resume.lock() {
+            p.insert(window.to_string(), resume);
+        }
+    }
+
+    /// 그 창이 이을 세션을 가져간다 — 한 번만(두 번째부터 빈 목록).
+    pub fn take_pending_resume(&self, window: &str) -> Vec<TermResume> {
+        self.pending_resume
+            .lock()
+            .ok()
+            .and_then(|mut p| p.remove(window))
+            .unwrap_or_default()
+    }
+
     fn with_unseen(&self, mut info: TermInfo, window: &str) -> TermInfo {
         info.unseen = self
             .unseen
@@ -516,217 +605,5 @@ impl TermSessions {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn utf8_split_across_reads_waits_for_the_rest() {
-        let bytes = "가나".as_bytes();
-        let mut carry = bytes[..4].to_vec(); // 「가」 3바이트 + 「나」 첫 바이트
-        assert_eq!(take_utf8(&mut carry), "가");
-        assert_eq!(carry.len(), 1);
-        carry.extend_from_slice(&bytes[4..]);
-        assert_eq!(take_utf8(&mut carry), "나");
-        assert!(carry.is_empty());
-    }
-
-    #[test]
-    fn invalid_bytes_become_replacement_characters() {
-        let mut carry = vec![b'a', 0xff, b'b'];
-        assert_eq!(take_utf8(&mut carry), "a\u{fffd}b");
-        assert!(carry.is_empty());
-    }
-
-    /// 진짜 PTY 왕복 — 쓴 것이 자식에게 가고, 자식의 출력과 끝이 돌아온다. 닫으면 표에서 빠진다.
-    #[cfg(unix)]
-    #[test]
-    fn pty_round_trip_output_input_and_exit() {
-        use std::sync::mpsc;
-        let sessions = TermSessions::default();
-        let (tx, rx) = mpsc::channel::<TermEvent>();
-        let mut cmd = CommandBuilder::new("/bin/sh");
-        cmd.args([
-            "-c",
-            "printf 'ready:'; read line; printf 'got:%s:' \"$line\"; exit 3",
-        ]);
-        let spec = OpenSpec {
-            window: "main".into(),
-            project_id: 1,
-            cwd: std::env::temp_dir(),
-            cols: 80,
-            rows: 24,
-            prompt: None,
-        };
-        let info = sessions
-            .start(spec, cmd, "sh".into(), move |e| {
-                let _ = tx.send(e);
-            })
-            .unwrap();
-        assert_eq!(sessions.list("main").len(), 1);
-        assert!(sessions.list("other").is_empty());
-        let mut out = String::new();
-        let mut code = None;
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-        let mut sent = false;
-        while std::time::Instant::now() < deadline {
-            match rx.recv_timeout(std::time::Duration::from_millis(200)) {
-                Ok(TermEvent::Output { data }) => out.push_str(&data),
-                Ok(TermEvent::Exit { code: c }) => {
-                    code = c;
-                    break;
-                }
-                Ok(TermEvent::Status { .. }) | Err(_) => {}
-            }
-            if !sent && out.contains("ready:") {
-                sessions.resize(info.id, 100, 30).unwrap();
-                sessions.write(info.id, "한글\r").unwrap();
-                sent = true;
-            }
-        }
-        assert!(out.contains("got:한글:"), "출력: {out:?}");
-        assert_eq!(code, Some(3));
-        assert!(!sessions.list("main")[0].alive);
-        sessions.close_window("main");
-        assert!(sessions.list("main").is_empty());
-    }
-
-    /// 상태 신호 왕복 — 탐침을 보낸 프로그램이 답을 받고(claude 처럼 raw 모드로 읽는다),
-    /// 루트 보고가 세션 표의 상태가 되며, 같은 상태가 다시 와도 사건을 또 내지 않는다.
-    #[cfg(unix)]
-    #[test]
-    fn program_status_probe_is_answered_and_reports_become_the_session_status() {
-        use std::sync::mpsc;
-        let sessions = TermSessions::default();
-        let (tx, rx) = mpsc::channel::<TermEvent>();
-        let n = program_status::QUERY_REPLY.len();
-        let script = format!(
-            "stty raw -echo; printf '\\033]7501;?\\033\\\\'; r=$(head -c {n}); stty sane; \
-             case \"$r\" in *states=idle*) printf 'REPLY_OK:';; *) printf 'REPLY_BAD:';; esac; \
-             printf '\\033]7501;state=blocked:kind=question\\033\\\\'; \
-             printf '\\033]7501;state=blocked:kind=question\\033\\\\'; sleep 0.3; \
-             printf '\\033]7501;state=done\\033\\\\'; sleep 0.3; exit 0"
-        );
-        let mut cmd = CommandBuilder::new("/bin/sh");
-        cmd.args(["-c", &script]);
-        let spec = OpenSpec {
-            window: "w".into(),
-            project_id: 7,
-            cwd: std::env::temp_dir(),
-            cols: 80,
-            rows: 24,
-            prompt: None,
-        };
-        sessions
-            .start(spec, cmd, "sh".into(), move |e| {
-                let _ = tx.send(e);
-            })
-            .unwrap();
-        let mut out = String::new();
-        let mut states: Vec<(String, Option<String>)> = Vec::new();
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-        while std::time::Instant::now() < deadline {
-            match rx.recv_timeout(std::time::Duration::from_millis(200)) {
-                Ok(TermEvent::Output { data }) => out.push_str(&data),
-                Ok(TermEvent::Status { status: Some(st) }) => states.push((st.state, st.kind)),
-                Ok(TermEvent::Status { status: None }) => {}
-                Ok(TermEvent::Exit { .. }) => break,
-                Err(_) => {}
-            }
-        }
-        assert!(out.contains("REPLY_OK:"), "탐침에 답이 안 갔다: {out:?}");
-        assert_eq!(
-            states,
-            vec![
-                ("blocked".to_string(), Some("question".to_string())),
-                ("done".to_string(), None),
-            ],
-            "같은 blocked 두 번은 사건 하나여야 한다"
-        );
-        let info = &sessions.overview()[0];
-        assert_eq!(info.project_id, 7);
-        assert_eq!(info.status.as_ref().map(|s| s.state.as_str()), Some("done"));
-        assert!(
-            sessions.busy_in("w").is_empty(),
-            "끝난 세션은 「도는 중」이 아니다"
-        );
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn quitting_asks_only_while_a_session_runs_and_not_twice_in_a_row() {
-        let sessions = TermSessions::default();
-        assert_eq!(
-            sessions.ask_before_quit(),
-            None,
-            "세션이 없으면 묻지 않는다"
-        );
-        // 대화형 셸 — 작업 제어가 켜져 명령을 제 프로세스 그룹으로 앞에 세운다(사용자의 zsh 처럼).
-        let mut cmd = CommandBuilder::new("/bin/sh");
-        cmd.arg("-i");
-        cmd.env("PS1", "$ ");
-        let spec = OpenSpec {
-            window: "proj-3".into(),
-            project_id: 3,
-            cwd: std::env::temp_dir(),
-            cols: 80,
-            rows: 24,
-            prompt: None,
-        };
-        let info = sessions.start(spec, cmd, "sh".into(), |_| {}).unwrap();
-        let wait_for = |want: bool| {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-            while std::time::Instant::now() < deadline {
-                if sessions.list("proj-3")[0].busy == want {
-                    return true;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            }
-            false
-        };
-        std::thread::sleep(std::time::Duration::from_millis(300));
-        assert!(wait_for(false), "빈 셸은 「무언가 도는」 세션이 아니다");
-        assert_eq!(
-            sessions.ask_before_quit(),
-            None,
-            "빈 셸만 있으면 묻지 않는다"
-        );
-        sessions.write(info.id, "sleep 5\r").unwrap();
-        assert!(wait_for(true), "명령이 앞에 서면 무언가 도는 세션이다");
-        assert_eq!(sessions.busy_in("proj-3").len(), 1);
-        assert_eq!(sessions.ask_before_quit(), Some(("proj-3".to_string(), 1)));
-        assert_eq!(
-            sessions.ask_before_quit(),
-            None,
-            "방금 물었으면 두 번째 ⌘Q 는 그대로 끈다"
-        );
-        sessions.close_all();
-    }
-
-    #[test]
-    fn unseen_news_is_per_window_and_clears_once_when_the_window_comes_to_front() {
-        let sessions = TermSessions::default();
-        assert!(
-            !sessions.clear_unseen("proj-1"),
-            "없던 소식은 지울 것도 없다"
-        );
-        sessions.mark_unseen("proj-1");
-        sessions.mark_unseen("proj-1");
-        assert!(sessions.clear_unseen("proj-1"), "앞에 오면 한 번 지운다");
-        assert!(!sessions.clear_unseen("proj-1"));
-        sessions.mark_unseen("proj-2");
-        sessions.close_window("proj-2");
-        assert!(
-            !sessions.clear_unseen("proj-2"),
-            "창을 닫으면 그 소식도 없다"
-        );
-    }
-
-    #[test]
-    fn run_line_reads_the_prompt_from_the_environment() {
-        assert_eq!(run_line(""), "claude\r", "빈 프롬프트는 그냥 claude");
-        let line = run_line("다음 항목");
-        assert!(line.starts_with("claude "));
-        assert!(line.contains(PROMPT_ENV));
-        assert!(line.ends_with('\r'));
-    }
-}
+#[path = "terminal_tests.rs"]
+mod tests;

@@ -30,7 +30,7 @@ export function cacheBytes(h: DbHealth | null): number | null {
 /** 앱 판 + 업데이트 — 열 때 한 번 스스로 묻는다(「최신이에요」가 숨지 않게). */
 export function UpdateRow() {
   const { t } = useT();
-  const { status, check, install } = useUpdater();
+  const { status, check, install, restartNow } = useUpdater();
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
     void appDataApi
@@ -44,7 +44,9 @@ export function UpdateRow() {
   if (status.kind === "checking") state = t("prefs.data.checking");
   else if (status.kind === "uptodate") state = t("prefs.data.upToDate");
   else if (status.kind === "available") state = t("prefs.data.available", { version: status.version });
-  else if (status.kind === "installing" || status.kind === "awaiting") state = t("prefs.data.installing");
+  else if (status.kind === "installing") state = t("prefs.data.installing");
+  // 깔아 두고 재시작을 기다린다 — 무엇 때문인지와 「지금 재시작」 을 여기서도(배너만 보이던 것).
+  else if (status.kind === "awaiting") state = t("update.awaiting", { reason: status.reason });
   else if (status.kind === "error") state = t("prefs.data.checkFailed");
   else if (status.kind === "packageManaged") state = t("prefs.data.packageManaged", { format: status.format });
   else if (status.kind === "noBuild") state = t("prefs.data.noBuild");
@@ -54,7 +56,11 @@ export function UpdateRow() {
       <span>Ocul {version ?? ""}</span>
       {state ? <span className="prefs-dim">· {state}</span> : null}
       <span className="prefs-push" />
-      {status.kind === "available" ? (
+      {status.kind === "awaiting" ? (
+        <button type="button" className="btn sm primary" onClick={() => void restartNow()}>
+          {t("update.restartNow")}
+        </button>
+      ) : status.kind === "available" ? (
         <button type="button" className="btn sm primary" onClick={() => void install()}>
           {t("prefs.data.install", { version: status.version })}
         </button>

@@ -214,12 +214,12 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
 /// 출시되는 앱에서 돌지 않는다는 것은 이 표의 주장이 아니라 스캐너의 판정이다.
 pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
     (
-        "terminal.rs",
+        "terminal_tests.rs",
         "앱 안 터미널의 진짜 PTY 왕복 — /bin/sh 가 읽은 한 줄(한글)을 되돌려 주고 종료 코드 3 으로 끝나는지. 기기 밖에 닿지 않는다.",
         &[("pty_round_trip_output_input_and_exit", "CommandBuilder::new(\"/bin/sh\")")],
     ),
     (
-        "terminal.rs",
+        "terminal_tests.rs",
         "앱 안 터미널의 상태 신호(OSC 7501) 왕복 — /bin/sh 가 탐침을 보내고 받은 답을 확인한 뒤 상태 보고를 찍는다. 기기 밖에 닿지 않는다.",
         &[(
             "program_status_probe_is_answered_and_reports_become_the_session_status",
@@ -227,9 +227,22 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
         )],
     ),
     (
-        "terminal.rs",
+        "terminal_tests.rs",
         "앱 끄기 전 묻기 — 대화형 /bin/sh 를 세션으로 띄워 빈 셸은 안 묻고, sleep 이 앞에 서면 묻는지 본다. 기기 밖에 닿지 않는다.",
         &[("quitting_asks_only_while_a_session_runs_and_not_twice_in_a_row", "CommandBuilder::new(\"/bin/sh\")")],
+    ),
+    (
+        "terminal_tests.rs",
+        "업데이트 뒤 잇기 — /bin/sh 가 읽은 한 줄이 `claude --continue` 인지 되돌려 본다(claude 를 띄우지 않는다). 기기 밖에 닿지 않는다.",
+        &[("a_resumed_session_types_claude_continue", "CommandBuilder::new(\"/bin/sh\")")],
+    ),
+    (
+        "terminal_tests.rs",
+        "업데이트 전 세기 — 대화형 /bin/sh 세 개에서 sleep 이 앞에 서면 도는 세션 · claude 세션으로 세는지 본다. 기기 밖에 닿지 않는다.",
+        &[(
+            "busy_all_counts_every_window_and_only_claude_sessions_are_resumable",
+            "CommandBuilder::new(\"/bin/sh\")",
+        )],
     ),
     (
         "proc/disclaim.rs",

@@ -185,6 +185,8 @@ const TESTS = new Set([
   "__tests__/today_num.test.tsx",
   "__tests__/uiv2view_route_safety.test.ts",
   "__tests__/update_banner.test.tsx",
+  // 업데이트 × 터미널(10-31) — 기다림 사유 · 이음 토스트의 한국어 사전 문장이 검사 재료다.
+  "__tests__/update_terminal_wait.test.tsx",
   "__tests__/updater_route.test.ts",
   "__tests__/workday_rollover.test.tsx",
   "__tests__/workspace_slice_consumers.test.tsx",

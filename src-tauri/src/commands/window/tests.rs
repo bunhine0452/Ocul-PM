@@ -208,6 +208,48 @@ fn a_3x_tab_snapshot_restores_the_active_project_per_window() {
     assert_eq!(out.focused.as_deref(), Some("win-1"));
 }
 
+/// 업데이트 전 claude 세션은 그 창이 같은 프로젝트로 돌아올 때만 잇는다 — 지운 프로젝트의 창
+/// (시작 창이 된다)과 다른 프로젝트의 이음은 버린다. 비어 있으면 스냅숏에 적지도 않는다.
+#[test]
+fn claude_sessions_resume_only_in_a_window_that_returns_to_their_project() {
+    use crate::terminal::TermResume;
+    let lane = |project_id: u32, lane: Option<&str>| TermResume {
+        project_id,
+        lane: lane.map(str::to_string),
+    };
+    let session = Session {
+        windows: vec![
+            SessionWindow {
+                resume: vec![
+                    lane(7, None),
+                    lane(7, Some("/data/races/p7/a-1")),
+                    lane(8, None),
+                ],
+                ..win("main", Some(7))
+            },
+            SessionWindow {
+                resume: vec![lane(99, None)],
+                ..win("win-1", Some(99))
+            },
+        ],
+        focused: None,
+    };
+    let json = serde_json::to_string(&session).unwrap();
+    assert!(serde_json::to_string(&win("main", Some(7)))
+        .unwrap()
+        .find("resume")
+        .is_none());
+    let out = sanitize_session(&serde_json::from_str(&json).unwrap(), &known(&[7]));
+    assert_eq!(
+        out.windows[0].resume,
+        vec![lane(7, None), lane(7, Some("/data/races/p7/a-1"))]
+    );
+    assert!(
+        out.windows[1].resume.is_empty(),
+        "시작 창이 된 창은 잇지 않는다"
+    );
+}
+
 /// 라벨을 그대로 되살려야 `tauri-plugin-window-state` 가 기억한 자리가 따라온다.
 /// 그리고 그 라벨이 뒤에 또 발급되면 창 둘이 겹친다.
 #[test]

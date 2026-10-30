@@ -95,8 +95,9 @@ export const commands = {
 	 *  프롬프트로 `claude` 를 바로 실행한다(오늘·계획의 「다음」). 빈 문자열이면 그냥 `claude`
 	 *  (계획의 「끝까지」가 입력 대기 신호 뒤에 `/goal …` 을 넣는다). 출력·끝은 `on_event` 로.
 	 *  `cwd` 는 이 프로젝트의 레인(worktree 여럿에서)일 때만 받는다 — 아니면 거절.
+	 *  `resume` 이면 업데이트 전 대화를 잇는다(`claude --continue`, `term_take_resume`).
 	 */
-	termOpen: (projectId: number, cols: number, rows: number, prompt: string | null, cwd: string | null, onEvent: Channel<TermEvent>) => typedError<TermInfo, AppError>(__TAURI_INVOKE("term_open", { projectId, cols, rows, prompt, cwd, onEvent })),
+	termOpen: (projectId: number, cols: number, rows: number, prompt: string | null, cwd: string | null, resume: boolean, onEvent: Channel<TermEvent>) => typedError<TermInfo, AppError>(__TAURI_INVOKE("term_open", { projectId, cols, rows, prompt, cwd, resume, onEvent })),
 	termWrite: (id: number, data: string) => typedError<null, AppError>(__TAURI_INVOKE("term_write", { id, data })),
 	termResize: (id: number, cols: number, rows: number) => typedError<null, AppError>(__TAURI_INVOKE("term_resize", { id, cols, rows })),
 	termClose: (id: number) => __TAURI_INVOKE<void>("term_close", { id }),
@@ -106,6 +107,10 @@ export const commands = {
 	termOverview: () => __TAURI_INVOKE<TermInfo[]>("term_overview"),
 	/**  이 창의 세션을 모두 끝낸다 — 닫기 확인(`TermCloseAsked`)에서 「닫기」를 고른 뒤 부른다. */
 	termEndWindow: () => __TAURI_INVOKE<void>("term_end_window"),
+	/**  앱 전체에서 도는 세션 수 — 업데이트가 재시작 전에 묻는다(창을 닫을 때의 확인과 같은 기준). */
+	termBusyAll: () => __TAURI_INVOKE<TermBusy>("term_busy_all"),
+	/**  업데이트 재시작 뒤 이 창이 이을 claude 세션 — 창 복원이 맡겨 둔 것을 한 번 가져간다. */
+	termTakeResume: () => __TAURI_INVOKE<TermResume[]>("term_take_resume"),
 	terminalImagePreview: (path: string) => typedError<TermImage, AppError>(__TAURI_INVOKE("terminal_image_preview", { path })),
 	/**  레인을 `count` 개(2~4) 만든다 — 지금 `HEAD` 에서, 앱 데이터 폴더에. */
 	raceStart: (projectId: number, count: number) => typedError<RaceLane[], AppError>(__TAURI_INVOKE("race_start", { projectId, count })),
@@ -2330,6 +2335,14 @@ export type TagStat = {
 	suggest_into: string | null,
 };
 
+/**  앱 전체에서 도는 세션 수 — 업데이트가 재시작 전에 묻는다. */
+export type TermBusy = {
+	/**  셸 위에서 무언가 도는 세션. */
+	busy: number,
+	/**  그 가운데 claude 가 도는 세션 — 다시 뜨면 이어서 연다. */
+	claude: number,
+};
+
 /**
  *  도는 세션이 있는 창을 닫으려 했다(`quit` 이면 앱을 끄려 했다) — 멈추고 그 창에만 묻는다.
  *  확인하면 창이 `term_end_window` 로 세션을 끝내고 다시 닫는다(앱이면 프로세스 플러그인으로 끈다).
@@ -2371,6 +2384,13 @@ export type TermInfo = {
 	 *  (Orca 의 알림 규칙 — 읽지 않음은 프로젝트(= 창)마다). 창이 앞에 오면 지운다.
 	 */
 	unseen: boolean,
+};
+
+/**  업데이트 재시작을 건너 이을 claude 세션 하나 — 그 창의 프로젝트와, 레인이면 그 경로. */
+export type TermResume = {
+	project_id: number,
+	/**  「여럿에서」 레인의 폴더(`term_open` 의 `cwd` 그대로). 프로젝트 루트면 `None`. */
+	lane?: string | null,
 };
 
 /**

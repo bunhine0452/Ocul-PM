@@ -294,6 +294,7 @@ export const ko = {
   "terminal.records": "일지 {n}건",
   "terminal.recordsTitle": "이 세션이 시작된 뒤 이 프로젝트에 남은 일지",
   "terminal.openFailed": "터미널을 열지 못했어요 — {error}",
+  "terminal.resumed": "업데이트 전 claude 대화 {n}개를 이어서 열었어요",
   "terminal.launchFailed": "claude 명령을 찾지 못했어요. Claude Code 가 깔려 있고 로그인 셸의 PATH 에 있는지 확인해 주세요.",
   "terminal.empty": "세션이 없어요. 새 세션을 열면 이 프로젝트 폴더에서 셸이 떠요.",
   "terminal.state.working": "작업 중",
@@ -739,6 +740,8 @@ export const ko = {
   "update.installing": "설치 중…",
   "update.now": "지금 업데이트",
   "update.awaiting": "{reason} · 끝나면 자동으로 재시작해요",
+  "update.busyTerminal": "터미널 세션 {n}개가 실행 중이에요",
+  "update.busyClaude": "터미널 세션 {n}개가 실행 중이에요(claude 대화는 재시작 뒤 이어서 열어요)",
   "update.restartNow": "지금 재시작",
   "update.dismiss": "알림 닫기",
 
