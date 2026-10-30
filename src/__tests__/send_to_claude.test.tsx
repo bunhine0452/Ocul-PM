@@ -104,4 +104,19 @@ describe("보내기 대화상자", () => {
     expect(api.runs[0]).toContain("src/a.ts");
     expect(api.writes).toHaveLength(0);
   });
+
+  it("변경 메모는 할 말 칸이 미리 차 있고, 보내면 onSent 로 비운다", async () => {
+    api.list = [session(7)];
+    const onSent = vi.fn();
+    render(<SendToClaudeHost projectId={1} />);
+    act(() =>
+      requestSendToClaude({ kind: "notes", label: "메모 1개", ref: "", prefill: "src/a.ts\n- 11행 `x` — 고쳐", onSent }),
+    );
+    const box = (await screen.findByRole("textbox", { name: t("send.placeholder") })) as HTMLTextAreaElement;
+    expect(box.value).toBe("src/a.ts\n- 11행 `x` — 고쳐");
+    await waitFor(() => expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("7"));
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    await waitFor(() => expect(onSent).toHaveBeenCalledTimes(1));
+    expect(api.writes[0][1]).toContain(t("send.msg.notes", { label: "메모 1개", ref: "" }));
+  });
 });

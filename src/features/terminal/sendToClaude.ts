@@ -10,13 +10,17 @@ import type { I18nKey, TVars } from "@/i18n";
 import { createIntentSlot } from "@/lib/createStore";
 
 export interface SendContext {
-  kind: "journal" | "plan" | "file";
+  kind: "journal" | "plan" | "file" | "notes";
   /** 사람이 읽는 이름 — 일지 제목 · 항목 제목 · 파일 경로. */
   label: string;
   /** Claude 가 찾아 읽을 자리 — `.oculpm/journal/…md` · `plan-id#item` · 파일 경로. */
   ref: string;
   /** 맥락에 덧붙일 상태 한 마디(「검증 없음」 등). */
   note?: string;
+  /** 할 말 칸을 미리 채운다 — 변경 줄 메모 묶음. 보내기 전에 고칠 수 있다. */
+  prefill?: string;
+  /** 보낸 뒤 — 변경 메모는 보내면 비운다. */
+  onSent?: () => void;
 }
 
 const slot = createIntentSlot<SendContext>("oculpm:send-to-claude");
@@ -29,6 +33,7 @@ const HEAD: Record<SendContext["kind"], I18nKey> = {
   journal: "send.msg.journal",
   plan: "send.msg.plan",
   file: "send.msg.file",
+  notes: "send.msg.notes",
 };
 
 /** Claude 에게 갈 글 — 맥락 한 줄, 빈 줄, 사람이 쓴 말. */

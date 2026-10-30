@@ -26,6 +26,7 @@ import { useDiffFile } from "./useDiffFile";
 import { useGroupEntries } from "./useGroupEntries";
 import "./changes.css";
 import { requestSendToClaude, sendOrRun } from "@/features/terminal/sendToClaude";
+import { clearNotes, composeNotes, useDiffNotes } from "./diffNoteStore";
 import { tError } from "@/i18n/errors";
 
 // 변경 화면 (4.0) — 왼쪽 340px 목록 + 오른쪽 diff. 목록은 「기록 없음」(어느 일지에도 없는 변경)이
@@ -164,9 +165,32 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
         : t("diff.summaryWorking", { n: changes.length });
   const selectedUnrecorded = buckets.known && selected != null && unrecorded.includes(selected);
 
+  // 줄 메모 (Orca 「Annotate AI Diffs」) — 고른 파일의 줄마다 달고, 다 달면 한 번에 Claude 에게.
+  const noteState = useDiffNotes(projectId);
+  const noteTarget = useMemo(() => (selected ? { projectId, file: selected } : null), [projectId, selected]);
+  const noteCount = noteState.notes.length;
+  const sendNotes = () =>
+    requestSendToClaude({
+      kind: "notes",
+      label: t("diff.notes.count", { n: noteCount }),
+      ref: "",
+      prefill: composeNotes(noteState.notes, t),
+      onSent: () => clearNotes(projectId),
+    });
+
   return (
     <>
       <Toolbar title={t("nav.diff")} sub={sub}>
+        {noteCount > 0 ? (
+          <>
+            <button type="button" className="btn ghost sm" onClick={() => clearNotes(projectId)}>
+              {t("diff.notes.clearAll")}
+            </button>
+            <button type="button" className="btn primary sm" onClick={sendNotes}>
+              {t("diff.notes.send", { n: noteCount })}
+            </button>
+          </>
+        ) : null}
         {lastCommitChanges.length > 0 ? (
           <div className="seg" role="tablist" title={t("diff.modeTitle")} aria-label={t("diff.modeTitle")}>
             {(
@@ -312,6 +336,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   deleted={file.current?.op === "D"}
                   baseline={baseline}
                   projectId={projectId}
+                  notes={noteTarget}
                 />
               ) : (
                 <EmptyState>{t("diff.pickFile")}</EmptyState>

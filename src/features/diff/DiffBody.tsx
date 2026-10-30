@@ -16,7 +16,7 @@ import type { DiffMode } from "@/contexts/WorkspaceContext";
 import { BinaryFileView } from "./BinaryFileView";
 import type { DiffBaseline } from "./changeList";
 import { langFromPath } from "./diffParse";
-import { PatchView } from "./PatchView";
+import { PatchView, type PatchNotes } from "./PatchView";
 
 interface DiffBodyProps {
   result: DiffResult;
@@ -26,6 +26,8 @@ interface DiffBodyProps {
   deleted: boolean;
   baseline: DiffBaseline;
   projectId: number;
+  /** 줄 메모를 켠다 — 변경 화면만. */
+  notes?: PatchNotes | null;
 }
 
 export function DiffBody({
@@ -36,6 +38,7 @@ export function DiffBody({
   deleted,
   baseline,
   projectId,
+  notes = null,
 }: DiffBodyProps) {
   const { t } = useT();
   // 이미지/기타 바이너리 — 텍스트 diff 대신 파일 카드(+이미지 프리뷰).
@@ -85,7 +88,7 @@ export function DiffBody({
     }
     return (
       <div>
-        <PatchView patch={newFilePatch} mode={mode} lang={langFromPath(result.path)} />
+        <PatchView patch={newFilePatch} mode={mode} lang={langFromPath(result.path)} notes={notes} />
         <div className="diff-foot">
           <GitBranchIcon size={13} />
           {t("diff.newFileNote")}
@@ -104,7 +107,7 @@ export function DiffBody({
   }
   return (
     <div>
-      <PatchView patch={patch} mode={mode} lang={langFromPath(result.path)} />
+      <PatchView patch={patch} mode={mode} lang={langFromPath(result.path)} notes={notes} />
       <div className="diff-foot">
         <GitBranchIcon size={13} />
         {baseline === "last_commit"

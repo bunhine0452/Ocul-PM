@@ -41,7 +41,7 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
     () =>
       onSendToClaude((next) => {
         setCtx(next);
-        setText("");
+        setText(next.prefill ?? "");
         setSessions([]);
         setTarget(NEW);
         void terminalApi
@@ -82,6 +82,7 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
           ],
         });
       }
+      ctx.onSent?.();
       close();
     } catch (e) {
       toast.destructive(t("send.failed", { error: tError(toAppError(e)) }));
