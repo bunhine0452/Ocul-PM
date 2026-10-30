@@ -32,7 +32,7 @@ fn project_init_gates_and_scaffolds() {
     let journal = call_tool(
         root,
         "journal_write",
-        &json!({"type": "chore", "slug": "first", "title": "첫 기록", "body_markdown": "## 검증\n- ok"}),
+        &json!({"type": "chore", "slug": "first", "title": "기록: 첫 기록", "body_markdown": "## 검증\n- ok"}),
     );
     assert!(journal.is_ok(), "{journal:?}");
 
@@ -99,7 +99,7 @@ fn tools_refuse_untracked_project_and_create_nothing() {
     for (tool, args) in [
         (
             "journal_write",
-            serde_json::json!({ "type": "chore", "slug": "x", "title": "t", "body_markdown": "b" }),
+            serde_json::json!({ "type": "chore", "slug": "x", "title": "테스트: t", "body_markdown": "b" }),
         ),
         ("plan_status", serde_json::json!({})),
         (
@@ -128,7 +128,7 @@ fn tools_refuse_symlinked_oculpm() {
     }
 
     let args = serde_json::json!({
-        "type": "chore", "slug": "x", "title": "t", "body_markdown": "b"
+        "type": "chore", "slug": "x", "title": "테스트: t", "body_markdown": "b"
     });
     let err = call_tool(dir.path(), "journal_write", &args).unwrap_err();
     assert!(err.contains("symlink"), "{err}");

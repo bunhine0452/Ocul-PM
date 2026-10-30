@@ -218,7 +218,7 @@ fn write_args(marker: &str) -> Value {
     json!({
         "type": "bug",
         "slug": "same-name",
-        "title": "같은 이름",
+        "title": "일지: 같은 이름",
         "body_markdown": format!("## 발생 원인\n\n{marker}\n\n## 해결 방법\n\n배타적 생성.\n"),
     })
 }

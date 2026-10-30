@@ -34,7 +34,7 @@ fn write_with_tags(root: &std::path::Path, tags: serde_json::Value) -> serde_jso
         &serde_json::json!({
             "type": "bug",
             "slug": "tag-round",
-            "title": "태그 라운드",
+            "title": "태그: 태그 라운드",
             "body_markdown": "## 발생 원인\n\n어휘가 갈라졌다.\n\n## 해결 방법\n\n정규화.\n\n## 검증\n\ncargo test",
             "tags": tags,
         }),
@@ -60,8 +60,8 @@ fn journal_write_normalizes_the_spelling_of_tags() {
     );
     assert_eq!(
         tags_on_disk(root, &out),
-        vec!["bug-fix", "api", "일지-규모", "mcp-tool"],
-        "정규화 + 중복 제거 + 빈 태그 버리기, 출처 표식은 마지막"
+        vec!["태그", "bug-fix", "api", "일지-규모", "mcp-tool"],
+        "제목의 영역이 첫 태그 + 정규화 + 중복 제거 + 빈 태그 버리기, 출처 표식은 마지막"
     );
     assert_eq!(
         out["tag_hints"].as_array().unwrap().len(),
@@ -117,6 +117,10 @@ fn no_tags_means_no_dictionary_work() {
     seed_tagged(root, "20260901", "0900", "a", &["bug"]);
 
     let out = write_with_tags(root, serde_json::json!([]));
-    assert_eq!(tags_on_disk(root, &out), vec!["mcp-tool"]);
+    assert_eq!(
+        tags_on_disk(root, &out),
+        vec!["태그", "mcp-tool"],
+        "제목의 영역만 붙는다"
+    );
     assert_eq!(out["tag_hints"].as_array().unwrap().len(), 0);
 }

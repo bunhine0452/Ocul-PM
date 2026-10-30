@@ -13,6 +13,7 @@ mod plan_anchor;
 mod plan_goal;
 mod search;
 mod tags;
+mod title;
 
 use super::*;
 

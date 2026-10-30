@@ -42,7 +42,7 @@ async fn an_mcp_written_entry_reaches_the_cache_query_unchanged() {
         &json!({
             "type": "feature",
             "slug": "promise-boundary-write",
-            "title": "경계 테스트가 쓴 일지",
+            "title": "캐시: 경계 테스트가 쓴 일지",
             "body_markdown": "## 추가 기능\nMCP → 디스크 → 캐시.\n\n## 검증\n이 테스트.\n",
             "tags": ["polish", "boundary"],
             "files_touched": [{"path": "src/a.rs", "op": "update"}],
@@ -82,7 +82,7 @@ async fn an_mcp_written_entry_reaches_the_cache_query_unchanged() {
     assert_eq!(rows.len(), 1, "일지 한 건이 캐시 질의에 서야 한다");
     let row = &rows[0];
     assert_eq!(row.slug, "promise-boundary-write");
-    assert_eq!(row.title, "경계 테스트가 쓴 일지");
+    assert_eq!(row.title, "캐시: 경계 테스트가 쓴 일지");
     assert_eq!(row.entry_type, EntryType::Feature);
     // 캐시 표면은 표준형(`model_names`), 디스크는 에이전트가 적은 그대로.
     assert_eq!(row.agent_id, "claude-code");
@@ -106,7 +106,7 @@ async fn a_second_write_is_one_more_row_not_a_rewrite() {
             &json!({
                 "type": "chore",
                 "slug": format!("boundary-{i}"),
-                "title": format!("일지 {i}"),
+                "title": format!("일지: {i}번째"),
                 "body_markdown": "## 변경 요약\n둘째 줄.\n\n## 검증\n테스트.\n"
             }),
         )

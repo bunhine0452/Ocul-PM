@@ -88,10 +88,10 @@ files_touched:
   - path: "src/cache.rs"
     op: update
 related: []
-tags: [dogfooding]
+tags: [캐시, dogfooding]
 ---
 
-[x] 제목 한 줄
+[x] 캐시: 무효화가 늦던 것 고침
 
 ## 발생 원인
 …
@@ -99,7 +99,7 @@ tags: [dogfooding]
 …
 ## 검증
 어떻게 확인했는지 1~3줄</code></pre>
-<ul><li><b>status</b> — <code>planned</code> · <code>in_progress</code> · <code>done</code> · <code>abandoned</code></li><li><b>difficulty</b> — <code>verylow</code> ~ <code>superhigh</code> (선택)</li><li><b>본문 헤더 순서</b>는 종류마다 고정입니다: bug·error 는 <code>발생 원인</code> → <code>해결 방법</code>, refactor 는 <code>동기</code> → <code>변경 요약</code>, feature 는 <code>추가 기능</code> → <code>동작 흐름</code>. 공통으로 끝에 <b><code>## 검증</code></b> 이 필수입니다.</li></ul>
+<ul><li><b>제목</b> — <code>영역: 무엇을 했다</code> 한 문장, 영역 포함 40자 안. 영역(1~12자)은 그 프로젝트가 이미 쓰는 말(예: 터미널 · MCP · CI · 랜딩)을 다시 쓰고, 첫 태그로도 남아 태그 필터가 곧 영역별 보기가 됩니다. 줄표(—)로 두 문장을 잇지 않습니다. 기록 도구(<code>journal_write</code>)는 이 형식이 아니면 받지 않고 고칠 말을 돌려줍니다</li><li><b>status</b> — <code>planned</code> · <code>in_progress</code> · <code>done</code> · <code>abandoned</code></li><li><b>difficulty</b> — <code>verylow</code> ~ <code>superhigh</code> (선택)</li><li><b>본문 헤더 순서</b>는 종류마다 고정입니다: bug·error 는 <code>발생 원인</code> → <code>해결 방법</code>, refactor 는 <code>동기</code> → <code>변경 요약</code>, feature 는 <code>추가 기능</code> → <code>동작 흐름</code>. 공통으로 끝에 <b><code>## 검증</code></b> 이 필수입니다.</li></ul>
 <div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p><code>## 검증</code> 이 강제인 이유는 하나입니다 — "고쳤습니다" 와 "고쳤고 이렇게 확인했습니다" 의 신뢰도 차이가 크기 때문입니다. 판정은 에이전트의 말이 아니라 <b>돌린 명령과 그 결과 끝 줄</b>입니다.</p></div></div>
 <h2 id="작업-일지-화면">작업 일지 화면</h2>
 <p>왼쪽은 날짜 머리 아래 한 줄씩(종류 점 · 제목 · 증거 칩 · 시각/에이전트/파일 수), 오른쪽은 고른 일지의 상세입니다. 툴바에 「N건 · 전체 M건 중」과 필터(전부 · 버그 · 기능 · 리팩토링 · 잡일 · 증거 없음), 검색칸이 섭니다.</p>

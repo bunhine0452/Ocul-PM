@@ -13,7 +13,7 @@ fn journal_write_produces_spec_valid_entry() {
     let args = serde_json::json!({
         "type": "bug",
         "slug": "Fix Cache!!",
-        "title": "캐시 무효화 수정",
+        "title": "캐시: 무효화 수정",
         "body_markdown": "## 발생 원인\n\n키 불일치.\n\n## 해결 방법\n\n정규화.\n\n## 검증\n\ncargo test 그린",
         "files_touched": [{ "path": "src/cache.rs", "op": "update" }],
         "agent_version": "Opus 4.8"
@@ -40,7 +40,7 @@ fn journal_write_produces_spec_valid_entry() {
     assert!(fm.tags.iter().any(|t| t == "mcp-tool"));
     // No sessions.json (app not running) → synthetic fallback stands.
     assert!(fm.session_id.starts_with("mcp-"));
-    assert!(body.trim_start().starts_with("[x] 캐시 무효화 수정"));
+    assert!(body.trim_start().starts_with("[x] 캐시: 무효화 수정"));
 }
 
 /// 터미널 분할 회귀 — 일지가 **어느 대화**의 것인지 적을 수 있어야 한다.
@@ -112,7 +112,7 @@ fn journal_write_records_related_and_project_language() {
     let args = serde_json::json!({
         "type": "chore",
         "slug": "link-test",
-        "title": "links",
+        "title": "일지: links",
         "body_markdown": "body\n\n## Verification\n\nok",
         "related": [
             { "ref": ".oculpm/journal/20260522/Bugs/2050_bug_x.md", "kind": "followup" },
@@ -188,7 +188,7 @@ fn journal_write_adopts_the_live_watcher_session() {
         &serde_json::json!({
             "type": "bug",
             "slug": "live-session",
-            "title": "라이브 세션 채택",
+            "title": "세션: 라이브 세션 채택",
             "body_markdown": "## 발생 원인\n\nx\n\n## 해결 방법\n\ny\n\n## 검증\n\nz",
         }),
     )
@@ -240,7 +240,7 @@ fn journal_write_explicit_session_id_beats_disk_lookup() {
         &serde_json::json!({
             "type": "chore",
             "slug": "explicit-sid",
-            "title": "명시 세션",
+            "title": "세션: 명시 세션",
             "body_markdown": "본문\n\n## 검증\n\nok",
             "session_id": "caller-knows-best",
         }),
@@ -261,14 +261,14 @@ fn journal_write_rejects_forbidden_paths_and_redacts_body() {
     .unwrap();
 
     let forbidden = serde_json::json!({
-        "type": "chore", "slug": "x", "title": "t", "body_markdown": "b",
+        "type": "chore", "slug": "x", "title": "테스트: t", "body_markdown": "b",
         "files_touched": [{ "path": ".env" }]
     });
     let err = call_tool(root, "journal_write", &forbidden).unwrap_err();
     assert!(err.contains(".env"));
 
     let secret = serde_json::json!({
-        "type": "chore", "slug": "secret-test", "title": "t",
+        "type": "chore", "slug": "secret-test", "title": "테스트: t",
         "body_markdown": "키는 sk-abcdef123 이다\n\n## 검증\n없음"
     });
     let out = call_tool(root, "journal_write", &secret).unwrap();
@@ -314,7 +314,7 @@ fn write_bug(root: &std::path::Path, file: &str) -> serde_json::Value {
         &serde_json::json!({
             "type": "bug",
             "slug": "again",
-            "title": "또 터졌다",
+            "title": "캐시: 또 터졌다",
             "body_markdown": "## 발생 원인\n\n같은 자리.\n\n## 해결 방법\n\n고쳤다.\n\n## 검증\n\n테스트",
             "files_touched": [{ "path": file, "op": "update" }],
         }),
@@ -382,7 +382,7 @@ fn an_explicit_related_or_a_non_defect_type_is_left_alone() {
         &serde_json::json!({
             "type": "bug",
             "slug": "explicit",
-            "title": "직접 이은 것",
+            "title": "일지: 직접 이은 것",
             "body_markdown": "## 발생 원인\n\nx\n\n## 해결 방법\n\ny\n\n## 검증\n\nz",
             "files_touched": [{ "path": "src/watcher.rs", "op": "update" }],
             "related": [{ "ref": past, "kind": "duplicate" }],
@@ -404,7 +404,7 @@ fn an_explicit_related_or_a_non_defect_type_is_left_alone() {
         &serde_json::json!({
             "type": "chore",
             "slug": "chore-x",
-            "title": "잡일",
+            "title": "잡일: 정리",
             "body_markdown": "그냥 잡일",
             "files_touched": [{ "path": "src/watcher.rs", "op": "update" }],
         }),
@@ -437,7 +437,7 @@ fn journal_write_stores_files_touched_in_slash_form() {
         root,
         "journal_write",
         &serde_json::json!({
-            "type": "chore", "slug": "paths", "title": "경로", "body_markdown": "본문",
+            "type": "chore", "slug": "paths", "title": "경로: 슬래시 형태", "body_markdown": "본문",
             "files_touched": given,
         }),
     )
@@ -459,7 +459,7 @@ fn journal_write_accepts_string_paths_in_files_touched() {
         root,
         "journal_write",
         &serde_json::json!({
-            "type": "bug", "slug": "strings", "title": "문자열", "body_markdown": "본문",
+            "type": "bug", "slug": "strings", "title": "경로: 문자열", "body_markdown": "본문",
             "files_touched": ["src/a.ts", { "path": "src/b.rs", "op": "create" }],
         }),
     )
@@ -495,7 +495,7 @@ fn journal_write_warns_on_unreadable_files_touched() {
             root,
             "journal_write",
             &serde_json::json!({
-                "type": "chore", "slug": "bad-files", "title": "잡일", "body_markdown": "본문",
+                "type": "chore", "slug": "bad-files", "title": "잡일: 정리", "body_markdown": "본문",
                 "files_touched": files,
             }),
         )
@@ -537,7 +537,7 @@ fn journal_write_nudges_when_verification_has_no_outside_judge() {
         call_tool(
             dir.path(),
             "journal_write",
-            &serde_json::json!({ "type": ty, "slug": slug, "title": "t", "body_markdown": body, "files_touched": [] }),
+            &serde_json::json!({ "type": ty, "slug": slug, "title": "테스트: t", "body_markdown": body, "files_touched": [] }),
         )
         .unwrap()["warnings"]
             .to_string()

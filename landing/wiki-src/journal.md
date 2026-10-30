@@ -50,10 +50,10 @@ files_touched:
   - path: "src/cache.rs"
     op: update
 related: []
-tags: [dogfooding]
+tags: [캐시, dogfooding]
 ---
 
-[x] 제목 한 줄
+[x] 캐시: 무효화가 늦던 것 고침
 
 ## 발생 원인
 …
@@ -63,6 +63,7 @@ tags: [dogfooding]
 어떻게 확인했는지 1~3줄
 ```
 
+- **제목** — `영역: 무엇을 했다` 한 문장, 영역 포함 40자 안. 영역(1~12자)은 그 프로젝트가 이미 쓰는 말(예: 터미널 · MCP · CI · 랜딩)을 다시 쓰고, 첫 태그로도 남아 태그 필터가 곧 영역별 보기가 됩니다. 줄표(—)로 두 문장을 잇지 않습니다. 기록 도구(`journal_write`)는 이 형식이 아니면 받지 않고 고칠 말을 돌려줍니다
 - **status** — `planned` · `in_progress` · `done` · `abandoned`
 - **difficulty** — `verylow` ~ `superhigh` (선택)
 - **본문 헤더 순서**는 종류마다 고정입니다: bug·error 는 `발생 원인` → `해결 방법`, refactor 는 `동기` → `변경 요약`, feature 는 `추가 기능` → `동작 흐름`. 공통으로 끝에 **`## 검증`** 이 필수입니다.

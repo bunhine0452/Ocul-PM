@@ -835,7 +835,7 @@ fn the_sidecar_binary_writes_a_journal_from_root_arg() {
         2,
         "tools/call",
         json!({"name": "journal_write", "arguments": {
-            "type": "chore", "slug": "xplat", "title": "크로스플랫폼 끝단",
+            "type": "chore", "slug": "xplat", "title": "MCP: 크로스플랫폼 끝단",
             "body_markdown": "## 한 일\n\n사이드카가 이 OS 에서 일지를 썼다.\n"
         }}),
     );

@@ -306,7 +306,7 @@ mod tests {
         let req = json!({
             "jsonrpc": "2.0", "id": 2, "method": "tools/call",
             "params": { "name": "journal_write", "arguments": {
-                "type": "chore", "slug": "protocol-e2e", "title": "프로토콜 테스트",
+                "type": "chore", "slug": "protocol-e2e", "title": "MCP: 프로토콜 테스트",
                 "body_markdown": "본문\n\n## 검증\n테스트"
             }}
         });

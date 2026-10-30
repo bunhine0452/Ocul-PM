@@ -50,10 +50,10 @@ files_touched:
   - path: "src/cache.rs"
     op: update
 related: []
-tags: [dogfooding]
+tags: [cache, dogfooding]
 ---
 
-[x] One-line title
+[x] cache: fix late invalidation
 
 ## Root cause
 …
@@ -63,6 +63,7 @@ tags: [dogfooding]
 1–3 lines on how it was confirmed
 ```
 
+- **Title** — `area: what changed`, one sentence, area included, within 40 characters. The area (1–12 characters) reuses a word the project already uses (e.g. terminal · MCP · CI · landing) and is kept as the first tag too, so the tag filter doubles as a per-area view. Don't join two phrases with a dash. The recording tool (`journal_write`) refuses any other shape and says how to fix it
 - **status** — `planned` · `in_progress` · `done` · `abandoned`
 - **difficulty** — `verylow` through `superhigh` (optional)
 - **Body headings are fixed per type**: bug and error use root cause → fix; refactor uses motivation → summary of changes; feature uses what was added → how it flows. All of them end with a required **Verification** section.
