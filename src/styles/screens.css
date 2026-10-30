@@ -339,3 +339,8 @@
 }
 .dl-note-input:focus { outline: var(--focus-w) solid var(--focus-color); outline-offset: 0; }
 .dl-note-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+/* 보낸 메모(#notes-track) — 판정 칩이 앞에, 고쳐진 메모는 글을 흐리게. 왼쪽 줄은 상태 색. */
+.dl-note.is-sent { border-left-color: var(--warn); }
+.dl-note.is-fixed { border-left-color: var(--ok); }
+.dl-note.is-fixed .dl-note-text { color: var(--text-2); }
+.dl-note > .chip { flex: none; margin-top: 1px; }
