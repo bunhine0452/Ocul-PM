@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- 랜딩 이미지 원본 (2026-10-30). landing/ 을 루트로 띄우고(python3 -m http.server -d landing 8765) 이 파일을 landing/_img/ 에 두고
+     headless Chrome 으로 그 크기 그대로 찍는다 — og 1200x630 · social 1280x640 · banner 2400x750. 실제 화면은 landing/shots/v4/{lang}/today.webp -->
+<html lang="ko"><head><meta charset="utf-8"><link rel="stylesheet" href="/home.css">
+<style>
+html,body{margin:0;width:1200px;height:630px;overflow:hidden;background:#121514}
+.c{position:relative;width:1200px;height:630px;overflow:hidden}
+.txt{position:absolute;left:64px;top:70px;width:560px}
+.mark{display:flex;align-items:center;gap:12px;font-weight:780;font-size:30px;letter-spacing:-0.02em;color:#f1f4f1}
+.mark img{width:40px;height:40px;border-radius:10px}
+h1{margin:30px 0 0;font-size:54px;line-height:1.08;letter-spacing:-0.038em;font-weight:800;color:#f1f4f1;text-wrap:balance}
+p{margin:22px 0 0;font-size:20px;line-height:1.5;color:#a6aea8}
+p b{color:#34d095;font-weight:650}
+.win{position:absolute;left:660px;top:120px;width:820px;border-radius:14px;overflow:hidden;background:#191d1b;
+box-shadow:0 0 0 1px rgba(255,255,255,.10),0 40px 90px -30px rgba(0,0,0,.8)}
+.bar{height:38px;display:flex;align-items:center;gap:7px;padding:0 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.bar i{width:10px;height:10px;border-radius:50%;background:#3a403d;display:block}
+.bar span{font-size:13px;color:#a6aea8;margin-left:6px}.bar span.on{color:#f1f4f1;font-weight:650;background:#282e2b;padding:3px 9px;border-radius:7px}
+.win img{display:block;width:100%}
+</style></head><body><div class="c">
+<div class="txt"><div class="mark"><img src="/icon.svg">Ocul</div><h1>AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요.</h1><p>일지와 판정을 이어받아 시작합니다.<br><b>로컬 · 무료 · LLM 호출 없음</b></p></div>
+<div class="win"><div class="bar"><i></i><i></i><i></i><span class="on">오늘</span><span>작업 일지</span><span>계획</span><span>변경</span><span>터미널</span></div><img src="/shots/v4/ko/today.webp"></div>
+</div></body></html>
