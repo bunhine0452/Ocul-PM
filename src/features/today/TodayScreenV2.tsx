@@ -240,8 +240,25 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   } else if (error) {
     body = <ErrorCard title={t("today.loadFailed")} error={error} onRetry={refresh} />;
   } else {
+    const exceptionProps = {
+      split,
+      entryCount: entries.length,
+      unrecordedKnown: data.unrecorded != null,
+      showAgent: multiAgent,
+      activeIndex: active,
+      setActiveIndex: setActive,
+      rowRefs,
+      onPrimary: runPrimary,
+      onAnswer: (id: string, answer: string) =>
+        void hooksApi
+          .answerQuestion(projectId, id, answer)
+          .catch((e: unknown) => toast.destructive(t("send.failed", { error: tError(toAppError(e)) }))),
+      onVerify: (entry: JournalEntrySummary) => void verify(entry),
+      onVerifyAll: (list: JournalEntrySummary[]) => void verifyAll(list),
+    };
+    const hasSide = (split?.unread.length ?? 0) > 0 || (entries.length > 0 && data.digest != null);
     body = (
-      <div className="tdy-body">
+      <div className={"tdy-body" + (hasSide ? " is-two" : "")}>
         <div className="tdy-col">
           {firstRun ? (
             <section className="card tdy-card tdy-first" aria-labelledby="tdy-first-h">
@@ -272,30 +289,25 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                   <Num k="today.day.records" n={entries.length} />
                 </div>
               ) : null}
-              <TodayExceptions
-                split={split}
-                entryCount={entries.length}
-                unrecordedKnown={data.unrecorded != null}
-                showAgent={multiAgent}
-                activeIndex={active}
-                setActiveIndex={setActive}
-                rowRefs={rowRefs}
-                onPrimary={runPrimary}
-                onAnswer={(id, answer) =>
-                  void hooksApi
-                    .answerQuestion(projectId, id, answer)
-                    .catch((e: unknown) => toast.destructive(t("send.failed", { error: tError(toAppError(e)) })))
-                }
-                onVerify={(entry) => void verify(entry)}
-                onVerifyAll={(list) => void verifyAll(list)}
-              />
-              {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onRun={() => void runNext()} /> : null}
-              {split && split.mine.length > 0 ? <MineLine mine={split.mine} onOpen={openPlan} /> : null}
-              <LiveCard sessions={live} now={now} />
-              {/* 오늘 기록이 없으면 이 카드는 위 문단을 되풀이할 뿐이다. */}
-              {entries.length > 0 && data.digest ? (
-                <TodayWork entries={entries} digest={data.digest} onOpenEntry={openEntry} />
-              ) : null}
+              {/* 두 칸(10-30): 왼쪽은 해야 할 것, 오른쪽은 기록. 넓은 창에서 820px 한 기둥 양옆이 비던 것을
+                  줄였다. 자리가 모자라면 flex-wrap 이 한 칸으로 접는다 — 접힘 선 숫자를 새로 고르지 않는다. */}
+              <div className="tdy-cols">
+                <div className="tdy-main">
+                  <TodayExceptions part="first" {...exceptionProps} />
+                  {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onRun={() => void runNext()} /> : null}
+                  {split && split.mine.length > 0 ? <MineLine mine={split.mine} onOpen={openPlan} /> : null}
+                  <LiveCard sessions={live} now={now} />
+                </div>
+                {hasSide ? (
+                  <div className="tdy-side">
+                    <TodayExceptions part="unread" {...exceptionProps} />
+                    {/* 오늘 기록이 없으면 이 카드는 위 문단을 되풀이할 뿐이다. */}
+                    {entries.length > 0 && data.digest ? (
+                      <TodayWork entries={entries} digest={data.digest} onOpenEntry={openEntry} />
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
               {/* 단축키는 늘 떠 있는 크롬이 아니라 목록 끝의 한 줄이다 — 윗줄은 탭과 동작만. */}
               {entries.length > 0 ? <p className="tdy-keys">{t("today.kbd.hint")}</p> : null}
             </>

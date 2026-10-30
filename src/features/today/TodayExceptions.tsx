@@ -270,6 +270,8 @@ interface TodayExceptionsProps {
   onAnswer: (id: string, answer: string) => void;
   onVerify: (entry: JournalEntrySummary) => void;
   onVerifyAll: (entries: JournalEntrySummary[]) => void;
+  /** 두 칸 배치에서 한쪽만 — 「먼저 볼 것」(왼쪽) · 「검증 없이 끝난 일지」(오른쪽). 없으면 둘 다. */
+  part?: "first" | "unread";
 }
 
 export function TodayExceptions({
@@ -284,6 +286,7 @@ export function TodayExceptions({
   onAnswer,
   onVerify,
   onVerifyAll,
+  part,
 }: TodayExceptionsProps) {
   const { t } = useT();
   const nav = (i: number): RowNav => ({
@@ -295,6 +298,7 @@ export function TodayExceptions({
   });
 
   if (split == null) {
+    if (part === "unread") return null;
     return (
       <section className="card tdy-card" aria-labelledby="tdy-check-h">
         <header className="tdy-ch">
@@ -310,7 +314,7 @@ export function TodayExceptions({
   const { first, unread } = split;
   return (
     <>
-      {first.length > 0 || unread.length === 0 ? (
+      {part !== "unread" && (first.length > 0 || unread.length === 0) ? (
         <section className="card tdy-card" aria-labelledby="tdy-check-h">
           <header className="tdy-ch">
             <h2 id="tdy-check-h">{t("today.check.title")}</h2>
@@ -339,7 +343,7 @@ export function TodayExceptions({
           )}
         </section>
       ) : null}
-      {unread.length > 0 ? (
+      {part !== "first" && unread.length > 0 ? (
         <section className="card tdy-card" aria-labelledby="tdy-unread-h">
           <header className="tdy-ch">
             <h2 id="tdy-unread-h">{t("today.unread.title")}</h2>
