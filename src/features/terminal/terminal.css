@@ -95,3 +95,12 @@
    `@starting-style` 을 모르는 웹뷰에서는 그냥 바로 선다. */
 @starting-style { .tm-peek, .tm-peek-full { opacity: 0; transform: translateY(2px); } }
 @media (prefers-reduced-motion: reduce) { .tm-peek, .tm-peek-full { transition: none; } }
+
+/* 파일을 끌고 지나는 칸 (10-30, Orca 벤치마킹) — 액센트 테 + 위쪽 한 줄 안내. 놓으면 경로가 입력에 붙는다. */
+.tm-pane.is-drop { box-shadow: inset 0 0 0 2px var(--accent); }
+.tm-pane.is-drop::after {
+  content: attr(data-drop-hint); position: absolute; top: var(--space-3); left: 50%; transform: translateX(-50%);
+  padding: var(--space-1) var(--space-4); border-radius: var(--radius-pill);
+  background: var(--accent); color: var(--text-on-accent);
+  font-size: var(--fs-3); font-weight: var(--fw-label); pointer-events: none; z-index: var(--z-sticky);
+}

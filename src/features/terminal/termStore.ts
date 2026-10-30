@@ -227,6 +227,14 @@ export function focusTerm(id: number) {
   entries.get(id)?.term.focus();
 }
 
+/** 세션 입력에 붙여 넣는다 — xterm 이 안의 프로그램의 브래킷 붙여넣기 모드를 따라 감싼다. */
+export function pasteToTerm(id: number, text: string) {
+  const e = entries.get(id);
+  if (!e || !e.info.alive) return;
+  e.term.paste(text);
+  e.term.focus();
+}
+
 /**
  * 세션 안 프로그램의 상태가 `pred` 를 만족할 때까지 기다린다(OSC 7501) — 만족하면 `true`,
  * 시간이 다 되거나 세션이 끝나면 `false`. 「끝까지」가 claude 의 입력 대기를 기다릴 때 쓴다.
