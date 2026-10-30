@@ -195,7 +195,7 @@ export async function runScenario(ctx) {
   await sized("한국어 넓은 폭", 1440, 900);
   await tour("02 화면 · 한국어 1440", "ko-1440", dict.ko);
 
-  const journalTitle = `E2E 사이드카 일지 (${os})`;
+  const journalTitle = `E2E: 사이드카 일지 (${os})`;
   await report.step("사이드카 oculpm-mcp journal_write → 일지 화면 반영", async (rec) => {
     const { server, result } = await callMcpTool({
       bin: mcpBin,
