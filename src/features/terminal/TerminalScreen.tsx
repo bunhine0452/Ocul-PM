@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { toAppError } from "@/api/invoke";
 import { oculpmApi } from "@/api/oculpm";
 import { projectsApi } from "@/api/projects";
-import { Plus, X } from "@/components/Icons";
+import { Columns2, Plus, X } from "@/components/Icons";
 import { Toolbar } from "@/components/Toolbar";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -56,6 +56,9 @@ function useRecordsSince(projectId: number, workday: string | null, sessions: Te
   return out;
 }
 
+/** 나란히 보기의 오른쪽 세션 — 화면을 오가도 기억한다(창 하나에 하나, 모듈 범위). */
+let rememberedSplit: number | null = null;
+
 export function TerminalScreen({ projectId, workday }: { projectId: number; workday: string | null }) {
   const { t } = useT();
   const sessions = useSyncExternalStore(subscribeTerms, termsSnapshot);
@@ -63,6 +66,15 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
   const [active, setActive] = useState<number | null>(() => takeTermFocus() ?? sessions[sessions.length - 1]?.id ?? null);
   const paneRef = useRef<HTMLDivElement | null>(null);
   const opening = useRef(false);
+  // 나란히 보기 (Orca 벤치마킹 #term-split) — 왼쪽은 고른 세션, 오른쪽은 이 세션. 칸은 반반.
+  const [split, setSplitState] = useState<number | null>(() => rememberedSplit);
+  const setSplit = useCallback((id: number | null) => {
+    rememberedSplit = id;
+    setSplitState(id);
+  }, []);
+  const splitRef = useRef<HTMLDivElement | null>(null);
+  // 나란히 칸에 쓰려고 연 세션은 「새 세션이면 고른다」 규칙에서 뺀다 — 왼쪽을 빼앗지 않게.
+  const openingSplit = useRef(false);
   const records = useRecordsSince(projectId, workday, sessions);
 
   const add = useCallback(async () => {
@@ -87,34 +99,80 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
   const lastId = sessions[sessions.length - 1]?.id ?? null;
   const prevLast = useRef(lastId);
   useEffect(() => {
-    if (lastId !== prevLast.current || (active != null && !sessions.some((s) => s.id === active))) setActive(lastId);
+    const grew = lastId !== prevLast.current;
     prevLast.current = lastId;
+    if (grew && openingSplit.current) {
+      openingSplit.current = false;
+      return;
+    }
+    if (grew || (active != null && !sessions.some((s) => s.id === active))) setActive(lastId);
   }, [lastId, active, sessions]);
+
+  // 오른쪽 세션이 닫혔거나 왼쪽으로 옮겨 갔으면 나란히를 접는다.
+  useEffect(() => {
+    if (split != null && (split === active || !sessions.some((s) => s.id === split))) setSplit(null);
+  }, [split, active, sessions, setSplit]);
+
+  // 켜면 다른 세션(가장 최근)을 오른쪽에, 없으면 새 셸을. 끄면 오른쪽 세션은 그대로 돈다(탭에 남는다).
+  const toggleSplit = useCallback(async () => {
+    if (split != null) return setSplit(null);
+    const other = [...termsSnapshot()].reverse().find((s) => s.id !== active && s.alive);
+    if (other) return setSplit(other.id);
+    if (opening.current) return;
+    opening.current = true;
+    openingSplit.current = true;
+    try {
+      setSplit(await openTerm(projectId));
+    } catch (e) {
+      openingSplit.current = false;
+      toast.destructive(t("terminal.openFailed", { error: tError(toAppError(e)) }));
+    } finally {
+      opening.current = false;
+    }
+  }, [split, active, projectId, setSplit, t]);
+
+  // 탭을 고른다 — 오른쪽에 있던 세션이면 두 칸을 바꾼다.
+  const pick = (id: number) => {
+    if (id === split) setSplit(active);
+    setActive(id);
+  };
 
   useEffect(() => {
     if (active == null || !paneRef.current) return;
     return mountTerm(active, paneRef.current);
   }, [active]);
 
+  useEffect(() => {
+    if (split == null || !splitRef.current) return;
+    return mountTerm(split, splitRef.current);
+  }, [split]);
+
   // 화면이 서 있는 동안 온 「이 세션을 보여 줘」.
   useEffect(() => onTermFocus(setActive), []);
 
   // 새 세션 — macOS ⌘T, 그 밖 Ctrl+Shift+T (Ctrl+T 는 셸의 글자 바꾸기라 비워 둔다).
+  // 나란히 — macOS ⌘\, 그 밖 Ctrl+Shift+\ (Ctrl+\ 는 셸의 종료 신호 SIGQUIT 다).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const hit = isMac() ? e.metaKey && !e.shiftKey : e.ctrlKey && e.shiftKey;
-      if (!hit || e.key.toLowerCase() !== "t") return;
-      e.preventDefault();
-      void add();
+      if (!hit) return;
+      if (e.code === "Backslash") {
+        e.preventDefault();
+        void toggleSplit();
+      } else if (e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        void add();
+      }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [add]);
+  }, [add, toggleSplit]);
 
   // Finder 에서 끌어다 놓은 파일 · 그림 → 커서 아래 세션의 입력에 따옴표 친 경로.
   const dropOver = useTerminalFileDrop(active, getPlatform() === "windows", pasteToTerm);
 
   const shortcut = isMac() ? kbd("⌘T") : kbd("⌘⇧T");
+  const splitKey = isMac() ? kbd("⌘\\") : kbd("⌘⇧\\");
   // 다른 화면으로 가면 미리보기도 닫는다 — 돌아왔을 때 크게 띄운 그림이 남아 있지 않게.
   useEffect(() => closePeek, []);
 
@@ -128,6 +186,19 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
           {t("terminal.new")}
           <kbd className="kbd">{shortcut}</kbd>
         </button>
+        {sessions.length > 0 ? (
+          <button
+            type="button"
+            className="btn sm"
+            aria-pressed={split != null}
+            title={t("terminal.splitTitle")}
+            onClick={() => void toggleSplit()}
+          >
+            <Columns2 size={13} aria-hidden="true" />
+            {split != null ? t("terminal.unsplit") : t("terminal.split")}
+            <kbd className="kbd">{splitKey}</kbd>
+          </button>
+        ) : null}
       </Toolbar>
       <div className="tm-split">
         {sessions.length === 0 ? <p className="tm-empty">{t("terminal.empty")}</p> : null}
@@ -138,14 +209,17 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
               const n = records.get(s.id) ?? 0;
               const waiting = s.alive && needsMe(s.status);
               return (
-                <div key={s.id} className={"tm-tab" + (s.id === active ? " is-active" : "")}>
+                <div
+                  key={s.id}
+                  className={"tm-tab" + (s.id === active ? " is-active" : s.id === split ? " is-split" : "")}
+                >
                   <button
                     type="button"
                     role="tab"
                     className="tm-pick"
                     aria-selected={s.id === active}
                     title={waiting && s.status?.msg ? s.status.msg : undefined}
-                    onClick={() => setActive(s.id)}
+                    onClick={() => pick(s.id)}
                   >
                     <span
                       className={"tm-dot" + (s.alive ? (waiting ? " is-wait" : " is-live") : "")}
@@ -188,12 +262,23 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
             ) : null}
           </div>
         ) : null}
-        <div
-          className={"tm-pane" + (dropOver != null && dropOver === active ? " is-drop" : "")}
-          ref={paneRef}
-          data-term-id={active ?? undefined}
-          data-drop-hint={t("terminal.drop.hint")}
-        />
+        {/* 왼쪽 칸은 늘 같은 요소다 — 나란히를 켜고 꺼도 다시 만들어지면 붙어 있던 터미널이 떨어진다. */}
+        <div className={"tm-panes" + (split != null ? " is-split" : "")}>
+          <div
+            className={"tm-pane" + (dropOver != null && dropOver === active ? " is-drop" : "")}
+            ref={paneRef}
+            data-term-id={active ?? undefined}
+            data-drop-hint={t("terminal.drop.hint")}
+          />
+          {split != null ? (
+            <div
+              className={"tm-pane" + (dropOver === split ? " is-drop" : "")}
+              ref={splitRef}
+              data-term-id={split}
+              data-drop-hint={t("terminal.drop.hint")}
+            />
+          ) : null}
+        </div>
       </div>
       <TermImagePeekHost />
     </>

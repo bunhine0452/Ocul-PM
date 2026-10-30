@@ -43,6 +43,11 @@
 .tm-note-msg { min-width: 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tm-note-sp { flex: 1; }
 
+/* 나란히 보기 (10-30, Orca 벤치마킹) — 칸 둘을 반반, 가운데 선 하나. 오른쪽 세션의 탭은 테만 두른다. */
+.tm-panes { flex: 1; min-height: 0; display: flex; }
+.tm-panes.is-split .tm-pane + .tm-pane { border-left: 1px solid var(--sep); }
+.tm-tab.is-split { box-shadow: inset 0 0 0 1px var(--sep-strong); }
+
 /* 터미널 면 — xterm 이 이 칸을 채운다(FitAddon). 여백은 칸 안쪽에 두어 글자가 테두리에 붙지 않게. */
 .tm-pane { flex: 1; min-width: 0; min-height: 0; position: relative; background: var(--term-bg); }
 .term-host { position: absolute; inset: var(--space-4) var(--space-3) var(--space-3) var(--space-5); }
