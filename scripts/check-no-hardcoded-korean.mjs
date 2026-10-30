@@ -169,6 +169,8 @@ const TESTS = new Set([
   "__tests__/planner_v4.test.tsx",
   "__tests__/polish_phase2.test.tsx",
   "__tests__/recent_changes_store.test.tsx",
+  // 터미널 이미지 미리보기 (10-30) — 한글 넓은 칸 · 한국어 문구가 검사 재료다.
+  "__tests__/terminal_image_peek.test.tsx",
   // 터미널 OSC 8 링크 처리기 — 한국어 테스트 이름이 서술 언어다.
   "__tests__/toast_timing.test.tsx",
   // bug-hunt C1·C2 (2026-09-22) — Tauri 이벤트 해제 순서. 한국어 테스트 이름뿐이다.

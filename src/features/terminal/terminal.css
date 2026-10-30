@@ -48,3 +48,50 @@
 .term-host { position: absolute; inset: var(--space-4) var(--space-3) var(--space-3) var(--space-5); }
 .term-host .xterm { height: 100%; }
 .term-host .xterm-viewport { background: transparent !important; }
+
+/* 이미지 미리보기 (10-30, 3.12.0 의 것을 다시) — 경로 링크에 올리면 카드, 누르면 크게.
+   카드는 마우스를 가로채지 않는다(xterm 이 leave 를 쏘아 깜빡인다). 그림 뒤는 바둑판이라
+   투명 PNG(스크린숏 · 아이콘)가 바탕에 묻히지 않는다. */
+.tm-peek {
+  position: fixed; z-index: var(--z-popover); max-width: 360px;
+  padding: var(--space-2); border: 1px solid var(--border-card); border-radius: var(--radius-m);
+  background: var(--bg-card); box-shadow: var(--shadow-pop);
+  pointer-events: none;
+  transition: opacity var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out);
+}
+.tm-peek-stage {
+  display: grid; place-items: center; min-width: 168px; min-height: 104px;
+  border-radius: var(--radius-s); overflow: hidden;
+  background-color: var(--bg-inset);
+  background-image: repeating-conic-gradient(color-mix(in srgb, var(--text) 7%, transparent) 0 25%, transparent 0 50%);
+  background-size: 14px 14px;
+}
+.tm-peek-stage img { display: block; max-width: 344px; max-height: 240px; object-fit: contain; }
+.tm-peek-skel { width: 220px; height: 136px; }
+.tm-peek-error { margin: 0; padding: var(--space-4); font-size: var(--fs-3); color: var(--text-2); text-align: center; }
+.tm-peek-cap { display: flex; align-items: baseline; gap: var(--space-3); padding: var(--space-2) var(--space-1) 0; font-size: var(--fs-3); }
+.tm-peek-name { min-width: 0; font-family: var(--mono); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-peek-facts { flex: none; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tm-peek-hint { flex: none; margin-left: auto; color: var(--text-2); }
+
+/* 크게 — 스크림 위 한 장. 그림은 창 안에 맞추고, 아래 한 줄에 이름 · 크기 · 경로 · 복사 · 닫기. */
+.tm-peek-scrim { z-index: var(--z-modal); display: grid; place-items: center; padding: var(--space-8); }
+.tm-peek-full {
+  margin: 0; display: flex; flex-direction: column; min-width: 320px; max-width: min(1200px, 100%); max-height: 100%;
+  border: 1px solid var(--border-card); border-radius: var(--radius-l); overflow: hidden;
+  background: var(--bg-card); box-shadow: var(--shadow-pop);
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.tm-peek-full .tm-peek-stage { flex: 1; min-height: 160px; border-radius: 0; }
+.tm-peek-full .tm-peek-stage img { max-width: 100%; max-height: calc(100vh - 168px); }
+.tm-peek-full figcaption {
+  flex: none; display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5); border-top: 1px solid var(--sep);
+  font-size: var(--fs-3);
+}
+.tm-peek-dir { flex: 1; min-width: 0; font-family: var(--mono); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 등장은 애니메이션이 아니라 전환 — 창이 뒤에 있으면 `data-app-inactive` 가 모든 애니메이션을
+   멈추는데(primitives.css), 배경 창에서도 호버는 되므로 카드가 투명한 첫 프레임에 멈췄다.
+   `@starting-style` 을 모르는 웹뷰에서는 그냥 바로 선다. */
+@starting-style { .tm-peek, .tm-peek-full { opacity: 0; transform: translateY(2px); } }
+@media (prefers-reduced-motion: reduce) { .tm-peek, .tm-peek-full { transition: none; } }

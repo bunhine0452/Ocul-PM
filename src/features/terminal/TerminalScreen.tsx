@@ -21,6 +21,8 @@ import { isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { closeTerm, mountTerm, openTerm, subscribeTerms, termsSnapshot } from "./termStore";
 import { onTermFocus, takeTermFocus } from "./focusRequest";
+import { closePeek } from "./imagePeek";
+import { TermImagePeekHost } from "./TermImagePeek";
 import { needsMe, sessionWord } from "./status";
 import "./terminal.css";
 
@@ -109,6 +111,9 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
   }, [add]);
 
   const shortcut = isMac() ? kbd("⌘T") : kbd("⌘⇧T");
+  // 다른 화면으로 가면 미리보기도 닫는다 — 돌아왔을 때 크게 띄운 그림이 남아 있지 않게.
+  useEffect(() => closePeek, []);
+
   const current = sessions.find((s) => s.id === active) ?? null;
   const currentWaiting = current != null && current.alive && needsMe(current.status);
   return (
@@ -181,6 +186,7 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
         ) : null}
         <div className="tm-pane" ref={paneRef} />
       </div>
+      <TermImagePeekHost />
     </>
   );
 }

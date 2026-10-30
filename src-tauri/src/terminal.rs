@@ -277,6 +277,10 @@ impl TermSessions {
         // Claude Code 의 전체 화면 렌더러 — 일반 렌더러는 크기가 바뀔 때마다 지난 화면을
         // 다시 쏟아 스크롤백을 더럽혔다(3.x 실측, v3.13.2).
         cmd.env("CLAUDE_CODE_NO_FLICKER", "1");
+        // Claude Code 는 TERM_PROGRAM 목록에 없는 터미널을 하이퍼링크 미지원으로 보고 경로를 맨 글자로
+        // 찍는다 — 이 신호가 있으면 `file://` 절대경로로 감싸 보내고(OSC 8), 프런트가 그 링크로
+        // 이미지를 미리 보여 준다(`features/terminal/fileLinks.ts`). 빼면 미리보기가 조용히 죽는다.
+        cmd.env("FORCE_HYPERLINK", "1");
         if let Some(prompt) = spec.prompt.as_deref().filter(|p| !p.is_empty()) {
             cmd.env(PROMPT_ENV, prompt);
         }
