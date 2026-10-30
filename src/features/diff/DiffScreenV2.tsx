@@ -27,7 +27,7 @@ import { useGroupEntries } from "./useGroupEntries";
 import "./changes.css";
 import { requestSendToClaude, sendOrRun } from "@/features/terminal/sendToClaude";
 import { projectFileApi } from "@/api/projectFile";
-import { applyResolution, clearNotes, composeNotes, hydrateNotes, markSent, useDiffNotes } from "./diffNoteStore";
+import { applyResolution, clearNotes, composeNotes, hydrateNotes, isJudged, markSent, useDiffNotes } from "./diffNoteStore";
 import { tError } from "@/i18n/errors";
 
 // 변경 화면 (4.0) — 왼쪽 340px 목록 + 오른쪽 diff. 목록은 「기록 없음」(어느 일지에도 없는 변경)이
@@ -172,7 +172,9 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const noteTarget = useMemo(() => (selected ? { projectId, file: selected } : null), [projectId, selected]);
   const drafts = noteState.notes.filter((n) => !n.sent);
   const sentNotes = noteState.notes.filter((n) => n.sent);
-  const fixedCount = sentNotes.filter((n) => n.fixed).length;
+  // 「고쳐짐 k/n」 은 가릴 수 있는 메모만 센다 — 지운 줄 · 흔한 줄의 메모는 「보냄」 으로 따로 둔다.
+  const judged = sentNotes.filter(isJudged);
+  const fixedCount = judged.filter((n) => n.fixed).length;
   const sendNotes = () =>
     requestSendToClaude({
       kind: "notes",
@@ -213,9 +215,9 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
       <Toolbar title={t("nav.diff")} sub={sub}>
         {noteState.notes.length > 0 ? (
           <>
-            {sentNotes.length > 0 ? (
-              <span className={"chip sm " + (fixedCount === sentNotes.length ? "ok" : "warn")} title={t("diff.notes.progressTitle")}>
-                {t("diff.notes.progress", { fixed: fixedCount, n: sentNotes.length })}
+            {judged.length > 0 ? (
+              <span className={"chip sm " + (fixedCount === judged.length ? "ok" : "warn")} title={t("diff.notes.progressTitle")}>
+                {t("diff.notes.progress", { fixed: fixedCount, n: judged.length })}
               </span>
             ) : null}
             <button type="button" className="btn ghost sm" onClick={() => clearNotes(projectId)}>
