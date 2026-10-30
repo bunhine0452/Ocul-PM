@@ -319,6 +319,9 @@ export const en: Record<keyof typeof ko, string> = {
   "today.check.answerOther": "Another answer",
   "today.check.outsideTerminal": "Outside terminal",
   "terminal.drop.hint": "Drop to type the paths",
+  "terminal.split": "Split",
+  "terminal.unsplit": "Single",
+  "terminal.splitTitle": "Show two sessions side by side. The right one is another session, or a new shell",
   "terminal.peek.loading": "Loading image",
   "terminal.peek.hint": "Click to enlarge",
   "terminal.peek.copyPath": "Copy path",
@@ -737,7 +740,7 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.session_not_found": "Session not found: {detail}",
   "err.code.forbidden_journal_path": "The entry names a forbidden path, so it wasn't written: {detail}",
   "err.code.image_not_image": "Not an image file",
-  "err.code.image_too_large": "Over 16MB — too large to preview",
+  "err.code.image_too_large": "Over 16MB, too large to preview",
   "err.code.image_unreadable": "Couldn't read the image ({detail})",
   "err.code.unsafe_project_root": "The filesystem root, your home folder and the folders above it (like /Users), and system folders (like /etc) can't be a project — pick a project folder inside them.",
   "err.code.oculpm_symlink":

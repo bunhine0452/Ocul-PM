@@ -165,3 +165,35 @@ describe("「다음」 실행", () => {
     expect(views).toEqual(["terminal"]);
   });
 });
+
+describe("나란히 보기 (Orca 벤치마킹)", () => {
+  const panes = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>(".tm-pane")].map((p) => p.dataset.termId);
+
+  it("⌘\\ 로 다른 세션을 오른쪽에 붙이고, 오른쪽 탭을 고르면 두 칸이 바뀌며, 닫히면 접힌다", async () => {
+    store.set([info(1, "zsh"), info(2, "claude")]);
+    const { container } = render(<TerminalScreen projectId={1} workday="20261029" />);
+    await waitFor(() => expect(store.mounted).toContain(2));
+    fireEvent.keyDown(window, { key: "\\", code: "Backslash", metaKey: true });
+    await waitFor(() => expect(panes(container)).toEqual(["2", "1"]));
+    expect(store.mounted).toContain(1);
+    expect(store.opened).toEqual([]);
+    // 오른쪽 세션(1)의 탭을 고르면 두 칸이 바뀐다.
+    fireEvent.click(screen.getAllByRole("tab")[0]);
+    await waitFor(() => expect(panes(container)).toEqual(["1", "2"]));
+    // 오른쪽 세션이 닫히면 접힌다.
+    act(() => store.set([info(1, "zsh")]));
+    await waitFor(() => expect(panes(container)).toEqual(["1"]));
+  });
+
+  it("세션이 하나뿐이면 새 셸을 오른쪽에 열고 왼쪽은 그대로 — 끄면 오른쪽 세션은 탭에 남는다", async () => {
+    store.set([info(1, "zsh")]);
+    const { container } = render(<TerminalScreen projectId={1} workday="20261029" />);
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("terminal.split")) }));
+    await waitFor(() => expect(store.opened).toEqual([null]));
+    await waitFor(() => expect(panes(container)).toEqual(["1", "2"]));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("terminal.unsplit")) }));
+    await waitFor(() => expect(panes(container)).toEqual(["1"]));
+    expect(store.closed).toEqual([]);
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+  });
+});
