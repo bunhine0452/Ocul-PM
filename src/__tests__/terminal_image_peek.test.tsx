@@ -70,10 +70,11 @@ describe("fileLinks", () => {
     expect(onImage).toHaveBeenCalledWith({ kind: "hover", path: "/t/a.png", x: 10, y: 10 });
   });
 
-  it("routes OSC 8 links: web to the browser, images to the peek, the rest nowhere", () => {
+  it("routes OSC 8 links: web to the browser, images to the peek, other files to the file menu", () => {
     const openUrl = vi.fn();
     const onImage = vi.fn();
-    const handler = createOscLinkHandler({ openUrl, onImage });
+    const onFile = vi.fn();
+    const handler = createOscLinkHandler({ openUrl, onImage, onFile });
     const range = { start: { x: 1, y: 1 }, end: { x: 2, y: 1 } };
     handler.activate(mouse(), "https://oculpm.com", range);
     handler.activate(mouse(), "file:///tmp/a.png", range);
@@ -83,6 +84,8 @@ describe("fileLinks", () => {
     expect(openUrl).toHaveBeenCalledWith("https://oculpm.com");
     expect(onImage).toHaveBeenCalledTimes(1);
     expect(onImage).toHaveBeenCalledWith({ kind: "open", path: "/tmp/a.png", x: 10, y: 10 });
+    expect(onFile).toHaveBeenCalledTimes(1);
+    expect(onFile).toHaveBeenCalledWith({ path: "/repo/src/main.ts", line: null, x: 10, y: 10 });
     expect(handler.allowNonHttpProtocols).toBe(true);
   });
 });

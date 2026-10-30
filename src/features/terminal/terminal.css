@@ -109,3 +109,23 @@
   background: var(--accent); color: var(--text-on-accent);
   font-size: var(--fs-3); font-weight: var(--fw-label); pointer-events: none; z-index: var(--z-sticky);
 }
+
+/* 터미널 경로의 「이 파일로 할 일」 (10-31) — 윗줄 프로젝트 목록과 같은 팝오버 모양. */
+.tm-file-menu {
+  position: fixed; z-index: var(--z-popover);
+  display: flex; flex-direction: column; gap: 1px; padding: var(--space-1);
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
+}
+.tm-file-menu-head {
+  padding: var(--space-2) var(--space-3); margin-bottom: var(--space-1);
+  border-bottom: 1px solid var(--sep);
+  font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tm-file-menu-item {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
+  padding: var(--space-3); border-radius: var(--radius-s); cursor: pointer;
+  background: none; border: none; color: var(--text); font-family: var(--font); font-size: var(--fs-4);
+}
+.tm-file-menu-item:hover, .tm-file-menu-item:focus-visible { background: var(--bg-hover); }

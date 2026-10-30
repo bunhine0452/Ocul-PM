@@ -15,6 +15,8 @@
  */
 import type { IBufferRange, ILink, ILinkHandler, ILinkProvider } from "@xterm/xterm";
 
+import type { FileMenuAt } from "./fileRefs";
+
 /** 미리 보는 이미지 확장자 — 백엔드 `commands/term_image.rs` 의 `IMAGE_EXT` 와 같다. */
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|bmp|ico)$/i;
 
@@ -58,6 +60,8 @@ export function fileUriToPath(uri: string): string | null {
 export interface LinkDeps {
   openUrl: (uri: string) => void;
   onImage: (event: ImageLinkEvent) => void;
+  /** 이미지가 아닌 `file://` — 「이 파일로 할 일」 메뉴(`fileRefs.ts`). */
+  onFile?: (at: FileMenuAt) => void;
 }
 
 /** xterm `linkHandler` 옵션 — OSC 8 하이퍼링크. */
@@ -70,8 +74,11 @@ export function createOscLinkHandler(deps: LinkDeps): ILinkHandler {
     activate: (event, uri) => {
       const path = imageOf(uri);
       if (path) return deps.onImage({ kind: "open", path, x: event.clientX, y: event.clientY });
-      if (isOpenableUrl(uri)) deps.openUrl(uri.trim());
-      // 이미지가 아닌 `file://` · 열 수 없는 스킴은 조용히 — 열린 것처럼 보이지 않게.
+      if (isOpenableUrl(uri)) return deps.openUrl(uri.trim());
+      // 이미지가 아닌 `file://` 는 파일 메뉴로 — 같은 칸의 맨 글자 경로 프로바이더보다 이 링크가 먼저라
+      // 여기서 넘기지 않으면 Claude Code 가 감싼 경로는 눌러도 아무 일이 없다. 그 밖의 스킴은 조용히.
+      const file = fileUriToPath(uri);
+      if (file !== null) deps.onFile?.({ path: file, line: null, x: event.clientX, y: event.clientY });
     },
     hover: (event, uri) => {
       const path = imageOf(uri);
