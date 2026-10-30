@@ -189,7 +189,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
           return copyPluginUpdate();
       }
     },
-    [openPlan, openEntry, onNavigate, copyPluginUpdate],
+    [openPlan, openEntry, onNavigate, copyPluginUpdate, projectId],
   );
 
   const focusRow = (i: number) => {
