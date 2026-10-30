@@ -157,3 +157,47 @@ fn a_lane_gets_records_and_reports_its_evidence() {
     assert!(!root.path().join(".oculpm/journal").exists());
     assert_eq!(clear(root.path()).unwrap(), 2);
 }
+
+/// 기록을 git 에 올리는 저장소(이 저장소처럼) — 레인 checkout 이 옛 일지를 `.git` 보다 늦게 써도 그것은
+/// 레인의 일지가 아니다. 레인이 새로 쓴 것만 센다(레드팀 10-31 반례).
+#[test]
+fn a_tracked_record_lane_counts_only_what_the_lane_wrote() {
+    let root = repo();
+    let old = root.path().join(".oculpm/journal/20261029/Bugs");
+    std::fs::create_dir_all(&old).unwrap();
+    for i in 1..=3 {
+        std::fs::write(
+            old.join(format!("090{i}_bug_old{i}.md")),
+            format!("---\nschema_version: 1\ntype: bug\n---\n[x] 옛: 일지 {i}\n\n## 검증\n- cargo test → ok\n"),
+        )
+        .unwrap();
+    }
+    git(root.path(), &["add", ".oculpm/journal"]);
+    git(root.path(), &["commit", "-q", "-m", "records"]);
+    let data = tempfile::tempdir().unwrap();
+    let made = start(root.path(), &base_dir(data.path(), 1), 2, "t").unwrap();
+
+    let before = lanes(root.path()).unwrap();
+    assert!(
+        before.iter().all(|l| l.journals == 0),
+        "checkout 한 옛 일지는 레인의 것이 아니다: {before:?}"
+    );
+
+    let one = Path::new(&made[0].path);
+    let day = one.join(".oculpm/journal/20261031/Bugs");
+    std::fs::create_dir_all(&day).unwrap();
+    std::fs::write(
+        day.join("1000_bug_new.md"),
+        "---\nschema_version: 1\ntype: bug\n---\n[x] 캐시: 새로 고침\n\n## 검증\n눈으로 봤다.\n",
+    )
+    .unwrap();
+    let after = lanes(root.path()).unwrap();
+    let l1 = after.iter().find(|l| l.name == "t-1").unwrap();
+    assert_eq!(
+        (l1.journals, l1.journal_title.as_deref()),
+        (1, Some("캐시: 새로 고침"))
+    );
+    assert_eq!(l1.evidence, crate::oculpm::evidence::SECTION);
+    assert_eq!(after.iter().find(|l| l.name == "t-2").unwrap().journals, 0);
+    clear(root.path()).unwrap();
+}
