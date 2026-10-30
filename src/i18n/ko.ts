@@ -307,6 +307,7 @@ export const ko = {
   "today.check.answerPlaceholder": "답을 적어 주세요",
   "today.check.answerOther": "다른 답",
   "today.check.outsideTerminal": "바깥 터미널",
+  "terminal.drop.hint": "놓으면 경로를 입력에 넣어요",
   "terminal.peek.loading": "이미지를 읽는 중",
   "terminal.peek.hint": "눌러서 크게",
   "terminal.peek.copyPath": "경로 복사",

@@ -305,6 +305,7 @@ export const en: Record<keyof typeof ko, string> = {
   "today.check.answerPlaceholder": "Type your answer",
   "today.check.answerOther": "Another answer",
   "today.check.outsideTerminal": "Outside terminal",
+  "terminal.drop.hint": "Drop to type the paths",
   "terminal.peek.loading": "Loading image",
   "terminal.peek.hint": "Click to enlarge",
   "terminal.peek.copyPath": "Copy path",

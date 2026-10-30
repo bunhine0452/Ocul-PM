@@ -17,9 +17,10 @@ import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import type { TermInfo } from "@/api/terminal";
 import { kbd } from "@/lib/kbd";
-import { isMac } from "@/lib/platform";
+import { getPlatform, isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
-import { closeTerm, mountTerm, openTerm, subscribeTerms, termsSnapshot } from "./termStore";
+import { closeTerm, mountTerm, openTerm, pasteToTerm, subscribeTerms, termsSnapshot } from "./termStore";
+import { useTerminalFileDrop } from "./dropFiles";
 import { onTermFocus, takeTermFocus } from "./focusRequest";
 import { closePeek } from "./imagePeek";
 import { TermImagePeekHost } from "./TermImagePeek";
@@ -110,6 +111,9 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
     return () => window.removeEventListener("keydown", onKey, true);
   }, [add]);
 
+  // Finder 에서 끌어다 놓은 파일 · 그림 → 커서 아래 세션의 입력에 따옴표 친 경로.
+  const dropOver = useTerminalFileDrop(active, getPlatform() === "windows", pasteToTerm);
+
   const shortcut = isMac() ? kbd("⌘T") : kbd("⌘⇧T");
   // 다른 화면으로 가면 미리보기도 닫는다 — 돌아왔을 때 크게 띄운 그림이 남아 있지 않게.
   useEffect(() => closePeek, []);
@@ -184,7 +188,12 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
             ) : null}
           </div>
         ) : null}
-        <div className="tm-pane" ref={paneRef} />
+        <div
+          className={"tm-pane" + (dropOver != null && dropOver === active ? " is-drop" : "")}
+          ref={paneRef}
+          data-term-id={active ?? undefined}
+          data-drop-hint={t("terminal.drop.hint")}
+        />
       </div>
       <TermImagePeekHost />
     </>

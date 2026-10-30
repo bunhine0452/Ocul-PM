@@ -40,6 +40,7 @@ vi.mock("@/features/terminal/termStore", () => ({
     store.mounted.push(id);
     return () => {};
   },
+  pasteToTerm: () => {},
   closeTerm: (id: number) => {
     store.closed.push(id);
     store.set(store.list.filter((s) => s.id !== id));
