@@ -173,13 +173,18 @@ export async function runScenario(ctx) {
         const overflow = await wd.execute(
           "const d = document.documentElement; return d.scrollWidth - d.clientWidth;",
         );
-        const ok = !readyErr && state.crashes.length === 0 && state.csp.length === 0 && overflow <= 1;
+        // 셸이 잘라 scrollWidth 로는 안 보이는 넘침 — 윗줄 칸이 창 밖으로 나가면(레드팀 10-31) 실패.
+        const clipped = await wd.execute(
+          "return [...document.querySelectorAll('header.topbar > *')].filter((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().right > window.innerWidth + 1).length;",
+        );
+        const ok = !readyErr && state.crashes.length === 0 && state.csp.length === 0 && overflow <= 1 && clipped === 0;
         await report.shot(wd, { phase, key, screen: `${n}-${dest.id}`, caption: `${t(dest.labelKey)} (${dest.id})`, state, ok });
         if (state.toasts.length) rec.notes.push(`토스트: ${state.toasts.join(" | ")}`);
         if (state.errors.length) rec.notes.push(`페이지 오류: ${state.errors.join(" | ")}`);
         if (state.crashes.length) throw new Error(`에러 경계: ${state.crashes.join(" | ")}`);
         if (state.csp.length) throw new Error(`CSP 위반: ${state.csp.join(" | ")}`);
         if (overflow > 1) throw new Error(`가로로 ${overflow}px 넘친다`);
+        if (clipped > 0) throw new Error(`윗줄 칸 ${clipped}개가 창 밖으로 나간다`);
         if (readyErr) throw new Error(readyErr);
       });
     }
