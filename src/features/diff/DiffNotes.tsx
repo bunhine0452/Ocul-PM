@@ -8,7 +8,7 @@ import { useState, type KeyboardEvent } from "react";
 import { Plus, X } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { kbd } from "@/lib/kbd";
-import { cancelNote, removeNote, saveNote, startNote, type DiffNote, type NoteAnchor } from "./diffNoteStore";
+import { cancelNote, isJudged, removeNote, saveNote, startNote, type DiffNote, type NoteAnchor } from "./diffNoteStore";
 
 /** 거터의 「+」 — 줄에 올리면 보인다. 이미 메모가 있으면 늘 보인다(점). */
 export function NoteAddButton({ projectId, anchor, has }: { projectId: number; anchor: NoteAnchor; has: boolean }) {
@@ -48,10 +48,12 @@ export function NoteSlot({
     <div className={"dl-note" + (note.sent ? (note.fixed ? " is-fixed" : " is-sent") : "")}>
       {note.sent ? (
         <span
-          className={"chip sm " + (note.fixed ? "ok" : "warn")}
-          title={note.side === "old" ? t("diff.notes.oldSideTitle") : undefined}
+          className={"chip sm " + (!isJudged(note) ? "outline" : note.fixed ? "ok" : "warn")}
+          title={
+            note.side === "old" ? t("diff.notes.oldSideTitle") : note.unsure ? t("diff.notes.unsureTitle") : undefined
+          }
         >
-          {note.fixed ? t("diff.notes.fixed") : note.side === "old" ? t("diff.notes.sent") : t("diff.notes.open")}
+          {!isJudged(note) ? t("diff.notes.sent") : note.fixed ? t("diff.notes.fixed") : t("diff.notes.open")}
         </span>
       ) : null}
       <button

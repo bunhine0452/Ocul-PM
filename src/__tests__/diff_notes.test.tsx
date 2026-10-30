@@ -146,6 +146,16 @@ describe("sent notes track themselves", () => {
     expect(gone.fixed).toBe(true);
     expect(oldSide.fixed).toBe(false); // 지운 줄의 메모는 판정하지 않는다
     expect(draft.fixed).toBe(false); // 안 보낸 메모도
+    // 레드팀 10-31: 흔한 줄은 다른 같은 줄로 따라가지 않는다 — 지워진 `</div>` 가 3행의 `</div>` 로 옮겨
+    // 「아직」 에 남던 것. 제자리면 아직, 떠났으면 「가릴 수 없음」. 빈 줄도 같다.
+    const div = ["<div>", "<b/>", "</div>"].join("\n");
+    const [moved_div, stayed_div, blank] = resolveNotes(
+      [sent(5, "</div>"), sent(3, "</div>"), sent(2, "")],
+      new Map([["src/a.ts", div]]),
+    );
+    expect([moved_div.line, moved_div.fixed, moved_div.unsure]).toEqual([5, false, true]);
+    expect([stayed_div.fixed, !!stayed_div.unsure]).toEqual([false, false]);
+    expect(blank.unsure).toBe(true);
     // 읽지 못한(지워진) 파일의 메모는 고쳐짐 — 줄이 남지 않았다.
     expect(resolveNotes([sent(1, "x")], new Map([["src/a.ts", null]]))[0].fixed).toBe(true);
   });

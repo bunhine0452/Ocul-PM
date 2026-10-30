@@ -28,6 +28,18 @@ export interface DiffNote extends NoteAnchor {
   sent?: boolean;
   /** 보낸 뒤 그 줄의 코드가 파일에서 사라졌다. 지운 줄(old)의 메모는 판정하지 않는다. */
   fixed?: boolean;
+  /** 가릴 수 없다 — 흔한 줄(`}` · `</div>` · 빈 줄)이 제자리를 떠났다. 「보냄」 으로 둔다. */
+  unsure?: boolean;
+}
+
+/** 줄을 알아볼 만큼 글자가 있는가 — 글자 · 숫자 6개부터. `}` · `</div>` · `);` 는 파일에 여럿이라 따라가면 엉뚱한 줄로 간다. */
+export function isTelling(code: string): boolean {
+  return (code.match(/[\p{L}\p{N}]/gu) ?? []).length >= 6;
+}
+
+/** 판정할 수 있는 메모인가 — 보낸, 새 쪽 줄의, 아직 「가릴 수 없음」 이 아닌 것. */
+export function isJudged(n: DiffNote): boolean {
+  return !!n.sent && n.side === "new" && !n.unsure;
 }
 
 export interface NotesState {
@@ -89,7 +101,9 @@ export function hydrateNotes(projectId: number, notes: readonly DiffNote[]): voi
 
 /**
  * 보낸 메모의 판정 — 파일의 지금 내용(`null` = 읽지 못함 · 지워짐)과 견준다. 순수 함수.
- * 그 줄에 같은 코드가 있으면 아직, 다른 줄에 있으면 가장 가까운 줄로 따라가고 아직, 어디에도 없으면 고쳐짐.
+ * 그 줄에 같은 코드가 있으면 아직. 제자리를 떠났을 때, 알아볼 만한 줄이면 가장 가까운 같은 줄로 따라가고
+ * 아직 · 어디에도 없으면 고쳐짐. 흔한 줄(`}` · `</div>` · 빈 줄)은 따라가지 않고 「가릴 수 없음」 —
+ * 따라가던 때는 지워진 `</div>` 의 메모가 다른 `</div>` 로 옮겨 「아직」 에 남았다(레드팀 10-31).
  */
 export function resolveNotes(notes: readonly DiffNote[], files: ReadonlyMap<string, string | null>): DiffNote[] {
   return notes.map((n) => {
@@ -97,15 +111,15 @@ export function resolveNotes(notes: readonly DiffNote[], files: ReadonlyMap<stri
     const text = files.get(n.file);
     if (text == null) return n.fixed ? n : { ...n, fixed: true };
     const want = n.code.trim();
-    if (!want) return n;
     const lines = text.split("\n");
-    if (lines[n.line - 1]?.trim() === want) return n.fixed ? { ...n, fixed: false } : n;
+    if (want && lines[n.line - 1]?.trim() === want) return n.fixed || n.unsure ? { ...n, fixed: false, unsure: false } : n;
+    if (!isTelling(want)) return n.unsure ? n : { ...n, fixed: false, unsure: true };
     let best = -1;
     lines.forEach((l, i) => {
       if (l.trim() === want && (best < 0 || Math.abs(i + 1 - n.line) < Math.abs(best + 1 - n.line))) best = i;
     });
-    if (best >= 0) return { ...n, line: best + 1, fixed: false };
-    return n.fixed ? n : { ...n, fixed: true };
+    if (best >= 0) return { ...n, line: best + 1, fixed: false, unsure: false };
+    return n.fixed && !n.unsure ? n : { ...n, fixed: true, unsure: false };
   });
 }
 
