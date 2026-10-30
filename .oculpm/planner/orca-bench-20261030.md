@@ -30,4 +30,5 @@ owner: claude-code
 | 2026-10-30T18:11:36+09:00 | #diff-notes | claude-code | ☐→x | .oculpm/journal/20261030/Features_to_add/1754_feature_diff-line-notes.md |  |
 | 2026-10-30T18:11:40+09:00 | #term-split | claude-code | ☐→x | .oculpm/journal/20261030/Features_to_add/1757_feature_terminal-split-two.md |  |
 | 2026-10-30T18:11:45+09:00 | #worktree-race | claude-code | ☐→x | .oculpm/journal/20261030/Features_to_add/1811_feature_worktree-race.md |  |
+| 2026-10-30T18:52:16+09:00 | #worktree-race | claude-code | x→x |  |  |
 <!-- oculpm:plan-log end -->
