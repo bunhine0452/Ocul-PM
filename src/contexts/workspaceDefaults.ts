@@ -40,6 +40,7 @@ export const DEFAULT_STATE: WorkspaceState = {
   diffActivePath: null,
   diffReadPaths: [],
   diffMode: "unified",
+  diffNotes: [],
   plannerOpen: {},
   plannerPlanId: null,
   plannerSort: "recent",

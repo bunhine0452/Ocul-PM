@@ -2,8 +2,11 @@
  * 변경 줄 메모 (2026-10-30, Orca 「Annotate AI Diffs」 벤치마킹) — 창 하나에 하나, 모듈 범위.
  *
  * 변경 화면의 줄마다 메모를 달고, 다 달면 **한 번에 묶어** Claude 세션에 보낸다. 하나씩 보내면
- * 에이전트가 오락가락한다 — 묶어야 한 번에 고친다(Orca 문서의 이유 그대로). 한 줄에 메모 하나,
- * 보내면 비운다(고친 뒤에는 줄 번호가 달라져 남은 메모가 엉뚱한 줄을 가리킨다).
+ * 에이전트가 오락가락한다 — 묶어야 한 번에 고친다(Orca 문서의 이유 그대로). 한 줄에 메모 하나.
+ *
+ * 보낸 메모는 남는다(10-30 #notes-track, Orca 를 넘어서): 파일의 지금 내용과 견줘 그 줄의 코드가
+ * 사라졌으면 「고쳐짐」, 그대로면 「아직」 — Orca 는 사람이 Resolve 를 누른다. 줄이 옮겨 갔으면 메모도
+ * 따라간다. 상태는 WorkspaceContext 가 영속한다(`diffNotes`) — 여기는 창 안의 런타임 사본이다.
  */
 import { useSyncExternalStore } from "react";
 
@@ -21,6 +24,10 @@ export interface NoteAnchor {
 
 export interface DiffNote extends NoteAnchor {
   text: string;
+  /** Claude 에게 보냈다 — 이제 고쳐졌는지를 본다. */
+  sent?: boolean;
+  /** 보낸 뒤 그 줄의 코드가 파일에서 사라졌다. 지운 줄(old)의 메모는 판정하지 않는다. */
+  fixed?: boolean;
 }
 
 export interface NotesState {
@@ -65,6 +72,48 @@ export function removeNote(projectId: number, anchor: Pick<NoteAnchor, "file" | 
 
 export function clearNotes(projectId: number): void {
   update(projectId, () => EMPTY);
+}
+
+/** 보낼 것(아직 안 보낸 메모)을 보냄으로 — 「Claude 에게 보내기」 가 성공한 뒤. */
+export function markSent(projectId: number): void {
+  update(projectId, (s) => ({ ...s, notes: s.notes.map((n) => (n.sent ? n : { ...n, sent: true, fixed: false })) }));
+}
+
+const hydrated = new Set<number>();
+/** 영속된 메모를 한 번 싣는다(창이 열린 뒤 처음). */
+export function hydrateNotes(projectId: number, notes: readonly DiffNote[]): void {
+  if (hydrated.has(projectId)) return;
+  hydrated.add(projectId);
+  if (notes.length > 0) update(projectId, (s) => ({ ...s, notes: [...notes] }));
+}
+
+/**
+ * 보낸 메모의 판정 — 파일의 지금 내용(`null` = 읽지 못함 · 지워짐)과 견준다. 순수 함수.
+ * 그 줄에 같은 코드가 있으면 아직, 다른 줄에 있으면 가장 가까운 줄로 따라가고 아직, 어디에도 없으면 고쳐짐.
+ */
+export function resolveNotes(notes: readonly DiffNote[], files: ReadonlyMap<string, string | null>): DiffNote[] {
+  return notes.map((n) => {
+    if (!n.sent || n.side !== "new" || !files.has(n.file)) return n;
+    const text = files.get(n.file);
+    if (text == null) return n.fixed ? n : { ...n, fixed: true };
+    const want = n.code.trim();
+    if (!want) return n;
+    const lines = text.split("\n");
+    if (lines[n.line - 1]?.trim() === want) return n.fixed ? { ...n, fixed: false } : n;
+    let best = -1;
+    lines.forEach((l, i) => {
+      if (l.trim() === want && (best < 0 || Math.abs(i + 1 - n.line) < Math.abs(best + 1 - n.line))) best = i;
+    });
+    if (best >= 0) return { ...n, line: best + 1, fixed: false };
+    return n.fixed ? n : { ...n, fixed: true };
+  });
+}
+
+/** 판정을 저장소에 — 바뀐 것이 있을 때만(구독자를 헛되이 깨우지 않게). */
+export function applyResolution(projectId: number, files: ReadonlyMap<string, string | null>): void {
+  const cur = byProject.get(projectId) ?? EMPTY;
+  const next = resolveNotes(cur.notes, files);
+  if (next.some((n, i) => n !== cur.notes[i])) update(projectId, (s) => ({ ...s, notes: next }));
 }
 
 function subscribe(fn: () => void) {

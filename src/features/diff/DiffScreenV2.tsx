@@ -26,7 +26,8 @@ import { useDiffFile } from "./useDiffFile";
 import { useGroupEntries } from "./useGroupEntries";
 import "./changes.css";
 import { requestSendToClaude, sendOrRun } from "@/features/terminal/sendToClaude";
-import { clearNotes, composeNotes, useDiffNotes } from "./diffNoteStore";
+import { projectFileApi } from "@/api/projectFile";
+import { applyResolution, clearNotes, composeNotes, hydrateNotes, markSent, useDiffNotes } from "./diffNoteStore";
 import { tError } from "@/i18n/errors";
 
 // 변경 화면 (4.0) — 왼쪽 340px 목록 + 오른쪽 diff. 목록은 「기록 없음」(어느 일지에도 없는 변경)이
@@ -166,29 +167,65 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const selectedUnrecorded = buckets.known && selected != null && unrecorded.includes(selected);
 
   // 줄 메모 (Orca 「Annotate AI Diffs」) — 고른 파일의 줄마다 달고, 다 달면 한 번에 Claude 에게.
+  // 보낸 메모는 남아 고쳐졌는지를 저절로 보인다(#notes-track) — 영속은 WorkspaceContext(diffNotes).
   const noteState = useDiffNotes(projectId);
   const noteTarget = useMemo(() => (selected ? { projectId, file: selected } : null), [projectId, selected]);
-  const noteCount = noteState.notes.length;
+  const drafts = noteState.notes.filter((n) => !n.sent);
+  const sentNotes = noteState.notes.filter((n) => n.sent);
+  const fixedCount = sentNotes.filter((n) => n.fixed).length;
   const sendNotes = () =>
     requestSendToClaude({
       kind: "notes",
-      label: t("diff.notes.count", { n: noteCount }),
+      label: t("diff.notes.count", { n: drafts.length }),
       ref: "",
-      prefill: composeNotes(noteState.notes, t),
-      onSent: () => clearNotes(projectId),
+      prefill: composeNotes(drafts, t),
+      onSent: () => markSent(projectId),
     });
+  useEffect(() => {
+    hydrateNotes(projectId, state.diffNotes ?? []);
+    // 창이 열린 뒤 처음 한 번 — 그 뒤로는 저장소가 원본이다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+  useEffect(() => {
+    if (noteState.notes !== state.diffNotes) setState((prev) => ({ ...prev, diffNotes: noteState.notes }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteState.notes]);
+  // 보낸 메모의 판정 — 파일의 지금 내용과 견준다. 변경 목록이 새로 오면(Claude 가 고쳤으면) 다시.
+  const sentFiles = [...new Set(sentNotes.filter((n) => n.side === "new").map((n) => n.file))].sort().join("\n");
+  useEffect(() => {
+    if (!sentFiles) return;
+    let alive = true;
+    void Promise.all(
+      sentFiles.split("\n").map((f) =>
+        projectFileApi.read(projectId, f).then(
+          (text) => [f, text] as const,
+          () => [f, null] as const,
+        ),
+      ),
+    ).then((pairs) => alive && applyResolution(projectId, new Map(pairs)));
+    return () => {
+      alive = false;
+    };
+  }, [projectId, sentFiles, changes]);
 
   return (
     <>
       <Toolbar title={t("nav.diff")} sub={sub}>
-        {noteCount > 0 ? (
+        {noteState.notes.length > 0 ? (
           <>
+            {sentNotes.length > 0 ? (
+              <span className={"chip sm " + (fixedCount === sentNotes.length ? "ok" : "warn")} title={t("diff.notes.progressTitle")}>
+                {t("diff.notes.progress", { fixed: fixedCount, n: sentNotes.length })}
+              </span>
+            ) : null}
             <button type="button" className="btn ghost sm" onClick={() => clearNotes(projectId)}>
               {t("diff.notes.clearAll")}
             </button>
-            <button type="button" className="btn primary sm" onClick={sendNotes}>
-              {t("diff.notes.send", { n: noteCount })}
-            </button>
+            {drafts.length > 0 ? (
+              <button type="button" className="btn primary sm" onClick={sendNotes}>
+                {t("diff.notes.send", { n: drafts.length })}
+              </button>
+            ) : null}
           </>
         ) : null}
         {lastCommitChanges.length > 0 ? (

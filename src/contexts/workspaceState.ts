@@ -16,6 +16,7 @@
 
 import type { OculpmStatus, Session } from "@/lib/bindings";
 import type { PlanGroup, PlanSort } from "@/features/planner/planList";
+import type { DiffNote } from "@/features/diff/diffNoteStore";
 import type { PlanView } from "@/features/planner/planMeta";
 import type {
   ActiveView,
@@ -103,6 +104,8 @@ export interface WorkspaceState {
   diffReadPaths: string[];
   /** 변경 diff 통합/분할 보기 모드. */
   diffMode: DiffMode;
+  /** 변경 줄 메모 — 보낸 뒤에도 남아 고쳐졌는지를 보인다. 창을 다시 열어도 유지(10-30 #notes-track). */
+  diffNotes: DiffNote[];
   /** Planner goal 카드 펼침 상태 (goalId → open). */
   plannerOpen: Record<string, boolean>;
   /**

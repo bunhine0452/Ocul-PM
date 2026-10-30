@@ -45,7 +45,15 @@ export function NoteSlot({
   if (editing) return <NoteEditor projectId={projectId} initial={note?.text ?? ""} />;
   if (!note) return null;
   return (
-    <div className="dl-note">
+    <div className={"dl-note" + (note.sent ? (note.fixed ? " is-fixed" : " is-sent") : "")}>
+      {note.sent ? (
+        <span
+          className={"chip sm " + (note.fixed ? "ok" : "warn")}
+          title={note.side === "old" ? t("diff.notes.oldSideTitle") : undefined}
+        >
+          {note.fixed ? t("diff.notes.fixed") : note.side === "old" ? t("diff.notes.sent") : t("diff.notes.open")}
+        </span>
+      ) : null}
       <button
         type="button"
         className="dl-note-text"
