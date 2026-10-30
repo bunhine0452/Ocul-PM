@@ -5,6 +5,7 @@ import { ToolbarSlotContext } from "@/components/toolbarSlot";
 import { TopBar } from "./TopBar";
 import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_BUS } from "@/lib/navRegistry";
+import { resumeAfterUpdate } from "@/features/terminal/resumeAfterUpdate";
 import { useT } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
@@ -100,6 +101,12 @@ export default function ShellV2({
     window.addEventListener(NAV_BUS.setView, onSet);
     return () => window.removeEventListener(NAV_BUS.setView, onSet);
   }, [setUiV2View]);
+
+  // 업데이트 재시작 뒤 — 이 창에서 돌던 claude 대화를 잇는다(평소엔 빈 목록 하나를 묻고 끝).
+  useEffect(() => {
+    if (projectId == null) return;
+    void resumeAfterUpdate(projectId).catch(() => {});
+  }, [projectId]);
 
   const isMac = isMacPlatform();
   // 화면 동작이 포털될 윗줄의 자리 — 붙은 뒤에야 화면이 그 안으로 그린다.

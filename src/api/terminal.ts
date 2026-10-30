@@ -4,15 +4,17 @@ import { Channel } from "@tauri-apps/api/core";
 import {
   commands,
   events,
+  type TermBusy,
   type TermCloseAsked,
   type TermEvent,
   type TermImage,
   type TermInfo,
+  type TermResume,
   type TermStatus,
 } from "@/lib/bindings";
 import { call, subscribe, subscribeHere } from "./invoke";
 
-export type { TermCloseAsked, TermEvent, TermInfo, TermStatus };
+export type { TermBusy, TermCloseAsked, TermEvent, TermInfo, TermResume, TermStatus };
 
 export const terminalApi = {
   /**
@@ -26,10 +28,11 @@ export const terminalApi = {
     prompt: string | null,
     onEvent: (ev: TermEvent) => void,
     cwd: string | null = null,
+    resume = false,
   ) => {
     const channel = new Channel<TermEvent>();
     channel.onmessage = onEvent;
-    return call("term_open", commands.termOpen(projectId, cols, rows, prompt, cwd, channel));
+    return call("term_open", commands.termOpen(projectId, cols, rows, prompt, cwd, resume, channel));
   },
   write: (id: number, data: string) => call("term_write", commands.termWrite(id, data)),
   resize: (id: number, cols: number, rows: number) => call("term_resize", commands.termResize(id, cols, rows)),
@@ -37,6 +40,10 @@ export const terminalApi = {
   list: (): Promise<TermInfo[]> => commands.termList(),
   /** 모든 창의 세션 — 프로젝트 목록 · 시작 창이 프로젝트별로 센다. */
   overview: (): Promise<TermInfo[]> => commands.termOverview(),
+  /** 앱 전체에서 도는 세션 수와 그중 claude — 업데이트가 재시작 전에 묻는다. */
+  busyAll: (): Promise<TermBusy> => commands.termBusyAll(),
+  /** 업데이트 재시작 뒤 이 창이 이을 claude 세션 — 한 번만 받는다(`resumeAfterUpdate.ts`). */
+  takeResume: (): Promise<TermResume[]> => commands.termTakeResume(),
   /** 이 창의 세션을 모두 끝낸다 — 닫기 확인에서 「닫기」를 고른 뒤. */
   endWindow: (): Promise<void> => commands.termEndWindow(),
   /** 어느 창에서든 세션이 열리거나 · 끝나거나 · 안의 프로그램 상태가 바뀌었다. */

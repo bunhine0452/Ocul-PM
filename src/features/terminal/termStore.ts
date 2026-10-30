@@ -101,7 +101,12 @@ function watchTheme() {
  * 새 세션 — 프로젝트 루트의 로그인 셸. `prompt` 가 있으면 그 프롬프트로 `claude` 를 바로 친다
  * (오늘·계획의 「다음」 실행). 돌려주는 것은 세션 id.
  */
-export async function openTerm(projectId: number, prompt: string | null = null, cwd: string | null = null): Promise<number> {
+export async function openTerm(
+  projectId: number,
+  prompt: string | null = null,
+  cwd: string | null = null,
+  resume = false,
+): Promise<number> {
   await Promise.all([sweepOrphans(), loadHangulFont()]);
   watchTheme();
   const term = new Terminal({
@@ -136,7 +141,7 @@ export async function openTerm(projectId: number, prompt: string | null = null, 
   let earlyExit: { code: number | null } | null = null;
   // 첫 출력이 open 이 돌아오기 전에 올 수 있다 — xterm 은 open() 전에도 버퍼에 쓴다.
   // 「다음」 실행이면 첫머리에서 claude 를 못 찾았는지 본다 — 찾았든 못 찾았든 한 번만.
-  let launchHead: string | null = prompt ? "" : null;
+  let launchHead: string | null = prompt || resume ? "" : null;
   const onEvent = (ev: TermEvent) => {
     if (ev.kind === "output") {
       term.write(ev.data);
@@ -169,7 +174,7 @@ export async function openTerm(projectId: number, prompt: string | null = null, 
   };
   let info: TermInfo;
   try {
-    info = await terminalApi.open(projectId, term.cols, term.rows, prompt, onEvent, cwd);
+    info = await terminalApi.open(projectId, term.cols, term.rows, prompt, onEvent, cwd, resume);
   } catch (e) {
     term.dispose();
     throw e;

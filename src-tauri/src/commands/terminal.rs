@@ -7,7 +7,7 @@ use tauri_specta::Event;
 
 use crate::app_error::AppError;
 use crate::db::Db;
-use crate::terminal::{OpenSpec, TermEvent, TermInfo, TermSessions};
+use crate::terminal::{OpenSpec, TermBusy, TermEvent, TermInfo, TermResume, TermSessions};
 
 fn term_err(e: String) -> AppError {
     AppError::new("terminal", e)
@@ -32,10 +32,10 @@ pub struct TermCloseAsked {
 /// 프롬프트로 `claude` 를 바로 실행한다(오늘·계획의 「다음」). 빈 문자열이면 그냥 `claude`
 /// (계획의 「끝까지」가 입력 대기 신호 뒤에 `/goal …` 을 넣는다). 출력·끝은 `on_event` 로.
 /// `cwd` 는 이 프로젝트의 레인(worktree 여럿에서)일 때만 받는다 — 아니면 거절.
+/// `resume` 이면 업데이트 전 대화를 잇는다(`claude --continue`, `term_take_resume`).
 #[tauri::command]
 #[specta::specta]
 pub async fn term_open(
-    app: tauri::AppHandle,
     window: tauri::WebviewWindow,
     db: State<'_, Db>,
     sessions: State<'_, TermSessions>,
@@ -44,9 +44,13 @@ pub async fn term_open(
     rows: u16,
     prompt: Option<String>,
     cwd: Option<String>,
+    resume: bool,
     on_event: Channel<TermEvent>,
 ) -> Result<TermInfo, AppError> {
+    // 앱 핸들은 창에서 — specta 는 명령 인자를 10개까지만 받는다.
+    let app = window.app_handle().clone();
     let root = db.project_root(project_id).await?;
+    let lane = cwd.clone();
     let cwd = match cwd {
         Some(lane) => super::race::lane_cwd(root, lane).await?,
         None => root,
@@ -58,6 +62,8 @@ pub async fn term_open(
         cols,
         rows,
         prompt,
+        lane,
+        resume,
     };
     let notify = app.clone();
     let label = window.label().to_string();
@@ -151,4 +157,21 @@ pub fn term_end_window(
 #[specta::specta]
 pub fn term_list(window: tauri::WebviewWindow, sessions: State<'_, TermSessions>) -> Vec<TermInfo> {
     sessions.list(window.label())
+}
+
+/// 앱 전체에서 도는 세션 수 — 업데이트가 재시작 전에 묻는다(창을 닫을 때의 확인과 같은 기준).
+#[tauri::command]
+#[specta::specta]
+pub fn term_busy_all(sessions: State<'_, TermSessions>) -> TermBusy {
+    sessions.busy_all()
+}
+
+/// 업데이트 재시작 뒤 이 창이 이을 claude 세션 — 창 복원이 맡겨 둔 것을 한 번 가져간다.
+#[tauri::command]
+#[specta::specta]
+pub fn term_take_resume(
+    window: tauri::WebviewWindow,
+    sessions: State<'_, TermSessions>,
+) -> Vec<TermResume> {
+    sessions.take_pending_resume(window.label())
 }

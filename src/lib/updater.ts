@@ -3,7 +3,10 @@ import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater
 import { relaunch } from "@tauri-apps/plugin-process";
 import { windowApi } from "@/api/window";
 import { installKindApi } from "@/api/installKind";
+import { terminalApi } from "@/api/terminal";
+import { t } from "@/i18n";
 import { busyReason, onBusyChange } from "./busyGuard";
+import { getPlatform } from "./platform";
 import { oculpmLog } from "./oculpmLog";
 import { statusAfterCheck, statusBeforeCheck, type CheckOutcome, type UpdaterStatus } from "./updaterRoute";
 
@@ -66,6 +69,28 @@ export function releaseHighlights(notes: string | null | undefined): string {
  * 저장이 실패해도 재시작은 막지 않는다 — 새 버전으로 가는 것이 먼저고, 복원은
  * 그 위의 편의다.
  */
+/**
+ * 앱 안 터미널에서 무언가 도는가 — 모든 창의 세션을 백엔드가 센다(창을 닫을 때의 확인과 같은 기준).
+ * 재시작은 그 세션을 끝낸다. claude 는 다시 뜨면 같은 폴더에서 `claude --continue` 로 잇지만,
+ * 도는 중인 턴은 끊기므로 묻는다(4.0 터미널이 이 등록을 빠뜨려 업데이트가 묻지 않고 끊었다, 10-31).
+ */
+async function terminalReason(): Promise<string | null> {
+  try {
+    const { busy, claude } = await terminalApi.busyAll();
+    if (!busy) return null;
+    return claude > 0 ? t("update.busyClaude", { n: busy }) : t("update.busyTerminal", { n: busy });
+  } catch {
+    return null;
+  }
+}
+
+async function waitReason(): Promise<string | null> {
+  return busyReason() ?? (await terminalReason());
+}
+
+/** 바쁨이 풀렸는지 다시 볼 간격 — 셸 위의 프로그램이 끝나는 것(포그라운드 그룹)은 사건이 없다. */
+const RECHECK_MS = 10_000;
+
 async function restartRestoringWindows(): Promise<void> {
   try {
     await windowApi.saveSession();
@@ -114,8 +139,8 @@ export function useUpdater() {
    *
    * **재시작만 미룬다.** 번들을 디스크에 까는 것은 언제 해도 안전하다 — 도는
    * 프로세스는 메모리의 옛 코드를 계속 쓴다. 위험한 것은 재시작이다: 우리가
-   * 띄운 ACP 어댑터가 같이 죽고, 그때 흐르던 답변은 아직 디스크에 없어 그대로
-   * 사라진다. 그래서 끊으면 안 되는 일이 있으면 깔아만 두고 기다린다.
+   * 띄운 터미널 세션이 같이 끝나고, 그때 돌던 claude 의 턴은 끊긴다. 그래서 무언가
+   * 돌면 깔아만 두고 기다린다(「지금 재시작」 이면 claude 는 다시 뜰 때 잇는다).
    */
   const install = useCallback(async () => {
     if (!update) return;
@@ -123,7 +148,9 @@ export function useUpdater() {
     oculpmLog.info("updater", "install -> start", { version: update.version });
     try {
       // 받은 바이트의 서명을 앱에 박힌 공개 키로 검증한 뒤에만 깐다 (플러그인). Windows 는
-      // 여기서 설치 파일(NSIS /P /R /UPDATE)을 띄우고 프로세스가 끝난다 — 아래는 안 돈다.
+      // 여기서 설치 파일(NSIS /P /R /UPDATE)을 띄우고 프로세스가 끝난다 — 아래는 안 돈다. 그래서
+      // 창 구성(과 이을 claude 세션)을 먼저 적어 둔다. 묻기는 그 OS 에서 아직 못 한다.
+      if (getPlatform() === "windows") await windowApi.saveSession().catch(() => {});
       await update.downloadAndInstall();
     } catch (e) {
       const message = errMessage(e);
@@ -133,24 +160,33 @@ export function useUpdater() {
     }
     oculpmLog.info("updater", "install -> installed", { version: update.version });
 
-    const why = busyReason();
+    const why = await waitReason();
     if (!why) {
       await restartRestoringWindows();
       return;
     }
 
     setStatus({ kind: "awaiting", reason: why });
-    // 일이 끝나는 순간 띄운다. 구독을 안 걸고 폴링하면 끝난 뒤에도 최대 한
-    // 주기만큼 멍하니 기다리게 된다.
-    const off = onBusyChange(() => {
-      const still = busyReason();
+    // 일이 끝나는 순간 띄운다 — 등록소 · 터미널 사건을 구독하고, 사건이 없는 변화(셸 위 프로그램이
+    // 끝남)는 짧은 간격으로 다시 본다.
+    let done = false;
+    const recheck = async () => {
+      if (done) return;
+      const still = await waitReason();
+      if (done) return;
       if (still) {
         setStatus({ kind: "awaiting", reason: still });
         return;
       }
+      done = true;
       off();
+      clearInterval(timer);
+      void offTerm.then((u) => u());
       void restartRestoringWindows();
-    });
+    };
+    const off = onBusyChange(() => void recheck());
+    const offTerm = terminalApi.onSessionsChanged(() => void recheck());
+    const timer = setInterval(() => void recheck(), RECHECK_MS);
   }, [update]);
 
   /** 기다리지 않고 **지금** 띄운다 (사용자가 그러기로 했을 때). */

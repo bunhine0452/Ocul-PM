@@ -292,6 +292,7 @@ export const en: Record<keyof typeof ko, string> = {
   "terminal.records": "{n} {n|entry|entries}",
   "terminal.recordsTitle": "Journal entries written in this project since this session started",
   "terminal.openFailed": "Couldn't open the terminal — {error}",
+  "terminal.resumed": "Reopened {n} claude {n|conversation|conversations} from before the update",
   "terminal.launchFailed": "Couldn't find the claude command. Check that Claude Code is installed and on your login shell's PATH.",
   "terminal.empty": "No sessions. A new session opens a shell in this project folder.",
   "terminal.state.working": "Working",
@@ -727,6 +728,8 @@ export const en: Record<keyof typeof ko, string> = {
   "update.installing": "Installing…",
   "update.now": "Update now",
   "update.awaiting": "{reason} — will restart automatically when it finishes",
+  "update.busyTerminal": "{n} terminal {n|session is|sessions are} running",
+  "update.busyClaude": "{n} terminal {n|session is|sessions are} running (claude conversations reopen after the restart)",
   "update.restartNow": "Restart now",
   "update.dismiss": "Dismiss",
 

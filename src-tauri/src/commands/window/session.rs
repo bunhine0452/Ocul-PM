@@ -25,6 +25,9 @@ pub struct SessionWindow {
     pub tabs: Vec<Option<u32>>,
     #[serde(default, skip_serializing)]
     pub active: usize,
+    /// 재시작 직전 이 창에서 claude 가 돌던 세션 — 다시 뜬 창이 `claude --continue` 로 잇는다.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resume: Vec<crate::terminal::TermResume>,
 }
 
 impl SessionWindow {
@@ -66,9 +69,17 @@ pub fn sanitize_session(session: &Session, known: &HashSet<u32>) -> Session {
                 continue;
             }
         }
+        // 이을 세션은 그 창이 같은 프로젝트로 돌아올 때만 — 시작 창이 되면 버린다.
+        let resume = w
+            .resume
+            .iter()
+            .filter(|r| Some(r.project_id) == project)
+            .cloned()
+            .collect();
         windows.push(SessionWindow {
             label: w.label.clone(),
             project,
+            resume,
             ..SessionWindow::default()
         });
     }
@@ -86,7 +97,11 @@ pub fn sanitize_session(session: &Session, known: &HashSet<u32>) -> Session {
 #[tauri::command]
 #[specta::specta]
 pub async fn save_window_session(app: AppHandle) -> Result<(), String> {
-    let session = app.state::<WindowProjects>().lock().session();
+    let mut session = app.state::<WindowProjects>().lock().session();
+    let mut resumable = app.state::<crate::terminal::TermSessions>().resumable();
+    for w in &mut session.windows {
+        w.resume = resumable.remove(&w.label).unwrap_or_default();
+    }
     let json = serde_json::to_string(&session).map_err(|e| e.to_string())?;
     let db = app.state::<crate::db::Db>();
     db.settings_set(SESSION_KEY.to_string(), json)
@@ -142,6 +157,12 @@ async fn restore_session_inner(app: &AppHandle) -> Result<(), String> {
     // 첫 창은 이미 떠 있다 (`adopt_first_window`) — 스냅숏의 `main`, 없으면 맨 앞
     // 창이 그 자리를 이어받는다 (`session()` 이 `main` 을 맨 앞에 둔다).
     let primary = windows.remove(0);
+    // 이을 claude 세션을 창보다 먼저 맡긴다 — 창이 프로젝트를 받아 그리는 순간 가져간다.
+    let terms = app.state::<crate::terminal::TermSessions>();
+    terms.set_pending_resume(FIRST_WINDOW, primary.resume.clone());
+    for w in &windows {
+        terms.set_pending_resume(&w.label, w.resume.clone());
+    }
     {
         let state = app.state::<WindowProjects>();
         let mut reg = state.lock();

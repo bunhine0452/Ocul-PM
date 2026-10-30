@@ -296,7 +296,8 @@ use crate::commands::new_window::new_window;
 use crate::commands::race::{race_clear, race_lanes, race_patch, race_start, race_take};
 use crate::commands::term_image::terminal_image_preview;
 use crate::commands::terminal::{
-    term_close, term_end_window, term_list, term_open, term_overview, term_resize, term_write,
+    term_busy_all, term_close, term_end_window, term_list, term_open, term_overview, term_resize,
+    term_take_resume, term_write,
 };
 
 /// Build the specta Builder with every command + event registered. Extracted
@@ -335,6 +336,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             term_list,
             term_overview,
             term_end_window,
+            term_busy_all,
+            term_take_resume,
             terminal_image_preview,
             race_start,
             race_lanes,
