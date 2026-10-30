@@ -25,4 +25,6 @@ owner: claude-code
 | 2026-10-30T22:46:51+09:00 | #lane-evidence | claude-code | ☐→x | .oculpm/journal/20261030/Features_to_add/2246_feature_lane-evidence.md |  |
 | 2026-10-30T22:46:55+09:00 | #notes-track | claude-code | ☐→x | .oculpm/journal/20261030/Features_to_add/2246_feature_diff-notes-track.md |  |
 | 2026-10-30T23:11:16+09:00 | #notes-track | claude-code | x→x |  |  |
+| 2026-10-31T00:18:03+09:00 | #lane-evidence | claude-code | x→x | .oculpm/journal/20261031/Bugs/0017_bug_lane-evidence-tracked-records.md | 레드팀 반례: 기록을 올리는 저장소에서 옛 일지를 새 것으로 셌다. git 으로 가리도록 고쳤다(diff --cached AM) |
+| 2026-10-31T00:18:09+09:00 | #notes-track | claude-code | x→x | .oculpm/journal/20261031/Bugs/0017_bug_diff-note-common-lines.md | 판정 ✓ Tests 973 passed · rust passed 1167 failed 0 — 레드팀 반례 둘(옛 일지 셈 · 흔한 줄 따라감)을 고쳤다 |
 <!-- oculpm:plan-log end -->

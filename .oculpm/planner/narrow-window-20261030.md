@@ -28,4 +28,6 @@ owner: claude-code
 | 2026-10-30T22:59:42+09:00 | #topbar | claude-code | ☐→x | .oculpm/journal/20261030/Features_to_add/2259_feature_narrow-window-480.md |  |
 | 2026-10-30T22:59:47+09:00 | #split-screens | claude-code | ☐→x | .oculpm/journal/20261030/Features_to_add/2259_feature_narrow-window-480.md |  |
 | 2026-10-30T22:59:51+09:00 | #rest-check | claude-code | ☐→x | .oculpm/journal/20261030/Features_to_add/2259_feature_narrow-window-480.md |  |
+| 2026-10-30T23:42:51+09:00 | #rest-check | claude-code | x→x |  |  |
+| 2026-10-31T00:18:03+09:00 | #topbar | claude-code | x→x | .oculpm/journal/20261031/Bugs/0017_bug_narrow-topbar-actions-menu.md | 판정 ✓ Tests 973 passed · rust passed 1167 failed 0 — 레드팀 반례(동작 칸 29px · 384 에서 찾기 · 설정 창 밖) → ⋯ 메뉴 · ≤460 줄임, 윗줄 칸 창 밖 0(640~384) |
 <!-- oculpm:plan-log end -->
