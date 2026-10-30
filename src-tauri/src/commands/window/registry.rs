@@ -140,6 +140,21 @@ impl Registry {
         }
     }
 
+    /// 프로젝트를 담은 창 하나 — 딥링크 확인 시트를 띄울 자리(시트는 프로젝트 창에만 있다).
+    /// `focused` 가 프로젝트 창이면 그 창, 아니면 마지막 포커스 창, 그것도 아니면 라벨 순 첫 창.
+    pub fn project_window(&self, focused: Option<&str>) -> Option<String> {
+        let holds = |l: &str| matches!(self.windows.get(l), Some(Some(_)));
+        focused
+            .filter(|l| holds(l))
+            .or_else(|| self.last_focused.as_deref().filter(|l| holds(l)))
+            .map(str::to_string)
+            .or_else(|| {
+                let mut labels: Vec<&String> = self.windows.keys().filter(|l| holds(l)).collect();
+                labels.sort();
+                labels.first().map(|l| (*l).clone())
+            })
+    }
+
     /// 앞으로 가져올 창 — 마지막으로 포커스된 창, 없으면 아무 창.
     pub(super) fn preferred_window(&self) -> Option<String> {
         self.last_focused

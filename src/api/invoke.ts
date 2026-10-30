@@ -1,3 +1,5 @@
+import { getCurrentWebviewWindow, type WebviewWindow } from "@tauri-apps/api/webviewWindow";
+
 import type { AppError } from "@/lib/bindings";
 
 // 커맨드 경계의 단일 래퍼 (완성도 라운드 Phase 4 #error-convention).
@@ -83,6 +85,23 @@ export function subscribe<T>(
 ): Promise<() => void> {
   try {
     return event.listen(({ payload }) => cb(payload)).catch(() => () => {});
+  } catch {
+    return Promise.resolve(() => {});
+  }
+}
+
+/**
+ * **이 창에만** 온 이벤트 구독 — 백엔드가 `emit_to(창 라벨)` 로 쏘는 것(닫기 확인 · 처음 쓰는 법).
+ * 전역 `listen` 은 대상이 `Any` 라 다른 창에 보낸 것까지 받는다: 한 창을 닫으려 하면
+ * 터미널 닫기 확인이 **모든 창**에 떴고, 다른 창에서 「닫기」를 누르면 그 창이 자기 세션을
+ * 끝내고 닫혔다(10-30). 창 대상 리스너(`WebviewWindow{label}`)는 `AnyLabel{label}` 만 받는다.
+ */
+export function subscribeHere<T>(
+  event: (target: WebviewWindow) => { listen: (cb: (e: { payload: T }) => void) => Promise<() => void> },
+  cb: (payload: T) => void,
+): Promise<() => void> {
+  try {
+    return subscribe(event(getCurrentWebviewWindow()), cb);
   } catch {
     return Promise.resolve(() => {});
   }

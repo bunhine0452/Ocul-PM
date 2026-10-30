@@ -6,7 +6,7 @@
  * 않는다 — `lint:bindings` 가 그 규율을 지킨다.
  */
 
-import { call, subscribe } from "@/api/invoke";
+import { call, subscribe, subscribeHere } from "@/api/invoke";
 import { commands, events, type WindowProjectChanged } from "@/lib/bindings";
 
 export const windowApi = {
@@ -54,5 +54,5 @@ export const windowApi = {
     subscribe(events.projectWindowsChanged, (p) => cb(p.open)),
 
   /** macOS 도움말 › 처음 쓰는 법 — 포커스된 이 창에만 온다 (`menu.rs` TourRequested). */
-  onTourRequested: (cb: () => void) => subscribe(events.tourRequested, () => cb()),
+  onTourRequested: (cb: () => void) => subscribeHere(events.tourRequested, () => cb()),
 };

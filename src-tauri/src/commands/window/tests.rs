@@ -85,6 +85,23 @@ fn preferred_window_follows_focus() {
 }
 
 #[test]
+fn a_deep_link_goes_to_one_project_window() {
+    let mut reg = reg_with(&[("main", None), ("win-1", Some(3)), ("win-2", Some(5))]);
+    // 포커스된 창이 프로젝트 창이면 그 창.
+    assert_eq!(reg.project_window(Some("win-2")).as_deref(), Some("win-2"));
+    // 시작 창이 앞이면 마지막 포커스 프로젝트 창, 그것도 시작 창이면 라벨 순 첫 프로젝트 창.
+    reg.note_focus("main");
+    assert_eq!(reg.project_window(Some("main")).as_deref(), Some("win-1"));
+    reg.note_focus("win-2");
+    assert_eq!(reg.project_window(Some("main")).as_deref(), Some("win-2"));
+    // 프로젝트 창이 없으면 없다 — 시작 창에는 시트가 없다.
+    assert_eq!(
+        reg_with(&[("main", None)]).project_window(Some("main")),
+        None
+    );
+}
+
+#[test]
 fn reserve_issues_monotonic_labels() {
     let mut reg = Registry::default();
     assert_eq!(reg.reserve(None), "win-1");
