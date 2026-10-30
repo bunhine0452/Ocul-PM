@@ -63,7 +63,7 @@ export function FindButton() {
   return (
     <button type="button" className="btn sm" onClick={requestOpenPalette}>
       <SearchIcon size={13} aria-hidden="true" />
-      {t("toolbar.find")}
+      <span className="find-label">{t("toolbar.find")}</span>
       <kbd className="kbd">{kbd("⌘K")}</kbd>
     </button>
   );

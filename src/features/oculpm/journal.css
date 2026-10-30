@@ -175,3 +175,9 @@
 .jd-prose table { border-collapse: collapse; margin: var(--space-4) 0; display: block; overflow-x: auto; }
 .jd-prose th, .jd-prose td { border: 1px solid var(--sep); padding: var(--space-2) var(--space-4); text-align: left; vertical-align: top; }
 .jd-prose th { background: var(--bg-inset); font-weight: var(--fw-strong); }
+
+/* 좁은 창(≤640, 10-30) — 목록이 위(높이 42%), 본문이 아래. 옆으로 서면 본문이 300px 아래로 줄었다. */
+@media (max-width: 640px) {
+  .jl-split { flex-direction: column; }
+  .jl-col { width: auto; max-width: none; max-height: 42%; border-right: 0; border-bottom: 1px solid var(--sep); }
+}

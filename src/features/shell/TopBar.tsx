@@ -64,6 +64,7 @@ export function TopBar({
           const label = t(e.labelKey);
           const shortcut = navShortcutLabel(e.id);
           const badge = badges?.[e.id];
+          const Icon = e.icon;
           return (
             <button
               key={e.id}
@@ -73,6 +74,8 @@ export function TopBar({
               title={shortcut ? `${label} (${shortcut})` : label}
               onClick={() => onNavigate(e.id)}
             >
+              {/* 좁은 창(≤640)에서는 아이콘만 — 이름은 화면에서만 감추고 접근명 · 툴팁으로 남는다. */}
+              <Icon size={15} className="topnav-ico" aria-hidden="true" />
               <span className="topnav-label">{label}</span>
               {badge ? (
                 <span className="nav-badge" aria-label={t("nav.toCheck", { n: badge.n })}>

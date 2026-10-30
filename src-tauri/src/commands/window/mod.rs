@@ -55,8 +55,10 @@ pub const FIRST_WINDOW: &str = "main";
 /// 기본 크기·최소 크기는 `tauri.conf.json` 의 첫 창과 맞춘다.
 const WINDOW_W: f64 = 1150.0;
 const WINDOW_H: f64 = 780.0;
-const WINDOW_MIN_W: f64 = 960.0;
-const WINDOW_MIN_H: f64 = 640.0;
+/// 맥북 프로 14(1512pt)의 3분의 1 까지 — 화면 한쪽에 세워 두고 다른 일과 나란히(10-30). 좁은 창의
+/// 접힘은 프런트의 640 접힘 선이 맡는다(윗줄 아이콘 · 목록 위 본문 아래).
+const WINDOW_MIN_W: f64 = 480.0;
+const WINDOW_MIN_H: f64 = 520.0;
 /// macOS 신호등 — 셸 윗줄(`--toolbar-h` 44px)의 세로 가운데. `tauri.conf.json` 의
 /// `trafficLightPosition` 과 같은 값이다(tao 는 버튼 컨테이너 높이를 `버튼 + y` 로 잡는다).
 #[cfg(target_os = "macos")]

@@ -163,11 +163,19 @@ const SEARCH_BOX_ALLOW = new Set();
 
 /**
  * 규칙 18 의 예외 — 사이드바도 도크도 없는 **전창** 표면. 여기서는 창 폭이
- * 곧 화면 폭이라 `@media` 가 옳다. 프로젝트 창 안의 화면을 여기 넣지 말 것.
- * 4.0 시작 창(features/start/start.css)은 전창이지만 최소 창 폭(960)에서 두 칸이
- * 접힐 일이 없어 폭 조건을 쓰지 않는다 — 그래서 목록이 비었다.
+ * 곧 화면 폭이라 `@media` 가 옳다.
+ *
+ * 10-30: 4.0 셸은 사이드바(10-29)와 터미널 도크(10-28)를 걷어 프로젝트 창의 화면도 창 폭을
+ * 다 쓴다. 최소 창 폭을 960 → 480(맥북 프로 14 의 3분의 1)으로 내리며 목록+본문 화면이 접혀야
+ * 했다 — 윗줄 · 일지 · 계획 · 변경. 접힘 선은 그대로 640 한 벌이다. 도크 같은 것이 돌아와 화면
+ * 폭이 창 폭과 갈라지면 이 목록을 걷고 @container 로 돌아갈 것.
  */
-const VIEWPORT_MEDIA_ALLOW = new Set();
+const VIEWPORT_MEDIA_ALLOW = new Set([
+  "styles/shell.css",
+  "features/oculpm/journal.css",
+  "features/planner/planner.css",
+  "features/diff/changes.css",
+]);
 
 /**
  * 규칙 10 의 예외 — 이 저장소 밖에서 정의되는 커스텀 프로퍼티의 접두사.

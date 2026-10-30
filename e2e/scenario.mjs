@@ -169,12 +169,17 @@ export async function runScenario(ctx) {
         }
         await sleep(1200); // 진입 애니메이션·지연 데이터가 가라앉게
         const state = await screenState(wd, crashTitles);
-        const ok = !readyErr && state.crashes.length === 0 && state.csp.length === 0;
+        // 가로 넘침 — 좁은 창(504)에서 화면이 옆으로 밀리면 안 된다(10-30, 최소 폭 480).
+        const overflow = await wd.execute(
+          "const d = document.documentElement; return d.scrollWidth - d.clientWidth;",
+        );
+        const ok = !readyErr && state.crashes.length === 0 && state.csp.length === 0 && overflow <= 1;
         await report.shot(wd, { phase, key, screen: `${n}-${dest.id}`, caption: `${t(dest.labelKey)} (${dest.id})`, state, ok });
         if (state.toasts.length) rec.notes.push(`토스트: ${state.toasts.join(" | ")}`);
         if (state.errors.length) rec.notes.push(`페이지 오류: ${state.errors.join(" | ")}`);
         if (state.crashes.length) throw new Error(`에러 경계: ${state.crashes.join(" | ")}`);
         if (state.csp.length) throw new Error(`CSP 위반: ${state.csp.join(" | ")}`);
+        if (overflow > 1) throw new Error(`가로로 ${overflow}px 넘친다`);
         if (readyErr) throw new Error(readyErr);
       });
     }
@@ -240,8 +245,9 @@ export async function runScenario(ctx) {
 
   await sized("영어 넓은 폭", 1440, 900);
   await tour("06 화면 · English 1440", "en-1440", dict.en);
-  await sized("영어 좁은 폭(최소 폭)", 960, 700);
-  await tour("07 화면 · English 960", "en-960", dict.en);
+  // 맥북 프로 14 의 3분의 1(10-30) — 최소 폭은 480. 가로로 넘치면 실패다(tour 의 넘침 검사).
+  await sized("영어 좁은 폭(3분의 1 창)", 504, 760);
+  await tour("07 화면 · English 504", "en-504", dict.en);
 
   // 화면 순회 밖(터미널·일지 단계)에서 난 위반까지 — 남은 것을 마지막에 턴다.
   await report.step("웹뷰 CSP 위반 없음 (남은 것)", async (rec) => {
