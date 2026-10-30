@@ -48,7 +48,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og-en.png",
-  "softwareVersion": "4.1.0",
+  "softwareVersion": "4.2.0",
   "inLanguage": "en",
   "description": "Stop re-explaining to your AI where you left off yesterday. A local-first AI project manager for people who build with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends) every day — when the agent finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan items as its starting context. The app unfolds only what a person must see (failed verdicts · entries without evidence · unrecorded changes) and reads the verdict from a check command's last line of output. The app calls no LLM. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -71,7 +71,9 @@
     "Signed distribution — Apple Developer ID signed and notarized. A release is created as a draft after the tag's commit passed CI, and published only once code-signing, notarization and the updater signature have been verified",
     "Windows · Linux beta — Windows 10 2004+ and 11 (x64) and Linux x64 (AppImage · deb, glibc 2.35+). Each release only ships the OS builds that passed an install smoke test and a real-app E2E run on CI runners",
     "English and Korean UI",
-    "The visible name is Ocul — the installed app (Ocul-PM.app) · download files · data folder · the oculpm plugin keep their names, so updates land in the same place"
+    "The visible name is Ocul — the installed app (Ocul-PM.app) · download files · data folder · the oculpm plugin keep their names, so updates land in the same place",
+    "One task, several worktrees — the terminal's Race gives one prompt to claude in 2–4 lanes and shows, per lane, the changed lines, the journal entry written inside it and the last line of its check command. Among lanes checked by a command, the smallest change is marked Pick, and Use this brings that change into your folder as uncommitted changes",
+    "Line notes → Claude — comment on changed lines in Diff and send them in one go; a sent note shows Fixed once its line changes and Open while it stays. Two terminal sessions side by side, drag and drop from Finder to type a path, hover an image path to preview it. Windows shrink to 480pt"
   ]
 }
 </script>
@@ -117,6 +119,11 @@
       "@type": "Question",
       "name": "Are Ocul-PM and Ocul the same app?",
       "acceptedAnswer": { "@type": "Answer", "text": "Yes. Since 4.1 the name you see in the app is Ocul. The installed app (Ocul-PM.app), the download files, the data folder, the oculpm plugin and your projects' .oculpm/ keep their names, so updates land in the same place and your records carry on." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I give the same task to several agents and pick the best?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Put a prompt and a count (2–4) into the in-app terminal's Race, and the app makes that many worktrees from the current commit, each running claude. A strip above the terminal shows, per lane, the files and lines changed, the journal entry its Claude wrote and the last line of its check command; among lanes that ran a command, the one with the fewest changed lines is marked Pick. Use this brings that lane's change into your folder as uncommitted changes, and Clear all removes the worktrees and branches. Worktrees live in the app's data folder, not in your project." }
     },
     {
       "@type": "Question",
@@ -218,7 +225,7 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="/en"><img src="/icon.svg" alt="" width="24" height="24" />Ocul</a>
-    <span class="nav-ver" data-version>v4.1.0</span>
+    <span class="nav-ver" data-version>v4.2.0</span>
     <nav class="nav-links" aria-label="Site">
       <a href="#screens">Screens</a>
       <a href="/wiki/en">Wiki</a>
@@ -240,7 +247,7 @@
     <div class="ctas">
       <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.1.0</span><span class="sub">macOS · free</span>
+        <span class="lg">Get v4.2.0</span><span class="sub">macOS · free</span>
       </a>
       <button class="cmd two" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
     </div>
@@ -250,7 +257,7 @@
         <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
         <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
       </p>
-      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.1.0 — know when Claude is waiting, and answer it in the app</a>
+      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.2.0 — Run one task in several worktrees, pick by evidence</a>
     </div>
 
     <div class="stage" id="screens" data-app>
@@ -364,6 +371,8 @@
       <div><dt>One window per project</dt><dd><kbd>⌘O</kbd> for recent projects, <kbd>⌥⌘1</kbd>–<kbd>9</kbd> for open windows. The project list shows your turn, new, and running per project.</dd></div>
       <div><dt>Move without the top bar</dt><dd><kbd>⌃Tab</kbd> cycles screens, a two-finger swipe goes back and forward, <kbd>⌘K</kbd> finds anything.</dd></div>
       <div><dt>A check is tied to the content</dt><dd>“Checked” is stored with a fingerprint of the body. If the agent edits it later, it asks again.</dd></div>
+      <div><dt>One task, several worktrees</dt><dd>One prompt to claude in 2–4 worktrees. Among lanes that ran a check command, the smallest change is marked “Pick”.</dd></div>
+      <div><dt>Line notes for Claude</dt><dd>Comment on changed lines, send them in one go, and “Fixed” appears on its own when the line changes.</dd></div>
       <div><dt>The app calls no LLM</dt><dd>No summaries, no API keys. The agent does the thinking; the app shows the evidence as it is.</dd></div>
     </dl>
   </div>
@@ -400,10 +409,10 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
     <h2 id="updates-h">This app is built with this app.</h2>
     <p class="intro">This repository's <b>932 entries, 89 plans and 133 releases</b> were recorded with Ocul. The history below comes from those entries.</p>
     <ul class="releases">
+      <li class="rel"><span class="ver">v4.2.0</span><div><h3>Pick from several, comment per line</h3><p>Run one task in several worktrees and pick by evidence; comment on changed lines and send them to Claude in one go. Side-by-side terminals, drag and drop, image preview, windows down to 480pt.</p></div></li>
       <li class="rel"><span class="ver">v4.1.0</span><div><h3>Talking with Claude — the name is Ocul</h3><p>Know when Claude is waiting, answer it in the app, send it work from the app. ⌃Tab and ⌥⌘1–9 to move, and a first-run guide.</p></div></li>
       <li class="rel"><span class="ver">v4.0.0</span><div><h3>Five surfaces, exceptions only</h3><p>Today shows only failed verdicts, entries without evidence and unrecorded changes. The app calls no LLM, and one window is one project.</p></div></li>
       <li class="rel"><span class="ver">v3.17.0</span><div><h3>From first run to terminal</h3><p>All seventeen design comps, shipped: one action on first run, a human-check line on entries, diffs grouped by entry.</p></div></li>
-      <li class="rel"><span class="ver">v3.15.1</span><div><h3>Records you can trust</h3><p>An evidence grade on every entry, a plugin-version check, and thirty spellings of one model name folded into one.</p></div></li>
     </ul>
     <p class="more"><a href="/changelog">Full changelog</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub releases</a></p>
   </div>
@@ -424,6 +433,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
     <details class="faq-more"><summary>17 more questions</summary>
     <details><summary>With 60 entries a day, doesn't Today overflow?</summary><p>No. The 4.0 principle is <b>"show only the exceptions"</b>. Today unfolds only what a person must see — failed verdicts · entries without command evidence · changes no entry mentions · blocked items · decisions that are yours · a new plugin version — and <b>folds work whose evidence is complete into one line</b> per plan. Someone with 3 entries a day and someone with 60 use the same screen, with no modes; that is why the 3.x simple/pro density toggle is gone.</p></details>
     <details><summary>Will macOS warn me when I install it?</summary><p>Not since v2.45.0. Builds are signed with an Apple Developer ID and notarized, so you open the <code>.dmg</code>, drag it into Applications and launch it. Earlier versions were unsigned, so macOS refused them with "is damaged and can't be opened" — not real damage, just the quarantine flag macOS puts on downloaded files — and you had to run <code>xattr -dr com.apple.quarantine</code> yourself.</p></details>
+    <details><summary>Can I give the same task to several agents and pick the best?</summary><p>Yes. Put a prompt and a count (2–4) into the in-app terminal's <b>Race</b>, and the app makes that many worktrees from the current commit, each running claude. A strip above the terminal shows, per lane, the files and lines changed, the journal entry its Claude wrote and the last line of its check command; among lanes that ran a command, the one with the fewest changed lines is marked <b>Pick</b>. Use this brings that lane's change into your folder as uncommitted changes, and Clear all removes the worktrees and branches. Worktrees live in the app's data folder, not in your project.</p></details>
     <details><summary>Can I answer Claude from the app when it needs a decision?</summary><p>Yes. The Claude Code plugin's MCP tool <code>ask_user</code> puts the question on the <b>Today</b> screen and returns the answer you pick or type straight to Claude (within 25 minutes). When Claude waits for you in a terminal — the in-app one or an outside one — <b>"Claude is waiting"</b> tops Today, plus an OS notification if the window is in the background.</p></details>
     <details><summary>Which AI coding agents does it work with?</summary><p>"Supported" hides three different promises, so we split them into tiers. ① <b>Rules-compatible</b> — we only plant a rules file, and journals get written as far as the model obeys it: Gemini CLI · Cursor · GitHub Copilot · Windsurf · Cline · aider · Zed · Antigravity · pi (anything that reads AGENTS.md lands here). ② <b>Structured journaling</b> — the agent calls the oculpm MCP journaling tools. ③ <b>Session observation</b> — hooks deliver start/stop and conversations that ended without a journal are flagged: Claude Code · Codex (each through its plugin, ② included). Agents run in your own terminal; the in-app tier went with its screens on 2026-10-28. Per-agent evidence and when each tier was last verified are in the <a href="/wiki/en/agents">wiki tier table</a>.</p></details>
     <details><summary>What happens if an agent edits a journal entry after I verified it?</summary><p>Since <b>v3.2.0</b> the verified mark is stored with a <b>fingerprint</b> of the body you verified. If the body changes afterwards it stops counting as verified, and an entry without command evidence goes back into Today's <b>"To check"</b>. Read it again and mark it checked to bind the mark to the current content. Entries verified before 3.2.0 have no fingerprint and are <b>honoured as-is</b> — nothing is retroactively unverified. The fingerprint lives in the entry's front matter (<code>verified_hash</code>) under <code>.oculpm/</code>, so it is readable without the app.</p></details>
@@ -451,7 +461,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
     <div class="ctas">
       <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.1.0</span><span class="sub">free · auto-updates</span>
+        <span class="lg">Get v4.2.0</span><span class="sub">free · auto-updates</span>
       </a>
       <a class="btn" href="/en/plugin">Start with the plugin</a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Teams &amp; partnerships</a>
@@ -461,7 +471,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
       <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
       <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
     </p>
-    <p class="cta-ver">v4.1.0 — macOS · Windows · Linux (beta)</p>
+    <p class="cta-ver">v4.2.0 — macOS · Windows · Linux (beta)</p>
   </div>
 </section>
 </main>
