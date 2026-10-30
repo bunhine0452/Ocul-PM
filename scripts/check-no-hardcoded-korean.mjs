@@ -173,6 +173,8 @@ const TESTS = new Set([
   "__tests__/terminal_image_peek.test.tsx",
   // 터미널 파일 끌어다 놓기 (10-30) — 한글 경로의 따옴표 처리가 검사 재료다.
   "__tests__/terminal_drop_files.test.tsx",
+  // worktree 여럿에서 (10-30) — 한국어 테스트 이름 · 프롬프트 픽스처.
+  "__tests__/terminal_race.test.tsx",
   // 터미널 OSC 8 링크 처리기 — 한국어 테스트 이름이 서술 언어다.
   "__tests__/toast_timing.test.tsx",
   // bug-hunt C1·C2 (2026-09-22) — Tauri 이벤트 해제 순서. 한국어 테스트 이름뿐이다.

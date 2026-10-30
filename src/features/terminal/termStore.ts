@@ -101,7 +101,7 @@ function watchTheme() {
  * 새 세션 — 프로젝트 루트의 로그인 셸. `prompt` 가 있으면 그 프롬프트로 `claude` 를 바로 친다
  * (오늘·계획의 「다음」 실행). 돌려주는 것은 세션 id.
  */
-export async function openTerm(projectId: number, prompt: string | null = null): Promise<number> {
+export async function openTerm(projectId: number, prompt: string | null = null, cwd: string | null = null): Promise<number> {
   await Promise.all([sweepOrphans(), loadHangulFont()]);
   watchTheme();
   const term = new Terminal({
@@ -169,7 +169,7 @@ export async function openTerm(projectId: number, prompt: string | null = null):
   };
   let info: TermInfo;
   try {
-    info = await terminalApi.open(projectId, term.cols, term.rows, prompt, onEvent);
+    info = await terminalApi.open(projectId, term.cols, term.rows, prompt, onEvent, cwd);
   } catch (e) {
     term.dispose();
     throw e;

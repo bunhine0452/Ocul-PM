@@ -1,0 +1,31 @@
+/* ============================================================
+   같은 일을 worktree 여럿에서 (10-30, Orca 벤치마킹) — 터미널 위 레인 띠 · 레인 변경 보기.
+   띠는 레인이 있을 때만 선다. 한 레인 = 한 줄(순번 · 상태 · 크기 · 보기 · 이것으로).
+   ============================================================ */
+
+.tm-race {
+  flex: none; display: flex; align-items: flex-start; gap: var(--space-4);
+  padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--sep); background: var(--bg-window);
+  font-size: var(--fs-3);
+}
+.tm-race-head { flex: none; padding-top: var(--space-2); font-weight: var(--fw-strong); color: var(--text); }
+.tm-race-lanes { flex: 1; min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.tm-race-lane { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.tm-race-name {
+  flex: none; padding: 0; border: 0; background: transparent; color: var(--text);
+  font: inherit; font-weight: var(--fw-label); cursor: pointer;
+}
+.tm-race-name:hover:not([aria-disabled="true"]) { text-decoration: underline; }
+.tm-race-name:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+.tm-race-word { flex: none; min-width: 7em; color: var(--text-2); }
+.tm-race-size { flex: 1; min-width: 0; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tm-race .add, .tm-race-diff .add { color: var(--diff-add-line); }
+.tm-race .del, .tm-race-diff .del { color: var(--diff-del-line); }
+
+.tm-race-diff { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-7); max-height: min(78vh, 900px); }
+.tm-race-diff-body { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--sep); border-radius: var(--radius-s); }
+.tm-race-file {
+  position: sticky; top: 0; z-index: var(--z-sticky); margin: 0; padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--sep); background: var(--bg-window);
+  font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text);
+}
