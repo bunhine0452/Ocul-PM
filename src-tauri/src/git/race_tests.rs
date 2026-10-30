@@ -24,6 +24,8 @@ fn git(dir: &Path, args: &[&str]) {
 fn repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     git(dir.path(), &["init", "-q", "-b", "main"]);
+    // Windows 러너의 전역 core.autocrlf=true 가 가져온 파일을 CRLF 로 쓴다 — 줄끝을 저장소에 고정한다.
+    git(dir.path(), &["config", "core.autocrlf", "false"]);
     std::fs::write(dir.path().join("a.txt"), "one\ntwo\n").unwrap();
     git(dir.path(), &["add", "-A"]);
     git(dir.path(), &["commit", "-q", "-m", "first"]);
