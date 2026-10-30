@@ -293,6 +293,7 @@ use crate::commands::{
 };
 // 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
 use crate::commands::new_window::new_window;
+use crate::commands::race::{race_clear, race_lanes, race_patch, race_start, race_take};
 use crate::commands::term_image::terminal_image_preview;
 use crate::commands::terminal::{
     term_close, term_end_window, term_list, term_open, term_overview, term_resize, term_write,
@@ -335,6 +336,11 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             term_overview,
             term_end_window,
             terminal_image_preview,
+            race_start,
+            race_lanes,
+            race_patch,
+            race_take,
+            race_clear,
             // M2-3 — Chat history
             // M5 — Window & File Operations
             open_devtools,

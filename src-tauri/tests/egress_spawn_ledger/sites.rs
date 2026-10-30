@@ -249,6 +249,7 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
             ("repo_config_cannot_run_commands_through_status_or_diff", "std_cmd(\"git\")"),
         ],
     ),
+    ("git/race_tests.rs", "레인(worktree 여럿에서) 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("git/tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("oculpm/entry_diffs_tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("oculpm/index/tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git_in", "std_cmd(\"git\")")]),

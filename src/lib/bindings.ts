@@ -94,8 +94,9 @@ export const commands = {
 	 *  이 창에 세션을 연다 — 프로젝트 루트에서 사용자의 로그인 셸. `prompt` 가 있으면 그
 	 *  프롬프트로 `claude` 를 바로 실행한다(오늘·계획의 「다음」). 빈 문자열이면 그냥 `claude`
 	 *  (계획의 「끝까지」가 입력 대기 신호 뒤에 `/goal …` 을 넣는다). 출력·끝은 `on_event` 로.
+	 *  `cwd` 는 이 프로젝트의 레인(worktree 여럿에서)일 때만 받는다 — 아니면 거절.
 	 */
-	termOpen: (projectId: number, cols: number, rows: number, prompt: string | null, onEvent: Channel<TermEvent>) => typedError<TermInfo, AppError>(__TAURI_INVOKE("term_open", { projectId, cols, rows, prompt, onEvent })),
+	termOpen: (projectId: number, cols: number, rows: number, prompt: string | null, cwd: string | null, onEvent: Channel<TermEvent>) => typedError<TermInfo, AppError>(__TAURI_INVOKE("term_open", { projectId, cols, rows, prompt, cwd, onEvent })),
 	termWrite: (id: number, data: string) => typedError<null, AppError>(__TAURI_INVOKE("term_write", { id, data })),
 	termResize: (id: number, cols: number, rows: number) => typedError<null, AppError>(__TAURI_INVOKE("term_resize", { id, cols, rows })),
 	termClose: (id: number) => __TAURI_INVOKE<void>("term_close", { id }),
@@ -106,6 +107,16 @@ export const commands = {
 	/**  이 창의 세션을 모두 끝낸다 — 닫기 확인(`TermCloseAsked`)에서 「닫기」를 고른 뒤 부른다. */
 	termEndWindow: () => __TAURI_INVOKE<void>("term_end_window"),
 	terminalImagePreview: (path: string) => typedError<TermImage, AppError>(__TAURI_INVOKE("terminal_image_preview", { path })),
+	/**  레인을 `count` 개(2~4) 만든다 — 지금 `HEAD` 에서, 앱 데이터 폴더에. */
+	raceStart: (projectId: number, count: number) => typedError<RaceLane[], AppError>(__TAURI_INVOKE("race_start", { projectId, count })),
+	/**  지금 있는 레인과 각 변경의 크기. */
+	raceLanes: (projectId: number) => typedError<RaceLane[], AppError>(__TAURI_INVOKE("race_lanes", { projectId })),
+	/**  레인 하나의 변경(보기용 diff). */
+	racePatch: (projectId: number, path: string) => typedError<string, AppError>(__TAURI_INVOKE("race_patch", { projectId, path })),
+	/**  고른 레인의 변경을 원래 작업 폴더에 커밋 전 변경으로 옮긴다. */
+	raceTake: (projectId: number, path: string) => typedError<null, AppError>(__TAURI_INVOKE("race_take", { projectId, path })),
+	/**  레인을 모두 지운다(worktree · 가지). 지운 수. */
+	raceClear: (projectId: number) => typedError<number, AppError>(__TAURI_INVOKE("race_clear", { projectId })),
 	openDevtools: () => typedError<null, string>(__TAURI_INVOKE("open_devtools")),
 	/**
 	 *  프로젝트의 창을 연다 — I1 이 여기서 강제된다.
@@ -2120,6 +2131,17 @@ export type PromiseScorecard = {
 	window_days: number,
 	journal: JournalScore,
 	plans: PlanScore,
+};
+
+export type RaceLane = {
+	/**  `<도장>-<n>` — 사람이 부르는 이름. */
+	name: string,
+	path: string,
+	branch: string,
+	/**  기준 커밋에서 바뀐 파일 수(새 파일 포함) · 더한 줄 · 뺀 줄. */
+	files: number,
+	added: number,
+	removed: number,
 };
 
 export type ReindexReport = {

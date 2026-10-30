@@ -20,6 +20,7 @@ mod open_native;
 pub mod plan;
 pub mod plan_carry;
 pub mod project;
+pub mod race;
 pub mod related;
 pub mod review;
 pub mod scorecard;

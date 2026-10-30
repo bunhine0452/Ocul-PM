@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { toAppError } from "@/api/invoke";
 import { oculpmApi } from "@/api/oculpm";
 import { projectsApi } from "@/api/projects";
-import { Columns2, Plus, X } from "@/components/Icons";
+import { Columns2, GitBranchIcon, Plus, X } from "@/components/Icons";
 import { Toolbar } from "@/components/Toolbar";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -21,6 +21,8 @@ import { getPlatform, isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { closeTerm, mountTerm, openTerm, pasteToTerm, subscribeTerms, termsSnapshot } from "./termStore";
 import { useTerminalFileDrop } from "./dropFiles";
+import { laneNumberOf, useRace } from "./race";
+import { RaceStartDialog, RaceStrip } from "./RacePanel";
 import { onTermFocus, takeTermFocus } from "./focusRequest";
 import { closePeek } from "./imagePeek";
 import { TermImagePeekHost } from "./TermImagePeek";
@@ -73,6 +75,9 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
     setSplitState(id);
   }, []);
   const splitRef = useRef<HTMLDivElement | null>(null);
+  // 같은 일을 worktree 여럿에서 (Orca 벤치마킹 #worktree-race) — 시작 대화상자. 레인 띠는 RaceStrip.
+  const [raceOpen, setRaceOpen] = useState(false);
+  useRace(); // 레인 ↔ 세션 짝이 바뀌면 탭 이름(「레인 n」)을 다시 그린다
   // 나란히 칸에 쓰려고 연 세션은 「새 세션이면 고른다」 규칙에서 뺀다 — 왼쪽을 빼앗지 않게.
   const openingSplit = useRef(false);
   const records = useRecordsSince(projectId, workday, sessions);
@@ -176,6 +181,12 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
   // 다른 화면으로 가면 미리보기도 닫는다 — 돌아왔을 때 크게 띄운 그림이 남아 있지 않게.
   useEffect(() => closePeek, []);
 
+  // 레인의 세션은 「레인 n」 으로 — 셋이 모두 claude 라 이름만으로는 갈리지 않는다.
+  const laneLabel = (s: TermInfo) => {
+    const n = laneNumberOf(s.id);
+    return n != null ? t("race.lane", { n }) : s.label;
+  };
+
   const current = sessions.find((s) => s.id === active) ?? null;
   const currentWaiting = current != null && current.alive && needsMe(current.status);
   return (
@@ -199,8 +210,13 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
             <kbd className="kbd">{splitKey}</kbd>
           </button>
         ) : null}
+        <button type="button" className="btn sm" title={t("race.buttonTitle")} onClick={() => setRaceOpen(true)}>
+          <GitBranchIcon size={13} aria-hidden="true" />
+          {t("race.button")}
+        </button>
       </Toolbar>
       <div className="tm-split">
+        <RaceStrip projectId={projectId} />
         {sessions.length === 0 ? <p className="tm-empty">{t("terminal.empty")}</p> : null}
         {sessions.length > 1 ? (
           // 둘 이상이면 위 탭 줄 — 왼쪽 목록 칸은 일지 · 계획 목록 칸과 두 겹이었다 (화면 검사 #term-col).
@@ -225,7 +241,7 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
                       className={"tm-dot" + (s.alive ? (waiting ? " is-wait" : " is-live") : "")}
                       aria-hidden="true"
                     />
-                    <span className="tm-name">{s.label}</span>
+                    <span className="tm-name">{laneLabel(s)}</span>
                     <span className="tm-meta">
                       {sessionWord(t, s)}
                       {n > 0 ? (
@@ -281,6 +297,7 @@ export function TerminalScreen({ projectId, workday }: { projectId: number; work
         </div>
       </div>
       <TermImagePeekHost />
+      {raceOpen ? <RaceStartDialog projectId={projectId} onClose={() => setRaceOpen(false)} /> : null}
     </>
   );
 }

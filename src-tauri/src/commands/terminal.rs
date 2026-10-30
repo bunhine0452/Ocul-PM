@@ -31,6 +31,7 @@ pub struct TermCloseAsked {
 /// 이 창에 세션을 연다 — 프로젝트 루트에서 사용자의 로그인 셸. `prompt` 가 있으면 그
 /// 프롬프트로 `claude` 를 바로 실행한다(오늘·계획의 「다음」). 빈 문자열이면 그냥 `claude`
 /// (계획의 「끝까지」가 입력 대기 신호 뒤에 `/goal …` 을 넣는다). 출력·끝은 `on_event` 로.
+/// `cwd` 는 이 프로젝트의 레인(worktree 여럿에서)일 때만 받는다 — 아니면 거절.
 #[tauri::command]
 #[specta::specta]
 pub async fn term_open(
@@ -42,9 +43,14 @@ pub async fn term_open(
     cols: u16,
     rows: u16,
     prompt: Option<String>,
+    cwd: Option<String>,
     on_event: Channel<TermEvent>,
 ) -> Result<TermInfo, AppError> {
-    let cwd = db.project_root(project_id).await?;
+    let root = db.project_root(project_id).await?;
+    let cwd = match cwd {
+        Some(lane) => super::race::lane_cwd(root, lane).await?,
+        None => root,
+    };
     let spec = OpenSpec {
         window: window.label().to_string(),
         project_id,
