@@ -105,6 +105,7 @@ export const commands = {
 	termOverview: () => __TAURI_INVOKE<TermInfo[]>("term_overview"),
 	/**  이 창의 세션을 모두 끝낸다 — 닫기 확인(`TermCloseAsked`)에서 「닫기」를 고른 뒤 부른다. */
 	termEndWindow: () => __TAURI_INVOKE<void>("term_end_window"),
+	terminalImagePreview: (path: string) => typedError<TermImage, AppError>(__TAURI_INVOKE("terminal_image_preview", { path })),
 	openDevtools: () => typedError<null, string>(__TAURI_INVOKE("open_devtools")),
 	/**
 	 *  프로젝트의 창을 연다 — I1 이 여기서 강제된다.
@@ -2312,6 +2313,12 @@ export type TermCloseAsked = {
 
 /**  웹뷰로 가는 세션 사건 — 출력 조각 · 끝 · 프로그램 상태(OSC 7501). */
 export type TermEvent = { kind: "output"; data: string } | { kind: "exit"; code: number | null } | { kind: "status"; status: TermStatus | null };
+
+export type TermImage = {
+	mime: string,
+	bytes: number,
+	base64: string,
+};
 
 /**  목록 한 줄. */
 export type TermInfo = {

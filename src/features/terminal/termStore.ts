@@ -20,6 +20,8 @@ import { isMac } from "@/lib/platform";
 import { t } from "@/i18n";
 import { toast } from "@/lib/toast";
 import { alertIfWaiting } from "./attention";
+import { createImagePathProvider, createOscLinkHandler } from "./fileLinks";
+import { peekEvent } from "./imagePeek";
 import { attachImeBridge } from "./imeBridge";
 import { LAUNCH_WATCH_CHARS, launchFailed } from "./launchCheck";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
@@ -122,6 +124,10 @@ export async function openTerm(projectId: number, prompt: string | null = null):
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = "11";
   term.loadAddon(new WebLinksAddon((_e, uri) => void fileOpenApi.url(uri)));
+  // OSC 8 링크(없으면 xterm 기본 처리기가 웹뷰에서 막혀 아무 일도 없다) · 출력의 이미지 경로.
+  const openUrl = (uri: string) => void fileOpenApi.url(uri).catch(() => {});
+  term.options.linkHandler = createOscLinkHandler({ openUrl, onImage: peekEvent });
+  term.registerLinkProvider(createImagePathProvider((y) => term.buffer.active.getLine(y), peekEvent));
   const host = document.createElement("div");
   host.className = "term-host";
 
