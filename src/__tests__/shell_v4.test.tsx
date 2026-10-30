@@ -142,6 +142,38 @@ describe("윗줄 — 프로젝트 · 탭 넷 · 찾기 · 설정 (사이드바 �
     expect(screen.getByRole("button", { name: /계획/ }).querySelector(".nav-badge")).toBeNull();
   });
 
+  it("좁은 창의 ⋯ — 화면 동작을 펼치면 첫 동작에 포커스, Esc 로 접고 ⋯ 로 돌아간다 (레드팀 10-31)", () => {
+    // 화면의 동작은 포털로 칸에 들어온다 — 여기선 단추 하나를 칸에 직접 넣어 흉내 낸다.
+    const slot = (el: HTMLDivElement | null) => {
+      if (el && !el.firstChild) el.append(Object.assign(document.createElement("button"), { textContent: "새 세션" }));
+    };
+    render(
+      <TopBar
+        view="terminal"
+        onNavigate={() => {}}
+        projectName="ai-pm"
+        currentProjectId={1}
+        projects={PROJECTS}
+        onOpenProject={() => {}}
+        badges={navBadgesOf(0)}
+        slotRef={slot}
+      />,
+    );
+    const more = screen.getByRole("button", { name: "이 화면의 동작" });
+    const box = document.querySelector(".topbar-actions")!;
+    fireEvent.click(more);
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    expect(box.classList.contains("is-open")).toBe(true);
+    expect(document.activeElement?.textContent).toBe("새 세션");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(box.classList.contains("is-open")).toBe(false);
+    expect(document.activeElement).toBe(more);
+    // 동작을 누르면 접힌다.
+    fireEvent.click(more);
+    fireEvent.click(screen.getByRole("button", { name: "새 세션" }));
+    expect(box.classList.contains("is-open")).toBe(false);
+  });
+
   it("a11y — axe 위반이 없다", async () => {
     const { container } = await mountShell();
     const results = await axe(container, { rules: { "color-contrast": { enabled: false }, region: { enabled: false } } });

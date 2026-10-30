@@ -61,7 +61,7 @@ export function Toolbar({ title, sub, leading, children, find = false }: Toolbar
 export function FindButton() {
   const { t } = useT();
   return (
-    <button type="button" className="btn sm" onClick={requestOpenPalette}>
+    <button type="button" className="btn sm find-btn" onClick={requestOpenPalette} title={kbd("⌘K")}>
       <SearchIcon size={13} aria-hidden="true" />
       <span className="find-label">{t("toolbar.find")}</span>
       <kbd className="kbd">{kbd("⌘K")}</kbd>

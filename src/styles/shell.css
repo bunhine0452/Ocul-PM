@@ -41,6 +41,7 @@
 .topbar-actions:empty { display: none; }
 .topbar-actions button { white-space: nowrap; }
 .topbar-settings.active { background: var(--bg-active); color: var(--text); }
+.topbar-more { display: none; }
 
 /* 탭 — 활성은 조용한 틴트와 무게. 밑줄·강조 막대는 없다. */
 .topnav {
@@ -198,7 +199,7 @@
   .is-mac .topbar { padding-left: 76px; }
   .proj-switch-wrap { flex-shrink: 0; max-width: 112px; }
   .topnav { padding-left: var(--space-2); }
-  .topnav-item { padding: 0 var(--space-3); }
+  .topnav-item { padding: 0 var(--space-2); gap: var(--space-1); }
   .topnav-ico { display: inline-flex; }
   .topnav-label, .topbar .find-label {
     position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -206,4 +207,28 @@
   }
   .topbar .kbd { display: none; }
   .topbar-fill { min-width: var(--space-2); }
+  /* 화면 동작은 「⋯」 메뉴로 — 줄 안 스크롤 칸이 29px 로 짓눌려 누를 수 없었다(레드팀 10-31). */
+  .topbar-actions { display: none; }
+  .topbar-actions.is-open {
+    display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1);
+    position: absolute; top: calc(100% + 4px); right: var(--space-3); z-index: var(--z-popover);
+    min-width: 200px; padding: var(--space-2); overflow: visible;
+    border: 1px solid var(--border-card); border-radius: var(--radius-m);
+    background: var(--bg-card); box-shadow: var(--shadow-pop);
+  }
+  .topbar-actions.is-open > * { justify-content: flex-start; }
+  .topbar-actions.is-open .kbd { display: inline-flex; margin-left: auto; }
+  .topbar-more { display: inline-flex; }
+  .topbar-actions:empty + .topbar-more { display: none; }
+}
+/* 더 좁으면(≤460 — 480 창에 글자 125% 가 이 폭이다) 프로젝트 이름도 화면에서 감추고 탭을 더 붙인다 —
+   찾기 · 설정이 창 밖(396–467 / 384)으로 밀려났다(레드팀 10-31). */
+@media (max-width: 460px) {
+  .topbar { gap: var(--space-1); }
+  .proj-switch-wrap { max-width: 40px; }
+  .proj-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .topnav { gap: 0; padding-left: var(--space-1); }
+  .topnav-item { padding: 0 var(--space-1); }
+  /* 찾기는 ⌘K 로 — 단추까지 서면 설정 톱니가 창 밖으로 나간다. */
+  .topbar .find-btn { display: none; }
 }

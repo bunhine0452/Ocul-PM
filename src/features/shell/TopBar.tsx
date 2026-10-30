@@ -1,5 +1,5 @@
-import type { Ref } from "react";
-import { SettingsIcon } from "@/components/Icons";
+import { useEffect, useRef, useState, type Ref } from "react";
+import { MoreHorizontal, SettingsIcon } from "@/components/Icons";
 import { FindButton } from "@/components/Toolbar";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { ProjectSwitcher } from "@/features/shell/ProjectSwitcher";
@@ -49,6 +49,34 @@ export function TopBar({
   const { t } = useT();
   // 빈 자리는 창을 잡는 띠다 — macOS 오버레이 타이틀바에서만 (`dragRegion`).
   const drag = dragRegion();
+  // 좁은 창(≤640)에서 화면 동작은 「⋯」 메뉴로 — 줄 안 스크롤 칸이 29px(480 에선 5px)로 짓눌려 「새 세션 ·
+  // 새 일지」 를 누를 수 없었다(레드팀 10-31). 넓은 창에서는 이 단추가 보이지 않고 칸은 늘 그대로다.
+  const [more, setMore] = useState(false);
+  const moreRef = useRef<HTMLButtonElement | null>(null);
+  const slotBox = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!more) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (slotBox.current?.contains(target) || moreRef.current?.contains(target)) return;
+      setMore(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMore(false);
+      moreRef.current?.focus();
+    };
+    // 열면 첫 동작으로 포커스 — 칸이 「⋯」 앞에 있어 Tab 으로는 닿지 않는다.
+    slotBox.current?.querySelector<HTMLElement>("button:not(:disabled), [href]")?.focus();
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [more]);
+  // 화면을 바꾸면 접는다 — 다른 화면의 동작이 열린 채 남지 않게.
+  useEffect(() => setMore(false), [view]);
   return (
     <header className="topbar" {...drag}>
       <ProjectSwitcher
@@ -87,7 +115,26 @@ export function TopBar({
         })}
       </nav>
       <div className="topbar-fill" {...drag} />
-      <div className="topbar-actions" ref={slotRef} />
+      <div
+        className={"topbar-actions" + (more ? " is-open" : "")}
+        ref={(el) => {
+          slotBox.current = el;
+          if (typeof slotRef === "function") slotRef(el);
+          else if (slotRef) (slotRef as { current: HTMLDivElement | null }).current = el;
+        }}
+        onClick={() => setMore(false)}
+      />
+      <button
+        ref={moreRef}
+        type="button"
+        className="iconbtn topbar-more"
+        aria-expanded={more}
+        aria-label={t("toolbar.more")}
+        title={t("toolbar.more")}
+        onClick={() => setMore((v) => !v)}
+      >
+        <MoreHorizontal size={15} aria-hidden="true" />
+      </button>
       <FindButton />
       <button
         type="button"
