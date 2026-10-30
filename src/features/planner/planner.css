@@ -21,6 +21,8 @@
 .plv-bad { color: var(--danger-text); font-weight: var(--fw-strong); }
 .plv-grow { flex: 1; }
 .plv-sec-h { margin: 0 0 var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); }
+.plv-sec-n { flex: none; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.plv-sec-bar { flex: 0 0 64px; height: 4px; margin-left: auto; }
 .plv-bar { display: block; height: 4px; overflow: hidden; border-radius: var(--radius-pill); background: var(--bg-inset); }
 .plv-bar > i { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--accent); }
 
@@ -85,7 +87,25 @@
 @container plan (max-width: 640px) {
   .plv-phases { grid-template-columns: minmax(0, 1fr); }
 }
-.plv-phase { min-width: 0; }
+/* 단계 = 카드 한 장(10-30) — 테두리 · 머리 띠 · 항목 사이 줄. 문서 바탕(--bg-card) 위에서 경계가 보이게
+   머리 띠는 --bg-window, 가리킨 항목은 --bg-hover. 「보내기」 는 그 항목 줄의 오른쪽 끝(카드 안)에 선다. */
+.plv-phase {
+  min-width: 0; align-self: start; overflow: hidden;
+  border: 1px solid var(--border-card); border-radius: var(--radius-m); background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+}
+.plv-phase > .plv-sec-h {
+  display: flex; align-items: center; gap: var(--space-3); margin: 0;
+  padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border-card);
+  background: var(--bg-window); color: var(--text);
+}
+.plv-sec-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plv-phase > .plv-item {
+  padding: var(--space-3) var(--space-5) var(--space-3) calc(var(--space-5) + var(--plv-depth, 0) * 18px);
+  border-top: 1px solid var(--sep);
+}
+.plv-phase > .plv-sec-h + .plv-item { border-top: 0; }
+.plv-phase > .plv-item:hover { background: var(--bg-hover); }
 /* 남은 단계가 하나면 반쪽에 서지 않는다 — 옆 칸이 비는데 글만 좁게 꺾였다. */
 .plv-phase:only-of-type { grid-column: 1 / -1; }
 /* 끝난 단계 — 남은 단계 아래 한 줄에 모은다(이름 · n/n · ✓), 누르면 그 단계가 격자로 펼쳐진다. */
@@ -179,3 +199,10 @@
 .plv-confirm { display: flex; gap: var(--space-4); padding: 18px 20px 4px; font-size: var(--fs-4); line-height: var(--lh-prose); }
 .plv-confirm-ico { flex: none; margin-top: 2px; color: var(--warn-text); }
 .plv-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); padding: var(--space-5) 20px var(--space-6); }
+
+/* 좁은 창(≤640, 10-30) — 레일이 위(높이 36%), 문서가 아래. */
+@media (max-width: 640px) {
+  .plv-body { flex-direction: column; }
+  .plv-rail { width: auto; max-height: 36%; border-right: 0; border-bottom: 1px solid var(--sep); }
+  .plv-main { padding: var(--space-5) var(--space-4) 48px; }
+}
