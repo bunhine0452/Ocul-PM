@@ -138,16 +138,23 @@ pub fn dispatch(app: &tauri::AppHandle, raw: &str) {
         }
     };
     // 앱을 앞으로 부른다 — 확인 시트가 배경 창에서 조용히 뜨면 «무확인» 과
-    // 다를 바 없다. 포커스 창이 없으면 아무 창이나 하나 세운다.
+    // 다를 바 없다. 시트는 **한 창에만** 띄운다: 전역으로 쏘면 열린 프로젝트 창마다
+    // 시트가 떠 배경 창에 남았다(10-30). 프로젝트 창이 없으면 예전처럼 전역으로.
     use tauri::Manager;
-    let label = crate::commands::window::focused_app_window(app);
-    let window = label
+    let target = crate::commands::window::focused_project_window(app);
+    let window = target
+        .clone()
+        .or_else(|| crate::commands::window::focused_app_window(app))
         .and_then(|l| app.get_webview_window(&l))
         .or_else(|| app.webview_windows().values().next().cloned());
     if let Some(window) = window {
         let _ = window.set_focus();
     }
-    let _ = app.emit("deep-link-received", DeepLinkReceived(link));
+    let payload = DeepLinkReceived(link);
+    let _ = match target {
+        Some(label) => app.emit_to(label.as_str(), "deep-link-received", payload),
+        None => app.emit("deep-link-received", payload),
+    };
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@
 // (src-tauri/src/terminal.rs).
 import { Channel } from "@tauri-apps/api/core";
 import { commands, events, type TermCloseAsked, type TermEvent, type TermInfo, type TermStatus } from "@/lib/bindings";
-import { call, subscribe } from "./invoke";
+import { call, subscribe, subscribeHere } from "./invoke";
 
 export type { TermCloseAsked, TermEvent, TermInfo, TermStatus };
 
@@ -24,5 +24,6 @@ export const terminalApi = {
   /** 어느 창에서든 세션이 열리거나 · 끝나거나 · 안의 프로그램 상태가 바뀌었다. */
   onSessionsChanged: (cb: () => void) => subscribe(events.termSessionsChanged, () => cb()),
   /** 실행 중인 세션이 있는 이 창(`quit` 이면 앱)을 닫으려 했다 — 백엔드가 멈추고 묻게 한다. */
-  onCloseAsked: (cb: (ask: TermCloseAsked) => void) => subscribe(events.termCloseAsked, cb),
+  /** 이 창을 닫거나 앱을 끄기 전에 묻는다 — 백엔드가 **이 창에만** 보낸다(`subscribeHere`). */
+  onCloseAsked: (cb: (ask: TermCloseAsked) => void) => subscribeHere(events.termCloseAsked, cb),
 };

@@ -67,3 +67,12 @@ pub fn focused_app_window(app: &AppHandle) -> Option<String> {
         reg.preferred_window()
     })
 }
+
+/// 프로젝트를 담은 창 하나 — 포커스된 창이 그렇다면 그 창 (`Registry::project_window`).
+/// 딥링크 확인 시트처럼 **한 창에만** 띄울 것의 자리다.
+pub fn focused_project_window(app: &AppHandle) -> Option<String> {
+    let focused = focused_app_window(app);
+    app.state::<WindowProjects>()
+        .lock()
+        .project_window(focused.as_deref())
+}

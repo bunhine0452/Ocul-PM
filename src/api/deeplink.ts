@@ -6,12 +6,16 @@
  */
 
 import { events, type DeepLink } from "@/lib/bindings";
+import { subscribeHere } from "./invoke";
 
 export type { DeepLink };
 
-/** 딥링크가 오면 부른다. 반환값을 부르면 구독을 끊는다. */
+/**
+ * 딥링크가 오면 부른다. 반환값을 부르면 구독을 끊는다. 백엔드가 프로젝트 창 **하나**에만
+ * 보내므로 이 창 대상으로 듣는다(`subscribeHere`) — 프로젝트 창이 없을 때의 전역 발송도 받는다.
+ */
 export function onDeepLink(cb: (link: DeepLink) => void): () => void {
-  const pending = events.deepLinkReceived.listen((e) => cb(e.payload));
+  const pending = subscribeHere(events.deepLinkReceived, cb);
   return () => {
     void pending.then((unlisten) => unlisten());
   };
