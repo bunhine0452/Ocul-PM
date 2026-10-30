@@ -68,6 +68,8 @@
   background: var(--warn-soft); color: var(--warn-text);
 }
 
+.topnav-ico { display: none; flex: none; }
+
 /* 프로젝트 이름 버튼 (⌘O) — 윗줄의 제목이다. 카드·타일 없이 활자 하나와 ▾. */
 .proj-switch-wrap { position: relative; flex: 0 1 auto; min-width: 0; max-width: 220px; }
 .proj-switch {
@@ -186,4 +188,22 @@
 .page {
   padding: var(--space-8) 28px 60px; max-width: 1180px; margin: 0 auto; width: 100%;
   container-type: inline-size; container-name: screen;
+}
+
+/* 좁은 창(10-30) — 맥북 프로 14 의 3분의 1(약 500pt)까지 줄인다. 탭은 아이콘, 찾기는 돋보기, 단축키
+   표시는 감추고 프로젝트 이름은 짧게. 4.0 에서 사이드바가 걷혀 창 폭이 곧 화면 폭이라 @media 로 본다 —
+   접힘 선은 640 한 벌 그대로. 이름은 화면에서만 감춘다(접근명 · E2E 의 탭 찾기가 글자로 읽는다). */
+@media (max-width: 640px) {
+  .topbar { gap: var(--space-2); padding: 0 var(--space-3); }
+  .is-mac .topbar { padding-left: 76px; }
+  .proj-switch-wrap { flex-shrink: 0; max-width: 112px; }
+  .topnav { padding-left: var(--space-2); }
+  .topnav-item { padding: 0 var(--space-3); }
+  .topnav-ico { display: inline-flex; }
+  .topnav-label, .topbar .find-label {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .topbar .kbd { display: none; }
+  .topbar-fill { min-width: var(--space-2); }
 }

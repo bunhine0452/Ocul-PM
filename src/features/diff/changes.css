@@ -59,11 +59,11 @@
 /* ── 오른쪽 ───────────────────────────────────────────────────────────────── */
 .chg-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-card); outline: none; }
 .chg-banner {
-  display: flex; align-items: center; gap: var(--space-4);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4);
   margin: var(--space-5) var(--space-6) 0; padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-m); background: var(--warn-soft);
 }
-.chg-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.chg-banner-text { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .chg-banner-text b { font-weight: var(--fw-strong); }
 .chg-fh {
   display: flex; align-items: center; gap: var(--space-3);
@@ -83,3 +83,12 @@
 .def-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .def-fill { flex: 1; }
 .diff-entry-foot .btn.ok { color: var(--ok-text); border-color: var(--ok); }
+
+/* 좁은 창(≤640, 10-30) — 파일 목록이 위, diff 가 아래. 띠는 글이 먼저 한 줄을 갖고 단추는 아래로 내려간다
+   (옆으로 서면 글이 한 글자씩 세로로 꺾였다). 파일 머리줄도 줄을 바꾼다. */
+@media (max-width: 640px) {
+  .chg-split { flex-direction: column; }
+  .chg-list { width: auto; max-width: none; max-height: 38%; border-right: 0; border-bottom: 1px solid var(--sep); }
+  .chg-banner { margin: var(--space-4) var(--space-4) 0; }
+  .chg-fh { flex-wrap: wrap; padding: var(--space-3) var(--space-4); }
+}
