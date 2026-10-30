@@ -18,7 +18,8 @@
 .tm-race-name:hover:not([aria-disabled="true"]) { text-decoration: underline; }
 .tm-race-name:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
 .tm-race-word { flex: none; min-width: 7em; color: var(--text-2); }
-.tm-race-size { flex: 1; min-width: 0; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 단추는 크기 바로 뒤에 — 줄 끝으로 밀려 가운데가 비던 것(10-30). */
+.tm-race-size { flex: none; min-width: 9em; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tm-race .add, .tm-race-diff .add { color: var(--diff-add-line); }
 .tm-race .del, .tm-race-diff .del { color: var(--diff-del-line); }
 
