@@ -88,10 +88,10 @@ files_touched:
   - path: "src/cache.rs"
     op: update
 related: []
-tags: [dogfooding]
+tags: [cache, dogfooding]
 ---
 
-[x] One-line title
+[x] cache: fix late invalidation
 
 ## Root cause
 …
@@ -99,7 +99,7 @@ tags: [dogfooding]
 …
 ## Verification
 1–3 lines on how it was confirmed</code></pre>
-<ul><li><b>status</b> — <code>planned</code> · <code>in_progress</code> · <code>done</code> · <code>abandoned</code></li><li><b>difficulty</b> — <code>verylow</code> through <code>superhigh</code> (optional)</li><li><b>Body headings are fixed per type</b>: bug and error use root cause → fix; refactor uses motivation → summary of changes; feature uses what was added → how it flows. All of them end with a required <b>Verification</b> section.</li></ul>
+<ul><li><b>Title</b> — <code>area: what changed</code>, one sentence, area included, within 40 characters. The area (1–12 characters) reuses a word the project already uses (e.g. terminal · MCP · CI · landing) and is kept as the first tag too, so the tag filter doubles as a per-area view. Don't join two phrases with a dash. The recording tool (<code>journal_write</code>) refuses any other shape and says how to fix it</li><li><b>status</b> — <code>planned</code> · <code>in_progress</code> · <code>done</code> · <code>abandoned</code></li><li><b>difficulty</b> — <code>verylow</code> through <code>superhigh</code> (optional)</li><li><b>Body headings are fixed per type</b>: bug and error use root cause → fix; refactor uses motivation → summary of changes; feature uses what was added → how it flows. All of them end with a required <b>Verification</b> section.</li></ul>
 <div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." The verdict is not the agent's word but <b>the command that ran and its last line of output</b>.</p></div></div>
 <h2 id="the-work-journal-screen">The Work Journal screen</h2>
 <p>On the left, one row per entry under date headers (type dot · title · evidence chip · time/agent/file count); on the right, the selected entry's detail. The toolbar shows "N · of M total", filters (all · bugs · features · refactors · chores · no evidence) and a search box.</p>

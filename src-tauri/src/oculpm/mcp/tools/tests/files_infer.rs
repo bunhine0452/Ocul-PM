@@ -46,7 +46,7 @@ fn an_entry_without_files_gets_the_working_tree_changes_as_an_estimate() {
 
     let (out, md) = write_entry(
         &root,
-        json!({ "type": "chore", "slug": "no-files", "title": "t", "body_markdown": "## 변경 요약\nx\n\n## 검증\ny\n" }),
+        json!({ "type": "chore", "slug": "no-files", "title": "테스트: t", "body_markdown": "## 변경 요약\nx\n\n## 검증\ny\n" }),
     );
     let warnings = out["warnings"].to_string();
     assert!(warnings.contains("추정"), "{warnings}");
@@ -79,7 +79,7 @@ fn an_explicit_empty_list_or_a_clean_tree_is_left_alone() {
     // 빈 배열을 **명시**한 것은 「건드린 파일 없음」이다 — 지어내지 않는다.
     let (out, md) = write_entry(
         &root,
-        json!({ "type": "chore", "slug": "explicit-empty", "title": "t", "body_markdown": "## 변경 요약\nx\n\n## 검증\ny\n", "files_touched": [] }),
+        json!({ "type": "chore", "slug": "explicit-empty", "title": "테스트: t", "body_markdown": "## 변경 요약\nx\n\n## 검증\ny\n", "files_touched": [] }),
     );
     assert!(!out["warnings"].to_string().contains("추정"));
     let fm = parse_frontmatter_and_body(&md).0.parsed.unwrap();
@@ -90,7 +90,7 @@ fn an_explicit_empty_list_or_a_clean_tree_is_left_alone() {
     git(&root, &["commit", "-q", "-am", "edit"]);
     let (out, md) = write_entry(
         &root,
-        json!({ "type": "chore", "slug": "clean-tree", "title": "t", "body_markdown": "## 변경 요약\nx\n\n## 검증\ny\n" }),
+        json!({ "type": "chore", "slug": "clean-tree", "title": "테스트: t", "body_markdown": "## 변경 요약\nx\n\n## 검증\ny\n" }),
     );
     assert!(!out["warnings"].to_string().contains("추정"));
     assert!(parse_frontmatter_and_body(&md)

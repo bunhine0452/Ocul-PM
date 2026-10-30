@@ -123,7 +123,8 @@ pub fn tool_definitions() -> Value {
                 "properties": {
                     "type": { "type": "string", "enum": ["bug", "feature", "error", "refactor", "chore"], "description": "작업 단위의 종류" },
                     "slug": { "type": "string", "description": "ASCII kebab-case, 40자 이내 (예: fix-cache-invalidation)" },
-                    "title": { "type": "string", "description": "한 줄 제목, **40자 안** — 일지 목록 · 오늘 화면의 한 줄에 들어가게(자세한 것은 본문에). 언어는 프로젝트 AGENTS.md 를 따른다 (앱의 \"AI 작성 언어\" 설정이 그 마스터를 고른다)" },
+                    "title": { "type": "string", "description": "**`영역: 무엇을 했다`** 한 문장, 영역 포함 **40자 안** (예: `터미널: Claude 상태를 안다`, `CI: 리눅스 스모크 창 이름 고침`). 줄표(— –)로 두 문장을 잇지 말 것 — 자세한 것은 본문에. 영역은 이 프로젝트가 이미 쓰는 말을 다시 쓴다. 규격에 안 맞으면 기록하지 않고 고칠 말을 돌려준다. 언어는 프로젝트 AGENTS.md 를 따른다" },
+                    "area": { "type": "string", "description": "선택 — 제목 앞에 `영역: ` 을 쓰지 않았다면 여기에(1~12자). 둘 다 주면 같아야 한다. 영역은 태그로도 남는다" },
                     "body_markdown": { "type": "string", "description": "본문. 타입별 권장 헤더 — bug/error: 발생 원인·해결 방법, feature: 추가 기능·동작 흐름, refactor: 동기·변경 요약. 마지막에 검증 섹션 1~3줄 필수. **정확한 헤더 이름과 언어는 프로젝트 AGENTS.md 를 따른다** (영어 프로젝트는 Root cause / Fix / Verification). 시크릿 금지." },
                     "status": { "type": "string", "enum": ["planned", "in_progress", "done", "abandoned"], "description": "기본 done" },
                     "difficulty": { "type": "string", "enum": ["verylow", "low", "medium", "high", "superhigh"] },
@@ -568,9 +569,6 @@ fn sanitize_slug(raw: &str) -> Result<String, String> {
 fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     let entry_type = parse_entry_type(arg_str(args, "type").ok_or("'type' is required")?)?;
     let slug = sanitize_slug(arg_str(args, "slug").ok_or("'slug' is required")?)?;
-    let title = arg_str(args, "title")
-        .ok_or("'title' is required")?
-        .to_string();
     let body = args
         .get("body_markdown")
         .and_then(Value::as_str)
@@ -590,6 +588,7 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     });
 
     let cfg = load_config(root);
+    let checked = self::title::checked_title(root, args, cfg.agents.template_language == "en")?;
     let resolver = resolver_of(&cfg);
     let now = Utc::now();
     let workday = resolver.workday_of(now);
@@ -624,13 +623,14 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     // 일어났으면 응답에 알린다 — AGENTS.md 는 "감지 시 거부" 라 적혀 있었지만
     // 실제론 조용히 마스킹만 했고, 에이전트는 자기가 무엇을 흘렸는지 몰랐다.
     let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
-    let (title, title_hits) = redact_text(&title, &patterns);
+    let (title, title_hits) = redact_text(&checked.title, &patterns);
     let (body, body_hits) = redact_text(body, &patterns);
     let redacted = title_hits.len() + body_hits.len();
 
     // 정규화(적용)와 유사 태그 힌트(제안만)는 `tags.rs` 가 소유한다
     // ({#tag-normalize}). 출처 표식도 거기서 붙는다.
     let (mut tags, tag_hints) = self::tags::normalize_and_hint(root, args);
+    self::title::lead_with_area_tag(&mut tags, &checked.area);
     if files_inferred && !tags.iter().any(|t| t == "files-inferred") {
         tags.push("files-inferred".to_string());
     }
@@ -778,9 +778,10 @@ mod files_touched;
 
 mod related;
 
-// ─── journal_write 의 tags → tags.rs ────────────────────────────────────────
+// ─── journal_write 의 tags → tags.rs · 제목 규격 → title.rs ──────────────────
 
 mod tags;
+pub mod title;
 
 // ─── plan_status · plan_update → plan_ops.rs ─────────────────────────────────
 
