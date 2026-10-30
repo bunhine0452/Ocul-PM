@@ -109,14 +109,28 @@ export function StartWindow() {
   }, [pickFolder]);
 
   const forget = async (project: Project) => {
+    // 「기록 폴더도 휴지통으로」 — 확인 대화상자 안의 체크 칸. 기본은 꺼짐(목록에서만 뺀다).
+    const wipe = { current: false };
     const ok = await confirm({
       title: t("start.forgetTitle", { name: project.name }),
-      message: t("start.forgetBody"),
+      message: (
+        <>
+          <p className="start-forget-body">{t("start.forgetBody")}</p>
+          <label className="start-forget-wipe">
+            <input type="checkbox" onChange={(e) => (wipe.current = e.target.checked)} />
+            <span>
+              <b>{t("start.forgetWipe")}</b>
+              <span className="start-forget-sub">{t("start.forgetWipeSub")}</span>
+            </span>
+          </label>
+        </>
+      ),
       confirmLabel: t("start.forget"),
     });
     if (!ok) return;
     try {
-      await projectsApi.forget(project.id);
+      await projectsApi.forget(project.id, wipe.current);
+      if (wipe.current) toast.info(t("start.forgetWiped", { name: project.name }));
       reload();
     } catch (e) {
       toast.destructive(tError(toAppError(e)));
@@ -152,30 +166,26 @@ export function StartWindow() {
                 const elsewhere = openElsewhere.includes(p.id);
                 return (
                   <li key={p.id} className="start-row">
-                    <div className="start-row-main">
-                      <div className="start-row-name">
-                        {p.name}
-                        {elsewhere ? <span className="chip sm outline">{t("start.openChip")}</span> : null}
-                        <TermsChip terms={terms.get(p.id)} />
-                      </div>
-                      <div className="start-row-path mono" title={p.root_path}>
-                        {tildePath(p.root_path)}
-                      </div>
-                    </div>
-                    <span className="start-row-day">{dayLabel(row, lang, t)}</span>
-                    {row.toCheck != null ? (
-                      <span className={"chip sm" + (row.toCheck > 0 ? " warn" : "")} title={t("start.toCheckTitle")}>
+                    {/* 줄 전체가 「열기」 — 따로 선 단추가 줄마다 가운데를 비우고 줄을 두 겹으로 키웠다(10-30). */}
+                    <button
+                      type="button"
+                      className="start-row-open"
+                      onClick={() => adopt(p)}
+                      aria-label={t("start.openAria", { name: p.name })}
+                      title={p.root_path}
+                    >
+                      <span className="start-row-name">{p.name}</span>
+                      <span className="start-row-path mono">{tildePath(p.root_path)}</span>
+                    </button>
+                    {elsewhere ? <span className="chip sm outline">{t("start.openChip")}</span> : null}
+                    <TermsChip terms={terms.get(p.id)} />
+                    {/* 일지 없는 파일은 있을 때만 — 줄마다 「0」 이 서 있으면 예외가 묻힌다. */}
+                    {row.toCheck != null && row.toCheck > 0 ? (
+                      <span className="chip sm warn" title={t("start.toCheckTitle")}>
                         {t("start.toCheck", { n: row.toCheck })}
                       </span>
                     ) : null}
-                    <button
-                      type="button"
-                      className="btn sm"
-                      onClick={() => adopt(p)}
-                      aria-label={t("start.openAria", { name: p.name })}
-                    >
-                      {t("start.open")}
-                    </button>
+                    <span className="start-row-day">{dayLabel(row, lang, t)}</span>
                     <button
                       type="button"
                       className="iconbtn sm start-row-forget"

@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use tauri::State;
@@ -53,6 +52,19 @@ pub async fn create_project(
         .map_err(|e| e.to_string())
 }
 
+/// OS 휴지통으로 — macOS 는 `NSFileManager`(Finder 를 AppleScript 로 부르는 기본값은
+/// 자동화 권한 창을 띄우고 `osascript` 를 띄운다).
+fn move_to_trash(path: &Path) -> Result<(), String> {
+    #[allow(unused_mut)]
+    let mut ctx = trash::TrashContext::default();
+    #[cfg(target_os = "macos")]
+    {
+        use trash::macos::{DeleteMethod, TrashContextExtMacos};
+        ctx.set_delete_method(DeleteMethod::NsFileManager);
+    }
+    ctx.delete(path).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn delete_project(
@@ -60,9 +72,11 @@ pub async fn delete_project(
     db: State<'_, Db>,
     manager: State<'_, crate::oculpm::manager::OculpmManager>,
     project_id: u32,
-    // Independently opt in to deleting Ocul-PM's on-disk artifacts from the
+    // Independently opt in to removing Ocul-PM's on-disk artifacts from the
     // project folder: the `.oculpm/` directory and/or `AGENTS.md`. Both off by
-    // default so the plain "워크스페이스에서 제거" stays non-destructive.
+    // default so the plain "워크스페이스에서 제거" stays non-destructive. They go
+    // to the OS trash, not `remove_dir_all` — journals are the user's record and a
+    // misclick should be recoverable (10-30, 시작 창의 「기록 폴더도 휴지통으로」).
     delete_oculpm: bool,
     delete_agents_md: bool,
 ) -> Result<(), String> {
@@ -81,15 +95,16 @@ pub async fn delete_project(
             if delete_oculpm {
                 let oculpm_dir = root.join(".oculpm");
                 if oculpm_dir.is_dir() {
-                    fs::remove_dir_all(&oculpm_dir)
-                        .map_err(|e| format!("Could not delete the .oculpm folder: {e}"))?;
+                    move_to_trash(&oculpm_dir).map_err(|e| {
+                        format!("Could not move the .oculpm folder to the trash: {e}")
+                    })?;
                 }
             }
             if delete_agents_md {
                 let agents_md = root.join("AGENTS.md");
                 if agents_md.is_file() {
-                    fs::remove_file(&agents_md)
-                        .map_err(|e| format!("Could not delete AGENTS.md: {e}"))?;
+                    move_to_trash(&agents_md)
+                        .map_err(|e| format!("Could not move AGENTS.md to the trash: {e}"))?;
                 }
             }
         }
