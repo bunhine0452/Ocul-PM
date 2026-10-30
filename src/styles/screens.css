@@ -307,3 +307,35 @@
 .hljs-deletion { color: var(--diff-del-text); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: var(--fw-bold); }
+
+/* 변경 줄 메모 (10-30, Orca 「Annotate AI Diffs」) — 거터의 「+」 는 줄에 올리면 보이고, 메모가 있는
+   줄은 늘 보인다. 메모 칸은 줄 아래 한 장 — 코드 폭에 맞춰 왼쪽 거터만큼 들여 쓴다. */
+.diff-content.has-notes .dl-gut { position: relative; }
+.dl-note-add {
+  position: absolute; left: 2px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 16px; height: 16px; padding: 0;
+  border: 0; border-radius: var(--radius-2xs); background: var(--accent); color: var(--text-on-accent);
+  cursor: pointer; opacity: 0;
+}
+.dl:hover .dl-note-add, .dl-note-add:focus-visible, .dl-note-add.has { opacity: 1; }
+/* 메모가 있는 줄은 「+」 대신 점 — 줄 번호와 붙어 「+674」 로 읽히지 않게. */
+.dl-note-add.has { width: 6px; height: 6px; left: 5px; border-radius: 50%; }
+.dl-note-add:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: 1px; }
+.dl-note {
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  margin: var(--space-1) var(--space-4) var(--space-2) 44px; padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-card); border-left: 3px solid var(--accent); border-radius: var(--radius-s);
+  background: var(--bg-card); font-family: var(--font-sans); font-size: var(--fs-4); line-height: var(--lh-body); color: var(--text);
+}
+.dl-note-text {
+  flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit;
+  text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; cursor: text;
+}
+.dl-note.is-editing { flex-direction: column; align-items: stretch; }
+.dl-note-input {
+  width: 100%; min-height: 52px; resize: vertical; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--sep-strong); border-radius: var(--radius-xs); background: var(--bg-inset);
+  color: var(--text); font: inherit;
+}
+.dl-note-input:focus { outline: var(--focus-w) solid var(--focus-color); outline-offset: 0; }
+.dl-note-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
