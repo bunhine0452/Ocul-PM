@@ -20,7 +20,7 @@ owner: claude-code
 
 ## 메모리·디스크 (측정 먼저) {#footprint}
 - [ ] 라이브 풋프린트 Malloc Small 511MB 귀속 — 설치본이 꺼진 때 심볼 빌드 + MallocStackLogging 으로 상위 할당 지점(3.12.0 실측: UI footprint 604MB · peak 949MB · 할당 835MB/144만 개). 보류 등급 제거(10-28) 뒤 재측정이 먼저 (← optimize-round #carry-malloc-small, improvement-round-2026-09-14 #footprint-attribution) {#malloc-small}
-- [!] 이미 쌓인 worktree 사본 로컬 히스토리 236MB — 디스크에 없는 경로의 판 정리 (← optimize-round-20261024 #carry-history-purge) {#history-purge}
+- [x] 이미 쌓인 worktree 사본 로컬 히스토리 236MB — 디스크에 없는 경로의 판 정리 (← optimize-round-20261024 #carry-history-purge) {#history-purge}
 - [x] 남은 빈 테이블 mobile_devices · graph_nodes · graph_edges · symbol_relations (+ 10-28 제거로 비게 된 터미널·ACP·LSP 계열 테이블 조사) — 다음 마이그레이션 라운드에서 DROP 판단 (← optimize-round-20261024 #carry-dead-tables) {#dead-tables}
 
 ## 플러그인·스킬 {#plugin}
@@ -34,4 +34,5 @@ owner: claude-code
 | 2026-11-01T15:49:35+09:00 | #dead-tables | claude-code | ☐→x | .oculpm/journal/20261101/Refactors/1549_refactor_optimize-dead-code-sweep.md | 판정 ✓ cargo test 1065 passed · 0 failed — migration 044 가 독자 없는 표 18개 DROP(graph·symbol 은 043). mobile_devices 는 CLAUDE.md 대로 남김 |
 | 2026-11-01T15:49:44+09:00 | #history-purge | claude-code | ☐→! | .oculpm/journal/20261101/Refactors/1549_refactor_optimize-dead-code-sweep.md | 쓰는 쪽(history.rs)을 걷어 더는 안 쌓인다. 남은 .oculpm/index/history/ (이 저장소 328MB) 를 앱이 지울지는 사용자 결정 |
 | 2026-11-01T15:49:50+09:00 | #fastembed7 | claude-code | ☐→- |  | 근거 소멸 — fastembed·ort 는 4.0 에서 의존성째 걷었다 |
+| 2026-11-01T16:17:33+09:00 | #history-purge | claude-code | !→x | .oculpm/journal/20261101/Chores/1617_chore_purge-local-history-folders.md | 판정 ✓ 추적 프로젝트 12곳 .oculpm/index/history 삭제 (약 1.5GB), 쓰는 코드는 a7b576da 에서 걷음 |
 <!-- oculpm:plan-log end -->
