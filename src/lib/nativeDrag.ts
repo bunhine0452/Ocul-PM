@@ -22,8 +22,6 @@
 const OPT_IN = '[draggable="true"]';
 
 let installed = false;
-/** 지금 포인터 드래그가 도는가 — 같은 값으로 다시 부르는 것을 흘려보낸다. */
-let dragging = false;
 
 export function installNativeDragGuard(): void {
   if (installed || typeof window === "undefined") return;
@@ -39,20 +37,4 @@ export function installNativeDragGuard(): void {
     },
     true,
   );
-}
-
-/**
- * 포인터 드래그가 도는 동안 **문서 전체**를 "쥐고 있음" 으로 둔다.
- *
- * 커서 캡처가 걸려 있어도 웹뷰는 지나는 자리마다 텍스트를 물어 선택하려 든다 —
- * 탭을 끌어 본문 위를 지나가면 그 아래 문단이 파랗게 칠해지는 게 그것이다.
- * 클래스 하나로 선택을 끄고, 이미 잡힌 선택은 놓아 준다.
- */
-export function setDraggingCursor(on: boolean): void {
-  if (typeof document === "undefined" || dragging === on) return;
-  dragging = on;
-  document.documentElement.classList.toggle("is-pointer-dragging", on);
-  // 이미 잡힌 선택은 놓아 준다. **바뀌는 순간에만** 한다 — 프레임마다 부르는
-  // 자리에서 쓰이므로, 매번 Selection 을 건드리면 그 자체가 비용이다.
-  if (on) document.getSelection()?.removeAllRanges();
 }

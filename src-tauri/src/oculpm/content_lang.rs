@@ -41,23 +41,6 @@ impl ContentLang {
         }
     }
 
-    /// 프롬프트 끝에 덧붙일 출력 언어 지시. `Unset` 이면 빈 문자열.
-    pub fn directive(self) -> &'static str {
-        match self {
-            Self::Korean => "\n\n출력 언어: 한국어로 작성하라.",
-            Self::English => {
-                "\n\nOutput language: write the entire response in English, \
-                 including all section headings and field values."
-            }
-            Self::Unset => "",
-        }
-    }
-
-    /// 시스템 프롬프트에 지시를 붙인 사본.
-    pub fn apply(self, prompt: &str) -> String {
-        format!("{prompt}{}", self.directive())
-    }
-
     /// 두 벌 문구 중 하나를 고른다 — **LLM 을 안 거치는 산출물** 용.
     ///
     /// 프롬프트는 지시 한 줄로 끝나지만, 코드가 직접 조립하는 마크다운(결정적
@@ -122,29 +105,6 @@ mod tests {
         );
         assert_eq!(ContentLang::from_setting(Some("fr")), ContentLang::Unset);
         assert_eq!(ContentLang::from_setting(None), ContentLang::Unset);
-    }
-
-    #[test]
-    fn unset_leaves_the_prompt_untouched() {
-        // 기존 프로젝트가 설정을 건드리지 않았을 때 프롬프트가 한 글자도
-        // 바뀌지 않아야 한다 — 그래야 이 기능이 회귀를 만들지 않는다.
-        let p = "너는 작업 일지 작성기다.";
-        assert_eq!(ContentLang::Unset.apply(p), p);
-        assert_eq!(ContentLang::Unset.directive(), "");
-    }
-
-    #[test]
-    fn english_directive_is_appended_after_the_body() {
-        let out = ContentLang::English.apply("BODY");
-        assert!(out.starts_with("BODY"), "본문이 앞에 그대로 남아야 한다");
-        assert!(out.contains("English"));
-    }
-
-    #[test]
-    fn korean_directive_is_appended() {
-        let out = ContentLang::Korean.apply("BODY");
-        assert!(out.starts_with("BODY"));
-        assert!(out.contains("한국어"));
     }
 
     // `current()` 의 폴백 규칙 — 프런트 `getContentLang()` 과 같아야 한다.

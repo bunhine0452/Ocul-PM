@@ -11,7 +11,6 @@ use tempfile::TempDir;
 use tokio::time::sleep;
 
 use crate::oculpm::cache::PathChangeKind;
-use crate::oculpm::history;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::session::SessionActor;
@@ -542,19 +541,6 @@ fn is_agent_state_path_catches_peer_files_not_adapter_files() {
     assert!(!is_agent_state_path("src/main.rs"));
     assert!(!is_agent_state_path("game.js"));
     assert!(!is_agent_state_path("AGENTS.md")); // root adapter, not a state dir
-}
-
-#[test]
-fn local_history_writes_never_re_trigger_the_watcher() {
-    // B5 의 저장 위치가 워처 자기 억제 안에 있다는 것이 그 설계의 전제다
-    // (`entry_diffs` 와 같은 이유로 `.oculpm/index/` 아래를 골랐다).
-    // 여기가 깨지면 캡처가 이벤트를 낳고 그 이벤트가 다시 캡처를 부른다.
-    // 소비자(`handle_event`)가 하는 그대로 저장 모양(`/`)으로 편 뒤 판정한다 —
-    // 윈도우의 `join` 은 `\` 를 끼운다.
-    let dir = history::dir_for(Path::new("/p"), "src/main.rs");
-    let rel = crate::git::slash(dir.strip_prefix("/p").unwrap());
-    assert!(is_self_suppressed(&rel));
-    assert!(is_self_suppressed(&format!("{rel}/meta.json")));
 }
 
 #[test]

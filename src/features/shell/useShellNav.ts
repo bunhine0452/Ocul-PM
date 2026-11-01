@@ -18,7 +18,6 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { consumeEntryJump, onEntryJump } from "@/lib/entryJump";
-import { holdManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
 import { onOpenSettingsRequest } from "@/lib/settingsNav";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 import { UI_V2_VIEWS, type UiPrefsValue, type UiV2View } from "@/contexts/WorkspaceContext";
@@ -33,8 +32,6 @@ import { UI_V2_VIEWS, type UiPrefsValue, type UiV2View } from "@/contexts/Worksp
 export const KNOWN_VIEWS: readonly string[] = UI_V2_VIEWS;
 
 export interface ShellNavOptions {
-  /** 지금 화면 — 이미 목적지에 있으면 그 화면의 구독이 먼저 소비한다. */
-  view: UiV2View;
   projectId: number | null;
   setUiV2View: UiPrefsValue["setUiV2View"];
   setPrefs: UiPrefsValue["setPrefs"];
@@ -60,26 +57,12 @@ export interface ShellNav {
 }
 
 export function useShellNav({
-  view,
   projectId,
   setUiV2View,
   setPrefs,
   initialView,
   initialEntryPath,
 }: ShellNavOptions): ShellNav {
-  // 「수동 일지」 요청은 일지 화면이 마운트돼 있을 때만 들렸다 — 다른 화면에서 누르면
-  // 무반응처럼 보였다 (2026-08-30 감사). 여기서 붙들어 두고 일지 화면으로 옮긴다;
-  // 일지 화면이 이미 떠 있으면 그쪽 구독이 먼저 소비한다.
-  useEffect(
-    () =>
-      onManualEntryRequest((seed) => {
-        if (view === "journal") return;
-        holdManualEntryRequest(seed);
-        setUiV2View("journal");
-      }),
-    [view, setUiV2View],
-  );
-
   // 설정 딥링크(`openSettings(section)`) — 안내 문구의 "설정 → 어디" 를 버튼으로
   // 바꾸는 쪽 절반. 설정 쪽이 그 칸으로 스크롤하고, 셸은 화면만 옮긴다.
   useEffect(() => onOpenSettingsRequest(() => setUiV2View("settings")), [setUiV2View]);

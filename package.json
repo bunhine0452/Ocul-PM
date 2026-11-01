@@ -73,7 +73,8 @@
   },
   "pnpm": {
     "overrides": {
-      "dompurify": "^3.4.17"
+      "dompurify": "^3.4.17",
+      "lowlight>highlight.js": "$highlight.js"
     }
   }
 }

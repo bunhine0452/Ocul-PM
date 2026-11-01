@@ -6,19 +6,6 @@
 // 남길 수 있다. 두 화면이 같은 규칙을 쓰도록 여기 한 곳에 둔다.
 
 /**
- * 나열된 경로가 전부 공유하는 디렉터리 접두 (예: `ioreum/`). 모든 행에 똑같이
- * 반복되면서 아무 정보도 주지 않는 구간이라, 잘라내면 서로 다른 부분만 남는다.
- * 공유 구간이 없으면 빈 문자열.
- */
-export function commonRoot(paths: string[]): string {
-  if (paths.length < 2) return "";
-  const dirs = paths.map((p) => p.split("/").slice(0, -1));
-  let n = 0;
-  while (dirs[0][n] !== undefined && dirs.every((d) => d[n] === dirs[0][n])) n++;
-  return n === 0 ? "" : dirs[0].slice(0, n).join("/") + "/";
-}
-
-/**
  * 경로 하나를 두 조각으로 — 흐린 디렉터리 + 강조된 파일명.
  * 디렉터리는 마지막 `maxSegs` 개 세그먼트만 남기고 `…/` 로 접는다: 목록이
  * 길어지면 깊은 경로의 중간은 읽히지 않으면서 폭만 먹고, 두 개의 `route.ts` 를

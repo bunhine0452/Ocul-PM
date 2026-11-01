@@ -15,13 +15,13 @@ owner: claude-code
 
 ## 의존성 올리기 (근거 있음, 사용자 결정 대기) {#deps}
 - [ ] notify 8 / debouncer 0.7 — Debouncer::watch 가 FileIdMap 을 루트부터 WalkDir 로 채움, OrderedFileIdCache 시그니처 이식 + perf_baseline 재측정 (← optimize-round-20261024 #carry-notify8) {#notify8}
-- [ ] fastembed 5.17 → 7.5 (+ ort·hf-hub 짝) — 메이저 둘, 변경 내용·메모리 실측부터 (← optimize-round-20261024 #next-fastembed7) {#fastembed7}
+- [-] fastembed 5.17 → 7.5 (+ ort·hf-hub 짝) — 메이저 둘, 변경 내용·메모리 실측부터 (← optimize-round-20261024 #next-fastembed7) {#fastembed7}
 - [ ] 보류 유지(근거): TypeScript 7 — typescript-eslint 8.72 의 peer 가 `<6.1.0` · notify 9 rc · specta rc.27 · keyring 4 기존 키 호환 불명. 근거가 바뀔 때만 다시 본다 (← optimize-round-20261024 #next-hold) {#deps-hold}
 
 ## 메모리·디스크 (측정 먼저) {#footprint}
 - [ ] 라이브 풋프린트 Malloc Small 511MB 귀속 — 설치본이 꺼진 때 심볼 빌드 + MallocStackLogging 으로 상위 할당 지점(3.12.0 실측: UI footprint 604MB · peak 949MB · 할당 835MB/144만 개). 보류 등급 제거(10-28) 뒤 재측정이 먼저 (← optimize-round #carry-malloc-small, improvement-round-2026-09-14 #footprint-attribution) {#malloc-small}
-- [ ] 이미 쌓인 worktree 사본 로컬 히스토리 236MB — 디스크에 없는 경로의 판 정리 (← optimize-round-20261024 #carry-history-purge) {#history-purge}
-- [ ] 남은 빈 테이블 mobile_devices · graph_nodes · graph_edges · symbol_relations (+ 10-28 제거로 비게 된 터미널·ACP·LSP 계열 테이블 조사) — 다음 마이그레이션 라운드에서 DROP 판단 (← optimize-round-20261024 #carry-dead-tables) {#dead-tables}
+- [!] 이미 쌓인 worktree 사본 로컬 히스토리 236MB — 디스크에 없는 경로의 판 정리 (← optimize-round-20261024 #carry-history-purge) {#history-purge}
+- [x] 남은 빈 테이블 mobile_devices · graph_nodes · graph_edges · symbol_relations (+ 10-28 제거로 비게 된 터미널·ACP·LSP 계열 테이블 조사) — 다음 마이그레이션 라운드에서 DROP 판단 (← optimize-round-20261024 #carry-dead-tables) {#dead-tables}
 
 ## 플러그인·스킬 {#plugin}
 - [ ] 플러그인 마켓플레이스 공개 — 택일 UX·훅 계약 문서·버전 스큐 매트릭스·커뮤니티 제출 (← improvement-round-2026-09-14 #plugin-marketplace ← plugin-round #a3-marketplace) {#plugin-marketplace}
@@ -31,4 +31,7 @@ owner: claude-code
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
+| 2026-11-01T15:49:35+09:00 | #dead-tables | claude-code | ☐→x | .oculpm/journal/20261101/Refactors/1549_refactor_optimize-dead-code-sweep.md | 판정 ✓ cargo test 1065 passed · 0 failed — migration 044 가 독자 없는 표 18개 DROP(graph·symbol 은 043). mobile_devices 는 CLAUDE.md 대로 남김 |
+| 2026-11-01T15:49:44+09:00 | #history-purge | claude-code | ☐→! | .oculpm/journal/20261101/Refactors/1549_refactor_optimize-dead-code-sweep.md | 쓰는 쪽(history.rs)을 걷어 더는 안 쌓인다. 남은 .oculpm/index/history/ (이 저장소 328MB) 를 앱이 지울지는 사용자 결정 |
+| 2026-11-01T15:49:50+09:00 | #fastembed7 | claude-code | ☐→- |  | 근거 소멸 — fastembed·ort 는 4.0 에서 의존성째 걷었다 |
 <!-- oculpm:plan-log end -->

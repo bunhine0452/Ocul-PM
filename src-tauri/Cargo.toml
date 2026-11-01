@@ -53,7 +53,6 @@ directories = "6.0.0"
 tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "time", "process", "net", "io-util", "sync"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-appender = "0.2"
-reqwest = { version = "0.13.3", default-features = false, features = ["json", "rustls", "stream", "http2"] }
 # DB 를 못 열 때의 기동 대화상자 (startup_db) — dialog 플러그인과 같은 rfd·같은 기능.
 # 셋업은 메인 스레드라 플러그인의 blocking_show 는 교착한다.
 rfd = { version = "0.16", default-features = false, features = ["common-controls-v6"] }
@@ -62,7 +61,7 @@ ignore = "0.4.25"
 walkdir = "2.5.0"
 blake3 = "1.8.5"
 regex = "1.11"
-# 문서(docs) 뷰어 — docs/ 이미지를 data URI 로 프런트에 전달할 때 사용.
+# 터미널 프로그램 상태(OSC 문자열의 base64 필드) · 이미지 미리보기 data URI.
 base64 = "0.22"
 # PR6.6 — unified-diff generator for LocalDiffView's snapshot fallback path.
 # MIT/Apache-2.0. Compact (~70KB compiled). Used only by commands::diff for
@@ -100,8 +99,8 @@ toml = "0.8"
 toml_edit = "0.20"
 uuid = { version = "1", features = ["v4"] }
 
-# 코드 화면의 파일 삭제 — 영구 삭제 대신 OS 휴지통으로 보낸다. IDE 안에서
-# 되돌릴 수 없는 삭제는 만들지 않는다 (폴더 삭제는 재귀라 더더욱).
+# 프로젝트 제거의 「기록 폴더도 휴지통으로」 — 영구 삭제 대신 OS 휴지통으로 보낸다
+# (commands/project.rs). 일지는 사용자의 기록이라 잘못 누른 것을 되돌릴 수 있어야 한다.
 # default-features off = chrono 를 끌어오는 휴지통 메타데이터 기능 제외.
 # coinit_apartmentthreaded: 크레이트 기본값 그대로 되살린다 — default-features 를
 # 끄면 Windows 에서 COM 초기화 방식이 빠져 trash 가 **일부러** 컴파일 에러를 낸다
@@ -168,8 +167,7 @@ tempfile = "3.10"
 tokio = { version = "1.52.3", features = ["test-util"] }
 
 # 빌드 프로파일 (2026-08-11). 이전에는 프로파일 지정이 아예 없어 카고 기본값으로
-# 나갔다 — tree-sitter 5종 + fastembed/ort + tauri 를 링크하는 규모에서는 기본값이
-# 남기는 것이 많다.
+# 나갔다 — tauri 를 링크하는 규모에서는 기본값이 남기는 것이 많다.
 [profile.release]
 opt-level = 3
 # "fat" 대신 "thin": 링크 시간이 몇 배 차이 나는데 크기/속도 이득은 대부분 따라온다.
@@ -191,7 +189,7 @@ strip = true
 debug = "line-tables-only"
 
 # 의존성은 최적화해서 컴파일한다. 우리 코드만 -O0 으로 남으므로 증분 빌드 속도는
-# 유지되면서, 디버그 실행 시 fastembed/ort 임베딩과 tree-sitter 파싱이 몇 배 빨라진다.
+# 유지되면서, 디버그 실행 시 의존성(SQLite · 정규식 · blake3 …)이 몇 배 빨라진다.
 # 최초 1회 의존성 재컴파일 비용이 든다.
 [profile.dev.package."*"]
 opt-level = 2

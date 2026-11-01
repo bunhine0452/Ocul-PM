@@ -4,10 +4,6 @@
 // `OculpmStatus.current_workday` / `oculpm_current_workday` 다. 여기는 그 키를
 // 앞뒤로 옮기는 달력 산술뿐이다.
 
-export function isWorkdayKey(s: string | null | undefined): s is string {
-  return typeof s === "string" && /^\d{8}$/.test(s);
-}
-
 /** `Date` → 로컬 달력의 `YYYYMMDD`. 백엔드 키가 없을 때(모바일)만 쓴다. */
 export function localWorkdayKey(date = new Date()): string {
   const yy = date.getFullYear().toString().padStart(4, "0");

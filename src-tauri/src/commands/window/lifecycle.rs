@@ -5,21 +5,6 @@
 
 use super::*;
 
-#[tauri::command]
-#[specta::specta]
-pub async fn open_devtools(webview: tauri::WebviewWindow) -> Result<(), String> {
-    #[cfg(debug_assertions)]
-    {
-        webview.open_devtools();
-        Ok(())
-    }
-    #[cfg(not(debug_assertions))]
-    {
-        let _ = webview;
-        Err("DevTools is only available in development builds.".to_string())
-    }
-}
-
 /// 쿼리 파라미터 값 최소 이스케이프. 신규 의존성 없이, 파라미터를 깨뜨리는
 /// 문자(`&` `#` `%` 공백 …)만 퍼센트 인코딩한다. UTF-8 은 바이트 단위로
 /// 인코딩되어 프런트의 `decodeURIComponent` 가 그대로 복원한다.

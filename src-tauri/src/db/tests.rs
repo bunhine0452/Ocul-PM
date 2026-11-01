@@ -332,12 +332,68 @@ async fn migration_043_drops_the_code_index_but_keeps_baselines() {
         .await
         .unwrap();
     assert!(left.is_empty(), "색인 표가 남았다: {left:?}");
-    assert_eq!(version, 43);
+    assert_eq!(version, registry::MIGRATIONS.last().unwrap().0);
     assert_eq!(snaps, 1, "diff 기준선은 남는다");
     assert!(dir.path().join("ocul-pm.db.bak-v42").is_file());
     // 이미 지운 DB 를 다시 열어도 (`IF EXISTS`) 아무 일 없다.
     db.close().await.unwrap();
     Db::open(path).await.unwrap();
+}
+
+/// 044 — 독자를 잃은 표 18개를 걷는다. 043 까지 온 DB(대화·컨텍스트 발화·회상 표에
+/// 행이 든 상태)를 새 앱이 열면 그 표들이 사라지고, 일지 캐시·`mobile_devices`·
+/// `project_overviews` 는 그대로다. FK 자식(chat_messages → conversations)이 있어도
+/// 순서대로 지워져 열기가 실패하지 않는다.
+#[tokio::test]
+async fn migration_044_drops_dead_feature_tables_only() {
+    let dir = tempdir().unwrap();
+    Db::open(dir.path().join("warm.db")).await.unwrap();
+
+    let path = dir.path().join("ocul-pm.db");
+    {
+        let c = rusqlite::Connection::open(&path).unwrap();
+        c.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        for (v, sql) in registry::MIGRATIONS.iter().filter(|(v, _)| *v <= 43) {
+            c.execute_batch(sql).unwrap();
+            c.pragma_update(None, "user_version", v).unwrap();
+        }
+        c.execute_batch(
+            "INSERT INTO projects (id, name, root_path) VALUES (1, 'p', '/tmp/p');
+             INSERT INTO conversations (id, project_id, title) VALUES (1, 1, 't');
+             INSERT INTO chat_messages (conversation_id, role, content) VALUES (1, 'user', 'hi');
+             INSERT INTO recall_stats (project_id, kind, ref, score, use_count, last_used)
+               VALUES (1, 'journal', 'x', 0.5, 1, 0);",
+        )
+        .unwrap();
+    }
+
+    let db = Db::open(path.clone()).await.unwrap();
+    let left: Vec<String> = db
+        .conn()
+        .call(|c| -> Result<_> {
+            let mut stmt = c.prepare(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (
+                   'goals', 'subtasks', 'conversations', 'chat_messages', 'conversation_actions',
+                   'changelog_entries', 'changelog_files', 'file_changes', 'project_blueprints',
+                   'oculpm_discussions', 'oculpm_discussion_log', 'oculpm_discussion_attachments',
+                   'context_firings', 'context_firing_scan', 'automation_state', 'automation_runs',
+                   'recall_stats', 'oculpm_sessions_cache', 'oculpm_settings', 'oculpm_migrations',
+                   'mobile_devices', 'project_overviews', 'oculpm_journal')
+                 ORDER BY name",
+            )?;
+            let rows = stmt
+                .query_map([], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(rows)
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        left,
+        vec!["mobile_devices", "oculpm_journal", "project_overviews"],
+        "남길 표만 남아야 한다"
+    );
+    assert!(dir.path().join("ocul-pm.db.bak-v43").is_file());
 }
 
 #[test]

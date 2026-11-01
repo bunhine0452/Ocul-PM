@@ -56,11 +56,3 @@ export function agentLabel(agentId: string): string {
   };
   return map[agentId] ?? agentId;
 }
-
-/** Agent label with the reported model appended — "Claude Code · Opus 4.8".
- *  Falls back to just the label when no model/version was recorded. */
-export function agentLabelWithModel(agentId: string, version?: string | null): string {
-  const base = agentLabel(agentId);
-  const v = version?.trim();
-  return v ? `${base} · ${v}` : base;
-}

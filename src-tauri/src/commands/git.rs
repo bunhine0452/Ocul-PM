@@ -25,7 +25,7 @@ pub async fn git_log(
     limit: u32,
 ) -> Result<Vec<git::GitCommit>, String> {
     let root = project_root(&db, project_id).await?;
-    // git 은 서브프로세스 — 런타임 워커를 붙잡지 않게 blocking 풀로 (아래 셋도).
+    // git 은 서브프로세스 — 런타임 워커를 붙잡지 않게 blocking 풀로 (아래도).
     blocking(move || git::log(&root, limit)).await
 }
 
@@ -33,48 +33,7 @@ use super::blocking;
 
 #[tauri::command]
 #[specta::specta]
-pub async fn git_graph(
-    db: State<'_, Db>,
-    project_id: u32,
-    limit: u32,
-) -> Result<Vec<git::GitGraphCommit>, String> {
-    let root = project_root(&db, project_id).await?;
-    blocking(move || git::graph(&root, limit)).await
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn git_status(db: State<'_, Db>, project_id: u32) -> Result<git::GitRepoStatus, String> {
     let root = project_root(&db, project_id).await?;
     blocking(move || Ok(git::status(&root))).await
-}
-
-/// 에디터 거터 (#git-gutter) — HEAD 대비 **지금 버퍼**의 줄 변경.
-///
-/// `git diff` 가 아니라 버퍼를 받는 이유: 거터는 **저장하기 전에** 무엇을
-/// 고쳤는지 보여야 쓸모가 있다. 저장소 밖 파일은 빈 목록이다 (오류가 아니다 —
-/// 추적되지 않는 폴더를 열어도 편집기는 동작해야 한다).
-#[tauri::command]
-#[specta::specta]
-pub async fn git_line_changes(
-    db: State<'_, Db>,
-    project_id: u32,
-    rel_path: String,
-    text: String,
-) -> Result<Vec<git::GitLineChange>, String> {
-    let root = project_root(&db, project_id).await?;
-    tauri::async_runtime::spawn_blocking(move || git::line_changes(&root, &rel_path, &text))
-        .await
-        .map_err(|e| format!("Failed to diff the file: {e}"))
-}
-
-/// Lite-W6 PR5 — slim head + dirty-count wrapper for the Today mini git chip.
-#[tauri::command]
-#[specta::specta]
-pub async fn git_head_status_brief(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<git::GitHeadStatusBrief, String> {
-    let root = project_root(&db, project_id).await?;
-    blocking(move || Ok(git::head_status_brief(&root))).await
 }

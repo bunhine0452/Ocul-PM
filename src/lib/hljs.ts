@@ -10,17 +10,18 @@ import { useEffect, useState } from "react";
 // 이제 두 소비자(PatchView, CodeSnippet)가 이 모듈 하나를 거치므로 문법은 자기
 // 청크로 분리되고, 프라미스가 모듈 스코프에 메모이즈되어 두 번 내려받지 않는다.
 //
-// lib/common 은 흔한 37개 언어만 담은 빌드다 (전체 빌드는 800KB 대). 여기 없는
-// 언어는 getLanguage() 가 undefined 를 주므로 호출부가 평문으로 폴백하면 된다.
+// 흔한 37개 언어만 담는다 (전체 빌드는 800KB 대) — 목록과 마크다운 청크와 문법을
+// 나눠 쓰는 이유는 `hljsCommon.ts`. 여기 없는 언어는 getLanguage() 가 undefined 를
+// 주므로 호출부가 평문으로 폴백하면 된다.
 
-export type Hljs = typeof import("highlight.js/lib/common").default;
+export type Hljs = import("highlight.js").HLJSApi;
 
 let hljsPromise: Promise<Hljs> | null = null;
 
-/** highlight.js/lib/common 을 한 번만 내려받아 공유한다. */
+/** 하이라이터(`hljsCommon`)를 한 번만 내려받아 공유한다. */
 export function loadHljs(): Promise<Hljs> {
   if (!hljsPromise) {
-    hljsPromise = import("highlight.js/lib/common").then((m) => m.default);
+    hljsPromise = import("./hljsCommon").then((m) => m.default);
   }
   return hljsPromise;
 }

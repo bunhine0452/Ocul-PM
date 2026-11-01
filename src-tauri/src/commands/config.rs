@@ -43,12 +43,6 @@ pub async fn settings_set(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn settings_get(db: State<'_, Db>, key: String) -> Result<Option<String>, String> {
-    db.settings_get(key).await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn settings_get_all(db: State<'_, Db>) -> Result<Vec<(String, String)>, String> {
     db.settings_get_all().await.map_err(|e| e.to_string())
 }

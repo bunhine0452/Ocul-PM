@@ -9,7 +9,6 @@ import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/binding
 import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { isModChord } from "@/lib/kbd";
-import { consumeManualEntryRequest, onManualEntryRequest, type ManualEntrySeed } from "@/lib/journalCompose";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { toast } from "@/lib/toast";
 import { JournalDetail } from "./JournalDetail";
@@ -84,7 +83,7 @@ export function JournalScreenV2({
   const [rowLimit, setRowLimit] = useState(ROW_LIMIT);
   const [selected, setSelected] = useState<JournalEntrySummary | null>(null);
   const [fromExternal, setFromExternal] = useState(false);
-  const [manualSeed, setManualSeed] = useState<ManualEntrySeed | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const splitRef = useRef<HTMLDivElement>(null);
@@ -258,21 +257,12 @@ export function JournalScreenV2({
       } else if (k === "n") {
         e.preventDefault();
         e.stopPropagation();
-        setManualSeed({});
+        setManualOpen(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  // 화면 밖에서 온 「일지 작성기 열기」 요청 — ⌘K 팔레트의 '새 일지'. 다른 화면에 있을 때는 이 화면이
-  // 언마운트돼 이벤트를 놓치므로, 구독과 함께 대기분도 한 번 회수한다.
-  useEffect(() => {
-    if (!active) return;
-    const pending = consumeManualEntryRequest();
-    if (pending) setManualSeed(pending);
-    return onManualEntryRequest((seed) => setManualSeed(seed));
-  }, [active]);
 
   const move = useCallback(
     (delta: number) => {
@@ -345,7 +335,7 @@ export function JournalScreenV2({
     <button
       type="button"
       className="btn primary"
-      onClick={() => setManualSeed({})}
+      onClick={() => setManualOpen(true)}
       {...blocked(todayKey ? null : t("journal.newDisabled"), t("journal.newTitle"))}
     >
       <Plus size={15} /> {t("journal.new")}
@@ -530,18 +520,15 @@ export function JournalScreenV2({
         </div>
       )}
 
-      {manualSeed && todayKey ? (
+      {manualOpen && todayKey ? (
         <ManualEntryModalV2
           projectId={projectId}
           workday={todayKey}
-          seedTitle={manualSeed.title}
-          seedBody={manualSeed.body}
-          seedType={manualSeed.type}
           onCreated={(entry) => {
             refresh();
             toast.info(t("journal.written", { title: entry.title }));
           }}
-          onClose={() => setManualSeed(null)}
+          onClose={() => setManualOpen(false)}
         />
       ) : null}
     </>

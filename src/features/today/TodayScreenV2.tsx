@@ -28,7 +28,6 @@ import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { requestOculpmActivate } from "@/lib/projectActions";
-import { consumeResumeOnOpen } from "@/lib/resumeIntent";
 import { openSettings } from "@/lib/settingsNav";
 import { toast } from "@/lib/toast";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
@@ -83,18 +82,6 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   useEffect(() => {
     if (!isTyping(document.activeElement)) rootRef.current?.focus({ preventScroll: true });
   }, []);
-
-  // 시작 탭의 「이 맥락으로 이어서 작업」 — 프로젝트가 열려 이 화면이 서면 한 번, 이어하기
-  // 프롬프트로 앱 안 터미널에서 claude 를 연다(사용자가 그 단추를 눌렀다).
-  useEffect(() => {
-    if (!oculpmReady || !consumeResumeOnOpen(projectId)) return;
-    void hooksApi
-      .resumeDispatchPrompt(projectId)
-      .then((res) => runPromptInTerminal(projectId, res.prompt))
-      .catch((e: unknown) => toast.destructive(t("today.resume.dispatchFailed", { error: tError(toAppError(e)) })));
-    // 뜻은 한 번만 소비된다 — t 가 바뀌어도 다시 돌 일이 없다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [oculpmReady, projectId]);
 
   const openPlan = useCallback(
     (planId: string) => {
