@@ -12,7 +12,6 @@ export const commands = {
 	 */
 	dbCompact: () => typedError<DbHealth, string>(__TAURI_INVOKE("db_compact")),
 	settingsSet: (key: string, value: string) => typedError<null, string>(__TAURI_INVOKE("settings_set", { key, value })),
-	settingsGet: (key: string) => typedError<string | null, string>(__TAURI_INVOKE("settings_get", { key })),
 	settingsGetAll: () => typedError<([string, string])[], string>(__TAURI_INVOKE("settings_get_all")),
 	settingsSetMany: (entries: ([string, string])[]) => typedError<null, string>(__TAURI_INVOKE("settings_set_many", { entries })),
 	appInfo: () => typedError<AppInfo, string>(__TAURI_INVOKE("app_info")),
@@ -122,7 +121,6 @@ export const commands = {
 	raceTake: (projectId: number, path: string) => typedError<null, AppError>(__TAURI_INVOKE("race_take", { projectId, path })),
 	/**  레인을 모두 지운다(worktree · 가지). 지운 수. */
 	raceClear: (projectId: number) => typedError<number, AppError>(__TAURI_INVOKE("race_clear", { projectId })),
-	openDevtools: () => typedError<null, string>(__TAURI_INVOKE("open_devtools")),
 	/**
 	 *  프로젝트의 창을 연다 — I1 이 여기서 강제된다.
 	 * 
@@ -168,32 +166,8 @@ export const commands = {
 	 */
 	applyMenuLanguage: (lang: string) => typedError<null, string>(__TAURI_INVOKE("apply_menu_language", { lang })),
 	readProjectFile: (projectId: number, relPath: string) => typedError<string, string>(__TAURI_INVOKE("read_project_file", { projectId, relPath })),
-	/**
-	 *  지금 `.oculpm/index/` 가 먹는 용량 — 세 갈래로 쪼개서. 보이지 않는 곳에서
-	 *  디스크를 먹는 기능은 반드시 자기 크기를 밝혀야 한다(`history.rs` 와 같은
-	 *  원칙).
-	 */
-	oculpmIndexUsage: (projectId: number) => typedError<IndexUsage, string>(__TAURI_INVOKE("oculpm_index_usage", { projectId })),
-	/**
-	 *  diff 사이드카 전부 삭제 — 전문 스냅샷(로컬 히스토리)과 달리 diff 는 git 이
-	 *  있으면 다시 만들 수 있다(`read_or_reconstruct_entry_diffs`). git 이 없는
-	 *  프로젝트라면 이후 일지들은 캡처 시점의 diff 를 다시 못 얻으니, 그 사실은
-	 *  프런트 확인 문구가 말한다.
-	 */
-	oculpmIndexClearDiffs: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_index_clear_diffs", { projectId })),
 	gitLog: (projectId: number, limit: number) => typedError<GitCommit[], string>(__TAURI_INVOKE("git_log", { projectId, limit })),
-	gitGraph: (projectId: number, limit: number) => typedError<GitGraphCommit[], string>(__TAURI_INVOKE("git_graph", { projectId, limit })),
 	gitStatus: (projectId: number) => typedError<GitRepoStatus, string>(__TAURI_INVOKE("git_status", { projectId })),
-	/**  Lite-W6 PR5 — slim head + dirty-count wrapper for the Today mini git chip. */
-	gitHeadStatusBrief: (projectId: number) => typedError<GitHeadStatusBrief, string>(__TAURI_INVOKE("git_head_status_brief", { projectId })),
-	/**
-	 *  에디터 거터 (#git-gutter) — HEAD 대비 **지금 버퍼**의 줄 변경.
-	 * 
-	 *  `git diff` 가 아니라 버퍼를 받는 이유: 거터는 **저장하기 전에** 무엇을
-	 *  고쳤는지 보여야 쓸모가 있다. 저장소 밖 파일은 빈 목록이다 (오류가 아니다 —
-	 *  추적되지 않는 폴더를 열어도 편집기는 동작해야 한다).
-	 */
-	gitLineChanges: (projectId: number, relPath: string, text: string) => typedError<GitLineChange[], string>(__TAURI_INVOKE("git_line_changes", { projectId, relPath, text })),
 	/**
 	 *  Hybrid diff: tries git first, falls back to the captured snapshot when git
 	 *  can't help. Returns `SnapshotsUnavailable` only when neither baseline exists
@@ -260,15 +234,6 @@ export const commands = {
 	 *  않는 대신 **이유를 돌려준다** — 화면이 그 문구를 그대로 보여 준다.
 	 */
 	quickLookFile: (projectRoot: string, relPath: string) => typedError<null, string>(__TAURI_INVOKE("quick_look_file", { projectRoot, relPath })),
-	/**
-	 *  Check if a CLI tool is available on the system PATH (or common install
-	 *  locations). Returns availability, resolved path, and version string.
-	 * 
-	 *  The check uses `which`(Unix) / `where`(Windows) followed by a
-	 *  `--version` probe. On failure, we scan well-known install directories
-	 *  as a fallback (e.g. `~/.cargo/bin` for `cargo`).
-	 */
-	checkCliAvailable: (cliName: string) => typedError<CliCheckResult, string>(__TAURI_INVOKE("check_cli_available", { cliName })),
 	/**
 	 *  Idempotent project initialisation — creates `.oculpm/`, writes default
 	 *  config, acquires the lock, and patches `.gitignore`. Returns a report of
@@ -685,8 +650,6 @@ export const commands = {
 	oculpmVelocity: (projectId: number, weeks: number | null) => typedError<Velocity, string>(__TAURI_INVOKE("oculpm_velocity", { projectId, weeks })),
 	/**  「약속 성적표」 — `days` 가 없으면 30일. 오늘 포함 `days` 일의 workday 창. */
 	oculpmPromiseScorecard: (projectId: number, days: number | null) => typedError<PromiseScorecard, string>(__TAURI_INVOKE("oculpm_promise_scorecard", { projectId, days })),
-	/**  현재 설치 상태 조회 (쓰기 없음). */
-	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**
 	 *  이 프로젝트에서 Claude 가 사람을 기다리는 세션들 (플러그인 Notification 훅, #notify-hook).
 	 *  [`waiting::WAITING_STALE_MINUTES`] 보다 오래된 것은 지우고 돌려준다.
@@ -704,28 +667,6 @@ export const commands = {
 	 *  배열 — 플러그인 미설치 프로젝트에서 에러 경로를 만들지 않는다.
 	 */
 	journalMissingSignals: (projectId: number, days: number) => typedError<JournalMissingSignal[], string>(__TAURI_INVOKE("journal_missing_signals", { projectId, days })),
-	/**
-	 *  첫 기록 원장 — 창 안(`days`, 1~30)의 대화별 첫 일지 귀속
-	 *  (플랜 `first-record-loop` {#p1-ledger}). Today 「첫 기록」 카드가 읽는다.
-	 * 
-	 *  일지 행은 캐시(037 `agent_session`)에서, 마커·세션·신호는 디스크에서.
-	 *  워크데이 하한은 UTC 기준에 하루를 더 물러 잡는다 — 프로젝트 tz 의 워크데이
-	 *  경계와 어긋나도 창이 **넓어질** 뿐 좁아지지 않는다.
-	 */
-	firstRecordLedger: (projectId: number, days: number) => typedError<FirstRecordLedger, AppError>(__TAURI_INVOKE("first_record_ledger", { projectId, days })),
-	/**
-	 *  이어하기 자료 — 마지막 일지·활성 계획의 다음 항목·전달 원장
-	 *  (플랜 `first-record-loop` Phase 2). 디스크만 읽는다; 훅과 같은 선택 규칙.
-	 */
-	resumeDigest: (projectId: number) => typedError<ResumeDigest, AppError>(__TAURI_INVOKE("resume_digest", { projectId })),
-	/**
-	 *  이어하기 디스패치 (first-record-loop P2-3) — 이어하기 자료를 프롬프트로 만들어
-	 *  디스패치 폴더에 쓰고 터미널 프리필용 명령을 돌려준다. 플래너 ▶실행과 같은
-	 *  핸드오프(`dispatchTarget`)를 타므로 화면이 바뀌고 무슨 일이 일어났는지 토스트가
-	 *  말한다 — 그전의 「빠른 터미널 열기」는 화면 아래에서 조용히 열려 아무것도
-	 *  바뀌지 않은 것처럼 보였다 (2026-09-22 사용자 지적).
-	 */
-	resumeDispatchPrompt: (projectId: number) => typedError<ResumeDispatch, AppError>(__TAURI_INVOKE("resume_dispatch_prompt", { projectId })),
 	mcpStatus: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_status", { projectId })),
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
@@ -755,7 +696,6 @@ export const commands = {
 	 */
 	claudePluginStatus: (projectId: number | null) => typedError<ClaudePluginStatus, string>(__TAURI_INVOKE("claude_plugin_status", { projectId })),
 	newWindow: () => typedError<null, string>(__TAURI_INVOKE("new_window")),
-	diagnosticsReport: () => typedError<DiagnosticsReport, string>(__TAURI_INVOKE("diagnostics_report")),
 	/**  이 실행 파일의 설치 형식 (업데이터의 키 선택과 같은 규칙). */
 	installKind: () => __TAURI_INVOKE<InstallKind>("install_kind"),
 };
@@ -954,23 +894,6 @@ export type ChangePlanRef = {
 	item_title: string,
 };
 
-export type ClaudeHooksStatus = {
-	/**  3개 이벤트 전부에 우리 엔트리가 있다. */
-	installed: boolean,
-	/**  일부 이벤트에만 있다 (외부 편집으로 인한 드리프트 — 재설치 권장). */
-	partial: boolean,
-	/**  우리 것 아닌 훅 엔트리도 존재한다 (정보 표시용 — 건드리지 않음). */
-	foreign_hooks: boolean,
-	/**  `.claude/settings.local.json` 절대경로 (UI "파일 열기"용). */
-	settings_path: string,
-	/**
-	 *  인박스 파일 현재 크기 (0 = 없음). 성장 관찰용. u32 saturating —
-	 *  specta 가 u64(BigInt) 내보내기를 금지하고, 4GiB 넘는 인박스는 표시
-	 *  정밀도가 무의미하다.
-	 */
-	inbox_bytes: number,
-};
-
 export type ClaudePluginStatus = {
 	installed: boolean,
 	/**  발견된 플러그인 디렉터리 (installed=true 일 때). */
@@ -1019,13 +942,6 @@ export type ClaudeWaitingChanged = {
 	project_id: number,
 };
 
-export type CliCheckResult = {
-	available: boolean,
-	cli_name: string,
-	path: string | null,
-	version: string | null,
-};
-
 export type CodexPluginStatus = {
 	/**  Codex 설정 폴더가 있다 (설치/첫 실행 추정 근거). */
 	codex_installed: boolean,
@@ -1063,31 +979,6 @@ export type CodexRegistrationStatus = {
 	pinned_root: string | null,
 	/**  oculpm이 소유하지 않는 Codex MCP 서버 수 (정보 표시용). */
 	foreign_servers: number,
-};
-
-/**
- *  대화 하나의 흔적. 어느 표면이 남겼는지는 묻지 않는다 — 셸 훅과 앱 안 ACP
- *  가 같은 마커·같은 프론트매터 키를 쓴다 ([`verdict::markers`] 의 계약).
- */
-export type ConversationTrace = {
-	/**  대화 id (`agent.session` / 훅 payload 의 `session_id`). */
-	conversation: string,
-	/**  세그먼트 마커가 있다 — 시작했고 아직 SessionEnd 를 못 받았다. */
-	segment_open: boolean,
-	/**  생존 흔적이 창 안이다 — **지금** 살아 있다고 볼 근거. */
-	live: boolean,
-	/**
-	 *  시작 시각 (RFC3339 UTC). 마커 > 작업 세션 시작 > 첫 일지 순으로 잡는다.
-	 *  작업 세션에서 온 값은 그 대화가 속한 세션의 시작이라 **근사**다.
-	 */
-	started_at: string | null,
-	/**  마지막 활동 (생존 흔적·마커·마지막 일지 중 최신). 정렬 키. */
-	last_activity_at: string | null,
-	/**  이 대화가 남긴 첫 일지. `None` = 아직 없다 (판정 불가가 아니라 "없다"). */
-	first_journal: FirstJournal | null,
-	journal_count: number,
-	/**  미기록 신호 원장에 `missing` 으로 남아 있고 그 뒤 일지도 없다. */
-	missing_signal: boolean,
 };
 
 export type DbHealth = {
@@ -1135,29 +1026,6 @@ export type DetectConfidence =
 "likely" | 
 /**  No signal at all. */
 "unknown";
-
-/**
- *  「진단 정보 복사」 한 벌 (#w5-report). 베타 버그 리포트에 그대로 붙는다 —
- *  비밀·계정·호스트명은 싣지 않고, 경로 속 홈(사용자 이름)은 `~` 로 가린다.
- *  설치 형식은 L-UPD 의 설치 형식 커맨드가 따로 준다 (프런트가 합친다).
- */
-export type DiagnosticsReport = {
-	app_version: string,
-	/**  `macos` · `windows` · `linux` (`std::env::consts::OS`). */
-	os: string,
-	/**  사람이 읽는 OS 판 — 못 읽으면 `None`. */
-	os_version: string | null,
-	/**  `x86_64` · `aarch64`. */
-	arch: string,
-	/**  `WebView2 …` · `WebKitGTK …`. macOS 는 OS 에 딸린 WKWebView 라 `None`. */
-	webview: string | null,
-	/**  Linux 데스크톱 세션 (`wayland · GNOME`). */
-	session: string | null,
-	/**  시스템 시간대 — 새 `.oculpm` 설정의 workday 기본값과 같다. */
-	timezone: string,
-	/**  로그 폴더 (`~` 로 가림). 파일 로그가 꺼진 실행이면 `None`. */
-	log_dir: string | null,
-};
 
 export type DiffResult = {
 	path: string,
@@ -1333,30 +1201,6 @@ export type FileTouched = {
 	rename_from: string | null,
 };
 
-/**  한 대화의 **첫** 일지 — 카드가 제목과 열기 링크로 쓴다. */
-export type FirstJournal = {
-	relative_path: string,
-	title: string,
-	created_at: string,
-	agent_id: string,
-};
-
-export type FirstRecordLedger = {
-	/**  최근 활동 순. */
-	conversations: ConversationTrace[],
-	/**
-	 *  창 안 일지 중 대화 id 가 **없는** 것 — 귀속 불명 (플러그인 없이 쓴
-	 *  에이전트, git 백필, 수동 기록, 037 이전 일지).
-	 */
-	unattributed_recent: number,
-	/**
-	 *  훅이 이 프로젝트에 한 번이라도 닿았다 (마커·인박스·신호 원장 중 하나가
-	 *  있다). "설정이 있다"와 "실제로 연결됐다"를 가르는 유일한 관측 근거.
-	 */
-	hooks_seen: boolean,
-	window_days: number,
-};
-
 /**
  *  A single uncommitted change from `git status`. `op` is one of `"A"` / `"M"` /
  *  `"D"` so it lines up directly with the frontend `ChangeOp` union used by the
@@ -1385,52 +1229,6 @@ export type GitConfig = {
 	 */
 	auto_redact_patterns: string[],
 };
-
-/**
- *  One commit in the graph view (Today git graph). Carries `parents` for lane
- *  routing and `refs` (branch/tag/HEAD decorations) so the UI can badge tips.
- */
-export type GitGraphCommit = {
-	sha: string,
-	short_sha: string,
-	parents: string[],
-	author_name: string,
-	/**  Unix timestamp in seconds (author date). */
-	timestamp: number,
-	subject: string,
-	/**
-	 *  Ref names pointing here (e.g. `main`, `origin/main`, a tag), HEAD-/tag-
-	 *  prefixes stripped.
-	 */
-	refs: string[],
-};
-
-/**
- *  Lite-W6 PR5 — slim wrapper for the TitleBar mini git chip (UI consumer
- *  arrives in PR7). Returns just the branch + the count of `git status
- *  --porcelain` lines (staged + unstaged + untracked).
- */
-export type GitHeadStatusBrief = {
-	is_git_repo: boolean,
-	/**  `None` when the repo is in detached-HEAD state or there is no repo. */
-	head_branch: string | null,
-	/**  Count of `--porcelain` lines. Capped at u32::MAX in practice. */
-	uncommitted: number,
-};
-
-/**  에디터 거터에 그릴 한 덩어리의 변경. 줄 번호는 **1-based, 현재 버퍼 기준**. */
-export type GitLineChange = {
-	/**  첫 줄 (포함). */
-	start_line: number,
-	/**
-	 *  마지막 줄 (포함). `deleted` 는 start_line == end_line 이고, 그 줄
-	 *  **다음에** 무언가 지워졌다는 뜻이다 (지워진 줄은 화면에 없으므로).
-	 */
-	end_line: number,
-	kind: GitLineChangeKind,
-};
-
-export type GitLineChangeKind = "added" | "modified" | "deleted";
 
 export type GitRemote = {
 	name: string,
@@ -1517,20 +1315,6 @@ export type HomeProjectBrief = {
 	 *  **여기서 생성하지 않는다** (LLM 호출 0).
 	 */
 	identity: string | null,
-};
-
-/**
- *  `history`/`diffs`/그 밖(워크데이 캐시 등) 세 갈래 사용량. specta 는 `u64` 를
- *  못 내보내 정밀도를 잃으므로(`DbHealth::db_bytes` 와 같은 관례) `f64` 로
- *  건넌다 — JS `number` 는 2^53 까지 정확하다.
- */
-export type IndexUsage = {
-	history_bytes: number | null,
-	history_files: number,
-	diffs_bytes: number | null,
-	diffs_files: number,
-	other_bytes: number | null,
-	total_bytes: number | null,
 };
 
 /**  이 실행 파일의 설치 형식과, 업데이터가 latest.json 에서 찾을 키. */
@@ -2192,61 +1976,6 @@ export type RelatedSuggestion = {
 	entry_type: string,
 	score: number | null,
 	reasons: RelatedReason[],
-};
-
-/**  원장 한 줄 — 어느 대화의 시작 컨텍스트에 무엇이 실렸는가. */
-export type ResumeDelivery = {
-	/**  훅이 적은 UTC ISO 문자열 그대로. */
-	ts: string,
-	/**  대화 id (훅 payload 의 `session_id`). */
-	conversation: string,
-	journals: string[],
-	plan_items: number,
-};
-
-export type ResumeDigest = {
-	last_journals: ResumeJournal[],
-	next_items: ResumeItem[],
-	/**  가장 최근 전달 (대화 단위로 접은 뒤 최신). */
-	last_delivery: ResumeDelivery | null,
-	/**  창 안에서 전달받은 **대화** 수. */
-	deliveries_recent: number,
-	/**
-	 *  훅이 이 프로젝트에 한 번이라도 닿았다 — 「아직 전달 안 됨」이 "훅이 없다"
-	 *  인지 "새 세션이 아직 없다" 인지를 가른다.
-	 */
-	hooks_seen: boolean,
-	/**  복사용 본문 — 같은 자료의 사람용 렌더링 (훅의 컨텍스트와 문장은 다르다). */
-	text: string,
-};
-
-/**  「이 맥락으로 이어서 작업」의 산출물 — 플래너 ▶실행(`DispatchPrompt`)과 같은 모양. */
-export type ResumeDispatch = {
-	/**  `.oculpm/index/dispatch/resume.md` (앱 관리·gitignore 영역). */
-	file_rel: string,
-	/**  셸 프롬프트에 프리필할 한 줄 (`claude "$(cat '…')"`). 실행(Enter)은 사용자가. */
-	command: string,
-	/**  프롬프트 본문 — 돌고 있는 에이전트가 있으면 이걸 붙여넣는다. */
-	prompt: string,
-};
-
-export type ResumeItem = {
-	plan_id: string,
-	plan_title: string,
-	/**  플랜의 「완료 조건」 — 항목 너머의 목표 (`planner::done_when`). 없으면 `None`. */
-	plan_done_when: string | null,
-	item_id: string,
-	title: string,
-	/**  `todo` · `in_progress` · `blocked`. */
-	status: string,
-};
-
-export type ResumeJournal = {
-	/**  `.oculpm/journal/` 기준 상대경로. */
-	relative_path: string,
-	title: string,
-	created_at: string | null,
-	agent_id: string | null,
 };
 
 export type Session = {

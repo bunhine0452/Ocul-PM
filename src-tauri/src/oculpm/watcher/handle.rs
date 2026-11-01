@@ -420,15 +420,6 @@ impl WatcherInner {
             self.schedule_baseline_sync(change.path.clone(), change.op);
         }
 
-        // 7.55 B5 — 로컬 히스토리 한 판 (06-local-history.md). 캡처 지점이
-        // **여기 한 곳**인 이유가 이 설계의 핵심이다: `should_track` 를 이미
-        // 통과했고, 디렉터리가 아니고, 해시가 이미 있고(중복 캡처를 공짜로
-        // 거른다), 무엇보다 **사람이 쓰든 에이전트가 쓰든 여기를 지난다**.
-        // `code_write` 에는 걸지 않는다 — 이중 캡처가 된다.
-        if !self.is_forbidden(path) {
-            self.schedule_history_capture(&change);
-        }
-
         // 8. Forbidden-path masking.
         if self.is_forbidden(path) {
             change.path = format!("**redacted/sensitive**:{}", short_hash_of(&change.path));
@@ -525,20 +516,6 @@ impl WatcherInner {
     fn touch_last_event_at(&self) {
         if let Ok(mut s) = self.stats.write() {
             s.last_event_at = Some(Utc::now());
-        }
-    }
-
-    /// B5 — 로컬 히스토리 캡처 (fire-and-forget). 본체는 `watcher_tasks` —
-    /// 여기서는 게이트(동시 상한 + 워처 수명)를 얹어 넘길 뿐이다.
-    fn schedule_history_capture(&self, change: &FileChangeEvent) {
-        if let Some(handle) = &self.app_handle {
-            watcher_tasks::schedule_history_capture(
-                &self.tasks,
-                handle,
-                self.project_id,
-                &self.root,
-                change,
-            );
         }
     }
 

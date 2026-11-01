@@ -66,8 +66,8 @@ async fn deleting_a_project_clears_its_cache_rows_only() {
                     [pid],
                 )?;
                 c.execute(
-                    "INSERT INTO recall_stats (project_id, kind, ref, score, use_count, last_used)
-                     VALUES (?1, 'journal', 'x', 0.5, 1, 0)",
+                    "INSERT INTO oculpm_plan_decisions (project_id, plan_id, decision_id, title, body)
+                     VALUES (?1, 'p', 'd', 't', 'b')",
                     [pid],
                 )?;
                 Ok::<(), tokio_rusqlite::Error>(())
@@ -78,7 +78,7 @@ async fn deleting_a_project_clears_its_cache_rows_only() {
 
     db.delete_project(gone).await.unwrap();
 
-    for table in ["oculpm_agent_state", "recall_stats"] {
+    for table in ["oculpm_agent_state", "oculpm_plan_decisions"] {
         let left = table_count(
             &db,
             format!("SELECT COUNT(*) FROM {table} WHERE project_id = {gone}"),

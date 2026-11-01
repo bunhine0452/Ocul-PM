@@ -86,74 +86,6 @@ fn render_unified_diff_truncation_respects_byte_budget_for_multibyte_text() {
     );
 }
 
-// ─── 에디터 거터 (#git-gutter) ─────────────────────────────────────────
-
-/// `(시작, 끝, 종류)` 로 줄여 읽기 쉽게.
-fn shape(changes: &[GitLineChange]) -> Vec<(u32, u32, GitLineChangeKind)> {
-    changes
-        .iter()
-        .map(|c| (c.start_line, c.end_line, c.kind))
-        .collect()
-}
-
-#[test]
-fn gutter_marks_added_lines() {
-    let got = diff_line_changes("a\nb\n", "a\nX\nY\nb\n");
-    assert_eq!(shape(&got), vec![(2, 3, GitLineChangeKind::Added)]);
-}
-
-#[test]
-fn gutter_marks_a_replaced_line_as_modified_not_add_plus_delete() {
-    // 지움+삽입이 붙어 있으면 사람 눈에는 "고쳤다" 다 — 표식 두 개를
-    // 겹쳐 그리면 거터가 시끄럽고 무슨 일이 났는지 안 보인다.
-    let got = diff_line_changes("a\nb\nc\n", "a\nB\nc\n");
-    assert_eq!(shape(&got), vec![(2, 2, GitLineChangeKind::Modified)]);
-}
-
-#[test]
-fn gutter_marks_deletions_on_the_surviving_line_above() {
-    // 지워진 줄은 화면에 없다 — 남아 있는 앞 줄에 표식을 붙인다.
-    let got = diff_line_changes("a\nb\nc\n", "a\nc\n");
-    assert_eq!(shape(&got), vec![(1, 1, GitLineChangeKind::Deleted)]);
-}
-
-#[test]
-fn gutter_marks_a_deletion_at_the_end_of_file() {
-    let got = diff_line_changes("a\nb\n", "a\n");
-    assert_eq!(shape(&got), vec![(1, 1, GitLineChangeKind::Deleted)]);
-}
-
-#[test]
-fn gutter_marks_a_deletion_at_the_start_of_file() {
-    // 앞에 남은 줄이 없으면 1행에 붙인다 (0행은 없다).
-    let got = diff_line_changes("a\nb\n", "b\n");
-    assert_eq!(shape(&got), vec![(1, 1, GitLineChangeKind::Deleted)]);
-}
-
-#[test]
-fn gutter_keeps_separate_hunks_separate() {
-    let got = diff_line_changes("a\nb\nc\nd\n", "a\nX\nc\nd\nY\n");
-    assert_eq!(
-        shape(&got),
-        vec![
-            (2, 2, GitLineChangeKind::Modified),
-            (5, 5, GitLineChangeKind::Added)
-        ]
-    );
-}
-
-#[test]
-fn gutter_is_empty_when_nothing_changed() {
-    assert!(diff_line_changes("a\nb\n", "a\nb\n").is_empty());
-}
-
-#[test]
-fn gutter_handles_korean_lines() {
-    // 줄 단위 비교라 바이트 폭은 상관없어야 한다 (회귀 방지).
-    let got = diff_line_changes("가\n나\n", "가\n다\n");
-    assert_eq!(shape(&got), vec![(2, 2, GitLineChangeKind::Modified)]);
-}
-
 #[test]
 fn porcelain_op_maps_status_pairs() {
     // Untracked file (`?? path`).
@@ -304,63 +236,6 @@ fn korean_file_names_survive_every_git_reader() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
-/// 태그 사이 범위 읽기 (`{#release-notes-draft}`) — 기준 태그 해석과, 그 범위
-/// 커밋이 **만진 파일**까지. 셋을 한 픽스처로 묶는 이유는 셋이 한 물음이기
-/// 때문이다: "지난 릴리스 이후 무엇이 바뀌었나".
-#[test]
-fn a_tag_range_yields_only_the_commits_after_it_with_their_files() {
-    let root = std::env::temp_dir().join(format!("ocul-relnotes-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
-    std::fs::create_dir_all(root.join("src")).unwrap();
-    if git(&root, &["init", "-q"]).is_err() {
-        return; // git unavailable
-    }
-    git(&root, &["config", "user.email", "t@t.dev"]).unwrap();
-    git(&root, &["config", "user.name", "t"]).unwrap();
-
-    let commit = |name: &str, body: &str, msg: &str| {
-        std::fs::write(root.join(name), body).unwrap();
-        git(&root, &["add", name]).unwrap();
-        git(&root, &["commit", "-qm", msg]).unwrap();
-    };
-    commit("src/a.rs", "1\n", "base");
-    git(&root, &["tag", "v1.0.0"]).unwrap();
-    commit("src/b.rs", "1\n", "feat: b");
-    commit("src/c.rs", "1\n", "fix: c");
-    git(&root, &["tag", "v1.1.0"]).unwrap();
-    commit("src/d.rs", "1\n", "chore: d");
-
-    // 기준은 HEAD 에서 거슬러 닿는 마지막 태그 — 만든 순서가 아니라 도달성이다.
-    assert_eq!(
-        latest_version_tag(&root, "HEAD").unwrap().as_deref(),
-        Some("v1.1.0")
-    );
-
-    let after = log_range_with_files(&root, "v1.1.0", "HEAD", 50).unwrap();
-    assert_eq!(after.len(), 1, "{after:?}");
-    assert_eq!(after[0].subject, "chore: d");
-    assert_eq!(after[0].files, vec!["src/d.rs".to_string()]);
-
-    // 태그 두 개 사이는 그 사이 커밋만 — 기준 커밋(base)은 빠진다.
-    let between = log_range_with_files(&root, "v1.0.0", "v1.1.0", 50).unwrap();
-    let subjects: Vec<&str> = between.iter().map(|c| c.subject.as_str()).collect();
-    assert_eq!(subjects, vec!["fix: c", "feat: b"], "최신 먼저");
-    let files: Vec<&str> = between
-        .iter()
-        .flat_map(|c| c.files.iter().map(String::as_str))
-        .collect();
-    assert_eq!(files, vec!["src/c.rs", "src/b.rs"]);
-    assert!(between.iter().all(|c| c.timestamp > 0), "{between:?}");
-
-    // 기준이 비면 이력 전체.
-    assert_eq!(
-        log_range_with_files(&root, "", "HEAD", 50).unwrap().len(),
-        4
-    );
-
-    let _ = std::fs::remove_dir_all(&root);
-}
-
 /// 보안 피드백 3차 (2026-10-08): 블롭 질의는 저장소를 **경로에서** 푼다. 프로젝트
 /// 옆의 다른 저장소를 `../`·절대경로·밖을 가리키는 링크로 가리키면, 그 저장소에
 /// 커밋된 내용이 나왔다 (`code_head_content`·이미지 미리보기 "이전"·거터).
@@ -396,6 +271,5 @@ fn blob_queries_stay_inside_the_project_root() {
         assert_eq!(show_file_bytes(&proj, rel, "HEAD", 1024), None, "{rel}");
         assert_eq!(blob_size(&proj, rel, "HEAD"), None, "{rel}");
         assert_eq!(path_in_head(&proj, rel), None, "{rel}");
-        assert!(line_changes(&proj, rel, "x\n").is_empty(), "{rel}");
     }
 }

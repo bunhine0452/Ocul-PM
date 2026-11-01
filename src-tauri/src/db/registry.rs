@@ -120,6 +120,11 @@ pub(super) const MIGRATIONS: &[(i64, &str)] = &[
     ),
     // 4.0 — 코드 색인·의미 검색 걷기. 색인 전용 표를 지운다 (`file_snapshots` 는 남는다).
     (43, include_str!("../../migrations/043_drop_code_index.sql")),
+    // 독자를 잃은 표 18개 (대화·토론·자동화·옛 체인지로그·컨텍스트 발화 …).
+    (
+        44,
+        include_str!("../../migrations/044_drop_dead_feature_tables.sql"),
+    ),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —

@@ -84,7 +84,6 @@ export default function ShellV2({
     setJournalReturnView,
     jumpNonce,
   } = useShellNav({
-    view,
     projectId,
     setUiV2View,
     setPrefs,

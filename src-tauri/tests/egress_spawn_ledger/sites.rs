@@ -71,20 +71,6 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         reason: "비동기 창구 — std_cmd 를 tokio 의 Command 로 옮길 뿐이다. 부르는 쪽이 전부 이 원장에 있다.",
     },
     Launch {
-        path: "proc/detached.rs",
-        func: "spawn_detached",
-        call: "CreateProcessW(application.as_ptr(), …)",
-        reach: Reach::Relay,
-        reason: "Windows 분리 기동(bInheritHandles = FALSE) — 부르는 쪽(PTY 호스트 기동)이 이 원장에 있다.",
-    },
-    Launch {
-        path: "proc/disclaim.rs",
-        func: "spawn_disclaimed",
-        call: "posix_spawn(&mut pid, …)",
-        reach: Reach::Relay,
-        reason: "macOS 책임 분리 기동(TCC 책임을 넘기지 않음 · fd 상속 없음) — 부르는 쪽(PTY 호스트 기동)이 이 원장에 있다.",
-    },
-    Launch {
         path: "commands/open_native.rs",
         func: "shell_open",
         call: "tauri_plugin_opener::open_url(target.to_string_lossy(), …)",
@@ -105,20 +91,6 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         call: "std_cmd(\"git\")",
         reach: Reach::Local,
         reason: "`git config --list --show-scope -z` — 저장소 설정을 읽어 필터·드라이버를 끈다. 원격에 닿지 않는다.",
-    },
-    Launch {
-        path: "commands/cli_check.rs",
-        func: "check_cli_available",
-        call: "std_cmd(which_cmd)",
-        reach: Reach::Local,
-        reason: "`which` / `where` — 에이전트 CLI(claude 등)가 설치돼 있는지 PATH 에서 찾는다.",
-    },
-    Launch {
-        path: "commands/cli_check.rs",
-        func: "get_cli_version_sync",
-        call: "std_cmd(path)",
-        reach: Reach::Local,
-        reason: "찾은 CLI 의 `--version`. corepack 심이면 첫 실행에 제 본체를 받을 수 있다 — 사용자 도구의 동작이다.",
     },
     Launch {
         path: "commands/external_editor.rs",
@@ -245,14 +217,6 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
         )],
     ),
     (
-        "proc/disclaim.rs",
-        "macOS 책임 분리 기동의 왕복 — /bin/sh 로 종료 코드를 거두고, 없는 경로는 오류로 돌아오는지.",
-        &[
-            ("a_missing_program_is_an_error_not_a_child", "spawn_disclaimed(Path::new(\"/nonexistent/ocul-pm\"), …)"),
-            ("spawns_and_reaps_with_the_exit_code", "spawn_disclaimed(Path::new(\"/bin/sh\"), …)"),
-        ],
-    ),
-    (
         "git/safe.rs",
         "임시 저장소에서 로컬 git — 저장소 설정이 명령을 못 돌리는지, 기한을 넘긴 자식을 죽이는지(ping·sleep). 부분 클론 시험의 원격은 같은 임시 폴더의 다른 저장소다(대조군만 거기에 닿는다).",
         &[
@@ -267,14 +231,6 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
     ("oculpm/entry_diffs_tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("oculpm/index/tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git_in", "std_cmd(\"git\")")]),
     ("oculpm/manager/tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
-    (
-        "oculpm/claude_hooks.rs",
-        "앱이 까는 훅 한 줄을 이 OS 의 훅 셸(sh·Git Bash)에서 실제로 돌린다. git 은 Git Bash 위치를 찾는 데만.",
-        &[
-            ("hook_shell", "Command::new(\"git\")"),
-            ("the_installed_command_runs_under_the_platform_hook_shell", "Command::new(hook_shell())"),
-        ],
-    ),
     (
         "pid.rs",
         "살아 있는 남의 pid 가 필요한 자리 — 오래 도는 자식(ping·sleep).",
@@ -299,14 +255,6 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
             ("windows_npm_cmd_shim_runs_by_bare_name", "std_cmd(\"npm\")"),
             ("windows_tokio_child_output_is_captured", "tokio_cmd(\"cmd\")"),
             ("windows_unresolvable_name_is_passed_through", "std_cmd(name)"),
-        ],
-    ),
-    (
-        "proc/detached.rs",
-        "분리 기동한 자식이 부모의 파이프를 물지 않는지 — 테스트 바이너리 자신을 띄운다.",
-        &[
-            ("windows_detached_child_does_not_hold_the_parents_pipe", "spawn_detached(&exe, …)"),
-            ("windows_detached_child_does_not_hold_the_parents_pipe", "std_cmd(&exe)"),
         ],
     ),
 ];

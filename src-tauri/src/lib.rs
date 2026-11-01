@@ -17,8 +17,6 @@ pub mod db;
 // `oculpm://` 딥링크 — 파싱만 한다 (무확인 실행 0, Phase 6).
 pub mod deeplink;
 mod error;
-// LSP·PTY 호스트 공용 Content-Length 프레이밍.
-pub mod framing;
 // `git::diff_patch` is exercised by the `local_diff` integration suite (PR11).
 pub mod git;
 // AppHandle 없이 앱 데이터 폴더(Tauri app_data_dir 과 같은 규칙) — 로그·CLI·MCP 캐시.
@@ -30,11 +28,9 @@ pub mod home;
 mod instance_lock;
 pub mod oculpm;
 // 신뢰할 수 없는 상대 경로의 관문 — 어휘 + 링크 (보안 피드백 2차).
+mod menu;
 mod path_guard;
 pub mod pid;
-// PTY 호스트 — 터미널 세션을 앱 프로세스 밖으로 (#pty-host). pub 인 이유:
-// main.rs 의 `--pty-host` 분기와 통합 테스트가 직접 부른다.
-mod menu;
 // 프로세스 생성 단일 창구 (크로스플랫폼 D5) — pub 인 이유: main.rs 의 re-exec 도
 // 이 창구를 지난다 (clippy.toml 이 그 밖의 `Command::new` 를 막는다).
 pub mod proc;
@@ -42,8 +38,6 @@ pub mod proc;
 pub mod program_status;
 pub mod terminal;
 pub mod text;
-// 코드 실행 신뢰 — 언어 서버·앱 안 에이전트가 같은 문을 쓴다 (review-2026-10-09).
-pub mod trust;
 // 테스트 전용 링크 도우미 — 경로 탈출 가드 테스트가 Windows 에서도 돈다 (크로스플랫폼 W2).
 #[cfg(test)]
 mod test_links;
@@ -150,9 +144,7 @@ use crate::commands::{
     app_info,
     apply_menu_language,
     // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
-    check_cli_available,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
-    claude_hooks_status,
     claude_plugin_status,
     claude_question_answer,
     // Claude 가 묻고 사람이 답한다 (MCP ask_user, #ask-user)
@@ -160,11 +152,6 @@ use crate::commands::{
     // 바깥 터미널의 Claude 기다림 (Notification 훅, #notify-hook)
     claude_waiting,
     claude_waiting_dismiss,
-    // 코드 화면 — 파일 조작 (.oculpm/planner/ide-completion.md #file-ops-backend)
-    // 코드 화면 — 일지 연동 + HEAD 비교 (ide-completion #agent-diff)
-    // 코드 화면 — 로컬 히스토리 (docs/20260902_vscode-borrows/06-local-history.md)
-    // 코드 화면 — 전역 검색·치환 (#project-search)
-    // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
     close_window,
     codex_mcp_register,
     codex_mcp_status,
@@ -175,16 +162,11 @@ use crate::commands::{
     db_compact,
     db_health,
     delete_project,
-    diagnostics_report,
     diff_binary_preview,
     // first-record-loop — 대화별 첫 일지 귀속 원장 (Today 첫 기록 카드)
-    first_record_ledger,
     // G2 — Project Overview + Daily Brief
     get_window_project,
-    git_graph,
-    git_head_status_brief,
     git_last_commit_changes,
-    git_line_changes,
     git_log,
     git_status,
     git_uncommitted_changes,
@@ -229,8 +211,6 @@ use crate::commands::{
     oculpm_get_status,
     oculpm_group_changes,
     // journal-scale-round {#index-usage} — index/ 사용량 조회 + diff 정리
-    oculpm_index_clear_diffs,
-    oculpm_index_usage,
     // .oculpm/ subsystem (W1-PR6 + W2-PR6 + W3-PR3)
     oculpm_init,
     oculpm_list_journal_entries,
@@ -260,7 +240,6 @@ use crate::commands::{
     oculpm_watcher_stop,
     oculpm_watcher_take_over,
     oculpm_workday_brief,
-    open_devtools,
     open_in_editor,
     open_project_nav,
     open_project_window,
@@ -278,14 +257,11 @@ use crate::commands::{
     read_project_file,
     // W5 — action proposal apply-state
     // first-record-loop Phase 2 — 이어하기 자료 (Today 이어하기 카드)
-    resume_digest,
-    resume_dispatch_prompt,
     // F4 — 회고/인사이트 (+ PR-CI6 eval 추이, defer 원장)
     reveal_in_file_manager,
     save_window_session,
     select_project_folder,
     set_window_project,
-    settings_get,
     settings_get_all,
     settings_set,
     settings_set_many,
@@ -310,7 +286,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             db_health,
             db_compact,
             settings_set,
-            settings_get,
             settings_get_all,
             settings_set_many,
             app_info,
@@ -346,7 +321,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             race_clear,
             // M2-3 — Chat history
             // M5 — Window & File Operations
-            open_devtools,
             // 창 하나 = 프로젝트 하나 (4.0) — 레지스트리는 Rust 소유 (전역 유일성 심판).
             open_project_window,
             set_window_project,
@@ -356,25 +330,12 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             close_window,
             // 업데이트 재시작을 건너 창을 되살린다 (재시작 직전 저장)
             save_window_session,
-            // 터미널 도크 — 셸을 자기 창으로 떼어내기 (2026-08-15)
             // 앱 메뉴 — 프런트가 해석한 UI 언어를 알려 주면 라벨을 다시 만든다
             apply_menu_language,
             read_project_file,
-            // 코드 화면 — 파일 트리 + 읽기/쓰기
-            // 코드 화면 — 전역 검색·치환
-            // 코드 화면 — 파일 조작
-            // 코드 화면 — 로컬 히스토리
-            oculpm_index_usage,
-            oculpm_index_clear_diffs,
-            // Terminal
-            // 터미널 셸 통합 (OSC 133/7)
             // M7 — Git / GitHub
             git_log,
-            git_graph,
             git_status,
-            git_head_status_brief,
-            git_line_changes,
-            // v3-surface — 브랜치 축
             // Lite-W6 PR6 — LocalDiffView backend
             compute_diff,
             diff_binary_preview,
@@ -386,7 +347,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             reveal_in_file_manager,
             quick_look_file,
             // 외부 CLI 탐침 (Today 첫 기록 카드)
-            check_cli_available,
             // .oculpm/ subsystem (W1-PR6 + W2-PR6 + W3-PR3)
             oculpm_init,
             oculpm_get_status,
@@ -441,7 +401,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // PR-ACP1 — ACP 어댑터 런타임
             // v3-record-integrity {#mcp-missing-visible} — 기록 도구 부착 결과
             // PR-CI0 — Claude Code 훅 브리지
-            claude_hooks_status,
             claude_waiting,
             claude_waiting_dismiss,
             claude_questions,
@@ -449,10 +408,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // H3b — "일지 없이 끝난 세션" 신호 (Today 카드)
             journal_missing_signals,
             // first-record-loop — 첫 기록 원장 (Today 첫 기록 카드)
-            first_record_ledger,
             // first-record-loop Phase 2 — 이어하기 자료
-            resume_digest,
-            resume_dispatch_prompt,
             // PR-CI2 — oculpm-mcp 서버 등록
             mcp_status,
             mcp_register,
@@ -465,7 +421,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 비-mac 「새 창」 (#os-new-window)
             new_window,
             // 베타 버그 리포트 — 「진단 정보 복사」 (#w5-report)
-            diagnostics_report,
             // 설치 형식 (크로스플랫폼 L-UPD #upd-target-missing)
             install_kind,
         ])
@@ -637,9 +592,6 @@ pub fn run() {
                     }
                 });
             }
-            // 로컬 히스토리의 출처 판정 — `code_write` 가 쪽지를 남기고 워처가
-            // 소비한다 (사람이 저장했나, 에이전트가 썼나).
-            app.manage(crate::oculpm::history::HistoryState::default());
             // 창 → 프로젝트 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowProjects::default());
             app.manage(crate::terminal::TermSessions::default());

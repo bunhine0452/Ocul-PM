@@ -105,10 +105,10 @@ const LAUNCHERS: &[&str] = &[
     "tokio_cmd(",
     // 창구 안, 그리고 `#[allow]` 를 단 테스트 픽스처. clippy 가 뚫리는 날에도 센다.
     "Command::new(",
-    // 분리 기동 — `proc/detached.rs`(Windows `CreateProcessW`)와 편집기 셸 위임.
+    // 분리 기동 — 편집기 셸 위임(`external_editor.rs`). 옛 PTY 호스트의 Windows
+    // `CreateProcessW` · macOS `posix_spawn` 창구는 4.x 에서 걷었지만, 다시 생기면 센다.
     "spawn_detached(",
     "CreateProcessW(",
-    // macOS 책임 분리 기동 — `proc/disclaim.rs`(posix_spawn + responsibility disclaim).
     "spawn_disclaimed(",
     "posix_spawn(",
     // Windows 의 OS 기본 처리기 위임 — open_url·open_native 가 지난다.

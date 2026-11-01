@@ -76,17 +76,6 @@ pub fn floor_char_boundary(s: &str, max: usize) -> usize {
     cut
 }
 
-/// `max` 바이트까지 자르고, 잘랐을 때만 `suffix` 를 붙인다. 경계는 언제나
-/// 지킨다. 반환값의 길이는 `max + suffix.len()` 을 넘을 수 있다 — 예산은
-/// **본문**에 대한 것이지 표시 문자열 전체가 아니다.
-pub fn truncate_with(s: &str, max: usize, suffix: &str) -> String {
-    if s.len() <= max {
-        return s.to_string();
-    }
-    let cut = floor_char_boundary(s, max);
-    format!("{}{}", &s[..cut], suffix)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,13 +135,5 @@ mod tests {
         for n in 0..=s.len() + 2 {
             let _ = &s[..floor_char_boundary(s, n)];
         }
-    }
-
-    #[test]
-    fn truncate_adds_suffix_only_when_cut() {
-        assert_eq!(truncate_with("abc", 10, "…"), "abc");
-        assert_eq!(truncate_with("가나다", 4, "…"), "가…");
-        // 상한과 길이가 같으면 자르지 않는다.
-        assert_eq!(truncate_with("가", 3, "…"), "가");
     }
 }

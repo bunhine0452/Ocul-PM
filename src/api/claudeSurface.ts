@@ -1,5 +1,5 @@
 /**
- * `claudeSurface` — Claude Code 표면(훅 신호·이어하기 자료·설치 상태) 커맨드의
+ * `claudeSurface` — Claude Code 표면(훅 신호·기다림·질문·설치 상태) 커맨드의
  * 단일 래퍼.
  *
  * 새 파일들이 `bindings.ts` 를 직접 부르지 않도록 여기로 모았다 (완성도 라운드
@@ -17,10 +17,6 @@ import type {
   ClaudeWaiting,
   JournalMissingSignal,
   ClaudePluginStatus,
-  CliCheckResult,
-  FirstRecordLedger,
-  ResumeDigest,
-  ResumeDispatch,
 } from "@/lib/bindings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -36,29 +32,6 @@ export const hooksApi = {
       "journal_missing_signals",
       commands.journalMissingSignals(projectId, days),
     ),
-
-  /**
-   * 첫 기록 원장 (플랜 `first-record-loop` {#p1-ledger}) — 창 안 대화별 첫
-   * 일지 귀속. 성공은 `agent.session` 으로 귀속된 일지뿐이고, 총 일지 수는
-   * 여기 없다 — 백필·옆 대화의 일지가 "내 첫 기록" 으로 보이지 않게.
-   */
-  firstRecordLedger: (projectId: number, days: number) =>
-    unwrap<FirstRecordLedger>("first_record_ledger", commands.firstRecordLedger(projectId, days)),
-
-  /**
-   * 이어하기 자료 (first-record-loop Phase 2) — 마지막 일지 3건·활성 계획의
-   * 다음 항목·전달 원장. 훅(plan-context.sh)과 같은 선택 규칙으로 디스크만 읽는다.
-   */
-  resumeDigest: (projectId: number) =>
-    unwrap<ResumeDigest>("resume_digest", commands.resumeDigest(projectId)),
-
-  /**
-   * 「이 맥락으로 이어서 작업」 — 이어하기 자료를 프롬프트 파일로 쓰고 터미널
-   * 프리필용 명령·본문을 돌려준다. 꽂는 자리는 플래너 ▶실행과 같은
-   * `dispatchTarget` 이 고른다 (돌고 있는 에이전트면 붙여넣기, 셸이면 한 줄).
-   */
-  resumeDispatchPrompt: (projectId: number) =>
-    unwrap<ResumeDispatch>("resume_dispatch_prompt", commands.resumeDispatchPrompt(projectId)),
 
   /**
    * 바깥(앱 밖) 터미널의 Claude 가 사람을 기다린다 — 플러그인 Notification 훅이 인박스에 남긴 것을
@@ -84,12 +57,9 @@ export const hooksApi = {
 };
 
 /**
- * Claude Code 자체의 설치 상태 (v3-surface {#plugin-onboarding}).
- *
- * 두 질문이 다르다: **CLI 가 있는가**(`check_cli_available`)와 **플러그인이
- * 깔려 있는가**(`claude_plugin_status`). 앞엣것이 거짓이면 플러그인 안내는
- * 소음이고, 뒤엣것은 설계상 **놓칠 수는 있어도 오탐은 없다** — 그래서 거짓을
- * "미설치" 가 아니라 "못 찾음" 으로 읽어야 한다 (commands/mcp.rs).
+ * Claude Code 플러그인의 설치 상태 (v3-surface {#plugin-onboarding}). 설계상 **놓칠 수는
+ * 있어도 오탐은 없다** — 그래서 거짓을 "미설치" 가 아니라 "못 찾음" 으로 읽어야 한다
+ * (commands/mcp.rs).
  *
  * `claude_plugin_status` 는 2026-10-27 부터 봉투를 쓴다(프로젝트 루트를 DB 에서 읽어
  * 판 드리프트를 판정하므로). 실패는 미설치가 아니라 「모름」이다.
@@ -104,8 +74,4 @@ export const claudeInstallApi = {
       .then(() => unwrap<ClaudePluginStatus>("claude_plugin_status", commands.claudePluginStatus(projectId)))
       .catch(() => null),
 
-  cli: (name: string): Promise<CliCheckResult | null> =>
-    Promise.resolve()
-      .then(() => unwrap<CliCheckResult>("check_cli_available", commands.checkCliAvailable(name)))
-      .catch(() => null),
 };

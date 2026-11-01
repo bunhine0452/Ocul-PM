@@ -231,10 +231,6 @@ export function mountTerm(id: number, container: HTMLElement): () => void {
   };
 }
 
-export function focusTerm(id: number) {
-  entries.get(id)?.term.focus();
-}
-
 /** 세션 입력에 붙여 넣는다 — xterm 이 안의 프로그램의 브래킷 붙여넣기 모드를 따라 감싼다. */
 export function pasteToTerm(id: number, text: string) {
   const e = entries.get(id);

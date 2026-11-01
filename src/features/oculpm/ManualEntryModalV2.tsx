@@ -11,8 +11,7 @@ import type {
   JournalEntry,
   ManualEntryDraft,
 } from "@/lib/bindings";
-import { getLang, useT } from "@/i18n";
-import { evidenceInbox, evidenceSection } from "./evidenceInbox";
+import { useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 
 // PR-R1 (A4) — 수동 일지 작성 모달 (ui_v2 토큰 셸).
@@ -34,13 +33,6 @@ interface ManualEntryModalV2Props {
   /** YYYYMMDD — file-change autofill source + sentinel hint. */
   workday: string;
   /**
-   * 미리 채울 재료 (2026-08-28) — 터미널 명령 블록의 "일지로 남기기"가 넘긴다.
-   * **초기값일 뿐**이라 열린 뒤에는 전부 고칠 수 있다.
-   */
-  seedTitle?: string;
-  seedBody?: string;
-  seedType?: EntryType;
-  /**
    * 미리 골라 둘 변경 파일 (4.0 변경 화면의 「직접 기록」) — 기록 없는 변경을 그 파일로 채워 연다.
    * 오늘의 파일 변경 후보에 없어도 후보 칸에 올라온다.
    */
@@ -53,29 +45,20 @@ interface ManualEntryModalV2Props {
 export function ManualEntryModalV2({
   projectId,
   workday,
-  seedTitle,
-  seedBody,
-  seedType,
   seedFiles,
   onCreated,
   onClose,
 }: ManualEntryModalV2Props) {
   const { t } = useT();
   const titleId = useId();
-  const [type, setType] = useState<EntryType>(seedType ?? "feature");
+  const [type, setType] = useState<EntryType>("feature");
   const [slug, setSlug] = useState("");
-  const [title, setTitle] = useState(seedTitle ?? "");
+  const [title, setTitle] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty | null>("medium");
   const [status, setStatus] = useState<EntryStatus>("planned");
   const [tagsInput, setTagsInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  // 검증 칸 받은함 — 터미널에서 「검증 칸으로」 보낸 결과 끝 줄이 있으면 빈 본문에 `## 검증` 절로
-  // 미리 들어간다 (UI 밀도 라운드 3). 씨앗 본문이 있으면 그 뒤에 붙는다. 가져가면 비운다.
-  const [bodyMarkdown, setBodyMarkdown] = useState(() => {
-    const section = evidenceSection(evidenceInbox.drain(projectId), getLang() === "en" ? "en" : "ko");
-    if (!section) return seedBody ?? "";
-    return seedBody ? `${seedBody.replace(/\s*$/, "")}\n\n${section}` : section;
-  });
+  const [bodyMarkdown, setBodyMarkdown] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);

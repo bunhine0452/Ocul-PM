@@ -14,9 +14,6 @@ use super::*;
 /// 만들면 거기서 먼저 걸린다 (2026-10-04: 지운 프로젝트 7개의 행 1만 개가 고아였다).
 pub const PROJECT_CACHE_TABLES: &[&str] = &[
     "oculpm_agent_state",
-    "oculpm_discussion_attachments",
-    "oculpm_discussion_log",
-    "oculpm_discussions",
     "oculpm_journal",
     "oculpm_journal_files",
     "oculpm_journal_tags",
@@ -24,9 +21,6 @@ pub const PROJECT_CACHE_TABLES: &[&str] = &[
     "oculpm_plan_item_updates",
     "oculpm_plan_items",
     "oculpm_plans",
-    "oculpm_sessions_cache",
-    "oculpm_settings",
-    "recall_stats",
 ];
 
 impl Db {

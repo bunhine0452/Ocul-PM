@@ -201,25 +201,6 @@ export function effectiveSidePanelMaxWidth(mode: SidePanelMode): number {
   return mode === "diff" ? SIDE_PANEL_MAX_WIDTH_DIFF : SIDE_PANEL_MAX_WIDTH;
 }
 
-/**
- * 터미널 도크 크기 하한 — 이보다 얇으면 xterm 이 한 줄도 못 그려 "열려 있는데
- * 아무것도 없는" 상태가 된다.
- */
-export const TERMINAL_DOCK_MIN = 120;
-/** 남는 화면이 이만큼은 있어야 한다 — 도크가 콘텐츠를 완전히 밀어내지 못하게. */
-export const TERMINAL_DOCK_MIN_REST = 160;
-
-/**
- * 드래그·영속값을 쓸 수 있는 범위로 자른다. `container` 는 도크가 놓인 축의
- * 전체 길이(px)로, 0 이하(아직 레이아웃 전)면 하한만 적용한다.
- */
-export function clampDockSize(px: number, container: number): number {
-  const wanted = Number.isFinite(px) ? Math.round(px) : TERMINAL_DOCK_MIN;
-  if (!(container > 0)) return Math.max(TERMINAL_DOCK_MIN, wanted);
-  const max = Math.max(TERMINAL_DOCK_MIN, container - TERMINAL_DOCK_MIN_REST);
-  return Math.min(max, Math.max(TERMINAL_DOCK_MIN, wanted));
-}
-
 export function migrateSidePanelWidth(raw: unknown): number {
   const n = typeof raw === "number" && Number.isFinite(raw) ? raw : SIDE_PANEL_DEFAULT_WIDTH;
   // Clamp to the absolute upper bound (diff mode); per-mode clamping happens

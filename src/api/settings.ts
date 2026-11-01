@@ -1,16 +1,7 @@
-// 앱 설정(SQLite 키-값)과 앱 데이터 커맨드 래퍼 (2026-10-01 `{#api-facades}`).
-//
-// 화면 대부분은 `SettingsContext` 를 지나지만, 그 밖에서 키 하나를 직접 읽고
-// 쓰는 자리가 여기를 쓴다. 설정 「데이터」 칸(캐시 크기·정리·로그 폴더·앱 판)도
-// 여기를 지난다 (4.0).
+// 앱 데이터 커맨드 래퍼 (2026-10-01 `{#api-facades}`) — 설정 「데이터」 칸(캐시 크기·
+// 정리·로그 폴더·앱 판)이 지난다 (4.0). 설정 키-값은 `SettingsContext` 가 맡는다.
 import { commands, type AppInfo, type DbHealth } from "@/lib/bindings";
 import { call } from "./invoke";
-
-export const settingsApi = {
-  /** 저장된 값. 한 번도 안 쓴 키는 `null`. */
-  get: (key: string): Promise<string | null> => call("settings_get", commands.settingsGet(key)),
-  set: (key: string, value: string): Promise<null> => call("settings_set", commands.settingsSet(key, value)),
-};
 
 export const appDataApi = {
   /** 앱 판·데이터 폴더 경로. */

@@ -2,7 +2,7 @@
 //!
 //! 이 파일이 생긴 이유는 두 가지다.
 //!
-//! **1. 수명.** 기준선 동기(예전엔 증분 색인)와 `schedule_history_capture` 는
+//! **1. 수명.** 기준선 동기(예전엔 증분 색인)와 옛 로컬 히스토리 캡처는
 //! 둘 다 `tauri::async_runtime::spawn` 으로 **detached** 였다. 프로젝트를 닫아
 //! 워처를 내려도 그 태스크들은 살아남아 계속 DB 를 두드렸다. 브랜치를 한 번
 //! 전환하면 한 배치에 1,058 이벤트가 들어오므로(perf-baseline §1 M1), 닫힌
@@ -24,32 +24,24 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::{watch, Semaphore};
 
 use crate::db::Db;
-use crate::oculpm::history;
-use crate::oculpm::spec::{FileChangeEvent, FileOp};
+use crate::oculpm::spec::FileOp;
 
 /// diff 기준선 동기(`crate::baseline`) 동시 상한. 일감은 파일 하나의 읽기 ·
 /// `git cat-file` 한 번 · DB 쓰기 한 번이라, 둘이면 버스트가 DB 연결 하나 앞에
 /// 줄을 세우지 않는다. (예전 코드 색인 시절 임베딩 직렬화 때문에 정한 값이다.)
 pub const BASELINE_PERMITS: usize = 2;
 
-/// 로컬 히스토리 캡처 동시 상한. 캡처 자체는 `spawn_blocking` 안의 짧은 파일
-/// IO 라 기준선보다 넉넉해도 되지만, 버스트 하나가 blocking 풀을 통째로 먹는
-/// 것(그 풀을 git·검색과 나눠 쓴다)은 막는다.
-pub const HISTORY_PERMITS: usize = 4;
-
-/// 곁일의 갈래 — 갈래마다 상한이 따로다. 히스토리 버스트가 기준선을 굶기면
-/// 안 되고, 그 반대도 안 된다.
+/// 곁일의 갈래 — 갈래마다 상한이 따로다. 지금은 기준선 하나뿐이다 (로컬 히스토리
+/// 갈래는 읽는 화면이 3.x 코드 편집기와 함께 사라져 2026-11-01 에 걷었다).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Lane {
     Baseline,
-    History,
 }
 
 /// 워처가 소유하는 곁일 게이트. `WatcherInner` 가 들고 다닌다 (`Clone`).
 #[derive(Clone)]
 pub struct WatcherTasks {
     baseline: Arc<Semaphore>,
-    history: Arc<Semaphore>,
     cancel: watch::Receiver<bool>,
     /// 경로별 직렬화 — 같은 `(프로젝트, 경로)` 의 곁일은 한 번에 하나만 돈다.
     ///
@@ -64,7 +56,6 @@ pub struct WatcherTasks {
 pub struct WatcherTasksShutdown {
     tx: watch::Sender<bool>,
     baseline: Arc<Semaphore>,
-    history: Arc<Semaphore>,
 }
 
 impl WatcherTasksShutdown {
@@ -79,7 +70,6 @@ impl WatcherTasksShutdown {
     /// 남지 않는다.
     pub fn shutdown(&self) {
         self.baseline.close();
-        self.history.close();
         // `send` 는 수신자가 없으면 실패한다 — 그 경우에도 값은 남아야 한다.
         self.tx.send_replace(true);
     }
@@ -95,19 +85,13 @@ impl Drop for WatcherTasksShutdown {
 pub fn gate() -> (WatcherTasks, WatcherTasksShutdown) {
     let (tx, cancel) = watch::channel(false);
     let baseline = Arc::new(Semaphore::new(BASELINE_PERMITS));
-    let history = Arc::new(Semaphore::new(HISTORY_PERMITS));
     (
         WatcherTasks {
             baseline: baseline.clone(),
-            history: history.clone(),
             cancel,
             keys: Arc::new(Mutex::new(HashMap::new())),
         },
-        WatcherTasksShutdown {
-            tx,
-            baseline,
-            history,
-        },
+        WatcherTasksShutdown { tx, baseline },
     )
 }
 
@@ -131,7 +115,6 @@ impl WatcherTasks {
         }
         let sem = match lane {
             Lane::Baseline => self.baseline.clone(),
-            Lane::History => self.history.clone(),
         };
         let mut cancel = self.cancel.clone();
         let keys = self.keys.clone();
@@ -182,7 +165,7 @@ impl WatcherTasks {
 
     /// 지금 이 게이트가 살아 있는가 — 테스트·진단용.
     pub fn is_live(&self) -> bool {
-        !*self.cancel.borrow() && !self.baseline.is_closed() && !self.history.is_closed()
+        !*self.cancel.borrow() && !self.baseline.is_closed()
     }
 }
 
@@ -223,94 +206,6 @@ pub async fn stat_and_hash(abs_path: PathBuf, hash_byte_cap: u64) -> (u32, Optio
 // ─────────────────────────────────────────────────────────────────────────────
 // 곁일 본체
 // ─────────────────────────────────────────────────────────────────────────────
-
-/// B5 — 로컬 히스토리 캡처.
-///
-/// 삭제는 판을 만들지 않는다 — **지운 파일의 내용을 되찾는 것이 이 기능의
-/// 가장 좋은 순간**이라, 삭제 시점에 판을 더하는 대신 기존 판을 그대로 둔다.
-/// 해시가 없는 이벤트(파일이 해시 상한보다 크다)도 건너뛴다: 어차피 스냅샷
-/// 상한(256KB)을 훨씬 넘는 크기다.
-pub fn schedule_history_capture(
-    tasks: &WatcherTasks,
-    handle: &tauri::AppHandle,
-    project_id: u32,
-    root: &Path,
-    change: &FileChangeEvent,
-) {
-    if matches!(change.op, FileOp::Delete) {
-        return;
-    }
-    let Some(hash) = change.hash_after.clone() else {
-        return;
-    };
-    if !history::should_capture(&change.path) {
-        return;
-    }
-    // 루트 아래 worktree 사본의 판은 그 worktree 의 git 이 이미 갖는다 — 한 프로젝트의
-    // 히스토리 302MB 중 236MB 가 그 사본이었다 (`baseline::worktree`).
-    if crate::baseline::worktree::under_linked_worktree(root, Path::new(&change.path)) {
-        return;
-    }
-    let handle = handle.clone();
-    let root = root.to_path_buf();
-    let rel_path = change.path.clone();
-    let op = if matches!(change.op, FileOp::Create) {
-        history::HistoryOp::Create
-    } else {
-        history::HistoryOp::Update
-    };
-    tasks.spawn(Lane::History, async move {
-        use tauri::Manager;
-        let db = handle.state::<Db>();
-        // 이 라운드에서 유일하게 기본 **켜짐**인 설정이다 — 소급이
-        // 불가능하기 때문이다(안 찍어 둔 판은 영원히 없다).
-        let on = db
-            .settings_get("code_local_history".to_string())
-            .await
-            .ok()
-            .flatten();
-        if matches!(on.as_deref(), Some("false") | Some("0")) {
-            return;
-        }
-        let max = db
-            .settings_get("code_local_history_max_entries".to_string())
-            .await
-            .ok()
-            .flatten()
-            .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or(history::DEFAULT_MAX_ENTRIES);
-        // 프로젝트 총량 예산 (D1) — 설정 MB, 기본 512.
-        let budget = history::budget_from_setting(
-            db.settings_get("code_local_history_budget_mb".to_string())
-                .await
-                .ok()
-                .flatten()
-                .as_deref(),
-        );
-
-        // 쪽지 소비는 동기다 — `spawn_blocking` 너머로 State 를 들고 가지 않는다.
-        let source = handle
-            .state::<history::HistoryState>()
-            .take_source(project_id, &rel_path, &hash);
-
-        let path_for_log = rel_path.clone();
-        let done = tauri::async_runtime::spawn_blocking(move || {
-            history::capture(&root, &rel_path, op, source, Some(&hash), max, budget)
-        })
-        .await;
-        match done {
-            Ok(Ok(history::CaptureOutcome::Captured)) => tracing::debug!(
-                target: "oculpm::watcher", project_id, path = %path_for_log, ?source,
-                "local history: captured a version"
-            ),
-            Ok(Err(e)) => tracing::warn!(
-                target: "oculpm::watcher", project_id, path = %path_for_log, error = %e,
-                "local history: capture failed"
-            ),
-            _ => {}
-        }
-    });
-}
 
 /// 바뀐 파일 하나의 diff 기준선 동기 (`crate::baseline`) — HEAD 에 있으면 스냅샷을
 /// 걷고, 없으면 찍는다. 예전엔 증분 코드 색인이 같은 일을 곁들여 했다 (4.0 에서 색인을
