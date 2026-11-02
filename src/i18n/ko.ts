@@ -407,6 +407,7 @@ export const ko = {
   "today.check.kind.plugin": "플러그인 새 판",
   "today.check.verdictTitle": "계획 「{plan}」의 확인 명령이 실패했어요",
   "today.check.kind.stale": "통과 뒤 바뀜",
+  "today.check.teammate": "{name} 님이 올린 일지",
   "today.check.staleTitle": "계획 「{plan}」의 ✓ 뒤에 파일이 바뀌었어요",
   "today.check.staleMeta": "✓ {when} · {files}",
   "today.check.recheck": "다시 확인",

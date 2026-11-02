@@ -16,6 +16,7 @@ import {
   type LockedOpenItem,
   type PlanEditOp,
   type PlanSummary,
+  type TeamJournal,
   type TodayDigest,
 } from "@/lib/bindings";
 
@@ -49,6 +50,10 @@ export const planApi = {
   /** 활성 플랜의 판정·다음 리프·사람 몫·막힘·일지 → 계획 연결 — 오늘 화면이 한 번에 읽는다. */
   todayDigest: (projectId: number): Promise<TodayDigest> =>
     call("today_digest", commands.todayDigest(projectId)),
+
+  /** 그날 일지 중 동료가 git 으로 더한 것과 그 사람 — 기록을 안 올리는 저장소면 빈 목록 (`git/authors.rs`). */
+  todayTeammates: (projectId: number, workday: string): Promise<TeamJournal[]> =>
+    call("today_teammates", commands.todayTeammates(projectId, workday)),
 
   /** 항목 하나를 에이전트에게 넘길 프롬프트 — 붙여 넣는 것은 사용자다. */
   dispatchPrompt: (projectId: number, planId: string, itemId: string): Promise<DispatchPrompt> =>

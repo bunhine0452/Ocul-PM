@@ -227,6 +227,7 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
         ],
     ),
     ("git/race_tests.rs", "레인(worktree 여럿에서) 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
+    ("git/authors_tests.rs", "동료 일지 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("git/receipt_tests.rs", "PR 영수증 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("git/tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("oculpm/entry_diffs_tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
