@@ -10,13 +10,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { projectsApi } from "@/api/projects";
 import { windowApi } from "@/api/window";
 import { addProjectFromFolder } from "@/features/start/addFolder";
-import { PROJECT_SLOTS, projectSlotLabel, projectSlotOf } from "./projectKeys";
+import { PROJECT_SLOTS, byAttention, projectSlotLabel, projectSlotOf } from "./projectKeys";
 import { TermsChip } from "@/features/terminal/TermsChip";
 import { useTermOverview } from "@/features/terminal/status";
 import { orderRecent } from "@/features/start/useRecentProjects";
 import { ChevronDown } from "@/components/Icons";
 import { useT } from "@/i18n";
-import type { HomeBrief, Project } from "@/lib/bindings";
+import type { HomeBrief, Project, ProjectAttention } from "@/lib/bindings";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { tildePath } from "@/lib/osPath";
 import { kbd } from "@/lib/kbd";
@@ -43,6 +43,7 @@ export function ProjectSwitcher({
   const [open, setOpen] = useState(false);
   const [brief, setBrief] = useState<HomeBrief | null>(null);
   const [openWindows, setOpenWindows] = useState<number[]>([]);
+  const [attention, setAttention] = useState<Map<number, ProjectAttention>>(new Map());
   const terms = useTermOverview(open);
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -67,12 +68,21 @@ export function ProjectSwitcher({
       .openProjectIds()
       .then((ids) => alive && setOpenWindows(ids))
       .catch(() => {});
+    const readAttention = () =>
+      void windowApi
+        .attention(projects.map((p) => p.id))
+        .then((a) => alive && setAttention(a))
+        .catch(() => {});
+    readAttention();
+    // 열려 있는 동안 다른 창의 Claude 가 기다리기 시작하면 줄이 따라 바뀐다.
+    const off = windowApi.onAttentionChanged(readAttention);
     // 첫 항목에 포커스 — 키보드로 연 사람이 바로 고를 수 있게.
     requestAnimationFrame(() => menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus());
     return () => {
       alive = false;
+      void off.then((unlisten) => unlisten());
     };
-  }, [open]);
+  }, [open, projects]);
 
   // ⌥⌘1~9 (Alt+1~9) — 목록을 열지 않고 그 번호의 프로젝트 창으로. 번호는 목록과 같은 최근 순서.
   // 캡처 단계 — ⌘숫자(화면 전환) 처리기보다 먼저, 터미널보다 먼저 받는다.
@@ -82,13 +92,14 @@ export function ProjectSwitcher({
       if (slot == null) return;
       e.preventDefault();
       e.stopPropagation();
-      void projectsApi
-        .brief(1)
-        .catch(() => null)
-        .then((b) => {
-          const target = orderRecent(projects, b)[slot];
-          if (target && target.id !== currentProjectId) onOpenProject(target.id);
-        });
+      void Promise.all([
+        projectsApi.brief(1).catch(() => null),
+        windowApi.attention(projects.map((p) => p.id)).catch(() => new Map<number, ProjectAttention>()),
+      ]).then(([b, a]) => {
+        // 목록과 같은 순서 — 기다리는 창이 ⌥⌘1 이다.
+        const target = byAttention(orderRecent(projects, b), a)[slot];
+        if (target && target.id !== currentProjectId) onOpenProject(target.id);
+      });
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
@@ -139,7 +150,7 @@ export function ProjectSwitcher({
     onOpenProject(result.project.id);
   };
 
-  const ordered = orderRecent(projects, brief);
+  const ordered = byAttention(orderRecent(projects, brief), attention);
   const shortcut = kbd("⌘O");
 
   return (
@@ -179,7 +190,7 @@ export function ProjectSwitcher({
                   <span className="proj-pop-name">{p.name}</span>
                   <span className="proj-pop-path">{tildePath(p.root_path)}</span>
                 </span>
-                <TermsChip terms={terms.get(p.id)} />
+                <AttentionChips attention={attention.get(p.id)} terms={terms.get(p.id)} />
                 {isCurrent ? (
                   <span className="chip sm">{t("sidebar.currentProject")}</span>
                 ) : elsewhere ? (
@@ -195,5 +206,36 @@ export function ProjectSwitcher({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * 그 프로젝트가 나를 기다리는가 — 기다림(Claude 의 허락 · 입력 · 질문)이 있으면 그것 하나, 아니면 앱 안
+ * 터미널 표시(`TermsChip`). 마지막 확인 명령이 실패했으면 그 옆에 하나 더.
+ */
+function AttentionChips({
+  attention,
+  terms,
+}: {
+  attention: ProjectAttention | undefined;
+  terms: Parameters<typeof TermsChip>[0]["terms"];
+}) {
+  const { t } = useT();
+  const waiting = Math.max(attention?.waiting ?? 0, terms?.waiting ?? 0);
+  return (
+    <>
+      {waiting > 0 ? (
+        <span className="chip sm warn" title={t("sidebar.waitingTitle")}>
+          {t("sidebar.waiting", { n: waiting })}
+        </span>
+      ) : (
+        <TermsChip terms={terms} />
+      )}
+      {attention?.failing ? (
+        <span className="chip sm danger" title={t("sidebar.failingTitle")}>
+          {t("sidebar.failing")}
+        </span>
+      ) : null}
+    </>
   );
 }

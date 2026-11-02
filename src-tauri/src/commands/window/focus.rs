@@ -16,6 +16,9 @@ pub async fn apply_menu_language(app: AppHandle, lang: String) -> Result<(), Str
     // `apply` 가 창 메뉴 지정(macOS ⌃⌥ 창 분할)까지 함께 한다 — 언어를 바꿀
     // 때마다 서브메뉴를 새로 만들므로 지정도 매번 다시 해야 한다.
     crate::menu::apply(&app, &lang).map_err(|e| e.to_string())?;
+    // 창 제목의 「기다림 N」 도 같은 언어로 (attention.rs).
+    super::attention::set_title_language(&lang);
+    super::attention::refresh_attention(&app).await;
     Ok(())
 }
 

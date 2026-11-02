@@ -253,6 +253,7 @@ use crate::commands::{
     plan_list,
     plan_locked_open,
     plan_log,
+    project_attention,
     // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
     quick_look_file,
     read_project_file,
@@ -329,6 +330,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // M5 — Window & File Operations
             // 창 하나 = 프로젝트 하나 (4.0) — 레지스트리는 Rust 소유 (전역 유일성 심판).
             open_project_window,
+            // 창이 여럿일 때 기다리는 창 (11-02, attention.rs)
+            project_attention,
             set_window_project,
             get_window_project,
             open_project_nav,
@@ -451,6 +454,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 딥링크 → 프로젝트 창 목적지
             crate::commands::window::WindowNavigate,
             crate::commands::window::ProjectWindowsChanged,
+            crate::commands::window::ProjectAttentionChanged,
             // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
             crate::commands::config::SettingsChanged,
             // 딥링크 — 프런트가 확인 시트를 띄운다 (Phase 6 #deep-link)
@@ -609,6 +613,8 @@ pub fn run() {
             // `tauri.conf.json` 이 만든 첫 창을 시작 창으로 레지스트리에 편입한다.
             // 창 닫기 훅(포커스 추적·정리·마지막 창 판정)도 여기서 붙는다.
             crate::commands::window::adopt_first_window(app.handle());
+            // 기다리는 창 — 창 제목 · Dock 배지 · ⌘O 목록 (attention.rs).
+            crate::commands::window::watch_attention(app.handle());
 
             // 딥링크 수신 — 앱이 이미 떠 있을 때 오는 URL 을 받는다.
             // `dispatch` 는 파싱에 실패하면 아무 일도 하지 않는다.
