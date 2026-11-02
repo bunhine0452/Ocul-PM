@@ -15,7 +15,11 @@ export const fileOpenApi = {
    */
   url: (url: string): Promise<null> => call("open_url", commands.openUrl(url)),
 
-  /** 외부 편집기 — 설정의 명령 템플릿(`%path`/`%line`)을 셸로 실행한다. */
+  /**
+   * 외부 편집기 — 설정 값이 `auto` · `vscode` · `cursor` 면 `vscode://file/…` 주소로
+   * (셸 명령 `code` 가 없어도 열리고 줄로 간다), `system` 이면 OS 기본 앱, 그 밖은
+   * 명령 템플릿(`%path`/`%line`)을 셸로 (`editor_choice.rs`).
+   */
   inExternalEditor: (
     projectRoot: string,
     relPath: string,
@@ -23,6 +27,9 @@ export const fileOpenApi = {
     line: number | null,
   ): Promise<null> =>
     call("open_in_editor", commands.openInEditor(projectRoot, relPath, editorCmd, line)),
+
+  /** 「자동」이 무엇을 찾았는지 — `vscode` · `cursor` · `system`. 실패하지 않는 커맨드다. */
+  detectEditor: (): Promise<string> => commands.detectEditor(),
 
   /** 파일 탐색기에서 선택된 채로 (macOS: Finder). */
   reveal: (projectRoot: string, relPath: string): Promise<null> =>

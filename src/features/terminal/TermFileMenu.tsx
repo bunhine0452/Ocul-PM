@@ -31,7 +31,8 @@ export function TermFileMenuHost({ projectRoot }: { projectRoot: string | null }
 
 function TermFileMenu({ at, root }: { at: FileMenuAt; root: string }) {
   const { t } = useT();
-  const editor = useOptionalSettings()?.settings.externalEditorCommand.trim() ?? "";
+  // 빈 값도 `auto` 다 — 백엔드가 깔린 편집기를 찾는다(`editor_choice.rs`). 항목은 늘 선다.
+  const editor = useOptionalSettings()?.settings.externalEditorCommand.trim() ?? "auto";
   const rel = relativeToRoot(at.path, root);
   const boxRef = useRef<HTMLDivElement | null>(null);
 
@@ -98,17 +99,15 @@ function TermFileMenu({ at, root }: { at: FileMenuAt; root: string }) {
           {t("terminal.fileMenu.quickLook")}
         </button>
       ) : null}
-      {editor ? (
-        <button
-          type="button"
-          role="menuitem"
-          className="tm-file-menu-item"
-          onClick={() => run(fileOpenApi.inExternalEditor(root, rel, editor, at.line))}
-        >
-          <ExternalLink size={13} aria-hidden="true" />
-          {t("terminal.fileMenu.external")}
-        </button>
-      ) : null}
+      <button
+        type="button"
+        role="menuitem"
+        className="tm-file-menu-item"
+        onClick={() => run(fileOpenApi.inExternalEditor(root, rel, editor, at.line))}
+      >
+        <ExternalLink size={13} aria-hidden="true" />
+        {t("terminal.fileMenu.external")}
+      </button>
     </div>
   );
 }

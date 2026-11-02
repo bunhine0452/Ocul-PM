@@ -3,6 +3,7 @@ import { LoadingState } from "@/components/LoadingState";
 import { Markdown } from "@/components/Markdown";
 import { ChevronLeft } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { useOptionalSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PatchView } from "@/features/diff/PatchView";
 import { countPatchStats, langFromPath } from "@/features/diff/diffParse";
@@ -122,13 +123,14 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
     }
   }, [verifying, verified, stale, projectId, entry.relative_path, t]);
 
+  const editorCmd = useOptionalSettings()?.settings.externalEditorCommand ?? null;
   const openInEditor = useCallback(async () => {
     try {
-      await oculpmApi.openEntryInEditor(projectId, entry.relative_path);
+      await oculpmApi.openEntryInEditor(projectId, entry.relative_path, editorCmd);
     } catch (e) {
       toast.destructive(t("entry.openInEditorFailed", { error: e instanceof OculpmApiError ? e.message : String(e) }));
     }
-  }, [projectId, entry.relative_path, t]);
+  }, [projectId, entry.relative_path, editorCmd, t]);
 
   const body = detail?.body_markdown ?? "";
   const level = detail?.evidence ?? entry.evidence;

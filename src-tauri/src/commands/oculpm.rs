@@ -11,7 +11,6 @@
 //! W1 provides 4 commands (init / get_status / get_config / set_config).
 //! W2-PR6 adds 9 more (session / file_change / snapshot / watcher).
 
-use super::open_native::open_native;
 use std::path::PathBuf;
 
 use tauri::{AppHandle, State};
@@ -753,28 +752,21 @@ pub async fn oculpm_update_entry_body(
         .await?)
 }
 
-/// W4 dogfooding (2026-05-27) — open a journal entry's `.md` file with the
-/// OS default app. The opener plugin's path-glob scope keeps rejecting
-/// project-local paths (3 dogfooding regressions); this command resolves the
-/// absolute path inside the backend and invokes `open` / `xdg-open` /
-/// `cmd /c start` directly, sidestepping the scope check entirely.
+/// Open a journal entry's `.md` with the editor the settings chose (`editor_cmd`,
+/// `None` = OS default app). The backend resolves the absolute path itself — the
+/// opener plugin's path scope rejected project-local paths three times (W4, 05-27).
 #[tauri::command]
 #[specta::specta]
 pub async fn oculpm_open_entry_in_editor(
     manager: State<'_, OculpmManager>,
     project_id: u32,
     relative_path: String,
+    editor_cmd: Option<String>,
 ) -> Result<(), AppError> {
     let abs = manager
         .resolve_journal_absolute(project_id, &relative_path)
         .await?;
-    if !abs.exists() {
-        return Err(AppError::new(
-            "file_not_found",
-            format!("file not found: {}", abs.display()),
-        ));
-    }
-    Ok(open_native(&abs)?)
+    super::external_editor::open_journal_file(&abs, editor_cmd.as_deref())
 }
 
 /// W4 dogfooding follow-up (2026-05-26) — bridge `console.*` calls from the

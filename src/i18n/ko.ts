@@ -144,6 +144,13 @@ export const ko = {
   "prefs.display.light": "밝게",
   "prefs.display.dark": "어둡게",
   "prefs.display.textSize": "글자 크기",
+  "prefs.display.editor": "파일 열기",
+  "prefs.display.editorMeta": "변경 · 터미널 · 작업 일지에서 파일을 열 때 쓰는 편집기예요",
+  "prefs.display.editorAuto": "자동",
+  "prefs.display.editorAutoFound": "자동 ({name})",
+  "prefs.display.editorSystem": "기본 앱",
+  "prefs.display.editorCustom": "직접 입력",
+  "prefs.display.editorCustomHint": "셸 명령이에요. %path 는 파일 경로, %line 은 줄 번호로 바뀌어요",
   "prefs.data.title": "데이터",
   "prefs.data.cache": "캐시",
   "prefs.data.cacheSize": "지금 {size}",
@@ -889,7 +896,7 @@ export const ko = {
   // 대화를 전부 끊는 파괴적인 동작이라 확인을 거친다.
   // 일지 상세 — "파일로 열기" ({#entry-open-affordance}).
   "entry.openInEditor": "파일로 열기",
-  "entry.openInEditorTitle": "이 일지 .md 파일을 시스템 기본 편집기로 열어요",
+  "entry.openInEditorTitle": "이 일지 .md 파일을 설정의 「파일 열기」 편집기로 열어요",
   "entry.openInEditorFailed": "파일을 열지 못했어요 — {error}",
   // 닥터 워처 행 ({#watcher-user-pause}) — 「멈춤」과 「사용자가 멈춤」은 다른
   // 말이다. 앞엣것은 감독관이 60초 안에 되살리고, 뒤엣것은 되살리지 않는다.

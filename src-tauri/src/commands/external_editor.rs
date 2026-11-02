@@ -1,15 +1,12 @@
 //! Launch the user's preferred external editor on a project file (Lite-W6 PR8 Part 2).
 //!
-//! The frontend sends a *command template* (Settings → `externalEditorCommand`,
-//! default `code "%path"`) and the project-relative file path. We resolve the
-//! absolute path, substitute it for the `%path` placeholder with shell-safe
-//! quoting, and spawn the resulting command via the OS shell. The child is
-//! detached — we don't wait for the editor to exit.
-//!
-//! macOS caveat: Tauri GUI apps don't inherit the shell PATH, so the user
-//! must either keep their editor on the system PATH (`/usr/local/bin/code`)
-//! or write the absolute path in the command template. The Settings hint
-//! string surfaces this.
+//! The frontend sends the editor setting (Settings → `externalEditorCommand`,
+//! default `auto`) and the project-relative file path. `editor_choice.rs` reads
+//! the setting: `auto`/`vscode`/`cursor` open a `vscode://file/…` style URI
+//! through the OS opener (no `code` shell command needed — Finder-launched
+//! apps don't inherit the shell PATH), `system` hands the file to the OS default
+//! app, and anything else is a *command template*: we substitute `%path` with
+//! shell-safe quoting and spawn it via the OS shell, detached.
 
 use std::path::PathBuf;
 // Quick Look(qlmanage) 한 곳만 쓴다 — 비-mac 에서는 미사용 import 가 된다.
@@ -28,9 +25,6 @@ pub async fn open_in_editor(
     editor_cmd: String,
     line: Option<u32>,
 ) -> Result<(), String> {
-    if editor_cmd.trim().is_empty() {
-        return Err("External editor command is not configured. Set one in Settings.".to_string());
-    }
     let root = PathBuf::from(&project_root);
     if !root.exists() {
         return Err(format!("project root does not exist: {}", root.display()));
@@ -44,10 +38,51 @@ pub async fn open_in_editor(
     } else {
         crate::path_guard::secure_join(&root, &rel_path)?
     };
-    let abs_str = abs.to_string_lossy().to_string();
-    let cmd_str = substitute_path(&editor_cmd, &abs_str, line);
+    open_file_with(&editor_cmd, &abs, line)
+}
 
-    spawn_detached(&cmd_str).map_err(|e| format!("Failed to launch editor: {e}"))
+/// 일지 `.md` 하나를 연다 — `editor_cmd` 가 없으면 OS 기본 앱(설정을 모르는 옛 호출부).
+/// 경로는 `resolve_journal_absolute` 가 이미 일지 폴더 안으로 풀었다.
+pub(super) fn open_journal_file(
+    abs: &std::path::Path,
+    editor_cmd: Option<&str>,
+) -> Result<(), crate::app_error::AppError> {
+    use crate::app_error::AppError;
+    if !abs.exists() {
+        return Err(AppError::new(
+            "file_not_found",
+            format!("file not found: {}", abs.display()),
+        ));
+    }
+    let Some(cmd) = editor_cmd else {
+        return Ok(super::open_native::open_native(abs)?);
+    };
+    open_file_with(cmd, abs, None).map_err(|e| AppError::new("open_failed", e))
+}
+
+/// 절대경로 하나를 설정이 고른 편집기로 연다 — `open_in_editor` 와 일지의
+/// 「파일로 열기」가 같은 길을 지난다. 경로 가드는 부르는 쪽이 이미 지났다.
+pub(super) fn open_file_with(
+    editor_cmd: &str,
+    abs: &std::path::Path,
+    line: Option<u32>,
+) -> Result<(), String> {
+    use super::editor_choice::{choose, detect_installed, editor_uri, EditorChoice};
+    match choose(editor_cmd, detect_installed) {
+        // 주소는 OS 오프너가 연다 — `open vscode://…` 는 등록된 앱에 넘긴다.
+        EditorChoice::Uri(scheme) => {
+            let uri = editor_uri(scheme, abs, line);
+            super::open_native::open_native(std::path::Path::new(&uri))
+                .map_err(|e| format!("Failed to open {scheme}: {e}"))
+        }
+        EditorChoice::System => {
+            super::open_native::open_native(abs).map_err(|e| format!("Failed to open file: {e}"))
+        }
+        EditorChoice::Template(template) => {
+            let cmd_str = substitute_path(&template, &abs.to_string_lossy(), line);
+            spawn_detached(&cmd_str).map_err(|e| format!("Failed to launch editor: {e}"))
+        }
+    }
 }
 
 /// Open an external URL in the user's default app (browser / mail client). Used
