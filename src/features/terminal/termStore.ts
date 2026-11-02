@@ -192,8 +192,11 @@ export async function openTerm(
   return id;
 }
 
-/** 세션의 화면을 `container` 에 붙이고 칸에 맞춘다. 처음이면 xterm 을 연다. */
-export function mountTerm(id: number, container: HTMLElement): () => void {
+/**
+ * 세션의 화면을 `container` 에 붙이고 칸에 맞춘다. 처음이면 xterm 을 연다. 칸이 여럿이면
+ * 고른 칸만 `focus` — 나중에 선 칸이 입력을 빼앗지 않게.
+ */
+export function mountTerm(id: number, container: HTMLElement, focus = true): () => void {
   const e = entries.get(id);
   if (!e) return () => {};
   container.appendChild(e.host);
@@ -223,12 +226,17 @@ export function mountTerm(id: number, container: HTMLElement): () => void {
   refit();
   const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(refit);
   ro?.observe(container);
-  e.term.focus();
+  if (focus) e.term.focus();
   return () => {
     ro?.disconnect();
     webgl?.dispose();
     if (e.host.parentElement === container) container.removeChild(e.host);
   };
+}
+
+/** 세션의 입력에 초점을 둔다 — 칸 여럿 중 하나를 탭 · 단축키로 고를 때. */
+export function focusTerm(id: number) {
+  entries.get(id)?.term.focus();
 }
 
 /** 세션 입력에 붙여 넣는다 — xterm 이 안의 프로그램의 브래킷 붙여넣기 모드를 따라 감싼다. */

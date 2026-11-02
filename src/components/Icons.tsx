@@ -283,6 +283,7 @@ export {
   MoreHorizontal,
   ArrowDown,
   Columns2,
+  Rows2,
   List,
   Inbox,
   Store,
