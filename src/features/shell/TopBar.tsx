@@ -3,6 +3,7 @@ import { MoreHorizontal, SettingsIcon } from "@/components/Icons";
 import { FindButton } from "@/components/Toolbar";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { ProjectSwitcher } from "@/features/shell/ProjectSwitcher";
+import { projectColorOf } from "@/features/shell/projectColor";
 import type { NavBadges } from "@/features/shell/useNavBadges";
 import { NAV_ENTRIES, navShortcutLabel } from "@/lib/navRegistry";
 import { useT } from "@/i18n";
@@ -77,8 +78,10 @@ export function TopBar({
   }, [more]);
   // 화면을 바꾸면 접는다 — 다른 화면의 동작이 열린 채 남지 않게.
   useEffect(() => setMore(false), [view]);
+  // 프로젝트 색 — 창 위 띠. 창 여럿 사이에서 어느 프로젝트인지 한눈에 (2026-11-03).
+  const color = projectColorOf(projects.find((p) => p.id === currentProjectId)?.color);
   return (
-    <header className="topbar" {...drag}>
+    <header className="topbar" data-pc={color} {...drag}>
       <ProjectSwitcher
         projectName={projectName}
         currentProjectId={currentProjectId}

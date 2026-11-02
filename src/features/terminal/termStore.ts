@@ -46,6 +46,8 @@ interface Entry {
 }
 
 const entries = new Map<number, Entry>();
+/** 터미널 글자 크기 — 새 세션도 이 크기로 연다 (`setTermFontSize`). */
+let fontSize = 13;
 /** 안의 Claude 가 한 번이라도 「일하는 중」(OSC 7501 working)을 알린 세션 — 「일지 없이 끝남」의 재료. */
 const worked = new Set<number>();
 const listeners = new Set<() => void>();
@@ -120,7 +122,7 @@ export async function openTerm(
     cursorInactiveStyle: "outline",
     allowProposedApi: true,
     fontFamily: isMac() ? MAC_FONT : OTHER_FONT,
-    fontSize: 13,
+    fontSize,
     lineHeight: 1.15,
     theme: readTerminalTheme(),
     scrollback: SCROLLBACK,
@@ -239,6 +241,16 @@ export function mountTerm(id: number, container: HTMLElement, focus = true): () 
     webgl?.dispose();
     if (e.host.parentElement === container) container.removeChild(e.host);
   };
+}
+
+/** 모든 세션의 글자 크기를 바꾸고 보이는 칸은 다시 맞춘다 (⌘= / ⌘- / ⌘0). */
+export function setTermFontSize(size: number) {
+  if (size === fontSize) return;
+  fontSize = size;
+  for (const e of entries.values()) {
+    e.term.options.fontSize = size;
+    if (e.opened && e.host.clientWidth > 0 && e.host.clientHeight > 0) e.fit.fit();
+  }
 }
 
 /** 찾기 결과 — `index` 는 0부터, 못 세면(결과가 너무 많음) -1. */

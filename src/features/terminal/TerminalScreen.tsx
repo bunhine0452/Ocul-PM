@@ -22,7 +22,16 @@ import type { TermInfo } from "@/api/terminal";
 import { kbd, readChord } from "@/lib/kbd";
 import { getPlatform, isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
-import { closeTerm, focusTerm, hasWorked, openTerm, pasteToTerm, subscribeTerms, termsSnapshot } from "./termStore";
+import {
+  closeTerm,
+  focusTerm,
+  hasWorked,
+  openTerm,
+  pasteToTerm,
+  setTermFontSize,
+  subscribeTerms,
+  termsSnapshot,
+} from "./termStore";
 import {
   equalize,
   hasLeaf,
@@ -39,6 +48,11 @@ import { PaneTree, SPLIT_MIN } from "./PaneTree";
 import { TermFindBar } from "./TermFindBar";
 import { neighborOf, type PaneMove } from "./paneNav";
 import { useTerminalFileDrop } from "./dropFiles";
+import { interceptCloseKey } from "@/hooks/useWindowKeys";
+import { useConfirm } from "@/hooks/useConfirm";
+import { useOptionalSettings } from "@/contexts/SettingsContext";
+import { terminalApi } from "@/api/terminal";
+import { clampTermFont, termFontKey } from "./termFontSize";
 import { laneNumberOf, lanePathOf, useRace } from "./race";
 import { RaceStartDialog, RaceStrip } from "./RacePanel";
 import { onTermFocus, takeTermFocus } from "./focusRequest";
@@ -96,6 +110,16 @@ function termChord(e: KeyboardEvent): { shift: boolean; key: string } | null {
   return c.mod && !c.alt ? { shift: c.shift, key: c.key.toLowerCase() } : null;
 }
 
+/** 이전 · 다음 세션 — ⇧⌘[ / ⇧⌘] (macOS, iTerm · Terminal.app 과 같은 키), 그 밖 Ctrl+PageUp / PageDown. */
+function sessionStepOf(e: KeyboardEvent): -1 | 1 | null {
+  if (isMac()) {
+    if (!e.metaKey || !e.shiftKey || e.ctrlKey || e.altKey) return null;
+    return e.code === "BracketLeft" ? -1 : e.code === "BracketRight" ? 1 : null;
+  }
+  if (!e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return null;
+  return e.key === "PageUp" ? -1 : e.key === "PageDown" ? 1 : null;
+}
+
 const ARROWS: Record<string, PaneMove> = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
 
 /** ⌥⌘ + 방향키(macOS) · Ctrl+Alt + 방향키(그 밖) → 칸 이동 방향. */
@@ -141,6 +165,41 @@ export function TerminalScreen({
   // 나누려고 연 세션은 「새 세션이면 고른 칸에」 규칙에서 뺀다 — 고른 칸을 빼앗지 않게.
   const openingSplit = useRef(false);
   const records = useRecordsSince(projectId, workday, sessions);
+  const { confirm, confirmDialog } = useConfirm();
+  // 글자 크기 (⌘= / ⌘- / ⌘0) — 설정에 남겨 모든 창이 같은 크기.
+  const settingsCtx = useOptionalSettings();
+  const fontPx = clampTermFont(settingsCtx?.settings.terminalFontSize ?? 13);
+  const fontRef = useRef(fontPx);
+  fontRef.current = fontPx;
+  useEffect(() => {
+    setTermFontSize(fontPx);
+  }, [fontPx]);
+  const setFont = useCallback(
+    (px: number) => {
+      if (settingsCtx) void settingsCtx.set("terminalFontSize", px);
+      else setTermFontSize(px);
+    },
+    [settingsCtx],
+  );
+
+  // 세션 닫기 — 안에서 무언가 돌고 있으면(Claude 가 일하는 중 등) 먼저 묻는다. 빈 셸은 바로.
+  const closeSession = useCallback(
+    async (id: number) => {
+      const live = await terminalApi.list().catch(() => []);
+      const s = live.find((x) => x.id === id);
+      if (s?.busy) {
+        const ok = await confirm({
+          title: t("terminal.closeOneAsk.title", { name: s.label }),
+          message: t("terminal.closeOneAsk.body"),
+          confirmLabel: t("terminal.closeAsk.confirm"),
+          danger: true,
+        });
+        if (!ok) return;
+      }
+      closeTerm(id);
+    },
+    [confirm, t],
+  );
 
   const add = useCallback(async () => {
     if (opening.current) return;
@@ -184,6 +243,8 @@ export function TerminalScreen({
   countRef.current = count;
   const activeRef = useRef(active);
   activeRef.current = active;
+  const sessionIdsRef = useRef<number[]>([]);
+  sessionIdsRef.current = sessions.map((s) => s.id);
   // 칸이 하나가 되면 「크게」는 뜻이 없다.
   useEffect(() => {
     if (count < 2) setZoomed(false);
@@ -233,6 +294,25 @@ export function TerminalScreen({
   // 그 밖 OS 는 셸 키에 Shift 를 하나 더 — Ctrl+Shift+T · Ctrl+Shift+D · Ctrl+Alt+Shift+D · Ctrl+Shift+Enter.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // 글자 크기 ⌘= / ⌘- / ⌘0.
+      const px = termFontKey(e, fontRef.current);
+      if (px != null) {
+        e.preventDefault();
+        e.stopPropagation();
+        setFont(px);
+        return;
+      }
+      // 이전 · 다음 세션 ⇧⌘[ / ⇧⌘] — 탭 줄 순서로 돈다.
+      const step = sessionStepOf(e);
+      if (step != null) {
+        const ids = sessionIdsRef.current;
+        if (ids.length < 2) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const at = ids.indexOf(activeRef.current ?? -1);
+        pick(ids[(at + step + ids.length) % ids.length]);
+        return;
+      }
       // 칸 사이 이동 ⌥⌘ + 방향키 (그 밖 Ctrl+Alt + 방향키) — 화면의 칸 자리로 고른다(`paneNav`).
       const move = paneMoveOf(e);
       if (move) {
@@ -267,10 +347,24 @@ export function TerminalScreen({
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [add, split, pick]);
+  }, [add, split, pick, setFont]);
 
   // Finder 에서 끌어다 놓은 파일 · 그림 → 커서 아래 세션의 입력에 따옴표 친 경로.
   const dropOver = useTerminalFileDrop(active, getPlatform() === "windows", pasteToTerm);
+
+  // ⌘W — 세션이 둘 이상이면 고른 세션만 닫는다. 하나 남으면 창을 닫는다(돌고 있으면 창 닫기 확인이 묻는다).
+  const sessionCountRef = useRef(sessions.length);
+  sessionCountRef.current = sessions.length;
+  useEffect(
+    () =>
+      interceptCloseKey(() => {
+        const id = activeRef.current;
+        if (id == null || sessionCountRef.current < 2) return false;
+        void closeSession(id);
+        return true;
+      }),
+    [closeSession],
+  );
 
   // 다른 화면으로 가면 미리보기도 닫는다 — 돌아왔을 때 크게 띄운 그림이 남아 있지 않게.
   useEffect(() => closePeek, []);
@@ -306,7 +400,7 @@ export function TerminalScreen({
           type="button"
           className="iconbtn sm"
           aria-label={t("terminal.closeAria", { name: s.label })}
-          onClick={() => closeTerm(s.id)}
+          onClick={() => void closeSession(s.id)}
         >
           <X size={11} />
         </button>
@@ -407,7 +501,7 @@ export function TerminalScreen({
                     type="button"
                     className="iconbtn sm tm-close"
                     aria-label={t("terminal.closeAria", { name: s.label })}
-                    onClick={() => closeTerm(s.id)}
+                    onClick={() => void closeSession(s.id)}
                   >
                     <X size={13} />
                   </button>
@@ -448,6 +542,7 @@ export function TerminalScreen({
       </div>
       <TermImagePeekHost />
       <TermFileMenuHost projectRoot={projectRoot} />
+      {confirmDialog}
       {raceOpen ? <RaceStartDialog projectId={projectId} onClose={() => setRaceOpen(false)} /> : null}
     </>
   );

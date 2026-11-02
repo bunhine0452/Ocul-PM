@@ -14,6 +14,7 @@ import { windowApi } from "@/api/window";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import { choiceOf } from "@/features/settings/EditorRow";
 import { addProjectFromFolder } from "@/features/start/addFolder";
+import { PROJECT_COLORS, projectColorOf } from "./projectColor";
 import { PROJECT_SLOTS, byAttention, projectSlotLabel, projectSlotOf } from "./projectKeys";
 import { TermsChip } from "@/features/terminal/TermsChip";
 import { useTermOverview } from "@/features/terminal/status";
@@ -45,6 +46,8 @@ export function ProjectSwitcher({
 }: ProjectSwitcherProps) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
+  // 목록 거르기 (2026-11-03) — 열면 바로 쳐서 이름 · 경로로 좁히고 ↩ 로 첫 줄을 연다.
+  const [query, setQuery] = useState("");
   const [brief, setBrief] = useState<HomeBrief | null>(null);
   const [openWindows, setOpenWindows] = useState<number[]>([]);
   const [attention, setAttention] = useState<Map<number, ProjectAttention>>(new Map());
@@ -88,13 +91,21 @@ export function ProjectSwitcher({
     readAttention();
     // 열려 있는 동안 다른 창의 Claude 가 기다리기 시작하면 줄이 따라 바뀐다.
     const off = windowApi.onAttentionChanged(readAttention);
-    // 첫 항목에 포커스 — 키보드로 연 사람이 바로 고를 수 있게.
-    requestAnimationFrame(() => menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus());
+    // 거르기 칸에 포커스 — 열자마자 치면 좁혀지고, ↓ 로 목록에 들어간다.
+    setQuery("");
+    requestAnimationFrame(() => menuRef.current?.querySelector<HTMLInputElement>(".proj-pop-find")?.focus());
     return () => {
       alive = false;
       void off.then((unlisten) => unlisten());
     };
   }, [open, projects, editorCmd]);
+
+  // 열 때 프로젝트 목록도 다시 읽는다 — 다른 창에서 바꾼 색이 이 목록에 따라오게. `projects` 를 바꾸는
+  // 일이라 위 효과(의존성에 `projects`)와 따로 둔다 — 같이 두면 다시 읽기가 끝없이 돈다.
+  useEffect(() => {
+    if (open) onProjectsChanged?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // ⌥⌘1~9 (Alt+1~9) — 목록을 열지 않고 그 번호의 프로젝트 창으로. 번호는 목록과 같은 최근 순서.
   // 캡처 단계 — ⌘숫자(화면 전환) 처리기보다 먼저, 터미널보다 먼저 받는다.
@@ -162,7 +173,16 @@ export function ProjectSwitcher({
     onOpenProject(result.project.id);
   };
 
-  const currentRoot = projects.find((p) => p.id === currentProjectId)?.root_path ?? null;
+  const current = projects.find((p) => p.id === currentProjectId);
+  const currentRoot = current?.root_path ?? null;
+  const currentColor = projectColorOf(current?.color);
+  const pickColor = (color: string | null) => {
+    if (currentProjectId == null) return;
+    projectsApi
+      .setColor(currentProjectId, color)
+      .then(() => onProjectsChanged?.())
+      .catch((e) => toast.destructive(String(e?.message ?? e)));
+  };
   const editorName = EDITOR_NAMES[choiceOf(editorCmd) === "auto" ? (detected ?? "") : choiceOf(editorCmd)];
   const openInEditor = () => {
     close(false);
@@ -174,6 +194,11 @@ export function ProjectSwitcher({
   };
 
   const ordered = byAttention(orderRecent(projects, brief), attention);
+  const q = query.trim().toLowerCase();
+  // 번호 키(⌥⌘n)는 거르기 전 순서 그대로 — 좁혀도 같은 프로젝트는 같은 번호다.
+  const shown = ordered
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => !q || p.name.toLowerCase().includes(q) || p.root_path.toLowerCase().includes(q));
   const shortcut = kbd("⌘O");
 
   return (
@@ -188,13 +213,33 @@ export function ProjectSwitcher({
         aria-label={t("sidebar.switchProjectAria", { name: projectName ?? "" })}
         title={t("sidebar.switchProjectTitle", { key: shortcut })}
       >
+        {currentColor ? <span className="proj-dot" data-pc={currentColor} aria-hidden="true" /> : null}
         <span className="proj-name">{projectName ?? t("sidebar.selectProject")}</span>
         <ChevronDown size={13} aria-hidden="true" />
       </button>
 
       {open ? (
         <div className="proj-pop" role="menu" aria-label={t("sidebar.switchProjectMenu")} ref={menuRef}>
-          {ordered.map((p, i) => {
+          <input
+            className="proj-pop-find"
+            type="text"
+            value={query}
+            placeholder={t("sidebar.findProject")}
+            aria-label={t("sidebar.findProject")}
+            spellCheck={false}
+            autoComplete="off"
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+              const first = shown[0]?.p;
+              if (!first) return;
+              e.preventDefault();
+              close(false);
+              if (first.id !== currentProjectId) onOpenProject(first.id);
+            }}
+          />
+          {shown.length === 0 ? <p className="proj-pop-none">{t("sidebar.findProjectNone")}</p> : null}
+          {shown.map(({ p, i }) => {
             const isCurrent = p.id === currentProjectId;
             const elsewhere = !isCurrent && openWindows.includes(p.id);
             return (
@@ -209,6 +254,7 @@ export function ProjectSwitcher({
                   if (!isCurrent) onOpenProject(p.id);
                 }}
               >
+                <span className="proj-dot" data-pc={projectColorOf(p.color)} aria-hidden="true" />
                 <span className="proj-pop-meta">
                   <span className="proj-pop-name">{p.name}</span>
                   <span className="proj-pop-path">{tildePath(p.root_path)}</span>
@@ -223,6 +269,33 @@ export function ProjectSwitcher({
               </button>
             );
           })}
+          {currentProjectId != null ? (
+            <div className="proj-colors" role="group" aria-label={t("sidebar.projectColor")}>
+              <span className="proj-colors-label">{t("sidebar.projectColor")}</span>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={!currentColor}
+                aria-label={t("sidebar.projectColorNone")}
+                title={t("sidebar.projectColorNone")}
+                className="proj-swatch none"
+                onClick={() => pickColor(null)}
+              />
+              {PROJECT_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={currentColor === c}
+                  aria-label={t(`projectColor.${c}`)}
+                  title={t(`projectColor.${c}`)}
+                  className="proj-swatch"
+                  data-pc={c}
+                  onClick={() => pickColor(c)}
+                />
+              ))}
+            </div>
+          ) : null}
           {currentRoot ? (
             <button type="button" role="menuitem" className="proj-pop-add" onClick={openInEditor}>
               {editorName ? t("sidebar.openInEditor", { name: editorName }) : t("sidebar.openInEditorGeneric")}

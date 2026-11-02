@@ -35,6 +35,29 @@ pub async fn list_projects(db: State<'_, Db>) -> Result<Vec<Project>, String> {
     db.list_projects().await.map_err(|e| e.to_string())
 }
 
+/// 프로젝트 색 id — 프런트 `tokens.css` 의 `[data-pc="…"]` 와 같은 목록 (`projectColor.ts`).
+pub const PROJECT_COLORS: &[&str] = &[
+    "slate", "green", "blue", "violet", "amber", "rose", "teal", "orange",
+];
+
+/// 프로젝트 색을 바꾼다 (2026-11-03) — 창 여럿을 띄웠을 때 윗줄 색으로 구별한다. `None` 은 색 없음.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_project_color(
+    db: State<'_, Db>,
+    project_id: u32,
+    color: Option<String>,
+) -> Result<(), String> {
+    if let Some(c) = &color {
+        if !PROJECT_COLORS.contains(&c.as_str()) {
+            return Err(format!("unknown project color: {c}"));
+        }
+    }
+    db.set_project_color(project_id, color)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn create_project(

@@ -27,6 +27,8 @@ export const KEYS = {
   // DB 에 남은 걷은 기능의 키는 읽지 않는다 — `entriesToSettings` 가 모르는 키를 건너뛴다.
   externalEditorCommand: "external_editor_command",
   tourSeen: "tour_seen",
+  // 터미널 글자 크기 (⌘= / ⌘- / ⌘0, 2026-11-03) — 모든 창 · 세션이 같은 크기.
+  terminalFontSize: "terminal_font_size",
 } as const;
 
 export type SettingKey = (typeof KEYS)[keyof typeof KEYS];
@@ -59,6 +61,9 @@ export interface Settings {
 
   /** 첫 실행 안내(처음 쓰는 법)를 한 번 띄웠다 — `"1"`. 모든 창이 함께 본다(SQLite). */
   tourSeen: string;
+
+  /** 터미널 글자 크기(px). ⌘= / ⌘- 로 1씩, ⌘0 은 기본(13). `termFontSize.ts` 가 범위를 지킨다. */
+  terminalFontSize: number;
 }
 
 export const DEFAULTS: Settings = {
@@ -70,6 +75,7 @@ export const DEFAULTS: Settings = {
 
   externalEditorCommand: "auto",
   tourSeen: "",
+  terminalFontSize: 13,
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -80,6 +86,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.contentLanguage]: "contentLanguage",
   [KEYS.externalEditorCommand]: "externalEditorCommand",
   [KEYS.tourSeen]: "tourSeen",
+  [KEYS.terminalFontSize]: "terminalFontSize",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(

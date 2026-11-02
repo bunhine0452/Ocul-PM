@@ -30,6 +30,7 @@ vi.mock("@/api/window", () => ({
     closeThisWindow: fx.close,
     newWindow: fx.newWindow,
     onTourRequested: () => Promise.resolve(() => {}),
+    onCloseKey: () => Promise.resolve(() => {}),
   },
 }));
 vi.mock("@/api/projects", () => ({

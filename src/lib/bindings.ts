@@ -16,6 +16,8 @@ export const commands = {
 	settingsSetMany: (entries: ([string, string])[]) => typedError<null, string>(__TAURI_INVOKE("settings_set_many", { entries })),
 	appInfo: () => typedError<AppInfo, string>(__TAURI_INVOKE("app_info")),
 	selectProjectFolder: () => typedError<string | null, string>(__TAURI_INVOKE("select_project_folder")),
+	/**  프로젝트 색을 바꾼다 (2026-11-03) — 창 여럿을 띄웠을 때 윗줄 색으로 구별한다. `None` 은 색 없음. */
+	setProjectColor: (projectId: number, color: string | null) => typedError<null, string>(__TAURI_INVOKE("set_project_color", { projectId, color })),
 	listProjects: () => typedError<Project[], string>(__TAURI_INVOKE("list_projects")),
 	createProject: (name: string, rootPath: string) => typedError<number, string>(__TAURI_INVOKE("create_project", { name, rootPath })),
 	deleteProject: (projectId: number, deleteOculpm: boolean, deleteAgentsMd: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_project", { projectId, deleteOculpm, deleteAgentsMd })),
@@ -713,6 +715,7 @@ export const commands = {
 export const events = {
 	claudeQuestionsChanged: makeEvent<ClaudeQuestionsChanged>("claude-questions-changed"),
 	claudeWaitingChanged: makeEvent<ClaudeWaitingChanged>("claude-waiting-changed"),
+	closeKeyPressed: makeEvent<CloseKeyPressed>("close-key-pressed"),
 	deepLinkReceived: makeEvent<DeepLinkReceived>("deep-link-received"),
 	oculpmAgentDrift: makeEvent<OculpmAgentDrift>("oculpm-agent-drift"),
 	oculpmDataChanged: makeEvent<OculpmDataChanged>("oculpm-data-changed"),
@@ -951,6 +954,13 @@ export type ClaudeWaiting = {
 export type ClaudeWaitingChanged = {
 	project_id: number,
 };
+
+/**
+ *  메뉴의 ⌘W — 창을 바로 닫지 않고 그 창의 프런트에 묻는다(2026-11-03). 터미널 화면에서 세션이
+ *  둘 이상이면 고른 세션만 닫고, 아니면 프런트가 창을 닫는다(`useWindowKeys` · `closeByKey`).
+ *  메뉴 액셀러레이터가 웹뷰보다 먼저 키를 먹어서, 예전엔 터미널이 여럿이어도 창째 닫혔다.
+ */
+export type CloseKeyPressed = Record<string, never>;
 
 export type CodexPluginStatus = {
 	/**  Codex 설정 폴더가 있다 (설치/첫 실행 추정 근거). */

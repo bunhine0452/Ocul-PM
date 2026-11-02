@@ -46,6 +46,7 @@ vi.mock("@/features/terminal/termStore", () => ({
     return () => {};
   },
   pasteToTerm: () => {},
+  setTermFontSize: () => {},
   focusTerm: () => {},
   hasWorked: (id: number) => store.worked.has(id),
   findInTerm: (id: number, q: string, back: boolean) => {
@@ -166,7 +167,7 @@ describe("터미널 탭", () => {
     store.set([info(1, "zsh"), info(2, "claude")]);
     render(<TerminalScreen projectId={1} workday="20261029" />);
     fireEvent.click(screen.getByRole("button", { name: t("terminal.closeAria", { name: "claude" }) }));
-    expect(store.closed).toEqual([2]);
+    await waitFor(() => expect(store.closed).toEqual([2]));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: new RegExp(t("terminal.new")) }));
     });

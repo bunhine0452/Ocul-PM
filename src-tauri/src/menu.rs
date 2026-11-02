@@ -35,7 +35,13 @@ pub const TOUR: &str = "menu:tour";
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type, tauri_specta::Event)]
 pub struct TourRequested {}
 
-/// 액셀러레이터. 창 하나가 프로젝트 하나라 **`⌘W` 는 창 닫기**다 (macOS 표준).
+/// 메뉴의 ⌘W — 창을 바로 닫지 않고 그 창의 프런트에 묻는다(2026-11-03). 터미널 화면에서 세션이
+/// 둘 이상이면 고른 세션만 닫고, 아니면 프런트가 창을 닫는다(`useWindowKeys` · `closeByKey`).
+/// 메뉴 액셀러레이터가 웹뷰보다 먼저 키를 먹어서, 예전엔 터미널이 여럿이어도 창째 닫혔다.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type, tauri_specta::Event)]
+pub struct CloseKeyPressed {}
+
+/// 액셀러레이터. 창 하나가 프로젝트 하나라 **`⌘W` 는 창 닫기**다 (macOS 표준) — 단 터미널 세션이 여럿이면 세션부터.
 const ACC_NEW_WINDOW: &str = "Shift+CmdOrCtrl+N";
 const ACC_CLOSE_WINDOW: &str = "CmdOrCtrl+W";
 
@@ -231,9 +237,14 @@ pub fn handle_event(app: &AppHandle, id: &str) {
     let handle = app.clone();
     match id {
         CLOSE_WINDOW => {
+            use tauri_specta::Event;
             if let Some(label) = win::focused_app_window(app) {
-                if let Some(w) = app.get_webview_window(&label) {
-                    let _ = w.close();
+                // 프런트가 못 받으면(이벤트 실패) 예전처럼 창을 닫는다 — ⌘W 가 죽지 않게.
+                let sent = CloseKeyPressed {}.emit_to(app, label.as_str());
+                if sent.is_err() {
+                    if let Some(w) = app.get_webview_window(&label) {
+                        let _ = w.close();
+                    }
                 }
             }
         }

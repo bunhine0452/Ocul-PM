@@ -65,4 +65,6 @@ export const windowApi = {
 
   /** macOS 도움말 › 처음 쓰는 법 — 포커스된 이 창에만 온다 (`menu.rs` TourRequested). */
   onTourRequested: (cb: () => void) => subscribeHere(events.tourRequested, () => cb()),
+  /** macOS 메뉴의 ⌘W — 포커스된 이 창에만 온다 (`menu.rs` CloseKeyPressed). 무엇을 닫을지는 `closeByKey`. */
+  onCloseKey: (cb: () => void) => subscribeHere(events.closeKeyPressed, () => cb()),
 };

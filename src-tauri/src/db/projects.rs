@@ -106,6 +106,20 @@ impl Db {
             .map_err(|e| crate::app_error::AppError::new("project_not_found", e.to_string()))
     }
 
+    /// 프로젝트 색을 바꾼다 — `None` 이면 색 없음. 값은 hex 가 아니라 id(`PROJECT_COLORS`).
+    pub async fn set_project_color(&self, id: u32, color: Option<String>) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "UPDATE projects SET color = ?2, updated_at = unixepoch() WHERE id = ?1",
+                    (id as i64, color),
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
     pub async fn delete_project(&self, id: u32) -> Result<()> {
         self.conn
             .call(move |c| {
