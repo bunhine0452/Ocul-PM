@@ -36,6 +36,7 @@ import {
   type PaneView,
 } from "./paneLayout";
 import { PaneTree, SPLIT_MIN } from "./PaneTree";
+import { TermFindBar } from "./TermFindBar";
 import { useTerminalFileDrop } from "./dropFiles";
 import { laneNumberOf, lanePathOf, useRace } from "./race";
 import { RaceStartDialog, RaceStrip } from "./RacePanel";
@@ -117,6 +118,8 @@ export function TerminalScreen({
     setViewState((prev) => (remembered = fn(prev)));
   }, []);
   const { layout, active } = view;
+  // 터미널 찾기 (⌘F) — 고른 칸 위에 한 줄. 다른 칸을 고르면 닫는다.
+  const [finding, setFinding] = useState(false);
   // 한 칸 크게 (Orca 「Expand pane」 ⇧⌘↩) — 트리는 그대로 두고 고른 칸만 그린다.
   const [zoomed, setZoomed] = useState(false);
   const panesRef = useRef<HTMLDivElement | null>(null);
@@ -204,8 +207,9 @@ export function TerminalScreen({
   // 탭 · 칸을 고른다 — 칸에 없던 세션이면 고른 칸에 갈아 끼운다.
   const pick = useCallback((id: number) => setView((v) => show(v, id)), [setView]);
 
-  // 고른 칸이 바뀌면 입력도 그리로.
+  // 고른 칸이 바뀌면 입력도 그리로 — 찾기 줄은 닫는다(다른 세션의 출력이다).
   useEffect(() => {
+    setFinding(false);
     if (active != null) focusTerm(active);
   }, [active]);
 
@@ -224,6 +228,9 @@ export function TerminalScreen({
       } else if (c.key === "d") {
         e.preventDefault();
         void split(c.shift ? "col" : "row");
+      } else if (c.key === "f" && !c.shift) {
+        e.preventDefault();
+        setFinding(true);
       } else if (c.key === "enter" && c.shift && countRef.current > 1) {
         e.preventDefault();
         setZoomed((z) => !z);
@@ -391,6 +398,7 @@ export function TerminalScreen({
               onRatio={(path, ratio) => setView((v) => (v.layout ? { ...v, layout: setRatio(v.layout, path, ratio) } : v))}
               onEqualize={() => setView((v) => (v.layout ? { ...v, layout: equalize(v.layout) } : v))}
               separatorLabel={t("terminal.divider")}
+              overlay={finding && active != null ? <TermFindBar id={active} onClose={() => setFinding(false)} /> : null}
             />
           ) : null}
         </div>

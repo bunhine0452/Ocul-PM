@@ -20,7 +20,7 @@ Orca·claude-mem 이 못 하는 자리(확인 명령 결과로 믿음을 판정�
 - [x] 동료 기록 — git 으로 받은 일지의 예외 {#team-exceptions}
 
 ## 터미널 {#terminal}
-- [ ] 터미널 찾기 ⌘F {#term-find}
+- [x] 터미널 찾기 ⌘F {#term-find}
 - [ ] 칸 사이 이동 단축키 {#pane-nav}
 - [ ] 일지 없이 끝난 세션 표시 {#term-no-record}
 
@@ -36,4 +36,6 @@ Orca·claude-mem 이 못 하는 자리(확인 명령 결과로 믿음을 판정�
 | 2026-11-02T18:02:16+09:00 | #pr-receipt | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1802_feature_diff-pr-receipt-copy.md | 판정 ✓ pnpm test 995 passed ×3 · cargo test 1072 passed · fmt/clippy/typecheck/lint/build 0 |
 | 2026-11-02T18:06:18+09:00 | #team-exceptions | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1810_feature_today-teammate-journals.md | 판정 ✓ pnpm test 996 passed ×2 · cargo test 1074 passed · fmt/clippy/typecheck/lint/build 0 |
 | 2026-11-02T18:06:25+09:00 | #team-exceptions | claude-code | x→x | .oculpm/journal/20261102/Features_to_add/1806_feature_today-teammate-journals.md | 일지 경로 바로잡음 — 바로 위 행의 1810_… 은 잘못 적은 경로, 실제는 1806_… |
+| 2026-11-02T18:08:55+09:00 | #term-find | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1813_feature_terminal-find.md | 판정 ✓ pnpm test 997 passed ×2 · typecheck/lint/build 0 (Rust 무변경) |
+| 2026-11-02T18:08:59+09:00 | #term-find | claude-code | x→x | .oculpm/journal/20261102/Features_to_add/1808_feature_terminal-find.md | 일지 경로 바로잡음 — 바로 위 행의 1813_… 은 잘못 적은 경로, 실제는 1808_… |
 <!-- oculpm:plan-log end -->
