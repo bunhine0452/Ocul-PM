@@ -36,6 +36,16 @@ function stateWord(tr: Tr, status: TermStatus): string {
   }
 }
 
+/**
+ * 일지 없이 끝남 (11-02) — 안의 Claude 가 일했고(`worked`) 지금은 끝났거나 손을 놓았는데(끝 · done · idle),
+ * 이 세션이 시작된 뒤 일지가 0건. 코드를 안 바꾼 문답이어도 서므로 경고가 아니라 「확인해 볼 것」 이다.
+ */
+export function endedWithoutRecord(info: TermInfo, worked: boolean, records: number): boolean {
+  if (!worked || records > 0) return false;
+  if (!info.alive) return true;
+  return info.status?.state === "done" || info.status?.state === "idle";
+}
+
 /** 목록 한 줄의 상태 — 끝났으면 종료 코드, 상태를 알리는 프로그램이면 그 상태, 아니면 「실행 중」. */
 export function sessionWord(tr: Tr, info: TermInfo): string {
   if (!info.alive) {

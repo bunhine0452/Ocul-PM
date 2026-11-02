@@ -20,6 +20,7 @@ const store = vi.hoisted(() => {
     opened: [] as Array<string | null>,
     cwds: [] as Array<string | null>,
     finds: [] as Array<[number, string, boolean]>,
+    worked: new Set<number>(),
     cleared: [] as number[],
     closed: [] as number[],
     mounted: [] as number[],
@@ -46,6 +47,7 @@ vi.mock("@/features/terminal/termStore", () => ({
   },
   pasteToTerm: () => {},
   focusTerm: () => {},
+  hasWorked: (id: number) => store.worked.has(id),
   findInTerm: (id: number, q: string, back: boolean) => {
     store.finds.push([id, q, back]);
     return true;
@@ -93,6 +95,7 @@ beforeEach(() => {
   store.opened.length = 0;
   store.cwds.length = 0;
   store.finds.length = 0;
+  store.worked.clear();
   store.cleared.length = 0;
   __resetTermLayoutForTests();
   store.closed.length = 0;
@@ -274,6 +277,28 @@ describe("터미널 찾기 (⌘F)", () => {
     fireEvent.keyDown(box, { key: "Escape" });
     expect(store.cleared).toEqual([1]);
     expect(screen.queryByRole("search")).toBeNull();
+  });
+});
+
+describe("일지 없이 끝난 세션", () => {
+  it("Claude 가 일하고 손을 놓았는데 시작 뒤 일지가 0 이면 탭에 「일지 없음」 — 일지가 있거나 일한 적이 없으면 없다", async () => {
+    const idle = { state: "idle", kind: null, msg: null, since: "2026-10-29T10:05:00Z" };
+    store.worked.add(1);
+    store.worked.add(2);
+    journal.created = ["2026-10-29T10:01:00Z"];
+    // 세션 2 는 일지가 생긴 뒤에 시작했다 — 그 뒤 일지가 없다.
+    store.set([
+      info(1, "claude", { status: idle, started_at: "2026-10-29T10:00:00Z" }),
+      info(2, "claude", { status: idle, started_at: "2026-10-29T10:02:00Z" }),
+      info(3, "zsh", { alive: false, exit_code: 0 }),
+    ]);
+    render(<TerminalScreen projectId={1} workday="20261029" />);
+    const tabs = await screen.findAllByRole("tab");
+    const has = (el: HTMLElement, text: string) => (el.textContent ?? "").includes(text);
+    await waitFor(() => expect(has(tabs[0], t("terminal.records", { n: 1 }))).toBe(true));
+    expect(has(tabs[0], t("terminal.noRecord"))).toBe(false);
+    expect(has(tabs[1], t("terminal.noRecord"))).toBe(true);
+    expect(has(tabs[2], t("terminal.noRecord"))).toBe(false);
   });
 });
 

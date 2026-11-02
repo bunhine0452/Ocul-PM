@@ -46,6 +46,8 @@ interface Entry {
 }
 
 const entries = new Map<number, Entry>();
+/** 안의 Claude 가 한 번이라도 「일하는 중」(OSC 7501 working)을 알린 세션 — 「일지 없이 끝남」의 재료. */
+const worked = new Set<number>();
 const listeners = new Set<() => void>();
 let list: TermInfo[] = [];
 let swept = false;
@@ -167,6 +169,7 @@ export async function openTerm(
       // 프로그램 상태(OSC 7501) — open 이 돌아온 뒤에야 오지만(탐침 답이 먼저다) 앞서 오면 버린다.
       if (!entry) return;
       const prev = entry.info.status;
+      if (ev.status?.state === "working") worked.add(entry.info.id);
       entry.info = { ...entry.info, status: ev.status };
       alertIfWaiting(prev, entry.info);
       notify();
@@ -280,6 +283,11 @@ export function clearFind(id: number) {
   e.term.focus();
 }
 
+/** 이 세션에서 Claude 가 일한 적이 있는가 (OSC 7501 working 을 한 번이라도). */
+export function hasWorked(id: number): boolean {
+  return worked.has(id);
+}
+
 /** 세션의 입력에 초점을 둔다 — 칸 여럿 중 하나를 탭 · 단축키로 고를 때. */
 export function focusTerm(id: number) {
   entries.get(id)?.term.focus();
@@ -327,5 +335,6 @@ export function closeTerm(id: number) {
   e.term.dispose();
   e.host.remove();
   entries.delete(id);
+  worked.delete(id);
   notify();
 }

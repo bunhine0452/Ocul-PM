@@ -384,6 +384,8 @@ export const en: Record<keyof typeof ko, string> = {
   "race.loading": "Loading changes",
   "terminal.drop.hint": "Drop to type the paths",
   "terminal.splitRight": "Split right",
+  "terminal.noRecord": "no journal",
+  "terminal.noRecordTitle": "Claude worked in this session, but no journal entry was written since it started. Fine if it was a Q&A that changed no code",
   "terminal.find.aria": "Find in terminal",
   "terminal.find.placeholder": "Find in output",
   "terminal.find.count": "{i}/{n}",

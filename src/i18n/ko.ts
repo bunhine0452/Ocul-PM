@@ -386,6 +386,8 @@ export const ko = {
   "race.loading": "변경을 읽는 중",
   "terminal.drop.hint": "놓으면 경로를 입력에 넣어요",
   "terminal.splitRight": "오른쪽으로 나누기",
+  "terminal.noRecord": "일지 없음",
+  "terminal.noRecordTitle": "Claude 가 이 세션에서 일했는데, 세션이 시작된 뒤 일지가 없어요. 코드를 바꾸지 않은 문답이었다면 괜찮아요",
   "terminal.find.aria": "터미널에서 찾기",
   "terminal.find.placeholder": "출력에서 찾기",
   "terminal.find.count": "{i}/{n}",
