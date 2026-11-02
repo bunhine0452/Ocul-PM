@@ -37,6 +37,8 @@ vi.mock("@/api/window", () => ({
   windowApi: {
     openProjectWindow: fx.openProjectWindow,
     openProjectIds: async () => fx.openIds,
+    attention: async () => new Map(),
+    onAttentionChanged: async () => () => {},
   },
 }));
 vi.mock("@/api/projects", () => ({

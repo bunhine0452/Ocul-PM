@@ -7,7 +7,7 @@ vi.mock("@/api/terminal", () => ({
   terminalApi: { overview: async () => [], onSessionsChanged: async () => () => {} },
 }));
 vi.mock("@/api/window", () => ({
-  windowApi: { openProjectIds: async () => [] },
+  windowApi: { openProjectIds: async () => [], attention: async () => new Map(), onAttentionChanged: async () => () => {} },
 }));
 
 import { ProjectSwitcher } from "@/features/shell/ProjectSwitcher";

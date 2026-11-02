@@ -29,3 +29,21 @@ export function projectSlotLabel(slot: number): string {
   // kbd() 로는 못 옮긴다 — 그 OS 의 키는 Ctrl+Alt 가 아니라 Alt 다.
   return isMac() ? kbd(`⌥⌘${slot + 1}`) : `Alt+${slot + 1}`;
 }
+
+/**
+ * 급한 프로젝트를 위로 (11-02 기다림 신호) — Claude 가 기다리는 것, 다음이 확인 명령이 실패한 것, 나머지.
+ * 같은 무리 안에서는 들어온 순서(최근 순)를 지킨다. ⌘O 목록과 ⌥⌘ 번호가 **같은 순서**를 써야 번호가 맞는다.
+ */
+export function byAttention<T extends { id: number }>(
+  ordered: readonly T[],
+  attention: ReadonlyMap<number, { waiting: number; failing: boolean }>,
+): T[] {
+  const rank = (p: T) => {
+    const a = attention.get(p.id);
+    return a?.waiting ? 0 : a?.failing ? 1 : 2;
+  };
+  return ordered
+    .map((p, i) => ({ p, i, r: rank(p) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.p);
+}

@@ -7,7 +7,7 @@
  */
 
 import { call, subscribe, subscribeHere } from "@/api/invoke";
-import { commands, events, type WindowProjectChanged } from "@/lib/bindings";
+import { commands, events, type ProjectAttention, type WindowProjectChanged } from "@/lib/bindings";
 
 export const windowApi = {
   /**
@@ -35,6 +35,16 @@ export const windowApi = {
 
   /** 어디든 창이 떠 있는 프로젝트 id. */
   openProjectIds: () => call<number[]>("list_open_project_ids", commands.listOpenProjectIds()),
+
+  /**
+   * 프로젝트마다 기다림 · 실패 (11-02, `commands/window/attention.rs`) — ⌘O 목록과 ⌥⌘ 번호의 순서.
+   * 실패하지 않는 커맨드라 봉투가 없다. 창이 없는 프로젝트의 기다림은 0 이다(감시기가 안 돈다).
+   */
+  attention: async (projectIds: number[]): Promise<Map<number, ProjectAttention>> =>
+    new Map((await commands.projectAttention(projectIds)).map((a) => [a.project_id, a] as const)),
+
+  /** 기다림 · 실패가 바뀌었을 수 있다 — 열린 목록이 다시 읽는다. */
+  onAttentionChanged: (cb: () => void) => subscribe(events.projectAttentionChanged, () => cb()),
 
   /** 이 창을 닫는다 — Windows·Linux 의 Ctrl+W (맥은 앱 메뉴의 ⌘W). */
   closeThisWindow: () => call<null>("close_window", commands.closeWindow()),

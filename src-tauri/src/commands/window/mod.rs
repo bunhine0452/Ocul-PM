@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_specta::Event;
 
+mod attention;
 mod events;
 mod focus;
 mod lifecycle;
@@ -37,6 +38,7 @@ mod session;
 mod tests;
 mod watchers;
 
+pub use attention::*;
 pub use events::*;
 pub use focus::*;
 pub use lifecycle::*;

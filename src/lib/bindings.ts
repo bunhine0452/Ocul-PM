@@ -135,6 +135,8 @@ export const commands = {
 	 *  - 아니면 새 창을 연다 (숨겨 둔 휴면 창이 있으면 그것을 재사용).
 	 */
 	openProjectWindow: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("open_project_window", { projectId })),
+	/**  ⌘O 목록 · ⌥⌘ 번호가 읽는다. 창이 없는 프로젝트는 기다림을 모른다(감시기가 안 돈다) — 0 이다. */
+	projectAttention: (projectIds: number[]) => __TAURI_INVOKE<ProjectAttention[]>("project_attention", { projectIds }),
 	/**
 	 *  시작 창이 프로젝트를 골랐다 — **그 창이** 그 프로젝트가 된다.
 	 * 
@@ -723,6 +725,7 @@ export const events = {
 	oculpmSessionStarted: makeEvent<OculpmSessionStarted>("oculpm-session-started"),
 	oculpmWatchYielded: makeEvent<OculpmWatchYielded>("oculpm-watch-yielded"),
 	oculpmWorkdayChanged: makeEvent<OculpmWorkdayChanged>("oculpm-workday-changed"),
+	projectAttentionChanged: makeEvent<ProjectAttentionChanged>("project-attention-changed"),
 	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 	termCloseAsked: makeEvent<TermCloseAsked>("term-close-asked"),
@@ -1922,6 +1925,18 @@ export type Project = {
 	/**  색 id (`"amber"` 등) — hex 가 아니라 id 다. */
 	color: string | null,
 };
+
+/**  프로젝트 하나의 주의 신호. */
+export type ProjectAttention = {
+	project_id: number,
+	/**  Claude 가 기다리는 세션 + 답을 기다리는 질문. */
+	waiting: number,
+	/**  살아 있는 계획 중 마지막 확인 명령이 ✗ 인 것이 있다. */
+	failing: boolean,
+};
+
+/**  주의 신호가 바뀌었을 수 있다 — ⌘O 목록이 다시 읽는다. */
+export type ProjectAttentionChanged = Record<string, never>;
 
 /**  어디든 열린 프로젝트 집합이 바뀌었다 — 시작 창·프로젝트 목록의 「열림」 표시. */
 export type ProjectWindowsChanged = {
