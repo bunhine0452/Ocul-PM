@@ -1,15 +1,15 @@
 <div align="center">
 
-<img src="landing/banner.png" alt="Ocul: AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. 오른쪽에 4.1 앱의 오늘 화면." width="100%" />
+<img src="landing/banner.png" alt="Ocul: 「다 됐습니다」 대신, 영수증을 받으세요. 오른쪽에 4.1 앱의 오늘 화면." width="100%" />
 
 <img src="landing/demo.gif" alt="Ocul 4.1 데모: 오늘 화면에서 Claude 의 질문에 답하면 터미널의 Claude 가 그 답을 받아 일지와 판정을 남기고, 작업 일지 · 계획 · 변경 화면이 이어진다" width="100%" />
 
 <sub>실제 4.1 화면입니다. 이 저장소의 일지로 채웠고, Claude 의 질문 한 줄만 데모입니다. 여러분의 터미널에서 돌려도 같은 기록이 남습니다.</sub>
 
-<h3>AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요.</h3>
+<h3>「다 됐습니다」 대신, 영수증을 받으세요.</h3>
 
-<p>에이전트가 한 일을 사람이 <b>3분 안에 믿고, 다음을 결정</b>하게 하고, 에이전트는 어떤 일이든 <b>판정부터 깔고</b> 시작하게 합니다. 일지·diff·계획이 그 증거이고, 판정은 에이전트의 말이 아니라 확인 명령의 결과 끝 줄입니다.<br/>
-Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프로젝트 매니저 — 서버도 계정도 없고, 앱은 LLM 을 부르지 않습니다.</p>
+<p>코딩 에이전트가 일을 끝낼 때마다 <b>무엇을 바꿨고 어떤 명령으로 확인했는지</b>가 프로젝트 폴더에 마크다운으로 남습니다. Ocul 은 그중 <b>확인 안 된 것만</b> 당신 앞에 세웁니다 — 실패한 확인 명령, 명령 증거 없는 일지, 어느 일지에도 없는 변경.<br/>
+Claude Code 플러그인 두 줄로 시작하고, 화면으로 보고 싶으면 데스크톱 앱을 더합니다. Codex · Cursor · Gemini CLI 도 규칙 파일 한 장으로 기록합니다. 서버도 계정도 없고, 앱은 LLM 을 부르지 않습니다.</p>
 
 [![CI](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml)
 [![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
@@ -31,9 +31,16 @@ Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프
 
 ---
 
-매일 AI 로 개발하면 아침마다 같은 일을 합니다. 새 대화를 열고, 어제 어디까지 했는지, 왜 그 파일을 건드렸는지, 무엇이 남았는지를 처음부터 다시 설명하는 일입니다. 대화가 끝나면 맥락도 같이 끝나기 때문입니다 — 코드는 남는데 맥락은 남지 않습니다.
+에이전트는 일을 끝내면 「다 됐습니다」라고 말합니다. 테스트가 정말 통과했는지, 어떤 파일을 왜 바꿨는지, 빠뜨린 것은 없는지는 그 말 안에 없습니다. 확인하려면 diff 와 로그를 처음부터 다시 읽어야 하고, 다음 날 새 대화에는 그 맥락마저 없습니다.
 
-Ocul 은 그 설명을 없앱니다. 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심으면 에이전트는 작업 하나를 끝낼 때마다 `.oculpm/journal/` 에 마크다운 일지를 남기고, 다음 대화는 그 일지와 남은 계획 — 완료 조건 · 확인 명령 · 마지막 판정 — 을 시작 컨텍스트로 받아 이어서 합니다. 앱은 그 기록에서 **사람이 볼 것만** 펼칩니다: 판정 실패, 명령 증거 없는 일지, 어느 일지에도 없는 변경, 막힌 항목, 사람 몫 결정. 증거가 선 일은 한 줄로 접힙니다. 원본이 전부 마크다운 파일이라 코드와 함께 커밋할 수 있고, 앱이 없어도 그냥 읽힙니다.
+```text
+/plugin marketplace add bunhine0452/Ocul-PM
+/plugin install oculpm@oculpm
+```
+
+Claude Code 에 이 두 줄이면 시작입니다(앱 없이). 기록을 화면으로 보고 싶으면 [앱을 내려받으세요](https://github.com/bunhine0452/Ocul-PM/releases/latest) — macOS, Windows · Linux 베타.
+
+Ocul 은 그 말 대신 영수증을 남깁니다. 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심으면 에이전트는 작업 하나를 끝낼 때마다 `.oculpm/journal/` 에 마크다운 일지를 남기고, 다음 대화는 그 일지와 남은 계획 — 완료 조건 · 확인 명령 · 마지막 판정 — 을 시작 컨텍스트로 받아 이어서 합니다. 앱은 그 기록에서 **사람이 볼 것만** 펼칩니다: 판정 실패, 명령 증거 없는 일지, 어느 일지에도 없는 변경, 막힌 항목, 사람 몫 결정. 증거가 선 일은 한 줄로 접힙니다. 원본이 전부 마크다운 파일이라 코드와 함께 커밋할 수 있고, 앱이 없어도 그냥 읽힙니다.
 
 서버는 없습니다. 데이터는 프로젝트의 `.oculpm/` 폴더와 로컬 SQLite 캐시에만 있고, **앱은 LLM 을 부르지 않으며 화면(웹뷰)은 바깥 호스트에 닿지 않습니다.** 기기를 떠나는 것은 여러분이 시작한 것뿐입니다 — 새 버전 확인과, 여러분이 누른 링크(OS 브라우저가 엽니다). 세어 볼 수 있는 전체 목록은 [oculpm.com/privacy](https://oculpm.com/privacy) 에 있고, 그 목록은 빌드가 지킵니다(`src-tauri/tests/egress_inventory.rs`).
 

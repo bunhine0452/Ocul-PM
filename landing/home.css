@@ -110,6 +110,11 @@ html { scrollbar-color: #3a423e var(--ground); }
 .cmd.two code::before { content: none; }
 .cmd.two code span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cmd.two code span::before { content: "$ "; color: var(--ink-2); }
+/* 첫 행동은 플러그인 두 줄 (11-02 결정) — 주 동작이라 테두리와 「복사」 표만 초록. 칸 자체는 명령 상자 그대로. */
+.cmd.is-primary { border-color: var(--accent); }
+.cmd.is-primary .copy { background: var(--accent); color: var(--on-accent); }
+.cmd.is-primary:hover .copy { background: var(--accent-strong); }
+.cmd.is-primary[data-copied] .copy { background: var(--accent-soft); color: var(--accent-text); }
 
 /* ── 윗줄 ─────────────────────────────────────────── */
 .nav { position: sticky; top: 0; z-index: 20; background: var(--ground); border-bottom: 1px solid var(--sep); }
