@@ -19,6 +19,8 @@ const store = vi.hoisted(() => {
     set,
     opened: [] as Array<string | null>,
     cwds: [] as Array<string | null>,
+    finds: [] as Array<[number, string, boolean]>,
+    cleared: [] as number[],
     closed: [] as number[],
     mounted: [] as number[],
     subscribe: (fn: () => void) => {
@@ -44,6 +46,14 @@ vi.mock("@/features/terminal/termStore", () => ({
   },
   pasteToTerm: () => {},
   focusTerm: () => {},
+  findInTerm: (id: number, q: string, back: boolean) => {
+    store.finds.push([id, q, back]);
+    return true;
+  },
+  onFindResult: () => () => {},
+  clearFind: (id: number) => {
+    store.cleared.push(id);
+  },
   closeTerm: (id: number) => {
     store.closed.push(id);
     store.set(store.list.filter((s) => s.id !== id));
@@ -82,6 +92,8 @@ beforeEach(() => {
   store.set([]);
   store.opened.length = 0;
   store.cwds.length = 0;
+  store.finds.length = 0;
+  store.cleared.length = 0;
   __resetTermLayoutForTests();
   store.closed.length = 0;
   store.mounted.length = 0;
@@ -243,3 +255,25 @@ describe("칸 나누기 (Orca split panes)", () => {
     expect(screen.getByRole("separator")).toHaveAttribute("aria-valuenow", "50");
   });
 });
+
+describe("터미널 찾기 (⌘F)", () => {
+  it("⌘F 로 고른 칸 위에 찾기 줄 — 치는 대로 찾고 Enter 다음 · ⇧Enter 이전 · Esc 닫기", async () => {
+    store.set([info(1, "zsh")]);
+    render(<TerminalScreen projectId={1} workday="20261029" />);
+    await waitFor(() => expect(store.mounted).toContain(1));
+    fireEvent.keyDown(window, { key: "f", code: "KeyF", metaKey: true });
+    const box = await screen.findByRole("textbox", { name: t("terminal.find.placeholder") });
+    fireEvent.change(box, { target: { value: "error" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
+    expect(store.finds).toEqual([
+      [1, "error", false],
+      [1, "error", false],
+      [1, "error", true],
+    ]);
+    fireEvent.keyDown(box, { key: "Escape" });
+    expect(store.cleared).toEqual([1]);
+    expect(screen.queryByRole("search")).toBeNull();
+  });
+});
+

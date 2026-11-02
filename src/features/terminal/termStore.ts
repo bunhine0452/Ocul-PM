@@ -9,6 +9,7 @@
 
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { SearchAddon, type ISearchOptions } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
@@ -38,6 +39,7 @@ interface Entry {
   info: TermInfo;
   term: Terminal;
   fit: FitAddon;
+  search: SearchAddon;
   host: HTMLDivElement;
   opened: boolean;
   disposeIme: (() => void) | null;
@@ -127,6 +129,8 @@ export async function openTerm(
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
+  const search = new SearchAddon();
+  term.loadAddon(search);
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = "11";
   term.loadAddon(new WebLinksAddon((_e, uri) => void fileOpenApi.url(uri)));
@@ -183,7 +187,7 @@ export async function openTerm(
     throw e;
   }
   if (earlyExit) info = { ...info, alive: false, exit_code: (earlyExit as { code: number | null }).code };
-  entry = { info, term, fit, host, opened: false, disposeIme: null };
+  entry = { info, term, fit, search, host, opened: false, disposeIme: null };
   entries.set(info.id, entry);
   const id = info.id;
   term.onData((data) => void terminalApi.write(id, data).catch(() => {}));
@@ -232,6 +236,48 @@ export function mountTerm(id: number, container: HTMLElement, focus = true): () 
     webgl?.dispose();
     if (e.host.parentElement === container) container.removeChild(e.host);
   };
+}
+
+/** 찾기 결과 — `index` 는 0부터, 못 세면(결과가 너무 많음) -1. */
+export interface FindResult {
+  index: number;
+  count: number;
+}
+
+// 찾은 곳 · 지금 곳 — 브랜드 초록(#12a06b)을 지금 곳에. 장식 색은 #RRGGBB 만 받는다.
+const FIND_DECOR: ISearchOptions["decorations"] = {
+  matchBackground: "#7a6a2e",
+  matchOverviewRuler: "#d6a73a",
+  activeMatchBackground: "#12a06b",
+  activeMatchColorOverviewRuler: "#12a06b",
+};
+
+/**
+ * 세션의 출력(스크롤백 포함)에서 찾는다 (11-02, 터미널 찾기 ⌘F). 결과 수는 `onResult` 로 —
+ * 찾을 때마다 다시 온다. 돌려주는 것은 찾았는가.
+ */
+export function findInTerm(id: number, query: string, back: boolean, caseSensitive: boolean): boolean {
+  const e = entries.get(id);
+  if (!e || !query) return false;
+  const opts: ISearchOptions = { caseSensitive, decorations: FIND_DECOR };
+  return back ? e.search.findPrevious(query, opts) : e.search.findNext(query, opts);
+}
+
+/** 찾기 결과 수가 바뀔 때마다 — 끄는 함수를 돌려준다. */
+export function onFindResult(id: number, fn: (r: FindResult) => void): () => void {
+  const e = entries.get(id);
+  if (!e) return () => {};
+  const sub = e.search.onDidChangeResults(({ resultIndex, resultCount }) => fn({ index: resultIndex, count: resultCount }));
+  return () => sub.dispose();
+}
+
+/** 찾기를 닫는다 — 칠한 것을 지우고 입력으로 돌아간다. */
+export function clearFind(id: number) {
+  const e = entries.get(id);
+  if (!e) return;
+  e.search.clearDecorations();
+  e.term.clearSelection();
+  e.term.focus();
 }
 
 /** 세션의 입력에 초점을 둔다 — 칸 여럿 중 하나를 탭 · 단축키로 고를 때. */

@@ -23,6 +23,8 @@ export interface PaneTreeProps {
   onRatio: (path: string, ratio: number) => void;
   onEqualize: () => void;
   separatorLabel: string;
+  /** 고른 칸 위에만 얹는 것 — 찾기 줄. */
+  overlay?: ReactNode;
 }
 
 export function PaneTree(props: PaneTreeProps) {
@@ -45,7 +47,7 @@ function Node(props: PaneTreeProps & { path: string }) {
   );
 }
 
-function Leaf({ id, active, dropOver, dropHint, head, onActivate }: PaneTreeProps & { id: number }) {
+function Leaf({ id, active, dropOver, dropHint, head, onActivate, overlay }: PaneTreeProps & { id: number }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const isActive = id === active;
   // 나눌 때마다 트리 모양이 바뀌어 칸이 다시 서도, 초점은 고른 칸에만 — 마지막에 선 칸이 빼앗지 않게.
@@ -68,6 +70,7 @@ function Leaf({ id, active, dropOver, dropHint, head, onActivate }: PaneTreeProp
         data-term-id={id}
         data-drop-hint={dropHint}
       />
+      {isActive ? overlay : null}
     </div>
   );
 }
