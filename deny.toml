@@ -56,25 +56,12 @@ yanked = "warn"
 # RUSTSEC-2026-0194/0195)은 plist 가 ^0.39 를 물어 못 올렸는데, 2026-10-24
 # `cargo update` 로 tauri 2.12.5 → plist 1.10.3 → quick-xml 0.42.0 이 되어 닫고
 # ignore 를 지웠다.
-ignore = [
-  # RUSTSEC-2026-0367 / 0368 / 0369 — zip 4.6.1 (2026-10-18 추가).
-  # 셋 다 `ZipArchive::extract` / `ZipStreamReader::extract` 가 공격자가 만든
-  # 아카이브를 풀 때 SUID 비트·심링크 대상·심링크 너머 권한을 가두지 않는 문제다.
-  #
-  # 우리 직접 의존은 zip 9 로 올렸다(`src-tauri/Cargo.toml`). 남은 4.6.1 은
-  # `cargo tree -i zip@4.6.1 --target all` = tauri-plugin-updater 의
-  # **Windows 전용** 의존이고(2.14.0 도 여전히 `zip = "^4"`, 2026-10-24 crates.io
-  # 확인), 그 `extract` 는 `download()` 가 서명을
-  # 검증한(updater.rs `verify_signature`) 업데이트 묶음에만 돈다 — 악성
-  # 아카이브를 먹이려면 우리 서명키가 필요하다.
-  #
-  # 해제 조건: tauri-plugin-updater 가 zip >=9 를 무는 판을 내면
-  # `cargo update -p tauri-plugin-updater` 로 올리고 이 세 줄을 지운다.
-  # 확인: cargo tree -i zip --target all
-  { id = "RUSTSEC-2026-0367", reason = "zip 4.6.1 <- tauri-plugin-updater (Windows). 서명 검증된 업데이트만 extract. updater 가 zip>=9 를 물면 해제" },
-  { id = "RUSTSEC-2026-0368", reason = "위와 동일 크레이트·동일 경로. updater 가 zip>=9 를 물면 해제" },
-  { id = "RUSTSEC-2026-0369", reason = "위와 동일 크레이트·동일 경로. updater 가 zip>=9 를 물면 해제" },
-]
+# 2026-10-18 에 zip 4.6.1(RUSTSEC-2026-0367/0368/0369, tauri-plugin-updater 의 Windows 전용 의존)을
+# 서명 검증 뒤에만 extract 한다는 이유로 잠재웠다. 2026-11-02 같은 크레이트에 RUSTSEC-2026-0429
+# (심링크 대상 버퍼를 선언된 크기로 잡아 거대 할당)가 더해져 게이트가 붉었고, 같은 날
+# tauri-plugin-updater 2.14.1 이 zip ^9 로 올라 `cargo update -p tauri-plugin-updater`
+# 한 줄로 넷 다 닫았다(zip 9.2.2). 해제 조건이 채워져 ignore 를 비운다.
+ignore = []
 
 # ─────────────────────────────────────────────────────────────────────────────
 [licenses]
