@@ -1031,7 +1031,11 @@ export type DbTableSize = {
 /**  확인 시트가 받는 요청. **실행이 아니라 제안**이다. */
 export type DeepLink = 
 /**  이미 **등록된** 프로젝트를 연다. 경로로 새 프로젝트를 추가하지 않는다. */
-{ action: "open"; project: string; view: string | null };
+{ action: "open"; project: string; view: string | null; 
+/**  `.oculpm/journal/` 기준 일지 경로 — 이름 칸만, `..` 없이, `.md` 로 끝난다. */
+journal?: string | null; 
+/**  계획 id — 단순 이름. */
+plan?: string | null };
 
 /**  프런트가 받는 이벤트. 앱이 이미 떠 있으면 기존 창으로 라우팅된다. */
 export type DeepLinkReceived = DeepLink;

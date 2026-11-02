@@ -18,6 +18,7 @@ import { TriggerBadge } from "./triggerMeta";
 import { verificationLines, withoutTitle, withoutVerification } from "./verification";
 import { isConfirmed, isStaleVerified } from "./verified";
 import { useJournalEvents } from "./useOculpmLive";
+import { useOpenInEditor } from "@/features/shell/useOpenInEditor";
 import { requestSendToClaude } from "@/features/terminal/sendToClaude";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 
@@ -141,6 +142,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
   const evState = evidenceStateOf({ ...entry, evidence: level, verified_by_user: verified, verified_stale: stale });
 
   // 기록된 diff 가 있는 파일만 오간다. frontmatter 에는 있는데 패치가 없는 파일은 개수로만 말한다.
+  const editor = useOpenInEditor(state.currentProjectRoot);
   const files = useMemo(() => diffs ?? [], [diffs]);
   const active = files.length > 0 ? files[Math.min(fileIdx, files.length - 1)] : null;
   const stats = active ? countPatchStats(active.patch) : null;
@@ -262,6 +264,10 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
                 </span>
               ) : null}
               <span className="jd-diff-sp" />
+              {/* 이 파일을 편집기(VS Code)에서 — 일지에서 코드로 바로 (2026-11-03). */}
+              <button type="button" className="btn ghost sm" onClick={() => editor.open(active.path)}>
+                {editor.label}
+              </button>
               <span className="jd-diff-pos">{t("journal.diff.position", { n: files.length, i: Math.min(fileIdx, files.length - 1) + 1 })}</span>
               {files.length > 1 ? (
                 <>

@@ -2,7 +2,7 @@
   "name": "ocul",
   "displayName": "Ocul — receipts for coding agents",
   "description": "%description%",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "oculpm",
   "license": "MIT",
   "icon": "icon.png",
@@ -61,6 +61,23 @@
         "command": "ocul.refresh",
         "title": "%cmd.refresh%",
         "category": "Ocul"
+      },
+      {
+        "command": "ocul.openInApp",
+        "title": "%cmd.openInApp%",
+        "category": "Ocul",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "ocul.showClaude",
+        "title": "%cmd.showClaude%",
+        "category": "Ocul"
+      },
+      {
+        "command": "ocul.continueInTerminal",
+        "title": "%cmd.continueInTerminal%",
+        "category": "Ocul",
+        "icon": "$(terminal)"
       }
     ],
     "menus": {
@@ -69,11 +86,20 @@
           "command": "ocul.fileHistory",
           "when": "!explorerResourceIsFolder",
           "group": "7_ocul"
+        },
+        {
+          "command": "ocul.openInApp",
+          "when": "!explorerResourceIsFolder",
+          "group": "7_ocul"
         }
       ],
       "editor/title/context": [
         {
           "command": "ocul.fileHistory",
+          "group": "7_ocul"
+        },
+        {
+          "command": "ocul.openInApp",
           "group": "7_ocul"
         }
       ],

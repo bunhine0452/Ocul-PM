@@ -7,7 +7,11 @@
 //!
 //! ```text
 //! oculpm://open?project=<path>&view=journal
+//! oculpm://open?project=<path>&journal=<YYYYMMDD/Folder/file.md>   (그 일지)
+//! oculpm://open?project=<path>&plan=<plan-id>                       (그 계획)
 //! ```
+//!
+//! `journal` · `plan` 은 VS Code 확장 Ocul 의 「Ocul 에서 열기」 가 싣는다(2026-11-03). 열기만 한다.
 //!
 //! 스킬·플러그인 설치 링크(`skill/install` · `plugin/install`)는 4.0 에서 번들 임포트와
 //! 함께 걷었다 — 옛 링크가 와도 모르는 경로로 거절되고 아무것도 받아오지 않는다.
@@ -33,6 +37,12 @@ pub enum DeepLink {
     Open {
         project: String,
         view: Option<String>,
+        /// `.oculpm/journal/` 기준 일지 경로 — 이름 칸만, `..` 없이, `.md` 로 끝난다.
+        #[serde(default)]
+        journal: Option<String>,
+        /// 계획 id — 단순 이름.
+        #[serde(default)]
+        plan: Option<String>,
     },
 }
 
@@ -76,6 +86,8 @@ pub fn parse(raw: &str) -> Result<DeepLink, LinkError> {
             Ok(DeepLink::Open {
                 project,
                 view: get("view").filter(|v| is_plain_name(v)),
+                journal: get("journal").filter(|j| is_journal_ref(j)),
+                plan: get("plan").filter(|v| is_plain_name(v)),
             })
         }
         other => Err(LinkError::Route(other.to_string())),
@@ -90,6 +102,12 @@ fn is_plain_name(s: &str) -> bool {
             .all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '.'))
         && s != "."
         && s != ".."
+}
+
+/// 일지 경로 — `날짜/폴더/파일.md` 처럼 단순 이름 칸이 1~4개이고 `.md` 로 끝난다.
+fn is_journal_ref(s: &str) -> bool {
+    let parts: Vec<&str> = s.split('/').collect();
+    s.ends_with(".md") && (1..=4).contains(&parts.len()) && parts.iter().all(|p| is_plain_name(p))
 }
 
 fn parse_query(query: &str) -> Vec<(String, String)> {
@@ -183,9 +201,34 @@ mod tests {
             link,
             DeepLink::Open {
                 project: "/tmp/p".into(),
-                view: None
+                view: None,
+                journal: None,
+                plan: None,
             }
         );
+    }
+
+    #[test]
+    fn carries_a_journal_or_plan_target_but_drops_path_tricks() {
+        let link = parse("oculpm://open?project=%2Fp&journal=20261103%2FBugs%2F0113_bug_x.md&plan=direction-20261102").unwrap();
+        assert_eq!(
+            link,
+            DeepLink::Open {
+                project: "/p".into(),
+                view: None,
+                journal: Some("20261103/Bugs/0113_bug_x.md".into()),
+                plan: Some("direction-20261102".into()),
+            }
+        );
+        for bad in [
+            "oculpm://open?project=%2Fp&journal=..%2F..%2Fetc%2Fpasswd.md",
+            "oculpm://open?project=%2Fp&journal=%2Fabs%2Fx.md",
+            "oculpm://open?project=%2Fp&journal=20261103%2Fx.txt",
+            "oculpm://open?project=%2Fp&plan=a%2Fb",
+        ] {
+            let DeepLink::Open { journal, plan, .. } = parse(bad).unwrap();
+            assert!(journal.is_none() && plan.is_none(), "{bad}");
+        }
     }
 
     #[test]
@@ -195,6 +238,8 @@ mod tests {
             DeepLink::Open {
                 project: "/Users/me/proj".into(),
                 view: Some("journal".into()),
+                journal: None,
+                plan: None,
             }
         );
     }
@@ -238,7 +283,9 @@ mod tests {
             link,
             DeepLink::Open {
                 project: "/p".into(),
-                view: None
+                view: None,
+                journal: None,
+                plan: None,
             },
             "a path-shaped view is dropped, not carried through"
         );
@@ -268,6 +315,8 @@ mod tests {
             DeepLink::Open {
                 project: r"C:\work\app".into(),
                 view: Some("journal".into()),
+                journal: None,
+                plan: None,
             }
         );
 

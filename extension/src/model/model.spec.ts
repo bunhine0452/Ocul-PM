@@ -147,3 +147,24 @@ describe("ago", () => {
     expect(ago("nope", now)).toBeNull();
   });
 });
+
+describe("next item", () => {
+  it("is the first open leaf in document order, skipping parents, taken and human-owned items", async () => {
+    const { planItems, nextItem } = await import("./plan");
+    const body = [
+      "- [~] 부모 {#p}",
+      "  - [x] 끝 {#c1}",
+      "  - [ ] [사용자] 결정 {#c2}",
+      "- [!] 막힘 {#c3}",
+      "- [ ] 다음 것 {#c4}",
+      "- [ ] 그다음 {#c5}",
+      "<!-- oculpm:plan-log begin -->",
+      "- [ ] 로그 안 {#nope}",
+      "<!-- oculpm:plan-log end -->",
+    ].join("\n");
+    const items = planItems(body);
+    expect(items.map((i) => i.id)).toEqual(["p", "c1", "c2", "c3", "c4", "c5"]);
+    expect(nextItem(items)?.id).toBe("c4");
+    expect(nextItem(planItems("- [ ] 부모 {#p}\n  - [x] 끝 {#c}"))).toBeNull();
+  });
+});

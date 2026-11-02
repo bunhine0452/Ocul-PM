@@ -26,7 +26,7 @@ export interface DeepLinkPlan {
 export function planFor(link: DeepLink): DeepLinkPlan {
   return {
     titleKey: "deeplink.open.title",
-    origin: link.project,
+    origin: [link.project, link.journal ?? link.plan].filter(Boolean).join(" · "),
     effectKey: "deeplink.open.effect",
     actionKey: "deeplink.open.action",
   };
@@ -68,14 +68,26 @@ export function resolveRegisteredProject(
 }
 
 /**
- * `open` 의 목적지 — `view` 를 `WindowNavigate` 로 옮긴다. 알려진 화면 이름이
- * 아니면 today.
+ * 계획 대상은 `WindowNavigate.entry_path` 에 `plan:<id>` 로 싣는다 (2026-11-03, VS Code 확장의 「Ocul 에서
+ * 열기」). 새 칸을 창 → 셸 네 겹에 끌고 다니지 않고, 일지 경로가 이미 지나는 길을 함께 쓴다.
+ */
+export const PLAN_TARGET = "plan:";
+
+/** `entry_path` 가 계획 대상이면 그 id, 아니면 `null`(일지 경로). */
+export function planTargetOf(entryPath: string | null | undefined): string | null {
+  return entryPath?.startsWith(PLAN_TARGET) ? entryPath.slice(PLAN_TARGET.length) || null : null;
+}
+
+/**
+ * `open` 의 목적지 — 일지 · 계획 대상이 있으면 그것, 없으면 `view`. 알려진 화면 이름이 아니면 today.
  */
 export function openNavFor(
-  link: { view: string | null },
+  link: { view: string | null; journal?: string | null; plan?: string | null },
   projectId: number,
   knownViews: readonly string[],
-): { view: string; project_id: number; entry_path: null } {
+): { view: string; project_id: number; entry_path: string | null } {
+  if (link.journal) return { view: "journal", project_id: projectId, entry_path: `journal/${link.journal}` };
+  if (link.plan) return { view: "planner", project_id: projectId, entry_path: `${PLAN_TARGET}${link.plan}` };
   const view = link.view && knownViews.includes(link.view) ? link.view : "today";
   return { view, project_id: projectId, entry_path: null };
 }

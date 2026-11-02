@@ -1,4 +1,5 @@
 // 지키는 것 둘 — (1) 확장은 네트워크 · 자식 프로세스에 닿지 않는다, (2) 화면 글은 전부 한국어 묶음에 있다.
+// 예외 하나: `bridge.ts` 가 앱 딥링크(`oculpm://`)를 `openExternal(appUri(…))` 로 연다 — 웹 주소는 아니다.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -16,12 +17,22 @@ describe("egress", () => {
     /require\(/,
     /\bfetch\(/,
     /XMLHttpRequest|WebSocket|EventSource/,
-    /openExternal\(/,
     /https?:\/\//,
   ];
-  it.each(shipped)("$f stays local", ({ src }) => {
+  it.each(shipped)("$f stays local", ({ f, src }) => {
     const code = src.replace(/\/\/.*$/gm, "");
     for (const re of FORBIDDEN) expect(code).not.toMatch(re);
+    // 바깥으로 여는 것은 앱 딥링크 하나 — bridge.ts 의 appUri 를 거친 것만.
+    const opens = code.match(/openExternal\(/g) ?? [];
+    if (f.endsWith("/bridge.ts")) {
+      expect(opens).toHaveLength(1);
+      expect(code).toMatch(/openExternal\(appUri\(/);
+    } else expect(opens).toHaveLength(0);
+  });
+  it("the app link only ever builds the oculpm scheme", () => {
+    const link = readFileSync(join(SRC, "model", "applink.ts"), "utf8");
+    expect(link).toMatch(/APP_SCHEME = "oculpm"/);
+    expect(link).toMatch(/return `\$\{APP_SCHEME\}:\/\/open\?/);
   });
 });
 

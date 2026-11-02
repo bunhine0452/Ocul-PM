@@ -5,6 +5,7 @@ import { ToolbarSlotContext } from "@/components/toolbarSlot";
 import { TopBar } from "./TopBar";
 import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_BUS } from "@/lib/navRegistry";
+import { planTargetOf } from "@/features/deeplink/deepLinkPlan";
 import { resumeAfterUpdate } from "@/features/terminal/resumeAfterUpdate";
 import { useT } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
@@ -118,6 +119,12 @@ export default function ShellV2({
       // 백엔드가 대상 창을 지정해 쏘지만(T5), 라벨이 어긋난 페이로드가 남의
       // 일지로 창을 끌고 가지 못하도록 여기서도 한 번 더 확인한다.
       if (payload.project_id != null && payload.project_id !== projectId) return;
+      // 계획 대상(`plan:<id>`, VS Code 확장) — 팔레트의 계획 점프와 같은 길.
+      const plan = planTargetOf(payload.entry_path);
+      if (plan) {
+        window.dispatchEvent(new CustomEvent(NAV_BUS.openEntity, { detail: { kind: "plan", id: plan } }));
+        return;
+      }
       if (payload.entry_path) {
         setJournalReturnView(null);
         setJournalOpenEntry(payload.entry_path);

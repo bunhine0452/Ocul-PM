@@ -27,6 +27,51 @@ export interface Plan {
   check: string | null;
   updates: PlanUpdate[];
   verdict: Verdict | null;
+  /** 다음에 잡을 항목 — 앱 오늘 화면 · `/oculpm:next` 와 같은 규칙(`nextItem`). */
+  next: PlanItem | null;
+}
+
+export interface PlanItem {
+  id: string;
+  title: string;
+  /** 글리프 그대로 — ` ` 할 일 · `~` 하는 중 · `x` 끝 · `!` 막힘 · `>` 미룸 · `-` 걷음. */
+  glyph: string;
+  indent: number;
+}
+
+const ITEM = /^(\s*)[-*] \[(.)\] (.*?)\s*\{#([^}\s]+)\}\s*$/;
+
+/** 계획 본문의 항목 줄들 (갱신 로그 밖). */
+export function planItems(body: string): PlanItem[] {
+  const out: PlanItem[] = [];
+  let inLog = false;
+  for (const line of body.split("\n")) {
+    if (line.includes("<!-- oculpm:plan-log begin")) inLog = true;
+    else if (line.includes("<!-- oculpm:plan-log end")) inLog = false;
+    if (inLog) continue;
+    const m = ITEM.exec(line);
+    if (m) out.push({ indent: m[1].replace(/\t/g, "  ").length, glyph: m[2], title: m[3].trim(), id: m[4] });
+  }
+  return out;
+}
+
+/** 사람 몫인가 — `[사용자…]` · `[user…]` 머리표 (앱 `digest.rs::is_user_item`). */
+export function isUserItem(title: string): boolean {
+  const t = title.trimStart();
+  return t.startsWith("[사용자") || t.slice(0, 5).toLowerCase() === "[user";
+}
+
+/**
+ * 다음 항목 — 문서 순서상 첫 `[ ]` **리프**(하위가 없는 항목), 사람 몫은 건너뛴다. `[~]` 는 다른 세션이
+ * 잡은 것으로 본다 (앱 `digest.rs` · 플러그인 `/oculpm:next` 와 같은 규칙).
+ */
+export function nextItem(items: readonly PlanItem[]): PlanItem | null {
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const isParent = i + 1 < items.length && items[i + 1].indent > it.indent;
+    if (!isParent && it.glyph === " " && !isUserItem(it.title)) return it;
+  }
+  return null;
 }
 
 export function parseNote(note: string): { passed: boolean; summary: string } | null {
@@ -121,6 +166,7 @@ export function parsePlan(file: string, raw: string): Plan {
     check: checkCommand(body),
     updates,
     verdict: lastVerdict(updates),
+    next: nextItem(planItems(body)),
   };
 }
 
