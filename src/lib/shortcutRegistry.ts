@@ -99,6 +99,8 @@ const TERMINAL: ShortcutGroup = {
     { keys: "⌥⌘← → ↑ ↓", nonMac: "Ctrl+Alt+← → ↑ ↓", labelKey: "keys.termPaneMove" },
     { keys: "⇧⌘↩", labelKey: "keys.termZoom" },
     { keys: "⌘F", labelKey: "keys.termFind" },
+    { keys: "⇧⌘[ / ⇧⌘]", nonMac: "Ctrl+PageUp / PageDown", labelKey: "keys.termCycle" },
+    { keys: "⌘= / ⌘- / ⌘0", nonMac: "Ctrl+= / Ctrl+- / Ctrl+0", labelKey: "keys.termFont" },
   ],
 };
 

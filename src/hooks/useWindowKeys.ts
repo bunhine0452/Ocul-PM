@@ -20,24 +20,49 @@ export function closeThisWindow(): void {
 }
 
 /**
+ * ⌘W 를 먼저 받을 화면 하나 (2026-11-03) — 터미널 화면이 서 있는 동안 「세션이 둘 이상이면 고른 세션을
+ * 닫고 `true`」 를 건다. `false` 거나 없으면 창을 닫는다. 화면은 한 번에 하나라 자리도 하나다.
+ */
+let closeKeyFirst: (() => boolean) | null = null;
+
+/** ⌘W 를 먼저 받는다 — 돌려준 함수로 푼다(자기 것일 때만). */
+export function interceptCloseKey(fn: () => boolean): () => void {
+  closeKeyFirst = fn;
+  return () => {
+    if (closeKeyFirst === fn) closeKeyFirst = null;
+  };
+}
+
+/** ⌘W — 먼저 받을 화면이 처리했으면 거기서 끝, 아니면 창을 닫는다. */
+export function closeByKey(): void {
+  if (closeKeyFirst?.()) return;
+  closeThisWindow();
+}
+
+/**
  * ⌘W / ⇧⌘N 의 Windows·Linux 판 — **키다운으로 받는다** (크로스플랫폼 라운드
  * {#ui-shortcuts} · {#os-new-window}). 창 하나가 프로젝트 하나라(4.0) ⌘W 는 창을 닫는다.
  *
- * macOS 에서는 앱 메뉴가 소유한다(`src-tauri/src/menu.rs` 의 액셀러레이터 — ⌘W 창
- * 닫기 · ⇧⌘N 새 창). 이 훅은 macOS 에서 아무것도 하지 않는다 — 여기서도 받으면
- * 창이 두 번 열린다.
+ * macOS 에서는 앱 메뉴가 키를 소유한다(`src-tauri/src/menu.rs` 의 액셀러레이터 — ⌘W ·
+ * ⇧⌘N 새 창). ⌘W 는 메뉴가 이 창에 `CloseKeyPressed` 를 보내고 여기서 `onClose` 로 받는다.
+ * 키다운은 macOS 에서 받지 않는다 — 여기서도 받으면 창이 두 번 열린다.
  *
  * 새 창(Ctrl+Shift+N, `isNewWindowChord`)은 **캡처 단계**에서 먼저 받고 이벤트를
  * 멈춘다 — 맥에서 메뉴가 웹뷰보다 먼저 ⇧⌘N 을 먹는 것과 같은 자리다. 버블 단계에
  * 두면 Shift 를 보지 않는 화면 단축키(일지의 ⌘N 새 일지)가 같은 키를 먼저 먹는다.
  */
 export function useWindowKeys({
-  onClose = closeThisWindow,
+  onClose = closeByKey,
   onNewWindow = openNewWindow,
 }: {
   onClose?: () => void;
   onNewWindow?: () => void;
 } = {}): void {
+  useEffect(() => {
+    if (!isMac()) return;
+    const off = windowApi.onCloseKey(onClose);
+    return () => void off.then((unlisten) => unlisten());
+  }, [onClose]);
   useEffect(() => {
     if (isMac()) return;
     const onKey = (e: KeyboardEvent) => {

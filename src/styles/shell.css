@@ -119,6 +119,31 @@
 }
 .proj-pop-add:hover, .proj-pop-add:focus-visible { background: var(--bg-hover); color: var(--text); }
 
+/* 목록 거르기 (2026-11-03) — 열면 바로 치는 칸. */
+.proj-pop-find {
+  width: 100%; box-sizing: border-box; height: var(--ctl-3); margin-bottom: var(--space-1);
+  padding: 0 var(--space-3); border: 1px solid var(--border-card); border-radius: var(--radius-s);
+  background: var(--bg-window); color: var(--text); font-family: var(--font); font-size: var(--fs-3);
+}
+.proj-pop-find:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: -1px; }
+.proj-pop-none { margin: 0; padding: var(--space-3); color: var(--text-2); font-size: var(--fs-3); }
+
+/* 프로젝트 색 (2026-11-03) — 창 여럿 사이에서 어느 프로젝트인지. 윗줄 위 띠 + 이름 앞 점 + 목록 점. */
+.topbar[data-pc] { box-shadow: inset 0 3px 0 var(--pc); }
+.proj-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--pc, transparent); }
+.proj-colors {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin-top: var(--space-1); padding: var(--space-3); border-top: 1px solid var(--sep);
+}
+.proj-colors-label { flex: 1; color: var(--text-2); font-size: var(--fs-3); font-weight: var(--fw-strong); }
+.proj-swatch {
+  flex: none; width: 16px; height: 16px; padding: 0; border-radius: 50%; cursor: pointer;
+  background: var(--pc); border: 1px solid transparent; appearance: none; -webkit-appearance: none;
+}
+.proj-swatch.none { background: transparent; border-color: var(--border-card); }
+.proj-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--text-2); }
+.proj-swatch:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+
 /* ============================================================ CONTENT */
 /* 콘텐츠 — 평평한 면. 셸 안 화면의 툴바는 윗줄로 합쳐지고(`.toolbar` 는 셸 밖 렌더용). */
 .content {

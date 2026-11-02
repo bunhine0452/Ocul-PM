@@ -141,6 +141,8 @@ const TESTS = new Set([
   // ⌃Tab 순환 · 두 손가락 쓸기 판정 — 한국어 테스트 이름.
   "__tests__/nav_gestures.test.ts",
   "__tests__/project_keys.test.tsx",
+  // 프로젝트 색 — 한국어 테스트 이름 · 색 이름이 접근명.
+  "__tests__/project_color.test.tsx",
   // 처음 쓰는 법 — 한국어 테스트 이름.
   "__tests__/tour.test.tsx",
   "__tests__/terminal_launch_check.test.ts",

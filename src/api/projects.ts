@@ -31,6 +31,10 @@ export const projectsApi = {
   forget: (projectId: number, wipe = false): Promise<null> =>
     call("delete_project", commands.deleteProject(projectId, wipe, false)),
 
+  /** 프로젝트 색 id 를 바꾼다 — `null` 은 색 없음 (`projectColor.ts`). */
+  setColor: (projectId: number, color: string | null): Promise<null> =>
+    call("set_project_color", commands.setProjectColor(projectId, color)),
+
   /** 프로젝트마다 오늘·최근 활동 — `days` 는 날짜별 수를 담을 창(오늘 포함). */
   brief: (days: number): Promise<HomeBrief> => call("home_brief", commands.homeBrief(days)),
 

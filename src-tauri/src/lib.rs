@@ -263,6 +263,7 @@ use crate::commands::{
     reveal_in_file_manager,
     save_window_session,
     select_project_folder,
+    set_project_color,
     set_window_project,
     settings_get_all,
     settings_set,
@@ -295,6 +296,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             settings_set_many,
             app_info,
             select_project_folder,
+            set_project_color,
             list_projects,
             create_project,
             delete_project,
@@ -468,6 +470,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::oculpm::claude_waiting::ClaudeQuestionsChanged,
             // 도움말 › 처음 쓰는 법 — 포커스된 창이 안내 모달을 연다
             crate::menu::TourRequested,
+            // 메뉴 ⌘W — 그 창이 터미널 세션부터 닫을지, 창을 닫을지 정한다
+            crate::menu::CloseKeyPressed,
         ])
 }
 
