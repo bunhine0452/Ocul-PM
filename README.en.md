@@ -70,24 +70,20 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
 
-## 🚀 v4.3 — Stale passes flagged, the terminal in as many panes as you like
+## 🚀 v4.4 — Many windows, many terminals, at your fingertips
 
-- **4.3.2 · The project in VS Code** — "Open in VS Code" in the project ▾ menu (⌘O) opens this window's project folder in VS Code (or Cursor, if chosen in Settings).
-- **4.3.1 · Open in VS Code** — files open at the line in VS Code or Cursor without the `code` shell command. Settings › Display › "Open files in": Auto · VS Code · Cursor · Default app · Custom.
-- **4.3.1 · The waiting window** — a project window Claude is waiting in says "· N waiting" in its title, counts on the Dock badge, and tops the ⌘O list (⌥⌘1).
-- **The Ocul VS Code extension** — reads `.oculpm/` without the app: the last check result and unrecorded-change count in the status bar, the open file's entries and the commands they ran, a PR receipt to copy. [ext-v0.2.0](https://github.com/bunhine0452/Ocul-PM/releases/tag/ext-v0.2.0) · Open VSX.
-- **Changed after pass** — when a plan's check command passed (✓) but a file that plan touched was saved again afterwards, Today's "Look first" shows it with the changed files. "Check again" has the claude in the in-app terminal re-run the check and record the result on that plan.
-- **Re-fix warning (plugin)** — just before the agent edits a file that a bug fix touched in the last 7 days, it hears about that bug and the check command run back then. It never blocks, and fires once per file per conversation. `/plugin update oculpm@oculpm`.
-- **PR receipt** — "Copy receipt" in Diff turns this branch's journal entries · the last line of each command run · the plan's check result · changes in no entry into Markdown for a PR description.
-- **Teammates' entries** — in teams that commit `.oculpm/`, entries pulled through git say "pushed by <name>".
-- **The terminal in as many panes as you like** — ⌘D splits right, ⇧⌘D down; drag the divider to resize, ⇧⌘↩ expands one pane, ⌥⌘ + arrows move between panes, ⌘F finds in output. A session where Claude worked but no entry was written says "no journal".
-- **Verdict line** — check results now read the same everywhere on Today, the plan page and the plan list: a result rule · ✓/✗ · the command's own last line · the time.
-- **Lighter** — the unread local-history copies are no longer written (328MB in this repo), and the app database shrank from 57 to 42MB.
+- **Project colours** — pick one of eight under "Color" in the project ▾ (⌘O) list, and it shows as a band across the top of the window, a dot before the name and on the project's row in ⌘O. With several windows open, Alt+Tab and Mission Control tell projects apart at a glance.
+- **⌘W closes the terminal session first** — with several sessions in the terminal, ⌘W closes only the selected one; the window closes from the last session.
+- **A working session asks before it closes** — closing a session where Claude is still working (⌘W or ✕) asks first. An idle shell closes straight away.
+- **Between sessions with ⇧⌘[ / ⇧⌘]** — previous · next session, the same keys as iTerm and Terminal.app.
+- **Terminal text size ⌘= / ⌘- / ⌘0** — applies to every window and session, and is remembered.
+- **Type to filter the ⌘O list** — start typing part of a name or path as soon as it opens; ↩ opens the first row. ⌥⌘ numbers stay put.
 
 ## Earlier releases at a glance
 
 The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
 
+- **Stale passes flagged, the terminal in many panes** (4.3) — Today flags files saved again after a ✓ check, plus the re-fix warning (plugin) · PR receipt · teammates' entries · the verdict line, terminal split panes · find, Open in VS Code · the waiting window · the Ocul VS Code extension 0.2.0 (4.3.1 · 4.3.2).
 - **Pick from several, comment per line** (4.2) — run one task in 2–4 worktrees of claude and pick by evidence, line notes → Claude (Fixed · Open on their own), drag from Finder · image previews, windows down to 480pt, entry titles as "Area: what was done".
 - **Talking with Claude, and the name is Ocul** (4.1) — the visible name Ocul (the install name stays), one line on Today plus an OS notification when Claude waits, answering Claude in the app through the MCP tool `ask_user`, "Send to Claude" · `/goal`, ⌃Tab · ⌥⌘1–9, a first-run guide.
 - **Five surfaces, exceptions only** (4.0) — Today · Work Journal · Plan · Diff · Settings and the in-app terminal remain, and Today unfolds only failed verdicts · entries without evidence · unrecorded changes · blocked items · decisions that are yours. A plan ends at its **last verdict** (the check command's last result line), not its items. The app calls no LLM (summaries · rollups · automation · semantic code search are gone), one window = one project, rules template v20.
