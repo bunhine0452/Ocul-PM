@@ -72,6 +72,7 @@ Ocul 은 그 말 대신 영수증을 남깁니다. 프로젝트 폴더에 규칙
 
 ## 🚀 v4.3 — 통과 뒤 바뀜을 짚고, 터미널은 몇 칸이든
 
+- **4.3.2 · 프로젝트를 VS Code 로** — 프로젝트 이름 ▾ 메뉴(⌘O)의 「VS Code 에서 열기」 가 이 창의 프로젝트 폴더를 VS Code(또는 설정에서 고른 Cursor)로 엽니다.
 - **4.3.1 · VS Code 로 바로 열기** — `code` 셸 명령 없이 VS Code · Cursor 의 그 줄로 엽니다. 설정 › 표시 「파일 열기」 에서 자동 · VS Code · Cursor · 기본 앱 · 직접 입력.
 - **4.3.1 · 기다리는 창** — Claude 가 기다리는 프로젝트 창은 제목 「· 기다림 N」, Dock 배지, ⌘O 목록 맨 위(⌥⌘1).
 - **VS Code 확장 Ocul** — 앱 없이 `.oculpm/` 을 읽어 상태 표시줄에 마지막 확인 명령 결과 · 기록 없는 변경 수, 연 파일의 일지와 돌린 명령, PR 영수증 복사. [ext-v0.2.0](https://github.com/bunhine0452/Ocul-PM/releases/tag/ext-v0.2.0) · Open VSX.

@@ -72,6 +72,7 @@ What it doesn't give is written down too. Ambition itself is the human's job —
 
 ## 🚀 v4.3 — Stale passes flagged, the terminal in as many panes as you like
 
+- **4.3.2 · The project in VS Code** — "Open in VS Code" in the project ▾ menu (⌘O) opens this window's project folder in VS Code (or Cursor, if chosen in Settings).
 - **4.3.1 · Open in VS Code** — files open at the line in VS Code or Cursor without the `code` shell command. Settings › Display › "Open files in": Auto · VS Code · Cursor · Default app · Custom.
 - **4.3.1 · The waiting window** — a project window Claude is waiting in says "· N waiting" in its title, counts on the Dock badge, and tops the ⌘O list (⌥⌘1).
 - **The Ocul VS Code extension** — reads `.oculpm/` without the app: the last check result and unrecorded-change count in the status bar, the open file's entries and the commands they ran, a PR receipt to copy. [ext-v0.2.0](https://github.com/bunhine0452/Ocul-PM/releases/tag/ext-v0.2.0) · Open VSX.

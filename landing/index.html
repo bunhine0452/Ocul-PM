@@ -48,7 +48,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "4.3.1",
+  "softwareVersion": "4.3.2",
   "description": "「다 됐습니다」 대신, 영수증을 받으세요. 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI)가 일을 끝낼 때마다 무엇을 바꿨고 어떤 명령으로 확인했는지가 프로젝트 폴더에 마크다운 영수증으로 남습니다. Ocul 은 그중 확인 안 된 것만 펼칩니다 — 실패한 확인 명령 · 명령 증거 없는 일지 · 어느 일지에도 없는 변경. Claude Code 플러그인 두 줄로 시작하고, 화면으로 보고 싶으면 데스크톱 앱을 더합니다. 앱은 LLM 을 부르지 않고, 계정 · 서버 · 텔레메트리가 없습니다.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -228,7 +228,7 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="/"><img src="icon.svg" alt="" width="24" height="24" />Ocul</a>
-    <span class="nav-ver" data-version>v4.3.1</span>
+    <span class="nav-ver" data-version>v4.3.2</span>
     <nav class="nav-links" aria-label="사이트">
       <a href="#screens">화면</a>
       <a href="/wiki">위키</a>
@@ -251,7 +251,7 @@
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Claude Code 플러그인 설치 명령 두 줄 복사"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">두 줄 복사</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">v4.3.1 받기</span><span class="sub">macOS · 무료</span>
+        <span class="lg">v4.3.2 받기</span><span class="sub">macOS · 무료</span>
       </a>
     </div>
     <div class="subrow">
@@ -260,7 +260,7 @@
         <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
         <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
       </p>
-      <a class="whatsnew" href="#updates"><span class="ap-new">새 판</span>&nbsp; v4.3.1 — VS Code 로 바로 열고, 기다리는 창을 짚는다</a>
+      <a class="whatsnew" href="#updates"><span class="ap-new">새 판</span>&nbsp; v4.3.2 — 프로젝트 폴더를 VS Code 로 바로 연다</a>
     </div>
 
     <div class="stage" id="screens" data-app>
@@ -414,10 +414,10 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
     <h2 id="updates-h">이 앱은 이 앱으로 만들어집니다.</h2>
     <p class="intro">이 저장소의 <b>일지 932건 · 계획 89개 · 릴리스 133개</b>가 Ocul 로 쌓였습니다. 아래 이력도 그 일지에서 나왔습니다.</p>
     <ul class="releases">
+      <li class="rel"><span class="ver">v4.3.2</span><div><h3>프로젝트를 VS Code 로 바로</h3><p>프로젝트 이름 메뉴(⌘O)의 「VS Code 에서 열기」 가 이 창의 프로젝트 폴더를 VS Code 창으로 엽니다. 설정에서 Cursor 를 골랐으면 Cursor 로.</p></div></li>
       <li class="rel"><span class="ver">v4.3.1</span><div><h3>VS Code 로 바로 열고, 기다리는 창을 짚는다</h3><p><code>code</code> 명령 없이도 VS Code · Cursor 의 그 줄로 엽니다. Claude 가 기다리는 창은 제목 · Dock 배지 · ⌘O 맨 위로. VS Code 확장이 영수증을 코드 옆에.</p></div></li>
       <li class="rel"><span class="ver">v4.3.0</span><div><h3>통과 뒤 바뀜을 짚고, 터미널은 몇 칸이든</h3><p>✓ 뒤에 바뀐 파일을 오늘 화면이 짚고, 최근 버그를 고친 파일을 다시 고치기 직전 에이전트가 그 버그를 듣습니다. PR 영수증 복사, 터미널 칸 나누기 · 찾기, 어디서나 같은 판정 줄.</p></div></li>
       <li class="rel"><span class="ver">v4.2.0</span><div><h3>여럿에서 고르고, 줄마다 말하고</h3><p>같은 일을 worktree 여럿에서 돌려 증거로 고르고, 변경 줄마다 메모를 달아 Claude 에게 보냅니다. 터미널 나란히 · 끌어다 놓기 · 이미지 미리보기, 창은 480pt 까지.</p></div></li>
-      <li class="rel"><span class="ver">v4.1.0</span><div><h3>Claude 와 주고받기, 이름은 Ocul</h3><p>Claude 가 기다리면 알고, 앱에서 답하고, 앱에서 보냅니다. ⌃Tab · ⌥⌘1~9 로 오가고, 처음 쓰는 법이 생겼습니다.</p></div></li>
     </ul>
     <p class="more"><a href="/changelog">전체 변경 이력</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스</a></p>
   </div>
@@ -467,7 +467,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Claude Code 플러그인 설치 명령 두 줄 복사"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">두 줄 복사</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">v4.3.1 받기</span><span class="sub">무료 · 자동 업데이트</span>
+        <span class="lg">v4.3.2 받기</span><span class="sub">무료 · 자동 업데이트</span>
       </a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>
     </div>
@@ -476,7 +476,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
       <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
       <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
     </p>
-    <p class="cta-ver">v4.3.1 — macOS · Windows · Linux(베타)</p>
+    <p class="cta-ver">v4.3.2 — macOS · Windows · Linux(베타)</p>
   </div>
 </section>
 </main>
