@@ -43,6 +43,8 @@ export const ko = {
   "sidebar.findProject": "프로젝트 찾기",
   "sidebar.findProjectNone": "맞는 프로젝트가 없어요",
   "sidebar.projectColorNone": "색 없음",
+  "sidebar.projectColorVscodeSkipped": ".vscode/settings.json 에 주석이 있어 VS Code 색은 그대로 두었어요",
+  "sidebar.projectColorVscodeFailed": "VS Code 색을 맞추지 못했어요 — {error}",
   "projectColor.slate": "회색",
   "projectColor.green": "초록",
   "projectColor.blue": "파랑",

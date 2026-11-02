@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-const { setColor } = vi.hoisted(() => ({ setColor: vi.fn(async (_id: number, _c: string | null) => null) }));
+const { setColor } = vi.hoisted(() => ({ setColor: vi.fn(async (_id: number, _c: string | null) => "applied" as const) }));
 vi.mock("@/api/projects", () => ({ projectsApi: { brief: async () => null, setColor } }));
 vi.mock("@/api/terminal", () => ({
   terminalApi: { overview: async () => [], onSessionsChanged: async () => () => {} },
@@ -12,6 +12,8 @@ vi.mock("@/api/window", () => ({
 }));
 
 import { ProjectSwitcher } from "@/features/shell/ProjectSwitcher";
+import { toast } from "@/lib/toast";
+import { t } from "@/i18n";
 import { projectColorOf } from "@/features/shell/projectColor";
 import type { Project } from "@/lib/bindings";
 
@@ -57,5 +59,17 @@ describe("프로젝트 색", () => {
 
     fireEvent.click(screen.getByRole("menuitemradio", { name: "색 없음" }));
     await waitFor(() => expect(setColor).toHaveBeenCalledWith(1, null));
+  });
+
+  it("VS Code 의 settings.json 에 주석이 있어 못 고치면 그렇다고 말한다", async () => {
+    setColor.mockResolvedValueOnce("skipped" as never);
+    const info = vi.spyOn(toast, "info");
+    const { container } = render(
+      <ProjectSwitcher projectName="a" currentProjectId={1} projects={projects} onOpenProject={() => {}} />,
+    );
+    fireEvent.click(container.querySelector(".proj-switch")!);
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "청록" }));
+    await waitFor(() => expect(info).toHaveBeenCalledWith(t("sidebar.projectColorVscodeSkipped")));
+    info.mockRestore();
   });
 });

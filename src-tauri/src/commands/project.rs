@@ -41,21 +41,32 @@ pub const PROJECT_COLORS: &[&str] = &[
 ];
 
 /// 프로젝트 색을 바꾼다 (2026-11-03) — 창 여럿을 띄웠을 때 윗줄 색으로 구별한다. `None` 은 색 없음.
+/// 같은 색을 그 프로젝트의 VS Code 제목 표시줄에도 맞춘다(`.vscode/settings.json`, `vscode_color`).
+/// VS Code 쪽이 실패해도 앱의 색은 저장된다 — 결과로 무엇이 됐는지 돌려준다.
 #[tauri::command]
 #[specta::specta]
 pub async fn set_project_color(
     db: State<'_, Db>,
     project_id: u32,
     color: Option<String>,
-) -> Result<(), String> {
+) -> Result<crate::vscode_color::VscodeColorOutcome, String> {
     if let Some(c) = &color {
         if !PROJECT_COLORS.contains(&c.as_str()) {
             return Err(format!("unknown project color: {c}"));
         }
     }
-    db.set_project_color(project_id, color)
+    let root = db
+        .project_root(project_id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    db.set_project_color(project_id, color.clone())
+        .await
+        .map_err(|e| e.to_string())?;
+    let outcome =
+        tokio::task::spawn_blocking(move || crate::vscode_color::apply(&root, color.as_deref()))
+            .await
+            .map_err(|e| e.to_string())?;
+    outcome.map_err(|e| format!("vscode_color: {e}"))
 }
 
 #[tauri::command]

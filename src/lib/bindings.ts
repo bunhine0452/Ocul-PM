@@ -16,8 +16,12 @@ export const commands = {
 	settingsSetMany: (entries: ([string, string])[]) => typedError<null, string>(__TAURI_INVOKE("settings_set_many", { entries })),
 	appInfo: () => typedError<AppInfo, string>(__TAURI_INVOKE("app_info")),
 	selectProjectFolder: () => typedError<string | null, string>(__TAURI_INVOKE("select_project_folder")),
-	/**  프로젝트 색을 바꾼다 (2026-11-03) — 창 여럿을 띄웠을 때 윗줄 색으로 구별한다. `None` 은 색 없음. */
-	setProjectColor: (projectId: number, color: string | null) => typedError<null, string>(__TAURI_INVOKE("set_project_color", { projectId, color })),
+	/**
+	 *  프로젝트 색을 바꾼다 (2026-11-03) — 창 여럿을 띄웠을 때 윗줄 색으로 구별한다. `None` 은 색 없음.
+	 *  같은 색을 그 프로젝트의 VS Code 제목 표시줄에도 맞춘다(`.vscode/settings.json`, `vscode_color`).
+	 *  VS Code 쪽이 실패해도 앱의 색은 저장된다 — 결과로 무엇이 됐는지 돌려준다.
+	 */
+	setProjectColor: (projectId: number, color: string | null) => typedError<VscodeColorOutcome, string>(__TAURI_INVOKE("set_project_color", { projectId, color })),
 	listProjects: () => typedError<Project[], string>(__TAURI_INVOKE("list_projects")),
 	createProject: (name: string, rootPath: string) => typedError<number, string>(__TAURI_INVOKE("create_project", { name, rootPath })),
 	deleteProject: (projectId: number, deleteOculpm: boolean, deleteAgentsMd: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_project", { projectId, deleteOculpm, deleteAgentsMd })),
@@ -2239,6 +2243,15 @@ export type Velocity = {
 	weeks: WeekBucket[],
 	plan: PlanVelocity,
 };
+
+/**  결과 — 프런트가 「VS Code 색도 바꿨어요」 · 「주석이 있어 못 고쳤어요」 를 가른다. */
+export type VscodeColorOutcome = 
+/**  색을 썼다. */
+"applied" | 
+/**  우리 키를 걷었다(또는 걷을 것이 없었다). */
+"cleared" | 
+/**  파일이 엄격한 JSON 이 아니라(주석 · 끝 쉼표) 손대지 않았다. */
+"skipped";
 
 export type WatcherConfig = {
 	ignore: string[],
