@@ -97,3 +97,15 @@ pub async fn race_clear(db: State<'_, Db>, project_id: u32) -> Result<u32, AppEr
 pub(crate) async fn lane_cwd(root: PathBuf, path: String) -> Result<PathBuf, AppError> {
     blocking(move || race::find(&root, Path::new(&path)).map(|lane| PathBuf::from(lane.path))).await
 }
+
+/// PR 영수증 — 이 가지가 기준 가지에서 갈라진 뒤의 변경을 일지와 대조한다 (`git::receipt`).
+/// 레인과 같은 「git 으로 가지의 일을 잰다」 손잡이라 여기 둔다. 오류는 원문을 붙여 `race_failed`.
+#[tauri::command]
+#[specta::specta]
+pub async fn diff_receipt(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<crate::git::receipt::Receipt, AppError> {
+    let root = db.project_root(project_id).await?;
+    blocking(move || crate::git::receipt::build(&root)).await
+}

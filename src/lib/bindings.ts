@@ -113,6 +113,11 @@ export const commands = {
 	terminalImagePreview: (path: string) => typedError<TermImage, AppError>(__TAURI_INVOKE("terminal_image_preview", { path })),
 	/**  레인을 `count` 개(2~4) 만든다 — 지금 `HEAD` 에서, 앱 데이터 폴더에. */
 	raceStart: (projectId: number, count: number) => typedError<RaceLane[], AppError>(__TAURI_INVOKE("race_start", { projectId, count })),
+	/**
+	 *  PR 영수증 — 이 가지가 기준 가지에서 갈라진 뒤의 변경을 일지와 대조한다 (`git::receipt`).
+	 *  레인과 같은 「git 으로 가지의 일을 잰다」 손잡이라 여기 둔다. 오류는 원문을 붙여 `race_failed`.
+	 */
+	diffReceipt: (projectId: number) => typedError<Receipt, AppError>(__TAURI_INVOKE("diff_receipt", { projectId })),
 	/**  지금 있는 레인과 각 변경의 크기. */
 	raceLanes: (projectId: number) => typedError<RaceLane[], AppError>(__TAURI_INVOKE("race_lanes", { projectId })),
 	/**  레인 하나의 변경(보기용 diff). */
@@ -1941,6 +1946,30 @@ export type RaceLane = {
 	/**  그 가운데 가장 최근 일지의 제목 · 증거 등급(`evidence::NONE|SECTION|COMMAND`) · 검증 칸의 끝 줄. */
 	journal_title: string | null,
 	evidence: number,
+	proof: string | null,
+};
+
+export type Receipt = {
+	branch: string,
+	/**  기준 — `origin/main` · `main` … 못 찾으면 빈 글자(그때는 커밋 전 변경만). */
+	base_label: string,
+	commits: number,
+	/**  기록 폴더(`.oculpm/`) 밖에서 바뀐 파일 수. */
+	files: number,
+	journals: ReceiptJournal[],
+	/**  바뀌었는데 이 가지의 어느 일지 `files_touched` 에도 없는 파일. */
+	unrecorded: string[],
+};
+
+export type ReceiptJournal = {
+	/**  일지 루트 기준 (`20261102/Bugs/…md`). */
+	path: string,
+	title: string,
+	/**  `bug` · `feature` · `refactor` · `error` · `chore`. */
+	kind: string,
+	/**  검증 칸 증거 등급 (`oculpm::evidence`, 2 = 돌린 명령). */
+	evidence: number,
+	/**  검증 칸의 끝 줄 — 결과가 보통 거기 있다. */
 	proof: string | null,
 };
 
