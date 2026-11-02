@@ -15,7 +15,7 @@ owner: claude-code
 
 ## 고칠 것 {#act}
 - [~] 4주 기능 동결(~11-30) · 패치 주 1회 이하 {#freeze}
-- [ ] 약속 9 → 월 1회 확인 날 (PROMISE · RELEASE · bump-version) {#promise-9}
+- [x] 약속 9 → 월 1회 확인 날 (PROMISE · RELEASE · bump-version) {#promise-9}
 - [x] 첫 문장을 영수증으로 (README ko/en · 랜딩 ko/en) {#position}
 - [x] 첫 행동을 플러그인 두 줄로, 앱은 두 번째 {#entry-plugin}
 - [ ] 바깥 문구에서 내부 용어(판정 등) 걷기 {#jargon}
@@ -35,4 +35,5 @@ owner: claude-code
 | 2026-11-02T20:15:42+09:00 | #freeze | claude-code | ☐→~ |  | 동결 진행 중. 예외 1건(11-02, ai-pm-f4 세션이 전한 사용자 결정): VS Code 확장 재개발(.oculpm 읽기 전용 · 마켓+Open VSX) — 걷을 표면 대신 규칙 예외로 기록. 「VS Code 로 열기」 수정은 결함 수정이라 동결 대상 아님. 그 밖 feat 는 여전히 동결 |
 | 2026-11-02T20:44:30+09:00 | #freeze | claude-code | ~→~ |  | 예외 2건째(11-02, ai-pm-f4 세션이 전한 사용자 결정): 「기다림 신호 묶음」 — ⌘O 목록 · ⌥⌘ 번호 줄 프로젝트별 예외 점 + 급한 순, 창 제목 「· 기다림 N」, Dock 배지. 새 화면 없음. 동결 첫날 예외 2건 — 11-30 재측정에서 예외로 넣은 것도 따로 센다 |
 | 2026-11-02T22:00:15+09:00 | #freeze | claude-code | ~→~ |  | 사용자 결정(11-02, 이 세션에서 직접): 예외는 VS Code 확장 · 기다림 신호 묶음 이 둘로 닫는다 — 이후 새 기능 요청은 11-30 재측정 뒤로. v4.3.1(ai-pm-f4 세션, 오늘 둘째 릴리스)에 zip · pulldown-cmark 공지 수정이 실렸다 |
+| 2026-11-02T22:06:42+09:00 | #promise-9 | claude-code | ☐→x | .oculpm/journal/20261102/Chores/2206_chore_promise-9-monthly-check-day.md | 판정 ✓ pnpm test 1009 passed · bump_version 11 passed · dry-run 경고 확인 · typecheck/lint/build 0 |
 <!-- oculpm:plan-log end -->

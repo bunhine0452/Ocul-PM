@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // @ts-expect-error — 빌드 대상이 아닌 zero-dep 릴리스 스크립트 (.mjs, 타입 없음).
-import { bumpLanding, bumpVersionFile, isMinorBump, LANDINGS, leftoverLines, pendingEyes, readPlans, reviewGap, stampPendingReviews, tagsCutOn, todayIso, VERSION_FILES } from "../../scripts/bump-version.mjs";
+import { bumpLanding, bumpVersionFile, CHECK_DAY_EVERY, daysBetween, lastCheckDay, LANDINGS, leftoverLines, pendingEyes, readPlans, reviewGap, stampPendingReviews, tagsCutOn, todayIso, VERSION_FILES } from "../../scripts/bump-version.mjs";
 
 // 감사 라운드 2026-09-11 F3 — 릴리스 버전 6파일 + 랜딩 ko/en 각 6곳을 한 번에.
 // 계약: 자리 수가 어긋나면 throw(반만 고치지 않는다), 변경 이력·FAQ 는 건드리지
@@ -77,11 +77,27 @@ describe("bump-version — external review cadence", () => {
 
 // 완성도 라운드 2026-10-27 — 릴리스 리듬 (docs/RELEASE.md §0-2). 계약: 패치는 조용하다,
 // 같은 날 태그는 날짜 칸으로만 고른다, eyes 는 활성 플랜의 `- [ ] … {#eyes-…}` 만 센다.
+// 2026-11-02: 확인 날은 「마이너 전날」 이 아니라 한 달에 한 번 — 날짜는 PROMISE.md 「확인 날 기록」.
 describe("bump-version — release rhythm", () => {
-  it("tells a patch from a minor (and a major)", () => {
-    expect(isMinorBump("3.14.0", "3.14.1")).toBe(false);
-    expect(isMinorBump("3.14.3", "3.15.0")).toBe(true);
-    expect(isMinorBump("3.14.0", "4.0.0")).toBe(true);
+  it("reads the latest check day from line-leading records only", () => {
+    const promise = [
+      "## 확인 날 기록",
+      "줄 모양은 `- 확인 날 YYYY-MM-DD — 본 판` 이다. 예: `- 확인 날 2099-01-01`",
+      "- 확인 날 2026-11-04 — 4.3.1 · 닫음 20 · 이월 3 · 걷음 2",
+      "- 확인 날 2026-12-02 — 4.4.0",
+      "  - 확인 날 2030-01-01 들여쓴 것은 기록이 아니다",
+    ].join("\n");
+    expect(lastCheckDay(promise)).toBe("2026-12-02");
+    expect(lastCheckDay("(아직 없음)")).toBeNull();
+    expect(daysBetween("2026-11-02", "2026-12-03")).toBe(31);
+    expect(daysBetween("2026-11-02", "2026-12-04") > CHECK_DAY_EVERY).toBe(true);
+  });
+
+  it("the real PROMISE.md has the record section and says 31 days", () => {
+    const promise = readFileSync(resolve(ROOT, "docs/PROMISE.md"), "utf8");
+    expect(promise).toContain("## 확인 날 기록");
+    expect(promise).toContain("한 달에 한 번, 확인 날");
+    expect(CHECK_DAY_EVERY).toBe(31);
   });
 
   it("picks today's tags by the date column only", () => {
