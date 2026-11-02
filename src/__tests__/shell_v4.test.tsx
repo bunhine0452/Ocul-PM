@@ -231,8 +231,8 @@ describe("⌘O — 최근 프로젝트 목록", () => {
     await act(async () => void fireEvent.keyDown(window, { key: "o", metaKey: true }));
     const menu = await screen.findByRole("menu", { name: t("sidebar.switchProjectMenu") });
     const items = within(menu).getAllByRole("menuitem");
-    // 두 프로젝트 + 「폴더 열기…」.
-    expect(items).toHaveLength(3);
+    // 두 프로젝트 + 「편집기에서 열기」 + 「폴더 열기…」.
+    expect(items).toHaveLength(4);
     const other = items.find((b) => b.textContent?.includes("naeri"))!;
     // 다른 창에 이미 열려 있으면 「열림」 — 고르면 그 창이 앞으로 온다(백엔드가 판단).
     expect(await within(other).findByText(t("sidebar.openProject"))).toBeInTheDocument();
