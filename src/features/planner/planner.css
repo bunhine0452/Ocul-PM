@@ -17,8 +17,6 @@
 }
 
 .plv-meta { font-size: var(--fs-3); color: var(--text-2); }
-.plv-ok { color: var(--ok-text); font-weight: var(--fw-strong); }
-.plv-bad { color: var(--danger-text); font-weight: var(--fw-strong); }
 .plv-grow { flex: 1; }
 .plv-sec-h { margin: 0 0 var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); }
 .plv-sec-n { flex: none; color: var(--text-2); font-variant-numeric: tabular-nums; }
@@ -69,8 +67,6 @@
 .plv-judge-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
 .plv-judge-check { flex: 1; min-width: 260px; }
 .plv-judge-last { width: 260px; }
-.plv-judge-chip { display: flex; align-items: center; gap: var(--space-3); }
-.plv-judge-summary { margin-top: var(--space-1); word-break: break-word; }
 .plv-code {
   display: block; padding: var(--space-2) 9px;
   border-radius: var(--radius-s); background: var(--bg-inset);

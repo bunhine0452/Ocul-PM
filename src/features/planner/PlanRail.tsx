@@ -3,6 +3,7 @@
  */
 
 import { ChevronRight } from "@/components/Icons";
+import { VerdictLine } from "@/components/VerdictLine";
 import { whenLabel } from "@/lib/whenLabel";
 import { useT } from "@/i18n";
 import type { PlanSummary } from "@/lib/bindings";
@@ -24,17 +25,11 @@ function RailRow({ plan, selected, onSelect }: { plan: PlanSummary; selected: bo
         <span className="plv-bar" aria-hidden="true">
           <i style={{ width: `${pct}%` }} />
         </span>
-        <span className="plv-meta">
-          {v ? (
-            <>
-              {t("plan.list.verdict")} <span className={v.passed ? "plv-ok" : "plv-bad"}>{v.passed ? "✓" : "✗"}</span>
-              {" · "}
-              {whenLabel(v.ts)}
-            </>
-          ) : (
-            t("plan.list.noVerdict")
-          )}
-        </span>
+        {v ? (
+          <VerdictLine compact state={v.passed ? "pass" : "fail"} summary={v.summary} when={whenLabel(v.ts)} />
+        ) : (
+          <span className="plv-meta">{t("plan.list.noVerdict")}</span>
+        )}
       </button>
     </li>
   );

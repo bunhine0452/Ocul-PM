@@ -220,7 +220,11 @@ const unreadCard = () => screen.getByRole("region", { name: t("today.unread.titl
 const pills = () =>
   within(checkCard())
     .queryAllByRole("listitem")
-    .map((li) => li.querySelector(".chip")?.textContent);
+    .flatMap((li) => {
+      // 판정 실패 · 통과 뒤 바뀜 행은 딱지 대신 판정 줄(`.vl`)이다.
+      const chip = li.querySelector(".chip");
+      return chip ? [chip.textContent] : [];
+    });
 
 beforeEach(() => {
   fx.entries = [];
@@ -265,9 +269,10 @@ describe("확인할 것 — 종류와 순서", () => {
     fx.plugin = { installed: true, behind: true, installed_version: "3.3.0", bundled_version: "4.0.0", path: "/p", scope: "project" } satisfies ClaudePluginStatus;
     renderToday();
 
-    await waitFor(() => expect(pills()).toHaveLength(5));
+    // 판정 실패는 딱지가 아니라 판정 줄(시그니처)로 선다 — 딱지는 나머지 넷.
+    await waitFor(() => expect(pills()).toHaveLength(4));
+    expect(checkCard().querySelector('[data-kind="verdict"] .vl.is-fail')).not.toBeNull();
     expect(pills()).toEqual([
-      t("today.check.kind.verdict"),
       t("today.check.kind.unrecorded"),
       t("today.check.kind.unrecorded"),
       t("today.check.kind.blocked"),
@@ -397,7 +402,7 @@ describe("확인할 것 — 동작", () => {
       plans: [plan("a", { last_verdict: { passed: false, summary: "", ts: new Date().toISOString(), agent_id: "codex", item_id: "x" } })],
     });
     const { container, onNavigate } = renderToday();
-    await waitFor(() => expect(pills()).toHaveLength(1));
+    await waitFor(() => expect(checkCard().querySelector('[data-kind="verdict"] .vl')).not.toBeNull());
     const root = container.querySelector(".page.tdy") as HTMLElement;
     // 두 칸의 행은 한 목록 — 먼저 볼 것 다음에 검증 없는 일지.
     const rows = [...within(checkCard()).getAllByRole("listitem"), ...within(unreadCard()).getAllByRole("listitem")];

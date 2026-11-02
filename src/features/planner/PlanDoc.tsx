@@ -7,6 +7,7 @@
  */
 
 import { SquareTerminal } from "@/components/Icons";
+import { VerdictLine } from "@/components/VerdictLine";
 import { agentLabel } from "@/features/today/agentColor";
 import { whenLabel } from "@/lib/whenLabel";
 import { getLang, useT } from "@/i18n";
@@ -48,15 +49,12 @@ function JudgeCard({ detail }: { detail: PlanDetail }) {
           <div className="plv-judge-last">
             <h3 className="plv-sec-h">{t("plan.judge.last")}</h3>
             {v ? (
-              <>
-                <div className="plv-judge-chip">
-                  <span className={"chip sm " + (v.passed ? "ok" : "danger")}>{v.passed ? t("plan.judge.pass") : t("plan.judge.fail")}</span>
-                  <span className="plv-meta">
-                    {whenLabel(v.ts)} · {agentLabel(v.agent_id)}
-                  </span>
-                </div>
-                {v.summary ? <div className="plv-meta mono plv-judge-summary">{v.summary}</div> : null}
-              </>
+              <VerdictLine
+                state={v.passed ? "pass" : "fail"}
+                summary={v.summary}
+                when={whenLabel(v.ts)}
+                sub={agentLabel(v.agent_id)}
+              />
             ) : (
               <p className="plv-meta">{t("plan.judge.notRun")}</p>
             )}
