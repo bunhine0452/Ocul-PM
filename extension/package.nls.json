@@ -1,11 +1,13 @@
 {
   "description": "See what your coding agent did, as a receipt: the last check command result, which changes no journal entry mentions, and each file's record — read from .oculpm/, no network, no LLM.",
-  "cmd.showExceptions": "What needs my eyes",
   "cmd.fileHistory": "Journal entries for this file",
   "cmd.copyReceipt": "Copy PR receipt",
   "cmd.refresh": "Reload records",
   "config.explorerBadges": "Mark changed files that no journal entry mentions with `○` in the Explorer.",
   "cmd.openInApp": "Open in Ocul",
-  "cmd.showClaude": "Claude waiting on me",
-  "cmd.continueInTerminal": "Continue the next item with claude in the terminal"
+  "cmd.continueInTerminal": "Continue the next item with claude in the terminal",
+  "cmd.showPanel": "Show the Ocul panel",
+  "cmd.openToday": "Open Ocul's Today",
+  "view.overview": "Overview",
+  "config.notifyWhenClaudeWaits": "Show a notification once when Claude starts waiting for you (a permission prompt, input, or a question)."
 }
