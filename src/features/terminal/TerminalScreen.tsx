@@ -37,6 +37,7 @@ import {
 } from "./paneLayout";
 import { PaneTree, SPLIT_MIN } from "./PaneTree";
 import { TermFindBar } from "./TermFindBar";
+import { neighborOf, type PaneMove } from "./paneNav";
 import { useTerminalFileDrop } from "./dropFiles";
 import { laneNumberOf, lanePathOf, useRace } from "./race";
 import { RaceStartDialog, RaceStrip } from "./RacePanel";
@@ -93,6 +94,16 @@ function termChord(e: KeyboardEvent): { shift: boolean; key: string } | null {
   }
   const c = readChord(e, "terminal");
   return c.mod && !c.alt ? { shift: c.shift, key: c.key.toLowerCase() } : null;
+}
+
+const ARROWS: Record<string, PaneMove> = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" };
+
+/** ⌥⌘ + 방향키(macOS) · Ctrl+Alt + 방향키(그 밖) → 칸 이동 방향. */
+function paneMoveOf(e: KeyboardEvent): PaneMove | null {
+  const dir = ARROWS[e.key];
+  if (!dir || e.shiftKey) return null;
+  const held = isMac() ? e.metaKey && e.altKey && !e.ctrlKey : e.ctrlKey && e.altKey && !e.metaKey;
+  return held ? dir : null;
 }
 
 export function TerminalScreen({
@@ -171,6 +182,8 @@ export function TerminalScreen({
   // 단축키 처리기는 칸 수를 닫아 두지 않고 ref 로 읽는다 — 나눈 직후 처리기가 다시 걸리기 전에 온 ⇧⌘↩ 도 맞게.
   const countRef = useRef(count);
   countRef.current = count;
+  const activeRef = useRef(active);
+  activeRef.current = active;
   // 칸이 하나가 되면 「크게」는 뜻이 없다.
   useEffect(() => {
     if (count < 2) setZoomed(false);
@@ -220,6 +233,22 @@ export function TerminalScreen({
   // 그 밖 OS 는 셸 키에 Shift 를 하나 더 — Ctrl+Shift+T · Ctrl+Shift+D · Ctrl+Alt+Shift+D · Ctrl+Shift+Enter.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // 칸 사이 이동 ⌥⌘ + 방향키 (그 밖 Ctrl+Alt + 방향키) — 화면의 칸 자리로 고른다(`paneNav`).
+      const move = paneMoveOf(e);
+      if (move) {
+        const from = activeRef.current;
+        const box = panesRef.current;
+        if (from == null || !box || countRef.current < 2) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rects = [...box.querySelectorAll<HTMLElement>(".tm-pane[data-term-id]")].map((el) => {
+          const r = el.getBoundingClientRect();
+          return { id: Number(el.dataset.termId), x: r.left, y: r.top, w: r.width, h: r.height };
+        });
+        const to = neighborOf(rects, from, move);
+        if (to != null) pick(to);
+        return;
+      }
       const c = termChord(e);
       if (!c) return;
       if (c.key === "t" && !c.shift) {
@@ -238,7 +267,7 @@ export function TerminalScreen({
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [add, split]);
+  }, [add, split, pick]);
 
   // Finder 에서 끌어다 놓은 파일 · 그림 → 커서 아래 세션의 입력에 따옴표 친 경로.
   const dropOver = useTerminalFileDrop(active, getPlatform() === "windows", pasteToTerm);

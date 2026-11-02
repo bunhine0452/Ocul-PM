@@ -87,6 +87,21 @@ const DIFF: ShortcutGroup = {
   ],
 };
 
+// 터미널 (11-02) — `TerminalScreen` 의 keydown 이 듣는 키. 그 밖 OS 는 터미널 가족(셸 키에 Shift 하나 더).
+// 칸 이동만 Ctrl+Alt + 방향키다 — 방향키는 셸 키가 아니라 Shift 를 얹지 않는다.
+const TERMINAL: ShortcutGroup = {
+  id: "terminal",
+  titleKey: "keys.g.terminal",
+  rows: [
+    { keys: "⌘T", labelKey: "keys.termNew" },
+    { keys: "⌘D", labelKey: "keys.termSplitRight" },
+    { keys: "⇧⌘D", labelKey: "keys.termSplitDown" },
+    { keys: "⌥⌘← → ↑ ↓", nonMac: "Ctrl+Alt+← → ↑ ↓", labelKey: "keys.termPaneMove" },
+    { keys: "⇧⌘↩", labelKey: "keys.termZoom" },
+    { keys: "⌘F", labelKey: "keys.termFind" },
+  ],
+};
+
 const START: ShortcutGroup = {
   id: "start",
   titleKey: "keys.g.start",
@@ -107,7 +122,7 @@ export function navShortcutGroup(): ShortcutGroup {
 
 /** 치트시트가 그리는 순서 — 전역과 화면 이동이 먼저, 화면별 로컬 키가 뒤. */
 export function buildShortcutGroups(): ShortcutGroup[] {
-  const groups = [navShortcutGroup(), GLOBAL, WINDOW, JOURNAL, DIFF, START];
+  const groups = [navShortcutGroup(), GLOBAL, WINDOW, JOURNAL, DIFF, TERMINAL, START];
   return groups.map(isMac() ? forMac : forOtherOs);
 }
 

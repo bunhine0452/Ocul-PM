@@ -21,7 +21,7 @@ Orca·claude-mem 이 못 하는 자리(확인 명령 결과로 믿음을 판정�
 
 ## 터미널 {#terminal}
 - [x] 터미널 찾기 ⌘F {#term-find}
-- [ ] 칸 사이 이동 단축키 {#pane-nav}
+- [x] 칸 사이 이동 단축키 {#pane-nav}
 - [ ] 일지 없이 끝난 세션 표시 {#term-no-record}
 
 ## 디자인 {#design}
@@ -38,4 +38,5 @@ Orca·claude-mem 이 못 하는 자리(확인 명령 결과로 믿음을 판정�
 | 2026-11-02T18:06:25+09:00 | #team-exceptions | claude-code | x→x | .oculpm/journal/20261102/Features_to_add/1806_feature_today-teammate-journals.md | 일지 경로 바로잡음 — 바로 위 행의 1810_… 은 잘못 적은 경로, 실제는 1806_… |
 | 2026-11-02T18:08:55+09:00 | #term-find | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1813_feature_terminal-find.md | 판정 ✓ pnpm test 997 passed ×2 · typecheck/lint/build 0 (Rust 무변경) |
 | 2026-11-02T18:08:59+09:00 | #term-find | claude-code | x→x | .oculpm/journal/20261102/Features_to_add/1808_feature_terminal-find.md | 일지 경로 바로잡음 — 바로 위 행의 1813_… 은 잘못 적은 경로, 실제는 1808_… |
+| 2026-11-02T18:10:55+09:00 | #pane-nav | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1810_feature_terminal-pane-move-keys.md | 판정 ✓ pnpm test 999 passed ×2 · typecheck/lint/build 0 (Rust 무변경) |
 <!-- oculpm:plan-log end -->
