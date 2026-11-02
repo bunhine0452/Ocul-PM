@@ -29,6 +29,7 @@ import { requestSendToClaude, sendOrRun } from "@/features/terminal/sendToClaude
 import { projectFileApi } from "@/api/projectFile";
 import { applyResolution, clearNotes, composeNotes, hydrateNotes, isJudged, markSent, useDiffNotes } from "./diffNoteStore";
 import { tError } from "@/i18n/errors";
+import { buildReceipt } from "./receipt";
 
 // 변경 화면 (4.0) — 왼쪽 340px 목록 + 오른쪽 diff. 목록은 「기록 없음」(어느 일지에도 없는 변경)이
 // 먼저이고 그다음 「일지에 있음」 이 일지별이다. 기록 없는 파일을 고르면 diff 위에 배너가 서서
@@ -175,6 +176,13 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   // 「고쳐짐 k/n」 은 가릴 수 있는 메모만 센다 — 지운 줄 · 흔한 줄의 메모는 「보냄」 으로 따로 둔다.
   const judged = sentNotes.filter(isJudged);
   const fixedCount = judged.filter((n) => n.fixed).length;
+  // PR 영수증 — 이 가지의 일지 · 확인 명령 결과 · 기록 없는 변경을 마크다운으로 (11-02).
+  const copyReceipt = () =>
+    void buildReceipt(projectId, t)
+      .then((md) => navigator.clipboard.writeText(md))
+      .then(() => toast.info(t("diff.receipt.copied")))
+      .catch((e) => toast.destructive(t("diff.receipt.failed", { error: tError(toAppError(e)) })));
+
   const sendNotes = () =>
     requestSendToClaude({
       kind: "notes",
@@ -213,6 +221,9 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   return (
     <>
       <Toolbar title={t("nav.diff")} sub={sub}>
+        <button type="button" className="btn ghost sm" title={t("diff.receipt.copyTitle")} onClick={copyReceipt}>
+          {t("diff.receipt.copy")}
+        </button>
         {noteState.notes.length > 0 ? (
           <>
             {judged.length > 0 ? (

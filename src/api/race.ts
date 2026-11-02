@@ -2,7 +2,7 @@
  * 같은 일을 worktree 여럿에서 (Orca 벤치마킹 #worktree-race) — 레인 명령의 래퍼.
  * 레인은 `ocul-race/` 가지의 worktree 이고 상태는 git 이 들고 있다(`src-tauri/src/git/race.rs`).
  */
-import { commands, type RaceLane } from "@/lib/bindings";
+import { commands, type RaceLane, type Receipt } from "@/lib/bindings";
 import { call } from "./invoke";
 
 export type { RaceLane };
@@ -16,6 +16,8 @@ export const raceApi = {
   patch: (projectId: number, path: string) => call<string>("race_patch", commands.racePatch(projectId, path)),
   /** 고른 레인의 변경을 원래 작업 폴더에 커밋 전 변경으로. */
   take: (projectId: number, path: string) => call<null>("race_take", commands.raceTake(projectId, path)),
+  /** PR 영수증 재료 — 이 가지가 기준 가지에서 갈라진 뒤의 변경을 일지와 대조 (`git/receipt.rs`). */
+  receipt: (projectId: number) => call<Receipt>("diff_receipt", commands.diffReceipt(projectId)),
   /** 레인을 모두 지운다(worktree · 가지). */
   clear: (projectId: number) => call<number>("race_clear", commands.raceClear(projectId)),
 };

@@ -26,6 +26,7 @@ mod history;
 pub mod nesting; // 루트 관계와 경로 되맞춤 ({#rebase-other-direction})
 mod path_form;
 pub mod race; // 같은 일을 worktree 여럿에서 (Orca 벤치마킹) — 레인 = `ocul-race/` 가지
+pub mod receipt; // PR 영수증 — 가지의 변경을 일지와 대조 (11-02)
 mod repo;
 pub mod safe; // git 을 띄우는 유일한 창구 — 저장소 설정이 고른 명령을 끈다
 mod status;

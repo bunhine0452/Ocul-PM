@@ -57,7 +57,7 @@ impl RaceLane {
     }
 }
 
-fn run(dir: &Path, args: &[&str]) -> Result<String, String> {
+pub(super) fn run(dir: &Path, args: &[&str]) -> Result<String, String> {
     let out = safe::output(&mut safe::cmd(dir, args)).map_err(|e| e.to_string())?;
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
@@ -259,7 +259,7 @@ fn read_evidence(root: &Path, lane: &mut RaceLane) {
 }
 
 /// 검증 칸의 끝 줄 — 결과가 보통 거기 있다. 목록 기호 · 백틱을 걷고 120자에서 자른다.
-fn proof_line(section: &str) -> Option<String> {
+pub(super) fn proof_line(section: &str) -> Option<String> {
     let line = section
         .lines()
         .map(|l| l.trim().trim_start_matches(['-', '*']).trim())
