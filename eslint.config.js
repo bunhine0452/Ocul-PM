@@ -57,6 +57,8 @@ export default tseslint.config(
       "src-tauri/target/**",
       "coverage/**",
       "landing/**",
+      // VS Code 확장 — 따로 선 패키지(자기 tsconfig · vitest · 잠금 파일). 게이트는 extension-release.yml.
+      "extension/**",
       // tauri-specta 생성물 — 손으로 고치지 않는다 (CLAUDE.md).
       "src/lib/bindings.ts",
       // 빌드·tsconfig·vitest 대상 밖. 2026-09-04 현재 디렉터리 자체가 없지만,

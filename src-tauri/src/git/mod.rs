@@ -34,6 +34,9 @@ mod status;
 
 #[cfg(test)]
 mod tests;
+// 영수증 재료 사례표 — VS Code 확장과 같은 표 (`receipt_cases.json`).
+#[cfg(test)]
+mod receipt_cases_tests;
 
 pub use blob::{blob_size, path_in_head, show_file_bytes};
 pub use changes::{last_commit_changes, uncommitted_changes, GitChange, LastCommitChanges};
