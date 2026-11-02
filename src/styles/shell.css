@@ -196,8 +196,9 @@
    접힘 선은 640 한 벌 그대로. 이름은 화면에서만 감춘다(접근명 · E2E 의 탭 찾기가 글자로 읽는다). */
 @media (max-width: 640px) {
   .topbar { gap: var(--space-2); padding: 0 var(--space-3); }
-  .is-mac .topbar { padding-left: 76px; }
-  .proj-switch-wrap { flex-shrink: 0; max-width: 112px; }
+  /* 신호등 자리(84px)는 좁아져도 줄이지 않는다 — 76 이었을 때 macOS 27 의 더 큰 신호등(오른쪽 끝 약 75)에
+     프로젝트 이름이 붙었다(11-02 사용자 제보). 그 8px 은 이름 칸에서 덜어 낸다 — 104 까지, 모자라면 … 로 줄되 56 아래로는 안 준다. */
+  .proj-switch-wrap { flex-shrink: 1; min-width: 56px; max-width: 104px; }
   .topnav { padding-left: var(--space-2); }
   .topnav-item { padding: 0 var(--space-2); gap: var(--space-1); }
   .topnav-ico { display: inline-flex; }
@@ -224,7 +225,7 @@
 /* 더 좁으면(≤460 — 480 창에 글자 125% 가 이 폭이다) 프로젝트 이름도 화면에서 감추고 탭을 더 붙인다 —
    찾기 · 설정이 창 밖(396–467 / 384)으로 밀려났다(레드팀 10-31). */
 @media (max-width: 460px) {
-  .topbar { gap: var(--space-1); }
+  .topbar { gap: var(--space-1); padding-right: var(--space-1); }
   .proj-switch-wrap { max-width: 40px; }
   .proj-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .topnav { gap: 0; padding-left: var(--space-1); }
