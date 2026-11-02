@@ -22,7 +22,7 @@ import type { TermInfo } from "@/api/terminal";
 import { kbd, readChord } from "@/lib/kbd";
 import { getPlatform, isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
-import { closeTerm, focusTerm, openTerm, pasteToTerm, subscribeTerms, termsSnapshot } from "./termStore";
+import { closeTerm, focusTerm, hasWorked, openTerm, pasteToTerm, subscribeTerms, termsSnapshot } from "./termStore";
 import {
   equalize,
   hasLeaf,
@@ -45,7 +45,7 @@ import { onTermFocus, takeTermFocus } from "./focusRequest";
 import { closePeek } from "./imagePeek";
 import { TermImagePeekHost } from "./TermImagePeek";
 import { TermFileMenuHost } from "./TermFileMenu";
-import { needsMe, sessionWord } from "./status";
+import { endedWithoutRecord, needsMe, sessionWord } from "./status";
 import "./terminal.css";
 
 /** 세션별 「시작 뒤 일지 수」 — 오늘 일지의 만든 시각을 세션 시작과 견준다. */
@@ -291,7 +291,15 @@ export function TerminalScreen({
       <div className="tm-pane-head">
         <span className={"tm-dot" + (s.alive ? (waiting ? " is-wait" : " is-live") : "")} aria-hidden="true" />
         <span className="tm-name">{laneLabel(s)}</span>
-        <span className="tm-meta">{sessionWord(t, s)}</span>
+        <span className="tm-meta">
+          {sessionWord(t, s)}
+          {endedWithoutRecord(s, hasWorked(s.id), records.get(s.id) ?? 0) ? (
+            <span className="tm-norec" title={t("terminal.noRecordTitle")}>
+              {" · "}
+              {t("terminal.noRecord")}
+            </span>
+          ) : null}
+        </span>
         {zoomed ? <span className="tm-meta">{" · "}{t("terminal.zoomed", { key: kbd("⇧⌘↩", "terminal") })}</span> : null}
         <span className="tm-note-sp" />
         <button
@@ -381,6 +389,12 @@ export function TerminalScreen({
                     <span className="tm-name">{laneLabel(s)}</span>
                     <span className="tm-meta">
                       {sessionWord(t, s)}
+                      {endedWithoutRecord(s, hasWorked(s.id), n) ? (
+                        <span className="tm-norec" title={t("terminal.noRecordTitle")}>
+                          {" · "}
+                          {t("terminal.noRecord")}
+                        </span>
+                      ) : null}
                       {n > 0 ? (
                         <span className="tm-rec" title={t("terminal.recordsTitle")}>
                           {" · "}
