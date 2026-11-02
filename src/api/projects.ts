@@ -2,7 +2,7 @@
 //
 // 목록·폴더 고르기·등록·목록에서 빼기·최근 활동 집계, 그리고 이 프로젝트의 규칙
 // 파일(AGENTS.md 템플릿) 판 상태. 시작 창과 설정 「이 프로젝트」가 쓴다.
-import { commands, events, type HomeBrief, type Project } from "@/lib/bindings";
+import { commands, events, type HomeBrief, type Project, type VscodeColorOutcome } from "@/lib/bindings";
 import { call, subscribe } from "./invoke";
 
 /** 규칙 파일 판 차이 — `from` 이 디스크, `to` 가 앱이 든 판(또는 그 반대, 아래 참고). */
@@ -31,8 +31,11 @@ export const projectsApi = {
   forget: (projectId: number, wipe = false): Promise<null> =>
     call("delete_project", commands.deleteProject(projectId, wipe, false)),
 
-  /** 프로젝트 색 id 를 바꾼다 — `null` 은 색 없음 (`projectColor.ts`). */
-  setColor: (projectId: number, color: string | null): Promise<null> =>
+  /**
+   * 프로젝트 색 id 를 바꾼다 — `null` 은 색 없음 (`projectColor.ts`). 같은 색을 그 프로젝트의 VS Code 제목
+   * 표시줄(`.vscode/settings.json`)에도 맞추고, 주석이 있는 settings.json 이면 손대지 않고 `skipped`.
+   */
+  setColor: (projectId: number, color: string | null): Promise<VscodeColorOutcome> =>
     call("set_project_color", commands.setProjectColor(projectId, color)),
 
   /** 프로젝트마다 오늘·최근 활동 — `days` 는 날짜별 수를 담을 창(오늘 포함). */

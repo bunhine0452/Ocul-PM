@@ -180,8 +180,13 @@ export function ProjectSwitcher({
     if (currentProjectId == null) return;
     projectsApi
       .setColor(currentProjectId, color)
-      .then(() => onProjectsChanged?.())
-      .catch((e) => toast.destructive(String(e?.message ?? e)));
+      .then((vscode) => {
+        // VS Code 쪽은 조용히 — 주석이 있어 못 고쳤을 때만 말한다.
+        if (vscode === "skipped") toast.info(t("sidebar.projectColorVscodeSkipped"));
+      })
+      // 앱의 색은 저장됐을 수 있다(VS Code 파일만 실패) — 목록은 늘 다시 읽는다.
+      .catch((e) => toast.warning(t("sidebar.projectColorVscodeFailed", { error: String(e?.message ?? e) })))
+      .finally(() => onProjectsChanged?.());
   };
   const editorName = EDITOR_NAMES[choiceOf(editorCmd) === "auto" ? (detected ?? "") : choiceOf(editorCmd)];
   const openInEditor = () => {

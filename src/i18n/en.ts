@@ -47,6 +47,8 @@ export const en: Record<keyof typeof ko, string> = {
   "sidebar.findProject": "Find a project",
   "sidebar.findProjectNone": "No matching project",
   "sidebar.projectColorNone": "No color",
+  "sidebar.projectColorVscodeSkipped": ".vscode/settings.json has comments, so the VS Code colour was left alone",
+  "sidebar.projectColorVscodeFailed": "Could not set the VS Code colour — {error}",
   "projectColor.slate": "Gray",
   "projectColor.green": "Green",
   "projectColor.blue": "Blue",

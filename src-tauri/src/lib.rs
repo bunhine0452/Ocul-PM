@@ -38,6 +38,7 @@ pub mod proc;
 pub mod program_status;
 pub mod terminal;
 pub mod text;
+mod vscode_color;
 // 테스트 전용 링크 도우미 — 경로 탈출 가드 테스트가 Windows 에서도 돈다 (크로스플랫폼 W2).
 #[cfg(test)]
 mod test_links;
