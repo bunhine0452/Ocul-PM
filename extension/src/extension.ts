@@ -1,10 +1,11 @@
 // Ocul — 에이전트가 한 일의 영수증을 코드 옆에.
 //
 // 앱 없이 동작한다. `.oculpm/` 마크다운을 읽기만 하고(쓰기 0), git 은 VS Code 내장 git 확장의 API 로만
-// 본다(자식 프로세스 0), 네트워크에 닿지 않는다(`src/egress.spec.ts` 가 지킨다). 보여 주는 것은 예외뿐이다:
-//   상태 표시줄 왼쪽  — 마지막 확인 명령 결과(✓/✗) · 어느 일지에도 없는 변경 수
+// 본다(자식 프로세스 0), 네트워크에 닿지 않는다(`src/guard.spec.ts` 가 지킨다). 보여 주는 것은 예외뿐이다:
+//   상태 표시줄 왼쪽  — 마지막 확인 명령 결과(✓/✗) · 어느 일지에도 없는 변경 수 · Claude 기다림
 //   상태 표시줄 오른쪽 — 지금 연 파일의 영수증(이 파일을 건드린 일지 · 돌린 명령)
 //   탐색기 배지       — 어느 일지에도 없는 변경 파일
+// 앱과는 `bridge.ts` 로 잇는다 — 「Ocul 에서 열기」(앱 딥링크) · 「터미널에서 이어서」(사용자가 누를 때만).
 
 import * as vscode from "vscode";
 import { branchChanges, gitApi } from "./git";
@@ -16,6 +17,7 @@ import { ago } from "./model/time";
 import { Project } from "./project";
 import { trackedFolders } from "./store";
 import { agoText, receiptText, whenLabel } from "./text";
+import { continueInTerminal, pickInApp, plansWithNext, renderClaude, showClaude } from "./bridge";
 
 const t = vscode.l10n.t;
 const BADGE = "○";
@@ -30,11 +32,15 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   const file = vscode.window.createStatusBarItem("ocul.file", vscode.StatusBarAlignment.Right, 100);
   file.name = t("Ocul — this file's receipt");
   file.command = "ocul.fileHistory";
+  const claude = vscode.window.createStatusBarItem("ocul.claude", vscode.StatusBarAlignment.Left, 49);
+  claude.name = t("Ocul — Claude waiting");
+  claude.command = "ocul.showClaude";
   const decorations = new UnrecordedDecorations();
-  ctx.subscriptions.push(summary, file, decorations, vscode.window.registerFileDecorationProvider(decorations));
+  ctx.subscriptions.push(summary, file, claude, decorations, vscode.window.registerFileDecorationProvider(decorations));
 
   const render = () => {
     renderSummary(summary);
+    renderClaude(claude, current());
     renderFile(file);
     decorations.refresh();
   };
@@ -61,10 +67,20 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     vscode.commands.registerCommand("ocul.fileHistory", fileHistory),
     vscode.commands.registerCommand("ocul.copyReceipt", copyReceipt),
     vscode.commands.registerCommand("ocul.refresh", () => rebuild()),
+    vscode.commands.registerCommand("ocul.showClaude", () => showClaude(current())),
+    vscode.commands.registerCommand("ocul.openInApp", (arg?: vscode.Uri) => {
+      const uri = arg instanceof vscode.Uri ? arg : vscode.window.activeTextEditor?.document.uri;
+      const p = current(uri);
+      return pickInApp(p, p && uri ? p.rel(uri) : null);
+    }),
+    vscode.commands.registerCommand("ocul.continueInTerminal", (planId?: string) =>
+      continueInTerminal(current(), typeof planId === "string" ? planId : undefined),
+    ),
     { dispose: () => (projects.forEach((p) => p.dispose()), gitSub?.dispose()) },
   );
   // 「방금 전」 이 「12분 전」 이 되도록 — 1분마다 글만 다시 쓴다.
-  const tick = setInterval(() => renderSummary(summary), 60_000);
+  // 기다림은 30분이 지나면 빠진다 — 같은 1분에 다시 잰다.
+  const tick = setInterval(() => (renderSummary(summary), renderClaude(claude, current())), 60_000);
   ctx.subscriptions.push({ dispose: () => clearInterval(tick) });
   await rebuild();
 }
@@ -101,6 +117,8 @@ function renderSummary(item: vscode.StatusBarItem): void {
 
 function summaryTooltip(p: Project, o: Overview): vscode.MarkdownString {
   const md = new vscode.MarkdownString(undefined, true);
+  // 아래 명령 링크만 누를 수 있게 — 다른 명령은 막힌다.
+  md.isTrusted = { enabledCommands: ["ocul.openInApp", "ocul.continueInTerminal", "ocul.showExceptions"] };
   md.appendMarkdown(`**Ocul · ${escape(p.store.name)}**\n\n`);
   if (o.latest) {
     const v = o.latest;
@@ -113,7 +131,11 @@ function summaryTooltip(p: Project, o: Overview): vscode.MarkdownString {
   if (o.failing.length > 1) md.appendMarkdown(t("{0} plans failing", o.failing.length) + "\n\n");
   if (o.unrecorded.length > 0) md.appendMarkdown(`${BADGE} ` + t("{0} changes in no journal entry", o.unrecorded.length) + "\n\n");
   if (o.unproven.length > 0) md.appendMarkdown(t("{0} journal entries today without a command run", o.unproven.length) + "\n\n");
+  const next = plansWithNext(p)[0];
+  if (next?.next) md.appendMarkdown(`${t("Next: {0}", escape(next.next.title))} · ${escape(next.title)}\n\n`);
   md.appendMarkdown(t("Click for what needs your eyes."));
+  md.appendMarkdown(`\n\n[$(link-external) ${t("Open in Ocul")}](command:ocul.openInApp)`);
+  if (next) md.appendMarkdown(` · [$(terminal) ${t("Continue in terminal")}](command:ocul.continueInTerminal)`);
   return md;
 }
 
@@ -194,6 +216,17 @@ async function showExceptions(): Promise<void> {
     items.push({ label: t("Changes in no journal entry"), kind: vscode.QuickPickItemKind.Separator });
     for (const f of o.unrecorded)
       items.push({ label: `${BADGE} ${f}`, open: () => openFile(vscode.Uri.joinPath(p.root, ...f.split("/"))) });
+  }
+  const nexts = plansWithNext(p);
+  if (nexts.length > 0) {
+    items.push({ label: t("Next up"), kind: vscode.QuickPickItemKind.Separator });
+    for (const pl of nexts)
+      items.push({
+        label: `$(arrow-right) ${pl.next?.title ?? ""}`,
+        description: pl.title,
+        detail: t("Continue with claude in the terminal"),
+        open: () => continueInTerminal(p, pl.id),
+      });
   }
   if (items.length === 0) {
     const ok = o.latest ? t("Nothing needs your eyes. Last check passed {0}.", agoText(ago(o.latest.ts, Date.now()))) : t("Nothing needs your eyes.");

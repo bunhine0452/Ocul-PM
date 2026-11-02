@@ -8,11 +8,9 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { fileOpenApi } from "@/api/fileOpen";
 import { projectsApi } from "@/api/projects";
 import { windowApi } from "@/api/window";
-import { useOptionalSettings } from "@/contexts/SettingsContext";
-import { choiceOf } from "@/features/settings/EditorRow";
+import { useOpenInEditor } from "./useOpenInEditor";
 import { addProjectFromFolder } from "@/features/start/addFolder";
 import { PROJECT_COLORS, projectColorOf } from "./projectColor";
 import { PROJECT_SLOTS, byAttention, projectSlotLabel, projectSlotOf } from "./projectKeys";
@@ -52,8 +50,6 @@ export function ProjectSwitcher({
   const [openWindows, setOpenWindows] = useState<number[]>([]);
   const [attention, setAttention] = useState<Map<number, ProjectAttention>>(new Map());
   const terms = useTermOverview(open);
-  const editorCmd = useOptionalSettings()?.settings.externalEditorCommand ?? "auto";
-  const [detected, setDetected] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -73,12 +69,6 @@ export function ProjectSwitcher({
       .brief(1)
       .then((b) => alive && setBrief(b))
       .catch(() => {});
-    if (choiceOf(editorCmd) === "auto") {
-      void fileOpenApi
-        .detectEditor()
-        .then((d) => alive && setDetected(d))
-        .catch(() => {});
-    }
     void windowApi
       .openProjectIds()
       .then((ids) => alive && setOpenWindows(ids))
@@ -98,7 +88,7 @@ export function ProjectSwitcher({
       alive = false;
       void off.then((unlisten) => unlisten());
     };
-  }, [open, projects, editorCmd]);
+  }, [open, projects]);
 
   // 열 때 프로젝트 목록도 다시 읽는다 — 다른 창에서 바꾼 색이 이 목록에 따라오게. `projects` 를 바꾸는
   // 일이라 위 효과(의존성에 `projects`)와 따로 둔다 — 같이 두면 다시 읽기가 끝없이 돈다.
@@ -188,14 +178,11 @@ export function ProjectSwitcher({
       .catch((e) => toast.warning(t("sidebar.projectColorVscodeFailed", { error: String(e?.message ?? e) })))
       .finally(() => onProjectsChanged?.());
   };
-  const editorName = EDITOR_NAMES[choiceOf(editorCmd) === "auto" ? (detected ?? "") : choiceOf(editorCmd)];
+  const editor = useOpenInEditor(currentRoot, open);
   const openInEditor = () => {
     close(false);
-    if (!currentRoot) return;
     // 빈 상대 경로 = 프로젝트 폴더 그 자체 (`open_in_editor`). VS Code 는 `vscode://file/<폴더>` 를 새 창으로 연다.
-    fileOpenApi
-      .inExternalEditor(currentRoot, "", editorCmd, null)
-      .catch((e) => toast.destructive(t("sidebar.openInEditorFailed", { error: String(e?.message ?? e) })));
+    editor.open("");
   };
 
   const ordered = byAttention(orderRecent(projects, brief), attention);
@@ -303,7 +290,7 @@ export function ProjectSwitcher({
           ) : null}
           {currentRoot ? (
             <button type="button" role="menuitem" className="proj-pop-add" onClick={openInEditor}>
-              {editorName ? t("sidebar.openInEditor", { name: editorName }) : t("sidebar.openInEditorGeneric")}
+              {editor.label}
             </button>
           ) : null}
           <button type="button" role="menuitem" className="proj-pop-add" onClick={() => void addFolder()}>
@@ -314,9 +301,6 @@ export function ProjectSwitcher({
     </div>
   );
 }
-
-/** 「자동」 이 찾은 것 · 고른 것의 이름. 없으면(기본 앱 · 직접 입력) 「편집기에서 열기」. */
-const EDITOR_NAMES: Record<string, string> = { vscode: "VS Code", cursor: "Cursor" };
 
 /**
  * 그 프로젝트가 나를 기다리는가 — 기다림(Claude 의 허락 · 입력 · 질문)이 있으면 그것 하나, 아니면 앱 안

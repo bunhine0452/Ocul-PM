@@ -4,5 +4,8 @@
   "cmd.fileHistory": "Journal entries for this file",
   "cmd.copyReceipt": "Copy PR receipt",
   "cmd.refresh": "Reload records",
-  "config.explorerBadges": "Mark changed files that no journal entry mentions with `○` in the Explorer."
+  "config.explorerBadges": "Mark changed files that no journal entry mentions with `○` in the Explorer.",
+  "cmd.openInApp": "Open in Ocul",
+  "cmd.showClaude": "Claude waiting on me",
+  "cmd.continueInTerminal": "Continue the next item with claude in the terminal"
 }

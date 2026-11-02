@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from "react";
 import { consumeEntryJump, onEntryJump } from "@/lib/entryJump";
 import { onOpenSettingsRequest } from "@/lib/settingsNav";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
+import { planTargetOf } from "@/features/deeplink/deepLinkPlan";
 import { UI_V2_VIEWS, type UiPrefsValue, type UiV2View } from "@/contexts/WorkspaceContext";
 
 /**
@@ -109,6 +110,13 @@ export function useShellNav({
   // 딥링크로 갓 열린 창 — URL 이 실어 온 목적지를 mount 시 1회 적용한다
   // (새 창의 프런트는 아직 리스너를 달기 전이라 emit 을 받을 수 없다).
   useEffect(() => {
+    const plan = planTargetOf(initialEntryPath);
+    if (plan) {
+      setPrefs(() => ({ plannerPlanId: plan }));
+      setJumpNonce((n) => n + 1);
+      setUiV2View("planner");
+      return;
+    }
     if (initialEntryPath) {
       setJournalReturnView(null);
       setJournalOpenEntry(initialEntryPath);

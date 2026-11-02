@@ -1,0 +1,65 @@
+{
+  "_doc": "Claude 기다림 규칙 사례표 — 앱(claude_waiting.rs apply_waiting)과 VS Code 확장(extension/src/model/waiting.ts)이 같은 표를 읽는다. 한쪽 규칙을 바꾸면 둘 다 빨개진다. waiting 은 끝난 뒤 남은 [session_id, kind] (session_id 순).",
+  "cases": [
+    {
+      "name": "permission prompt waits",
+      "events": [{ "hook_event_name": "Notification", "session_id": "s1", "notification_type": "permission_prompt", "message": "Bash 를 허락할까요?" }],
+      "waiting": [["s1", "permission"]]
+    },
+    {
+      "name": "idle prompt waits",
+      "events": [{ "hook_event_name": "Notification", "session_id": "s1", "notification_type": "idle_prompt" }],
+      "waiting": [["s1", "idle"]]
+    },
+    {
+      "name": "other notifications are ignored",
+      "events": [{ "hook_event_name": "Notification", "session_id": "s1", "notification_type": "auth_success" }],
+      "waiting": []
+    },
+    {
+      "name": "answering clears",
+      "events": [
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "permission_prompt" },
+        { "hook_event_name": "UserPromptSubmit", "session_id": "s1" }
+      ],
+      "waiting": []
+    },
+    {
+      "name": "stop, failure, end and a new start all clear",
+      "events": [
+        { "hook_event_name": "Notification", "session_id": "a", "notification_type": "idle_prompt" },
+        { "hook_event_name": "Notification", "session_id": "b", "notification_type": "idle_prompt" },
+        { "hook_event_name": "Notification", "session_id": "c", "notification_type": "idle_prompt" },
+        { "hook_event_name": "Notification", "session_id": "d", "notification_type": "idle_prompt" },
+        { "hook_event_name": "Stop", "session_id": "a" },
+        { "hook_event_name": "StopFailure", "session_id": "b" },
+        { "hook_event_name": "SessionEnd", "session_id": "c" },
+        { "hook_event_name": "SessionStart", "session_id": "d" }
+      ],
+      "waiting": []
+    },
+    {
+      "name": "sessions are separate and the latest kind wins",
+      "events": [
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "idle_prompt" },
+        { "hook_event_name": "Notification", "session_id": "s2", "notification_type": "idle_prompt" },
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "permission_prompt" },
+        { "hook_event_name": "Stop", "session_id": "s2" }
+      ],
+      "waiting": [["s1", "permission"]]
+    },
+    {
+      "name": "events without a session are ignored",
+      "events": [{ "hook_event_name": "Notification", "session_id": "", "notification_type": "idle_prompt" }],
+      "waiting": []
+    },
+    {
+      "name": "tool events do not clear",
+      "events": [
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "permission_prompt" },
+        { "hook_event_name": "PostToolUse", "session_id": "s1" }
+      ],
+      "waiting": [["s1", "permission"]]
+    }
+  ]
+}

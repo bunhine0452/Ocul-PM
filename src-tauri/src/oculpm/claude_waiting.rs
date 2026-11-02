@@ -138,6 +138,27 @@ pub fn write_answer(root: &Path, id: &str, answer: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 사례표(`waiting_cases.json`) — VS Code 확장 `extension/src/model/waiting.spec.ts` 가 같은 표를 읽는다.
+    #[test]
+    fn shared_waiting_cases() {
+        let v: serde_json::Value =
+            serde_json::from_str(include_str!("waiting_cases.json")).unwrap();
+        for case in v["cases"].as_array().unwrap() {
+            let mut waiting = BTreeMap::new();
+            for ev in case["events"].as_array().unwrap() {
+                let ev: HookEvent = serde_json::from_value(ev.clone()).unwrap();
+                apply_waiting(&mut waiting, &ev, "2026-11-03T00:00:00Z");
+            }
+            let got: Vec<(String, String)> = waiting
+                .values()
+                .map(|w| (w.session_id.clone(), w.kind.clone()))
+                .collect();
+            let want: Vec<(String, String)> =
+                serde_json::from_value(case["waiting"].clone()).unwrap();
+            assert_eq!(got, want, "{}", case["name"]);
+        }
+    }
     use crate::oculpm::claude_hooks::parse_inbox_slice;
 
     #[test]
