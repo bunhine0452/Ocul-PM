@@ -1,15 +1,15 @@
 <div align="center">
 
-<img src="landing/banner-en.png" alt="Ocul: Stop re-explaining to your AI where you left off yesterday. The 4.1 app's Today screen on the right." width="100%" />
+<img src="landing/banner-en.png" alt="Ocul: Not “all done” — a receipt. The 4.1 app's Today screen on the right." width="100%" />
 
 <img src="landing/demo-en.gif" alt="Ocul 4.1 demo: answer Claude's question on Today, Claude receives it in the terminal and records an entry and a verdict, then Work Journal, Plan and Diff" width="100%" />
 
 <sub>Real 4.1 screens, filled with this repository's journal; only Claude's question is demo data. Running the agent in your own terminal leaves the same records.</sub>
 
-<h3>Stop re-explaining to your AI where you left off yesterday.</h3>
+<h3>Not “all done” — a receipt.</h3>
 
-<p>It gets a person to <b>trust what the agent did, and decide what's next, in three minutes</b> — and gets the agent to <b>lay down a verdict first</b>, whatever it starts. Journal, diff and plan are the evidence, and the verdict is not the agent's word but the last line of a check command's output.<br/>
-A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI — no server, no account, and the app never calls an LLM.</p>
+<p>Every time a coding agent finishes, <b>what it changed and the command that checked it</b> are kept in your project folder as Markdown. Ocul puts <b>only what isn't proven</b> in front of you — failed check commands, entries without command evidence, changes no entry mentions.<br/>
+Start with two lines of the Claude Code plugin, and add the desktop app if you want to see it on screen. Codex · Cursor · Gemini CLI record through one rules file. No server, no account, and the app never calls an LLM.</p>
 
 [![CI](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml)
 [![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
@@ -31,9 +31,16 @@ A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI �
 
 ---
 
-If you build with AI every day, every morning starts the same way: open a new conversation and explain, from scratch, how far you got yesterday, why you touched those files, and what is still left. When the conversation ends, the context ends with it — the code survives, the context doesn't.
+When an agent finishes, it says "all done". Whether the tests really passed, which files it changed and why, what it skipped — none of that is in the sentence. To check, you reread the diff and the logs from the top, and tomorrow's new conversation doesn't even have that context.
 
-Ocul removes that explanation. Plant a single rules file (`AGENTS.md`) in your project folder and the agent writes a markdown journal entry to `.oculpm/journal/` every time it finishes a unit of work; the next conversation receives those entries and the remaining plan — done condition · check command · last verdict — as its starting context and carries on. From that record the app unfolds **only what a person needs to look at**: failed verdicts, entries without command evidence, changes no entry mentions, blocked items, decisions that are yours to make. Work that has its evidence folds to one line. Because the source of truth is plain markdown, it commits alongside your code and stays readable without the app.
+```text
+/plugin marketplace add bunhine0452/Ocul-PM
+/plugin install oculpm@oculpm
+```
+
+Those two lines in Claude Code are all it takes to start (no app needed). To see the record on screen, [download the app](https://github.com/bunhine0452/Ocul-PM/releases/latest) — macOS, with Windows · Linux in beta.
+
+Ocul leaves a receipt instead of that sentence. Plant a single rules file (`AGENTS.md`) in your project folder and the agent writes a markdown journal entry to `.oculpm/journal/` every time it finishes a unit of work; the next conversation receives those entries and the remaining plan — done condition · check command · last verdict — as its starting context and carries on. From that record the app unfolds **only what a person needs to look at**: failed verdicts, entries without command evidence, changes no entry mentions, blocked items, decisions that are yours to make. Work that has its evidence folds to one line. Because the source of truth is plain markdown, it commits alongside your code and stays readable without the app.
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache, **the app calls no LLM, and its screens (the webview) reach no outside host.** The only things that leave your machine are the ones you start — the update check, and links you click (your OS browser opens them). The full list, countable for yourself, is at [oculpm.com/privacy](https://oculpm.com/privacy), and the build keeps it honest (`src-tauri/tests/egress_inventory.rs`).
 

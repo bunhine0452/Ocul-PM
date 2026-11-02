@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ocul — Stop re-explaining to your AI where you left off yesterday. · AI project manager for coding agents</title>
-<meta name="description" content="Stop re-explaining to your AI where you left off yesterday. When Claude Code finishes a unit of work, a journal entry lands in Ocul and the next conversation starts from it. The app unfolds only what a person must see — failed verdicts, entries without evidence, unrecorded changes — and reads the verdict from a check command's last line of output. Codex, Cursor and Gemini CLI record through the rules file. The app calls no LLM. Local-first · no account · no telemetry." />
+<title>Ocul — Not “all done” — a receipt. · Work receipts for coding agents</title>
+<meta name="description" content="Not “all done” — a receipt. Every time a coding agent (Claude Code, Codex, Cursor, Gemini CLI) finishes, what it changed and the command that checked it are kept in your project folder as a Markdown receipt. Ocul unfolds only what isn't proven — failed check commands, entries without command evidence, changes no entry mentions. Start with two lines of the Claude Code plugin, and add the desktop app if you want to see it on screen. The app calls no LLM, and there is no account, server or telemetry." />
 <meta name="keywords" content="AI PM, AI project manager, ai pm tool, Ocul, Ocul-PM, coding agent, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, dev journal, agent work log, work journal, code change tracking, AI pair programming record, vibe coding management, Claude Code work log, Cursor change tracking, check command, verdict, done condition, Claude Code plugin, AI developer tools, local-first, macOS developer tools, developer productivity" />
 <meta name="author" content="Ocul" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
@@ -20,8 +20,8 @@
 <meta property="og:locale" content="en_US" />
 <meta property="og:locale:alternate" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/en" />
-<meta property="og:title" content="Ocul — Stop re-explaining to your AI where you left off yesterday." />
-<meta property="og:description" content="When Claude Code finishes a unit of work, a journal entry is left behind and the next conversation starts from it. Only what you must see unfolds, and the verdict is a check command's last line. Local-first · no account · no telemetry." />
+<meta property="og:title" content="Ocul — Not “all done” — a receipt." />
+<meta property="og:description" content="Every time your agent finishes, what it changed and the command that checked it are on record. Only what isn't proven comes to you. Two-line plugin · local · no account." />
 <meta property="og:image" content="https://oculpm.com/og-en.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
@@ -29,8 +29,8 @@
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Ocul — Stop re-explaining to your AI where you left off yesterday." />
-<meta name="twitter:description" content="When Claude Code finishes a unit of work, a journal entry is left behind and the next conversation starts from it. Local-first · native macOS." />
+<meta name="twitter:title" content="Ocul — Not “all done” — a receipt." />
+<meta name="twitter:description" content="Every time your agent finishes, what it changed and the command that checked it are on record. Only what isn't proven comes to you. Two-line plugin · local · no account." />
 <meta name="twitter:image" content="https://oculpm.com/og-en.png" />
 
 <link rel="icon" href="/icon.svg" />
@@ -50,7 +50,7 @@
   "image": "https://oculpm.com/og-en.png",
   "softwareVersion": "4.3.0",
   "inLanguage": "en",
-  "description": "Stop re-explaining to your AI where you left off yesterday. A local-first AI project manager for people who build with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends) every day — when the agent finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan items as its starting context. The app unfolds only what a person must see (failed verdicts · entries without evidence · unrecorded changes) and reads the verdict from a check command's last line of output. The app calls no LLM. Two-line install as a Claude Code plugin.",
+  "description": "Not “all done” — a receipt. Every time a coding agent (Claude Code, Codex, Cursor, Gemini CLI) finishes, what it changed and the command that checked it are kept in your project folder as a Markdown receipt. Ocul unfolds only what isn't proven — failed check commands, entries without command evidence, changes no entry mentions. Start with two lines of the Claude Code plugin, and add the desktop app if you want to see it on screen. The app calls no LLM, and there is no account, server or telemetry.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
     "Five screens — Today · Work Journal · Plan · Diff · Terminal, plus Settings and a start window when no project is open. One principle, show only the exceptions: the screen grows with what a person must see, not with how much the agent did, so 3 entries a day or 60 use the same screen with no modes",
@@ -239,21 +239,21 @@
     </nav>
     <span class="nav-spacer"></span>
     <a class="nav-lang" href="/" hreflang="ko">한국어</a>
-    <a class="btn primary nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+    <a class="btn nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
   </div>
 </header>
 
 <main id="main">
 <section class="hero" aria-labelledby="hero-h">
   <div class="wrap">
-    <h1 id="hero-h">Stop re-explaining to your AI where you left off yesterday.</h1>
-    <p class="lede">When your agent finishes, <b>what it did and how it checked</b> lands in a journal, and tomorrow's conversation starts from it.</p>
+    <h1 id="hero-h">Not “all done” — a receipt.</h1>
+    <p class="lede">Every time your agent finishes, <b>what it changed and the command that checked it</b> are on record. Only what isn't proven comes to you.</p>
     <div class="ctas">
-      <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
+      <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
+      <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
         <span class="lg">Get v4.3.0</span><span class="sub">macOS · free</span>
       </a>
-      <button class="cmd two" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
     </div>
     <div class="subrow">
       <p class="os" data-dl-os>Windows and Linux are in beta
@@ -463,13 +463,13 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
 <section class="close" id="download" aria-labelledby="close-h">
   <div class="wrap">
     <h2 id="close-h">Nothing is required to start.</h2>
-    <p class="intro">No sign-up, no setup, no fee. You download it, and that is the whole thing.</p>
+    <p class="intro">No sign-up, no setup, no fee. Paste two lines into Claude Code to start, and download the app if you want to see it on screen.</p>
     <div class="ctas">
-      <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
+      <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
+      <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
         <span class="lg">Get v4.3.0</span><span class="sub">free · auto-updates</span>
       </a>
-      <a class="btn" href="/en/plugin">Start with the plugin</a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Teams &amp; partnerships</a>
     </div>
     <p class="os" data-dl-os>Windows and Linux are in beta

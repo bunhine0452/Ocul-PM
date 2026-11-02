@@ -224,12 +224,12 @@ Softly rounded, with radius stepping down as elements nest: window 14px → pane
 ### Buttons
 Quiet and solid, built to be pressed once.
 - **Shape:** gently rounded (10px), 48px tall, 22px side padding, 650 weight at 16px, optional 18px SVG icon at a 10px gap and a 13px sub-label.
-- **Primary:** Verdict Mint fill and border, Forest Ink text. There is one per viewport: the download button.
+- **Primary:** Verdict Mint fill and border, Forest Ink text. Since 2026-11-02 the hero's primary action is the plugin command copy (see Command copy), so the download button and the nav CTA are Secondary; a Verdict Mint fill appears at most once per viewport.
 - **Hover / Focus:** the fill moves to Pressed Mint over 160ms (ease-out `cubic-bezier(0.16, 1, 0.3, 1)`). Focus is a 2px mint outline at a 3px offset.
 - **Secondary:** transparent with a Strong Hairline border and Paper Ink text. On hover it gets a 5% white wash and a 24% border. The nav CTA is the same button at 36px, 14px text, 8px radius.
 
 ### Command copy
-A button that looks like a shell line: a Window Sheet box with a Strong Hairline border, 48px tall, holding a mono command with a Moss Grey `$ ` prompt and an Inset Sheet 「copy」 tag on the right that turns Mint Text once copied. A two-line variant stacks two commands at 13px. It is how the plugin install is offered next to the primary button.
+A button that looks like a shell line: a Window Sheet box with a Strong Hairline border, 48px tall, holding a mono command with a Moss Grey `$ ` prompt and an Inset Sheet 「copy」 tag on the right that turns Mint Text once copied. A two-line variant stacks two commands at 13px. It is how the plugin install is offered. As the hero and closing primary action (`.cmd.is-primary`, 2026-11-02) its border is Verdict Mint and its 「copy」 tag is a Verdict Mint fill with Forest Ink text (Mint Wash with Mint Text once copied).
 
 ### Window tabs
 Five 32px tabs in the app frame's top bar: Moss Grey text, 8px radius. The selected tab is an Inset Sheet fill with Paper Ink text at 650. An amber count badge (11px, 700, pill) can sit inside a tab. Switching tabs cross-fades the screens over 220ms.
