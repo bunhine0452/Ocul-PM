@@ -4,11 +4,15 @@
  * 창 하나가 프로젝트 하나라(4.0) 목록에서 고르는 것은 **그 프로젝트의 창**을 여는
  * 것이다. 이미 다른 창에 열려 있으면 그 창이 앞으로 온다(I1). 이 창의 프로젝트는
  * 바뀌지 않는다(I3). 「폴더 열기…」는 폴더를 들여 새 창으로 연다.
+ * 「VS Code 에서 열기」는 이 창의 프로젝트 폴더를 설정 「파일 열기」 의 편집기로 연다(2026-11-02).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { fileOpenApi } from "@/api/fileOpen";
 import { projectsApi } from "@/api/projects";
 import { windowApi } from "@/api/window";
+import { useOptionalSettings } from "@/contexts/SettingsContext";
+import { choiceOf } from "@/features/settings/EditorRow";
 import { addProjectFromFolder } from "@/features/start/addFolder";
 import { PROJECT_SLOTS, byAttention, projectSlotLabel, projectSlotOf } from "./projectKeys";
 import { TermsChip } from "@/features/terminal/TermsChip";
@@ -45,6 +49,8 @@ export function ProjectSwitcher({
   const [openWindows, setOpenWindows] = useState<number[]>([]);
   const [attention, setAttention] = useState<Map<number, ProjectAttention>>(new Map());
   const terms = useTermOverview(open);
+  const editorCmd = useOptionalSettings()?.settings.externalEditorCommand ?? "auto";
+  const [detected, setDetected] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -64,6 +70,12 @@ export function ProjectSwitcher({
       .brief(1)
       .then((b) => alive && setBrief(b))
       .catch(() => {});
+    if (choiceOf(editorCmd) === "auto") {
+      void fileOpenApi
+        .detectEditor()
+        .then((d) => alive && setDetected(d))
+        .catch(() => {});
+    }
     void windowApi
       .openProjectIds()
       .then((ids) => alive && setOpenWindows(ids))
@@ -82,7 +94,7 @@ export function ProjectSwitcher({
       alive = false;
       void off.then((unlisten) => unlisten());
     };
-  }, [open, projects]);
+  }, [open, projects, editorCmd]);
 
   // ⌥⌘1~9 (Alt+1~9) — 목록을 열지 않고 그 번호의 프로젝트 창으로. 번호는 목록과 같은 최근 순서.
   // 캡처 단계 — ⌘숫자(화면 전환) 처리기보다 먼저, 터미널보다 먼저 받는다.
@@ -150,6 +162,17 @@ export function ProjectSwitcher({
     onOpenProject(result.project.id);
   };
 
+  const currentRoot = projects.find((p) => p.id === currentProjectId)?.root_path ?? null;
+  const editorName = EDITOR_NAMES[choiceOf(editorCmd) === "auto" ? (detected ?? "") : choiceOf(editorCmd)];
+  const openInEditor = () => {
+    close(false);
+    if (!currentRoot) return;
+    // 빈 상대 경로 = 프로젝트 폴더 그 자체 (`open_in_editor`). VS Code 는 `vscode://file/<폴더>` 를 새 창으로 연다.
+    fileOpenApi
+      .inExternalEditor(currentRoot, "", editorCmd, null)
+      .catch((e) => toast.destructive(t("sidebar.openInEditorFailed", { error: String(e?.message ?? e) })));
+  };
+
   const ordered = byAttention(orderRecent(projects, brief), attention);
   const shortcut = kbd("⌘O");
 
@@ -200,6 +223,11 @@ export function ProjectSwitcher({
               </button>
             );
           })}
+          {currentRoot ? (
+            <button type="button" role="menuitem" className="proj-pop-add" onClick={openInEditor}>
+              {editorName ? t("sidebar.openInEditor", { name: editorName }) : t("sidebar.openInEditorGeneric")}
+            </button>
+          ) : null}
           <button type="button" role="menuitem" className="proj-pop-add" onClick={() => void addFolder()}>
             {t("sidebar.addFolder")}
           </button>
@@ -208,6 +236,9 @@ export function ProjectSwitcher({
     </div>
   );
 }
+
+/** 「자동」 이 찾은 것 · 고른 것의 이름. 없으면(기본 앱 · 직접 입력) 「편집기에서 열기」. */
+const EDITOR_NAMES: Record<string, string> = { vscode: "VS Code", cursor: "Cursor" };
 
 /**
  * 그 프로젝트가 나를 기다리는가 — 기다림(Claude 의 허락 · 입력 · 질문)이 있으면 그것 하나, 아니면 앱 안

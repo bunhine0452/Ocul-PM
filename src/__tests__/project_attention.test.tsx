@@ -7,6 +7,10 @@ const fx = vi.hoisted(() => ({
   attention: new Map<number, { project_id: number; waiting: number; failing: boolean }>(),
 }));
 
+const openFx = vi.hoisted(() => ({ inExternalEditor: vi.fn(async () => null) }));
+vi.mock("@/api/fileOpen", () => ({
+  fileOpenApi: { detectEditor: async () => "vscode", inExternalEditor: openFx.inExternalEditor },
+}));
 vi.mock("@/api/projects", () => ({ projectsApi: { brief: async () => null } }));
 vi.mock("@/api/terminal", () => ({
   terminalApi: { overview: async () => [], onSessionsChanged: async () => () => {} },
@@ -75,5 +79,14 @@ describe("project switcher", () => {
     const rows = within(menu).getAllByRole("menuitem");
     expect(rows[0]).toHaveTextContent(t("sidebar.waiting", { n: 2 }));
     expect(rows[1]).toHaveTextContent(t("sidebar.failing"));
+  });
+
+  it("opens this window's project folder in VS Code", async () => {
+    setLangSetting("ko");
+    render(<ProjectSwitcher projectName="b" currentProjectId={2} projects={projects} onOpenProject={vi.fn()} />);
+    fireEvent(window, new Event(NAV_BUS.openProjectSwitcher));
+    const item = await screen.findByRole("menuitem", { name: t("sidebar.openInEditor", { name: "VS Code" }) });
+    fireEvent.click(item);
+    expect(openFx.inExternalEditor).toHaveBeenCalledWith("/b", "", "auto", null);
   });
 });

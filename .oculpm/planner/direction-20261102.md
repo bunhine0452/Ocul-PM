@@ -36,4 +36,5 @@ owner: claude-code
 | 2026-11-02T20:44:30+09:00 | #freeze | claude-code | ~→~ |  | 예외 2건째(11-02, ai-pm-f4 세션이 전한 사용자 결정): 「기다림 신호 묶음」 — ⌘O 목록 · ⌥⌘ 번호 줄 프로젝트별 예외 점 + 급한 순, 창 제목 「· 기다림 N」, Dock 배지. 새 화면 없음. 동결 첫날 예외 2건 — 11-30 재측정에서 예외로 넣은 것도 따로 센다 |
 | 2026-11-02T22:00:15+09:00 | #freeze | claude-code | ~→~ |  | 사용자 결정(11-02, 이 세션에서 직접): 예외는 VS Code 확장 · 기다림 신호 묶음 이 둘로 닫는다 — 이후 새 기능 요청은 11-30 재측정 뒤로. v4.3.1(ai-pm-f4 세션, 오늘 둘째 릴리스)에 zip · pulldown-cmark 공지 수정이 실렸다 |
 | 2026-11-02T22:06:42+09:00 | #promise-9 | claude-code | ☐→x | .oculpm/journal/20261102/Chores/2206_chore_promise-9-monthly-check-day.md | 판정 ✓ pnpm test 1009 passed · bump_version 11 passed · dry-run 경고 확인 · typecheck/lint/build 0 |
+| 2026-11-02T22:22:05+09:00 | #freeze | claude-code | ~→~ | .oculpm/journal/20261102/Features_to_add/2216_feature_project-menu-open-in-editor.md | 사용자 결정(11-02, 이 세션 직접 「진짜 찐막」): 예외 3건째 = 프로젝트 ▾ 메뉴 「VS Code 에서 열기」, v4.3.2 로 냄. 이것으로 예외 끝 — 이후 새 기능은 11-30 재측정 뒤. 오늘 셋째 릴리스 |
 <!-- oculpm:plan-log end -->
