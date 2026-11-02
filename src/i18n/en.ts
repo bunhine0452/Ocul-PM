@@ -405,6 +405,7 @@ export const en: Record<keyof typeof ko, string> = {
   "today.check.kind.plugin": "Plugin update",
   "today.check.verdictTitle": "The check command of plan “{plan}” failed",
   "today.check.kind.stale": "Changed after pass",
+  "today.check.teammate": "pushed by {name}",
   "today.check.staleTitle": "Files changed after plan “{plan}” passed",
   "today.check.staleMeta": "✓ {when} · {files}",
   "today.check.recheck": "Check again",

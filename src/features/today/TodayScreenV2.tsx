@@ -242,6 +242,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
       entryCount: entries.length,
       unrecordedKnown: data.unrecorded != null,
       showAgent: multiAgent,
+      teammates: data.teammates,
       activeIndex: active,
       setActiveIndex: setActive,
       rowRefs,

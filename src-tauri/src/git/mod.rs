@@ -19,6 +19,7 @@
 //! | `path_form` | 경로의 저장 모양 — `/` 구분 상대 경로 · 윈도우 `\\?\` 접두 걷기 |
 //! | `safe` | git 프로세스 생성 — 저장소 설정이 고른 명령(fsmonitor·훅·필터·외부 diff) 끄기 · 시간 제한 |
 
+pub mod authors; // 동료의 일지 — 그날 일지를 더한 커밋의 작성자 (11-02)
 mod blob;
 mod changes;
 mod diff;

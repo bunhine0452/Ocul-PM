@@ -45,6 +45,7 @@ const fx = vi.hoisted(() => ({
   answers: [] as Array<[string, string]>,
   verifyCalls: [] as Array<[string, boolean]>,
   dispatchCalls: [] as Array<[string, string]>,
+  teammates: [] as Array<{ path: string; author: string }>,
 }));
 
 // 「다음」 은 앱 안 터미널에서 실행된다 — 터미널(xterm)은 띄우지 않고 넘긴 프롬프트만 본다.
@@ -75,6 +76,8 @@ vi.mock("@/lib/bindings", () => {
                 });
             case "todayDigest":
               return () => ok(fx.digest);
+            case "todayTeammates":
+              return () => ok(fx.teammates);
             case "oculpmCompareWorkday":
               return () =>
                 fx.compareFails
@@ -235,11 +238,21 @@ beforeEach(() => {
   fx.answers = [];
   fx.verifyCalls = [];
   fx.dispatchCalls = [];
+  fx.teammates = [];
   Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true });
 });
 afterEach(() => cleanup());
 
 describe("확인할 것 — 종류와 순서", () => {
+  it("동료가 git 으로 올린 일지는 그 사람 이름을 단다 — 내 에이전트의 일이 아니다", async () => {
+    const theirs = entry(1, { type: "bug", evidence: 0, title: "동료의 버그 수정" });
+    fx.entries = [theirs, entry(2, { type: "bug", evidence: 0, title: "내 버그 수정" })];
+    fx.teammates = [{ path: theirs.relative_path, author: "민지" }];
+    renderToday();
+    await waitFor(() => expect(within(unreadCard()).getByText(t("today.check.teammate", { name: "민지" }))).toBeInTheDocument());
+    expect(within(unreadCard()).getAllByText(/님이 올린 일지/)).toHaveLength(1);
+  });
+
   it("먼저 볼 것은 지금 손댈 다섯 종류 — 검증 없는 일지는 아래 묶음, 내 차례는 한 줄", async () => {
     fx.entries = [entry(1, { type: "bug", evidence: 0, title: "새 폴더 감시 경합" }), entry(2)];
     fx.digest = digest({

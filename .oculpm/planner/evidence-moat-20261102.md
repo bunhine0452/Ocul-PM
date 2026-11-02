@@ -17,7 +17,7 @@ Orca·claude-mem 이 못 하는 자리(확인 명령 결과로 믿음을 판정�
 - [x] 판정 뒤 바뀜 — ✓ 뒤 저장된 파일을 오늘에 {#stale-verdict}
 - [x] 재수정 경고 — 최근 버그 파일을 고치기 직전 훅 {#refix-warn}
 - [x] PR 영수증 — 변경 화면에서 마크다운 복사 {#pr-receipt}
-- [ ] 동료 기록 — git 으로 받은 일지의 예외 {#team-exceptions}
+- [x] 동료 기록 — git 으로 받은 일지의 예외 {#team-exceptions}
 
 ## 터미널 {#terminal}
 - [ ] 터미널 찾기 ⌘F {#term-find}
@@ -34,4 +34,6 @@ Orca·claude-mem 이 못 하는 자리(확인 명령 결과로 믿음을 판정�
 | 2026-11-02T17:49:41+09:00 | #stale-verdict | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1749_feature_today-stale-verdict.md | 판정 ✓ pnpm test 993 passed · cargo test 1067 passed · typecheck/lint/build 0 |
 | 2026-11-02T17:56:17+09:00 | #refix-warn | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1756_feature_plugin-refix-warning-hook.md | 판정 ✓ cargo test 1070 passed · pnpm test 993 passed · fmt/clippy/typecheck/lint/build 0 |
 | 2026-11-02T18:02:16+09:00 | #pr-receipt | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1802_feature_diff-pr-receipt-copy.md | 판정 ✓ pnpm test 995 passed ×3 · cargo test 1072 passed · fmt/clippy/typecheck/lint/build 0 |
+| 2026-11-02T18:06:18+09:00 | #team-exceptions | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1810_feature_today-teammate-journals.md | 판정 ✓ pnpm test 996 passed ×2 · cargo test 1074 passed · fmt/clippy/typecheck/lint/build 0 |
+| 2026-11-02T18:06:25+09:00 | #team-exceptions | claude-code | x→x | .oculpm/journal/20261102/Features_to_add/1806_feature_today-teammate-journals.md | 일지 경로 바로잡음 — 바로 위 행의 1810_… 은 잘못 적은 경로, 실제는 1806_… |
 <!-- oculpm:plan-log end -->

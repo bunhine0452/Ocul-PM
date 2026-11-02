@@ -89,6 +89,8 @@ export const commands = {
 	planDispatchPrompt: (projectId: number, planId: string, itemId: string) => typedError<DispatchPrompt, string>(__TAURI_INVOKE("plan_dispatch_prompt", { projectId, planId, itemId })),
 	/**  활성 플랜의 판정·다음 리프·사람 몫·막힘과 일지 → 계획 연결. LLM 0 · 네트워크 0. */
 	todayDigest: (projectId: number) => typedError<TodayDigest, string>(__TAURI_INVOKE("today_digest", { projectId })),
+	/**  그날 일지 중 동료가 git 으로 더한 것과 그 사람 (`git::authors`). 기록을 안 올리는 저장소면 빈 목록. */
+	todayTeammates: (projectId: number, workday: string) => typedError<TeamJournal[], string>(__TAURI_INVOKE("today_teammates", { projectId, workday })),
 	/**
 	 *  이 창에 세션을 연다 — 프로젝트 루트에서 사용자의 로그인 셸. `prompt` 가 있으면 그
 	 *  프롬프트로 `claude` 를 바로 실행한다(오늘·계획의 「다음」). 빈 문자열이면 그냥 `claude`
@@ -2096,6 +2098,13 @@ export type TagStat = {
 	last_workday: string,
 	/**  사전의 어느 말로 모을 만한가. 근거를 못 대면 `None` 이다. */
 	suggest_into: string | null,
+};
+
+export type TeamJournal = {
+	/**  일지 루트 기준 (`20261102/Bugs/…md`) — `JournalEntrySummary.relative_path` 와 같은 꼴. */
+	path: string,
+	/**  그 일지를 더한 커밋의 작성자 이름. */
+	author: string,
 };
 
 /**  앱 전체에서 도는 세션 수 — 업데이트가 재시작 전에 묻는다. */

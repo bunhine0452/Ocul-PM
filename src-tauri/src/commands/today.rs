@@ -49,3 +49,21 @@ async fn mark_stale(db: &Db, project_id: u32, out: &mut TodayDigest) {
                 .unwrap_or_default();
     }
 }
+
+/// 그날 일지 중 동료가 git 으로 더한 것과 그 사람 (`git::authors`). 기록을 안 올리는 저장소면 빈 목록.
+#[tauri::command]
+#[specta::specta]
+pub async fn today_teammates(
+    db: State<'_, Db>,
+    project_id: u32,
+    workday: String,
+) -> Result<Vec<crate::git::authors::TeamJournal>, String> {
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let root = std::path::PathBuf::from(project.root_path);
+    tokio::task::spawn_blocking(move || crate::git::authors::teammates(&root, &workday))
+        .await
+        .map_err(|e| e.to_string())
+}

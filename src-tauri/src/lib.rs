@@ -266,6 +266,7 @@ use crate::commands::{
     settings_set,
     settings_set_many,
     today_digest,
+    today_teammates,
 };
 // 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
 use crate::commands::new_window::new_window;
@@ -306,6 +307,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             plan_apply_edit,
             plan_dispatch_prompt,
             today_digest,
+            today_teammates,
             term_open,
             term_write,
             term_resize,

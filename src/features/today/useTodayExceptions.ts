@@ -60,6 +60,8 @@ function useLoad<T>(key: string | null, load: () => Promise<T>): Loaded<T> {
   return state;
 }
 
+const NO_TEAM: ReadonlyMap<string, string> = new Map();
+
 const EMPTY_DIGEST: TodayDigest = { plans: [], needs_user: [], blocked: [], journal_plan: [] };
 
 export interface TodayData {
@@ -72,6 +74,8 @@ export interface TodayData {
   unrecorded: string[] | null;
   silent: JournalMissingSignal[] | null;
   pluginBehind: { installed: string; bundled: string } | null;
+  /** 오늘 일지 중 동료가 git 으로 더한 것 — 일지 경로 → 그 사람. 못 읽으면 빈 표. */
+  teammates: ReadonlyMap<string, string>;
 }
 
 export interface TodayExceptionsResult {
@@ -148,6 +152,12 @@ export function useTodayExceptions(
     });
   });
 
+  // 동료의 일지 (11-02) — `.oculpm/` 을 올리는 팀이면 pull 한 일지가 누구 것인지. 실패는 빈 표(이름만 빠진다).
+  const team = useLoad(dayKey, async () => {
+    const rows = await planApi.todayTeammates(projectId, workday!).catch(() => []);
+    return new Map((rows ?? []).map((r) => [r.path, r.author]));
+  });
+
   const plugin = useLoad(enabled ? String(projectId) : null, () => claudeInstallApi.pluginStatus(projectId));
 
   const [verifiedLocally, setVerifiedLocally] = useState<ReadonlySet<string>>(new Set());
@@ -175,6 +185,7 @@ export function useTodayExceptions(
     unrecorded: unrecorded.value ?? null,
     silent: silent.value ?? null,
     pluginBehind,
+    teammates: team.value ?? NO_TEAM,
   };
 
   // 보조 재료 셋(기록 없는 파일·조용한 대화·플러그인)도 처음 한 번은 답을 기다린다 —

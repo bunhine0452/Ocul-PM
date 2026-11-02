@@ -221,17 +221,26 @@ function UnreadRow({
   onOpen,
   onVerify,
   showAgent,
+  teammate,
 }: RowNav & {
   ex: Extract<TodayException, { kind: "evidence" }>;
   onOpen: (ex: TodayException) => void;
   onVerify: (entry: JournalEntrySummary) => void;
   showAgent: boolean;
+  /** 동료가 더한 일지면 그 사람 — 내 에이전트의 일이 아니다. */
+  teammate?: string;
 }) {
   const { t } = useT();
   const e = ex.entry;
   const stale = e.verified_by_user && e.verified_stale;
   const why = stale ? t("today.check.evidenceStale") : e.evidence > 0 ? t("today.check.evidenceSection") : t("today.check.evidenceNone");
-  const meta = [stale ? why : null, showAgent ? agentLabel(e.agent_id) : null].filter(Boolean).join(" · ");
+  const meta = [
+    teammate ? t("today.check.teammate", { name: teammate }) : null,
+    stale ? why : null,
+    showAgent ? agentLabel(e.agent_id) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <li
       ref={rowRef}
@@ -273,6 +282,8 @@ interface TodayExceptionsProps {
   unrecordedKnown: boolean;
   /** 오늘 일지를 쓴 에이전트가 둘 이상인가 — 하나면 줄마다 이름을 쓰지 않는다. */
   showAgent: boolean;
+  /** 동료가 git 으로 더한 일지 — 경로 → 그 사람. 그 줄에 이름을 쓴다. */
+  teammates?: ReadonlyMap<string, string>;
   activeIndex: number;
   setActiveIndex: (i: number) => void;
   rowRefs: RefObject<Array<HTMLLIElement | null>>;
@@ -290,6 +301,7 @@ export function TodayExceptions({
   entryCount,
   unrecordedKnown,
   showAgent,
+  teammates,
   activeIndex,
   setActiveIndex,
   rowRefs,
@@ -373,6 +385,7 @@ export function TodayExceptions({
                 onOpen={onPrimary}
                 onVerify={onVerify}
                 showAgent={showAgent}
+                teammate={teammates?.get(ex.entry.relative_path)}
               />
             ))}
           </ul>
