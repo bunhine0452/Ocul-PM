@@ -58,9 +58,49 @@ fn hooks_json_guards_and_consumes_stdin() {
     let map = hooks["hooks"].as_object().expect("hooks 맵");
     assert_eq!(
         map.len(),
-        7,
-        "구독 이벤트는 SessionStart/Stop/StopFailure/Notification/UserPromptSubmit/SessionEnd(싱크) + SubagentStart(주입) 7종"
+        8,
+        "구독 이벤트는 SessionStart/Stop/StopFailure/Notification/UserPromptSubmit/SessionEnd(싱크) + SubagentStart(주입) + PreToolUse(재수정 경고) 8종"
     );
+    // 재수정 경고 (11-02) — 고치는 도구에만 걸고, 짚기만 한다: 허가 결정(`permissionDecision`)을
+    // 내면 사용자의 권한 묻기를 건너뛴다. 판단은 `oculpm-mcp refix`, 셸은 길만.
+    let pre = &map["PreToolUse"][0];
+    assert_eq!(pre["matcher"], "Edit|Write|MultiEdit|NotebookEdit");
+    assert!(pre["hooks"][0]["command"]
+        .as_str()
+        .unwrap()
+        .contains("refix-warn.sh"));
+    let refix = std::fs::read_to_string(plugin_root().join("hooks/refix-warn.sh"))
+        .expect("refix-warn.sh 존재");
+    assert!(
+        refix.contains("payload=$(cat"),
+        "refix-warn.sh: stdin 을 먼저 소비"
+    );
+    assert!(
+        refix.contains("refix --root"),
+        "refix-warn.sh: 판단은 oculpm-mcp refix 에"
+    );
+    for banned in [
+        "permissionDecision",
+        "curl",
+        "wget",
+        "http://",
+        "https://",
+        "exit 2",
+    ] {
+        assert!(
+            !refix.contains(banned),
+            "refix-warn.sh: `{banned}` 금지 — 막지 않고 밖에 닿지 않는다"
+        );
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(plugin_root().join("hooks/refix-warn.sh"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert!(mode & 0o111 != 0, "refix-warn.sh 실행 비트 누락");
+    }
     // 인라인 이벤트 싱크 5종 — 가드·stdin 소비·네트워크 금지 계약 (D1). Notification(권한 · 입력
     // 대기) · UserPromptSubmit(그 기다림을 푼다)은 10-29 #notify-hook — 바깥 터미널의 기다림을 앱이 안다.
     // StopFailure(2026-10-24): 턴이 API 오류로 끝나면 Stop 대신 이것만 온다 —

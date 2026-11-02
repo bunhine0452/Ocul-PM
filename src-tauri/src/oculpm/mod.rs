@@ -34,6 +34,7 @@ pub mod paths;
 pub mod planner;
 pub mod readme;
 pub mod redact;
+pub mod refix;
 pub mod related;
 pub mod session;
 pub mod session_id;
