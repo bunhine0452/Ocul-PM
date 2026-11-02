@@ -1,0 +1,9 @@
+src/**
+node_modules/**
+**/*.map
+**/*.ts
+esbuild.mjs
+tsconfig.json
+vitest.config.mjs
+pnpm-lock.yaml
+.gitignore

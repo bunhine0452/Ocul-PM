@@ -97,6 +97,23 @@ node scripts/bump-version.mjs 2.48.0 [--title-ko "…" --title-en "…"] [--dry-
 
 **다음 릴리스에 실릴 것은 `## Unreleased` 절에 미리 모아 둘 수 있습니다** — 버전 번호 없이 맨 위에 둡니다. 릴리스 때 그 제목을 `## vX.Y.Z` 로 바꾸면 끝입니다. `Unreleased` 는 태그와 맞지 않아 진짜 릴리스 본문에는 들어가지 않고, 랜딩의 `/changelog` 생성(`splitReleases`)도 버전 제목만 읽어 건너뜁니다. 드라이런(§8)은 이 절을 본문으로 씁니다. 톤은 기존 항목을 표본으로 — 기능 나열이 아니라 **사용자가 겪던 증상 → 무엇이 바뀌었나** 를 굵게 시작하는 서술형으로, 내부 구현 용어 대신 화면에서 보이는 말로.
 
+### 2-1. VS Code 확장 (`extension/`, 태그 `ext-v*`) — 앱과 따로 나간다
+
+확장은 앱 릴리스(`v*`)와 **별도 태그**로, 자기 `extension/CHANGELOG.md` 로 나갑니다. `extension/package.json` 의 `version` 을 올리고 CHANGELOG 맨 위에 그 판을 적은 뒤 `ext-v<그 버전>` 태그를 밀면 `.github/workflows/extension-release.yml` 이 패키징(PR 에서도 도는 같은 잡: vitest → esbuild → `vsce package`) → **GitHub Release 에 .vsix 첨부(항상)** → Open VSX → VS Marketplace 순으로 갑니다. 마켓 토큰이 없으면 마켓 단계는 **건너뛰고**(실패 아님) GitHub Release 만 납니다 — 토큰을 넣은 뒤 그 run 을 re-run 하면 게시됩니다. 태그와 `package.json` 버전이 다르면 잡이 멈춥니다(마켓은 같은 버전 재게시를 막아 되돌릴 수 없습니다). `ext-v0.1.0` 은 이미 쓴 태그라 0.2.0 부터입니다.
+
+```bash
+# extension/package.json version 과 extension/CHANGELOG.md 를 고친 커밋이 main 에 들어간 뒤
+git tag ext-v0.2.0 && git push origin ext-v0.2.0
+```
+
+**한 번만 하는 수동 단계** (토큰은 GitHub secret 으로 — 저장소에 적지 않습니다):
+
+- [ ] **Open VSX** — [open-vsx.org](https://open-vsx.org) 에 GitHub 로 로그인 → Publisher Agreement 서명 → Settings → Access Tokens 에서 토큰 생성 → 네임스페이스 `oculpm` 을 **먼저** 만든다: `npx ovsx create-namespace oculpm -p <token>`. 토큰을 `gh secret set OPEN_VSX_TOKEN`.
+- [ ] **VS Marketplace** — [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage) 에서 publisher `oculpm` 생성(Microsoft 계정) → [dev.azure.com](https://dev.azure.com) 에서 PAT 생성: Organization = **All accessible organizations**, Scopes = **Marketplace → Manage**. 토큰을 `gh secret set VSCE_PAT`. 만료(최대 1년)를 캘린더에.
+- [ ] 첫 게시 뒤 두 마켓의 리스팅(README · 아이콘 · `repository` 링크)을 눈으로 확인한다.
+
+Open VSX 는 Cursor · VSCodium · code-server 가 쓰는 레지스트리라 **둘 다** 올려야 「VS Code 계열 전부」가 됩니다.
+
 ## 3. README.md · README.en.md — **양쪽 다**
 
 - 최상단 하이라이트 섹션(`## 🚀 vX.Y — …`)에 이번 변경 반영. 섹션이 계속 쌓이지 않도록 오래된 것은 묶어 압축합니다.

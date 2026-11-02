@@ -1,0 +1,114 @@
+{
+  "name": "ocul",
+  "displayName": "Ocul — receipts for coding agents",
+  "description": "%description%",
+  "version": "0.2.0",
+  "publisher": "oculpm",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bunhine0452/Ocul-PM.git",
+    "directory": "extension"
+  },
+  "homepage": "https://oculpm.com",
+  "bugs": "https://github.com/bunhine0452/Ocul-PM/issues",
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Other",
+    "SCM Providers"
+  ],
+  "keywords": [
+    "claude code",
+    "codex",
+    "ai agent",
+    "journal",
+    "pull request",
+    "receipt"
+  ],
+  "activationEvents": [
+    "workspaceContains:.oculpm"
+  ],
+  "main": "./dist/extension.js",
+  "l10n": "./l10n",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "ocul.showExceptions",
+        "title": "%cmd.showExceptions%",
+        "category": "Ocul"
+      },
+      {
+        "command": "ocul.fileHistory",
+        "title": "%cmd.fileHistory%",
+        "category": "Ocul",
+        "icon": "$(history)"
+      },
+      {
+        "command": "ocul.copyReceipt",
+        "title": "%cmd.copyReceipt%",
+        "category": "Ocul"
+      },
+      {
+        "command": "ocul.refresh",
+        "title": "%cmd.refresh%",
+        "category": "Ocul"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "ocul.fileHistory",
+          "when": "!explorerResourceIsFolder",
+          "group": "7_ocul"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "ocul.fileHistory",
+          "group": "7_ocul"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "ocul.copyReceipt",
+          "group": "inline@99"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Ocul",
+      "properties": {
+        "ocul.explorerBadges": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "%config.explorerBadges%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run package",
+    "compile": "pnpm run check-types && node esbuild.mjs",
+    "package": "pnpm run check-types && node esbuild.mjs --production",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "vsix": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "@types/vscode": "1.101.0",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.28.2",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

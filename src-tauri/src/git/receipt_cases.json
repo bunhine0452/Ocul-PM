@@ -1,0 +1,35 @@
+{
+  "_doc": "영수증 재료의 사례표 — 앱(Rust)과 VS Code 확장(extension/src/model)이 **같은 표**로 판정한다. 한쪽 규칙만 고치면 둘 다 붉어진다. Rust 쪽: `git/receipt_cases_tests.rs`, 확장 쪽: `extension/src/model/shared.spec.ts`. evidence = `oculpm::evidence::evidence_level`(0 칸 없음 · 1 칸만 · 2 돌린 명령), proof = `git::race::proof_line`, title = `oculpm::markdown::parse_body`, verdict = `planner::judge::parse_note`, check = `planner::done_when::check_command`.",
+  "evidence": [
+    { "body": "## 변경 요약\ncargo test 통과\n", "level": 0, "proof": null },
+    { "body": "## 검증\n눈으로 봤다.\n", "level": 1, "proof": "눈으로 봤다." },
+    { "body": "## 검증\n- `cargo test` 312 passed\n- `pnpm lint` exit 0\n", "level": 2, "proof": "pnpm lint exit 0" },
+    { "body": "## Verification\n`pnpm test` green.\n", "level": 2, "proof": "pnpm test green." },
+    { "body": "## 검증\ncargo test 통과. 실기기 미확인 — 설치본에서 봐야 한다.\n", "level": 1, "proof": "cargo test 통과. 실기기 미확인 — 설치본에서 봐야 한다." },
+    { "body": "## 발생 원인\n확인하지 않아서 났다.\n\n## 검증\ncargo test 초록\n", "level": 2, "proof": "cargo test 초록" },
+    { "body": "## 검증\n수동으로 봄\n\n## 다음\ncargo test 통과\n", "level": 1, "proof": "수동으로 봄" },
+    { "body": "### 검증\n* tsc --noEmit 0\n\n", "level": 2, "proof": "tsc --noEmit 0" }
+  ],
+  "title": [
+    { "body": "[x] 편집기: code 명령 없이 연다\n\n## 발생 원인\n", "title": "편집기: code 명령 없이 연다" },
+    { "body": "\n\n# 제목만 있는 일지\n본문", "title": "제목만 있는 일지" },
+    { "body": "첫 줄이 제목\n둘째 줄", "title": "첫 줄이 제목" },
+    { "body": "[ ] 미완 일지\n", "title": "미완 일지" }
+  ],
+  "verdict": [
+    { "note": "판정 ✓ 418 passed · exit 0", "passed": true, "summary": "418 passed · exit 0" },
+    { "note": "판정 ✗ 2 failed", "passed": false, "summary": "2 failed" },
+    { "note": "verdict ✓ ok", "passed": true, "summary": "ok" },
+    { "note": "verdict ✗", "passed": false, "summary": "" },
+    { "note": "판정: ✗ 2 failed", "passed": null, "summary": null },
+    { "note": "Verdict ✓ ok", "passed": null, "summary": null },
+    { "note": "판정 ✔ ok", "passed": null, "summary": null },
+    { "note": "판정 ✓통과", "passed": null, "summary": null }
+  ],
+  "check": [
+    { "md": "**완료 조건:** 끝\n**확인 명령:** pnpm test && cargo test\n", "check": "pnpm test && cargo test" },
+    { "md": "  **Check:**   make check  \n", "check": "make check" },
+    { "md": "**확인 명령:**\n**확인 명령:** 둘째\n", "check": "둘째" },
+    { "md": "확인 명령: 마커가 굵지 않다\n", "check": null }
+  ]
+}
