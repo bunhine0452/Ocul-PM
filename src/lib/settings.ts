@@ -68,7 +68,7 @@ export const DEFAULTS: Settings = {
   language: "system",
   contentLanguage: "system",
 
-  externalEditorCommand: 'code "%path"',
+  externalEditorCommand: "auto",
   tourSeen: "",
 };
 

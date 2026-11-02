@@ -398,10 +398,11 @@ export const oculpmApi = {
       commands.oculpmExportDigest(projectId, since, until),
     ),
 
-  openEntryInEditor: (projectId: number, relativePath: string) =>
+  /** `editorCmd` = 설정의 편집기(`auto` · `vscode` · `cursor` · `system` · 명령). 없으면 OS 기본 앱. */
+  openEntryInEditor: (projectId: number, relativePath: string, editorCmd: string | null = null) =>
     unwrap<null>(
       "oculpm_open_entry_in_editor",
-      commands.oculpmOpenEntryInEditor(projectId, relativePath),
+      commands.oculpmOpenEntryInEditor(projectId, relativePath, editorCmd),
     ),
 
   /**

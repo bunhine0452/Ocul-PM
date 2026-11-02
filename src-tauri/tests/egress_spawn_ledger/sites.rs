@@ -94,10 +94,10 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
     },
     Launch {
         path: "commands/external_editor.rs",
-        func: "open_in_editor",
+        func: "open_file_with",
         call: "spawn_detached(&cmd_str)",
         reach: Reach::Local,
-        reason: "사용자가 설정에 적은 편집기 명령줄에 secure_join 으로 가둔 프로젝트 파일 경로를 끼워 띄운다.",
+        reason: "설정이 「직접 입력」일 때만 — 사용자가 적은 편집기 명령줄에 secure_join 으로 가둔 프로젝트 파일 경로를 끼워 띄운다 (자동 · VS Code · Cursor · 기본 앱은 open_native).",
     },
     Launch {
         path: "commands/external_editor.rs",
@@ -146,7 +146,7 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         func: "open_native",
         call: "std_cmd(\"open\")",
         reach: Reach::Local,
-        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 — 로컬 경로.",
+        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 — 로컬 경로. 편집기 열기(open_file_with)는 `vscode://file/<로컬 경로>` · `cursor://file/…` 주소도 넘긴다 — 깔린 편집기가 받는 로컬 주소이고 스킴은 코드에 박힌 둘뿐이다.",
     },
     Launch {
         path: "commands/open_native.rs",

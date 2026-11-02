@@ -207,6 +207,8 @@ export const commands = {
 	subject: string,
 	changes: GitChange[],
 } | null, string>(__TAURI_INVOKE("git_last_commit_changes", { projectId })),
+	/**  설정 화면의 「자동」 옆에 무엇을 찾았는지 보여 준다 — `vscode` · `cursor` · `system`. */
+	detectEditor: () => __TAURI_INVOKE<string>("detect_editor"),
 	/**
 	 *  외부 편집기로 프로젝트 파일을 연다.
 	 * 
@@ -632,13 +634,11 @@ export const commands = {
 	 */
 	oculpmUpdateEntryBody: (projectId: number, relativePath: string, bodyMarkdown: string) => typedError<JournalEntry, AppError>(__TAURI_INVOKE("oculpm_update_entry_body", { projectId, relativePath, bodyMarkdown })),
 	/**
-	 *  W4 dogfooding (2026-05-27) — open a journal entry's `.md` file with the
-	 *  OS default app. The opener plugin's path-glob scope keeps rejecting
-	 *  project-local paths (3 dogfooding regressions); this command resolves the
-	 *  absolute path inside the backend and invokes `open` / `xdg-open` /
-	 *  `cmd /c start` directly, sidestepping the scope check entirely.
+	 *  Open a journal entry's `.md` with the editor the settings chose (`editor_cmd`,
+	 *  `None` = OS default app). The backend resolves the absolute path itself — the
+	 *  opener plugin's path scope rejected project-local paths three times (W4, 05-27).
 	 */
-	oculpmOpenEntryInEditor: (projectId: number, relativePath: string) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_open_entry_in_editor", { projectId, relativePath })),
+	oculpmOpenEntryInEditor: (projectId: number, relativePath: string, editorCmd: string | null) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_open_entry_in_editor", { projectId, relativePath, editorCmd })),
 	/**
 	 *  Synthesise one journal entry per recent git commit (cold-start backfill).
 	 *  Idempotent: re-running only adds commits not seen before. `max_commits`

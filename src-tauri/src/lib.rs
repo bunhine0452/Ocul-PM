@@ -162,6 +162,7 @@ use crate::commands::{
     db_compact,
     db_health,
     delete_project,
+    detect_editor,
     diff_binary_preview,
     // first-record-loop — 대화별 첫 일지 귀속 원장 (Today 첫 기록 카드)
     // G2 — Project Overview + Daily Brief
@@ -346,6 +347,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             diff_binary_preview,
             git_uncommitted_changes,
             git_last_commit_changes,
+            detect_editor,
             open_in_editor,
             open_url,
             // 터미널 파일 링크 ⌘클릭 메뉴 (2026-09-07)

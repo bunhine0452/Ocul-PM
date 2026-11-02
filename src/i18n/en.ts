@@ -148,6 +148,13 @@ export const en: Record<keyof typeof ko, string> = {
   "prefs.display.light": "Light",
   "prefs.display.dark": "Dark",
   "prefs.display.textSize": "Text size",
+  "prefs.display.editor": "Open files in",
+  "prefs.display.editorMeta": "The editor used when you open a file from Changes, the terminal or a journal entry",
+  "prefs.display.editorAuto": "Auto",
+  "prefs.display.editorAutoFound": "Auto ({name})",
+  "prefs.display.editorSystem": "Default app",
+  "prefs.display.editorCustom": "Custom",
+  "prefs.display.editorCustomHint": "A shell command. %path becomes the file path, %line the line number",
   "prefs.data.title": "Data",
   "prefs.data.cache": "Cache",
   "prefs.data.cacheSize": "{size} now",
@@ -862,7 +869,7 @@ export const en: Record<keyof typeof ko, string> = {
 
   // ── v3-surface / activity ──────────────────────────────
   "entry.openInEditor": "Open file",
-  "entry.openInEditorTitle": "Open this journal entry's .md file in the system default editor",
+  "entry.openInEditorTitle": "Open this journal entry's .md file in the editor chosen under Settings → Open files in",
   "entry.openInEditorFailed": "Could not open the file — {error}",
   // Doctor watcher row ({#watcher-user-pause}) — "Stopped" and "you stopped it"
   // are different sentences: the supervisor revives the first within 60s and

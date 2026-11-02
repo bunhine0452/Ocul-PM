@@ -1,5 +1,5 @@
 /**
- * 설정 · 표시 — 언어 · 밝기 · 글자 크기. 셋 다 앱 전역(SQLite)이라 창마다 같다.
+ * 설정 · 표시 — 언어 · 밝기 · 글자 크기 · 파일 열기(편집기). 넷 다 앱 전역(SQLite)이라 창마다 같다.
  *
  * 밝기는 세 가지뿐이다 (시스템 · 밝게 · 어둡게). 3.x 의 테마 프리셋·가져오기는 걷었다 —
  * 프리셋을 쓰던 사람은 여기서 아무것도 골라져 있지 않게 보이고, 하나를 누르면 그것이 된다.
@@ -8,6 +8,7 @@
 import { useSettings } from "@/contexts/SettingsContext";
 import { resolveLang, useT, type Lang } from "@/i18n";
 import type { Theme } from "@/lib/settings";
+import { EditorRow } from "./EditorRow";
 import { useSaveSetting } from "./saveSetting";
 import { PrefsCard, PrefsRow, PrefsSeg } from "./prefsUi";
 
@@ -65,6 +66,7 @@ export function DisplaySection({ id }: { id: string }) {
           onChange={(next) => save("uiScale", Number(next))}
         />
       </PrefsRow>
+      <EditorRow />
     </PrefsCard>
   );
 }
