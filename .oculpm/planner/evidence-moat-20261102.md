@@ -1,0 +1,35 @@
+---
+oculpm_plan: v1
+id: evidence-moat-20261102
+title: "증거로 대체 불가 — 판정 · 영수증 · 터미널"
+status: active
+created: 2026-11-02
+updated: 2026-11-02
+owner: claude-code
+---
+
+Orca·claude-mem 이 못 하는 자리(확인 명령 결과로 믿음을 판정하고 증거를 git 에 남김)를 깊게 판다. 사용자 결정 11-02: 1번부터, 나머지도, 독보적 디자인까지.
+
+**완료 조건:** 오늘 화면이 낡은 ✓ 를 짚고, 에이전트가 최근 버그를 고친 파일을 다시 고치기 직전 그 버그와 확인 명령을 듣고, 변경 화면에서 PR 에 붙일 영수증을 한 번에 복사하고, 동료(git 으로 받은) 기록의 예외도 오늘에 서고, 터미널에서 찾기 · 칸 이동 · 일지 없이 끝난 세션이 보이며, 판정이 앱 전체에서 한 시각 언어(도장)로 읽힌다 — 바깥 호스트 0 · LLM 0 그대로
+**확인 명령:** pnpm typecheck && pnpm test && pnpm lint && pnpm build && cd src-tauri && cargo test --locked
+
+## 증거 {#evidence}
+- [x] 판정 뒤 바뀜 — ✓ 뒤 저장된 파일을 오늘에 {#stale-verdict}
+- [ ] 재수정 경고 — 최근 버그 파일을 고치기 직전 훅 {#refix-warn}
+- [ ] PR 영수증 — 변경 화면에서 마크다운 복사 {#pr-receipt}
+- [ ] 동료 기록 — git 으로 받은 일지의 예외 {#team-exceptions}
+
+## 터미널 {#terminal}
+- [ ] 터미널 찾기 ⌘F {#term-find}
+- [ ] 칸 사이 이동 단축키 {#pane-nav}
+- [ ] 일지 없이 끝난 세션 표시 {#term-no-record}
+
+## 디자인 {#design}
+- [ ] 판정 도장 — 앱 전체 한 시각 언어 {#signature-design}
+- [ ] [사용자] 설치본에서 칸 나누기 · 신호등 · 도장 눈 확인 {#eyes}
+
+<!-- oculpm:plan-log begin v1 -->
+| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
+|---|---|---|---|---|---|
+| 2026-11-02T17:49:41+09:00 | #stale-verdict | claude-code | ☐→x | .oculpm/journal/20261102/Features_to_add/1749_feature_today-stale-verdict.md | 판정 ✓ pnpm test 993 passed · cargo test 1067 passed · typecheck/lint/build 0 |
+<!-- oculpm:plan-log end -->

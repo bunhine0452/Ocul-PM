@@ -164,6 +164,16 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
           return void hooksApi.dismissWaiting(projectId, ex.item.session_id).catch(() => {});
         case "verdict":
           return openPlan(ex.plan.plan_id);
+        case "stale":
+          // 판정은 에이전트가 확인 명령을 돌려 남긴다 — 앱이 대신 ✓ 를 적지 않는다.
+          return void runPromptInTerminal(
+            projectId,
+            t("today.check.recheckPrompt", {
+              plan: ex.plan.plan_id,
+              check: ex.plan.check ?? "",
+              files: ex.files.slice(0, 8).join(", "),
+            }),
+          ).catch(() => {});
         case "evidence":
           return openEntry(ex.entry);
         case "unrecorded":
@@ -176,7 +186,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
           return copyPluginUpdate();
       }
     },
-    [openPlan, openEntry, onNavigate, copyPluginUpdate, projectId],
+    [openPlan, openEntry, onNavigate, copyPluginUpdate, projectId, t],
   );
 
   const focusRow = (i: number) => {

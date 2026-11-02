@@ -184,6 +184,7 @@ function plan(id: string, over: Partial<DigestPlan> = {}): DigestPlan {
     done_when: "끝나면 끝",
     check: "pnpm test",
     last_verdict: null,
+    stale_files: [],
     next: null,
     ...over,
   };

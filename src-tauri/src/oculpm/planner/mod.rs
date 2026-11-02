@@ -24,3 +24,4 @@ pub mod parse;
 pub mod paths;
 pub mod plan_edit;
 pub mod project;
+pub mod stale;

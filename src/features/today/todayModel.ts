@@ -48,6 +48,7 @@ export type TodayException =
   | { kind: "waiting"; key: string; session: TermInfo }
   | { kind: "hookWaiting"; key: string; item: ClaudeWaiting }
   | { kind: "verdict"; key: string; plan: DigestPlan; verdict: PlanVerdict }
+  | { kind: "stale"; key: string; plan: DigestPlan; verdict: PlanVerdict; files: string[] }
   | { kind: "evidence"; key: string; entry: JournalEntrySummary }
   | { kind: "unrecorded"; key: string; files: string[] }
   | { kind: "silent"; key: string; signals: JournalMissingSignal[] }
@@ -63,6 +64,7 @@ export const EXCEPTION_ORDER: readonly ExceptionKind[] = [
   "waiting",
   "hookWaiting",
   "verdict",
+  "stale",
   "evidence",
   "unrecorded",
   "silent",
@@ -122,6 +124,12 @@ export function buildExceptions(input: ExceptionInput): TodayException[] {
   for (const plan of input.digest.plans) {
     if (plan.last_verdict && !plan.last_verdict.passed) {
       out.push({ kind: "verdict", key: `verdict:${plan.plan_id}`, plan, verdict: plan.last_verdict });
+    }
+  }
+  // ✓ 였지만 그 뒤에 이 계획이 다룬 파일이 다시 저장됐다 — 그 ✓ 는 지금 코드를 말하지 않는다. 실패 다음.
+  for (const plan of input.digest.plans) {
+    if (plan.last_verdict?.passed && plan.stale_files.length > 0) {
+      out.push({ kind: "stale", key: `stale:${plan.plan_id}`, plan, verdict: plan.last_verdict, files: plan.stale_files });
     }
   }
   for (const entry of input.entries) {
