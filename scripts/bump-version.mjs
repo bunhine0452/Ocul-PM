@@ -18,6 +18,7 @@
  *   SECURITY.md — 「외부 리뷰 이력」 의 「반영: 다음 릴리스」 를 이 버전으로 (있을 때만)
  *
  * 알리는 것: 마지막 외부 리뷰 반영에서 마이너 5개째면 경고 — 막지 않는다 (RELEASE.md §0-1).
+ *   같은 날 둘째 릴리스 · 31일 넘은 확인 날(+ 미확인 eyes 수)도 — 막지 않는다 (RELEASE.md §0-2).
  *
  * 고치지 **않는** 곳: 변경 이력 `<li>` 와 FAQ 의 "vX.Y.Z 부터는" — 역사다.
  * `--title-*` 을 주면 ap-new 줄의 제목도 바꾼다(안 주면 버전만). Cargo.lock 은
@@ -65,15 +66,28 @@ export function bumpVersionFile(path, text, from, to) {
  *
  *  - 같은 날 둘째 릴리스: 10-24 에 v3.13.4~v3.13.7 넷이 하루에 나갔다 — 앞 판을
  *    확인하지 않고 다음 판을 낸 흔적이다.
- *  - 마이너 bump 때 육안 확인 대기(`- [ ] … {#eyes-…}`)가 남아 있으면 그 수를
- *    말한다. 확인 날은 마이너 전날이다 (`docs/PROMISE.md` 약속 9).
+ *  - 마지막 확인 날이 31일을 넘었거나 기록이 없으면 그 날짜와 육안 확인 대기
+ *    (`- [ ] … {#eyes-…}`) 수를 말한다. 확인 날은 한 달에 한 번이고 날짜는
+ *    `docs/PROMISE.md` 「확인 날 기록」 에 있다 (약속 9, 2026-11-02 부터 — 그 전
+ *    「마이너 전날」 규칙은 마이너 셋이 내리 건너뛰어 걷었다). 판의 종류와 무관하다.
  */
 
-/** 마이너(또는 메이저)가 오르는 bump 인가. 패치는 자유다. */
-export function isMinorBump(from, to) {
-  const [fM, fm] = from.split(".").map(Number);
-  const [tM, tm] = to.split(".").map(Number);
-  return tM > fM || (tM === fM && tm > fm);
+/** 확인 날은 한 달에 한 번 — 이 날 수를 넘기면 알린다. */
+export const CHECK_DAY_EVERY = 31;
+
+/**
+ * `docs/PROMISE.md` 「확인 날 기록」 의 가장 늦은 날짜(YYYY-MM-DD). 줄 머리가
+ * `- 확인 날 YYYY-MM-DD` 인 것만 센다 — 문단 안의 형식 예시(백틱 안)는 세지 않는다.
+ * 없으면 null.
+ */
+export function lastCheckDay(promiseText) {
+  const days = [...promiseText.matchAll(/^- 확인 날 (\d{4}-\d{2}-\d{2})\b/gm)].map((m) => m[1]).sort();
+  return days.at(-1) ?? null;
+}
+
+/** 두 날짜(YYYY-MM-DD) 사이 날 수. */
+export function daysBetween(from, to) {
+  return Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 }
 
 /**
@@ -267,12 +281,20 @@ function main(argv) {
   if (today.length > 0) {
     console.warn(`\n⚠ 오늘 이미 ${today.join(", ")} 를 냈습니다 — v${to} 는 같은 날 ${today.length + 1}번째입니다. 앞 판을 확인했습니까? (docs/RELEASE.md §0-2). 릴리스는 막지 않습니다.`);
   }
-  if (isMinorBump(from, to)) {
+  let promise = "";
+  try {
+    promise = readFileSync(ROOT + "docs/PROMISE.md", "utf8");
+  } catch {
+    /* 문서가 없으면 기록도 없다 — 아래가 「기록에 없음」 으로 알린다 */
+  }
+  const checkDay = lastCheckDay(promise);
+  const gap = checkDay == null ? null : daysBetween(checkDay, todayIso());
+  if (gap == null || gap > CHECK_DAY_EVERY) {
     const eyes = pendingEyes(readPlans(ROOT + ".oculpm/planner/"));
     const total = eyes.reduce((n, e) => n + e.count, 0);
-    if (total > 0) {
-      console.warn(`\n⚠ 마이너 릴리스인데 육안 확인 대기(eyes)가 ${total}건 남아 있습니다 — ${eyes.map((e) => `${e.plan} ${e.count}`).join(" · ")}. 마이너 전날이 확인 날입니다 (docs/RELEASE.md §0-2 · docs/PROMISE.md 약속 9). 릴리스는 막지 않습니다.`);
-    }
+    const when = checkDay == null ? "기록에 없습니다" : `${checkDay} (${gap}일 전)`;
+    const list = total > 0 ? ` 육안 확인 대기(eyes) ${total}건 — ${eyes.map((e) => `${e.plan} ${e.count}`).join(" · ")}.` : "";
+    console.warn(`\n⚠ 마지막 확인 날이 ${when} — 확인 날은 한 달에 한 번입니다 (docs/RELEASE.md §0-2 · docs/PROMISE.md 약속 9).${list} 릴리스는 막지 않습니다.`);
   }
   console.log(`\n${from} → ${to}. 다음: CHANGELOG.md 에 "## v${to}" · README ko/en · 랜딩 <li>/bento/FAQ · cargo test(Cargo.lock) · node landing/wiki-src/build.mjs`);
 }
