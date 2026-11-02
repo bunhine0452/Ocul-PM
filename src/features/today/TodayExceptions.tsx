@@ -11,6 +11,7 @@
 import { useState, type RefObject } from "react";
 
 import { Check } from "@/components/Icons";
+import { VerdictLine } from "@/components/VerdictLine";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { agentLabel } from "@/features/today/agentColor";
 import { useT, type I18nKey } from "@/i18n";
@@ -171,6 +172,24 @@ function QuestionAnswer({ ex, onAnswer }: { ex: Extract<TodayException, { kind: 
   );
 }
 
+/** 판정 실패 · 통과 뒤 바뀜 — 끝 줄을 앞에, 명령 · 계획(· 바뀐 파일)을 아래 한 줄로. */
+function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "stale" }> }) {
+  const { t } = useT();
+  const sub = [ex.plan.check, t("today.check.inPlan", { plan: ex.plan.title })];
+  if (ex.kind === "stale") {
+    const [first, ...rest] = ex.files;
+    sub.push(t("today.check.staleFiles", { files: rest.length > 0 ? t("today.check.moreFiles", { first, n: rest.length }) : first }));
+  }
+  return (
+    <VerdictLine
+      state={ex.kind === "stale" ? "stale" : "fail"}
+      summary={ex.verdict.summary}
+      when={whenLabel(ex.verdict.ts)}
+      sub={sub.filter(Boolean).join(" · ")}
+    />
+  );
+}
+
 function ExceptionRow({
   ex,
   active,
@@ -193,12 +212,21 @@ function ExceptionRow({
         if (e.target === e.currentTarget) onFocus();
       }}
     >
-      <span className={"chip sm " + pill.tone}>{t(pill.key)}</span>
-      <div className="tdy-row-t">
-        <div className="tdy-row-title">{title}</div>
-        {meta ? <div className={"tdy-meta" + (mono ? " mono" : "")}>{meta}</div> : null}
-        {ex.kind === "question" ? <QuestionAnswer ex={ex} onAnswer={onAnswer} /> : null}
-      </div>
+      {ex.kind === "verdict" || ex.kind === "stale" ? (
+        // 판정 줄 — 딱지 대신 결과 선과 끝 줄이 이 행의 표시다(시그니처, `VerdictLine`).
+        <div className="tdy-row-t">
+          <VerdictRow ex={ex} />
+        </div>
+      ) : (
+        <>
+          <span className={"chip sm " + pill.tone}>{t(pill.key)}</span>
+          <div className="tdy-row-t">
+            <div className="tdy-row-title">{title}</div>
+            {meta ? <div className={"tdy-meta" + (mono ? " mono" : "")}>{meta}</div> : null}
+            {ex.kind === "question" ? <QuestionAnswer ex={ex} onAnswer={onAnswer} /> : null}
+          </div>
+        </>
+      )}
       {ex.kind === "question" ? null : (
         <button type="button" className="btn sm" onClick={() => onPrimary(ex)}>
           {t(PRIMARY[ex.kind])}

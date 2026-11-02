@@ -161,7 +161,8 @@ describe("판정 카드", () => {
     renderPlanner();
     expect(await screen.findByRole("heading", { level: 2, name: "4.0 덜어내기" })).toBeInTheDocument();
     const card = judge();
-    expect(within(card).getByText(t("plan.judge.fail"))).toBeInTheDocument();
+    // 판정 줄(시그니처) — 결과 선과 표시가 실패를 말한다.
+    expect(card.querySelector(".vl.is-fail")).not.toBeNull();
     expect(within(card).getByText("2 failed, 418 passed")).toBeInTheDocument();
     expect(within(card).getByText("앱이 다섯 화면만 남는다")).toBeInTheDocument();
     expect(within(card).getByText("pnpm test && (cd src-tauri && cargo test --locked)")).toBeInTheDocument();
@@ -171,7 +172,8 @@ describe("판정 카드", () => {
     const p = summary("ok", { last_verdict: { ...FAIL, passed: true, summary: "418 passed · exit 0" } });
     stage([p], [detail(p, [it_("a", "done", 0)])]);
     renderPlanner();
-    expect(await within(await screen.findByRole("region", { name: t("plan.judge.aria") })).findByText(t("plan.judge.pass"))).toBeInTheDocument();
+    const judge = await screen.findByRole("region", { name: t("plan.judge.aria") });
+    await waitFor(() => expect(judge.querySelector(".vl.is-pass")).not.toBeNull());
   });
 
   it("판정 없음 — 「아직 안 돌렸어요」, 완료 조건이 없으면 그렇다고 말한다", async () => {
@@ -190,7 +192,8 @@ describe("한 칸에 한 상태 (화면 검사 {#plan-verdict} · {#hide-zero})"
     stage([p], [detail(p, [it_("a", "todo", 0)], { check: null })]);
     renderPlanner();
     const card = await screen.findByRole("region", { name: t("plan.judge.aria") });
-    expect(within(card).getByText(t("plan.judge.fail"))).toBeInTheDocument();
+    // 판정 줄(시그니처) — 결과 선과 표시가 실패를 말한다.
+    expect(card.querySelector(".vl.is-fail")).not.toBeNull();
     expect(within(card).queryByText(t("plan.judge.noCheck"))).toBeNull();
   });
 

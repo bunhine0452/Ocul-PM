@@ -1,0 +1,33 @@
+/* 판정 줄 (11-02) — 결과 선 · 표시 · 끝 줄(mono) · 시각. 선은 테두리가 아니라 칸 하나라 두 줄을 같이 잡는다. */
+.vl {
+  display: grid; grid-template-columns: 2px 1.1em minmax(0, 1fr) auto;
+  column-gap: var(--space-3); row-gap: 2px; align-items: baseline;
+  min-width: 0;
+}
+.vl-rule { grid-row: 1; align-self: stretch; border-radius: var(--radius-pill); background: var(--ok); }
+.vl-mark { font-family: var(--mono); font-size: var(--fs-5); font-weight: var(--fw-strong); line-height: 1; color: var(--ok-text); text-align: center; }
+.vl-out {
+  font-family: var(--mono); font-size: var(--fs-4); color: var(--text);
+  font-variant-numeric: tabular-nums; font-variant-ligatures: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vl-empty { color: var(--text-2); font-family: var(--font); }
+.vl-when { font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vl-sub {
+  grid-column: 3 / -1; min-width: 0;
+  font-size: var(--fs-3); color: var(--text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* 아래 줄이 있으면 선이 두 줄을 같이 잡는다 — 암시적 줄은 `1 / -1` 에 들지 않는다. */
+.vl.has-sub .vl-rule { grid-row: 1 / span 2; }
+.vl.is-fail .vl-rule { background: var(--danger); }
+.vl.is-fail .vl-mark { color: var(--danger-text); }
+.vl.is-stale .vl-rule { background: var(--warn); }
+.vl.is-stale .vl-mark { color: var(--warn-text); }
+
+/* 목록 한 줄 — 선이 글줄 높이만큼만. */
+.vl.is-compact { column-gap: var(--space-2); }
+.vl.is-compact .vl-mark { font-size: var(--fs-4); }
+.vl.is-compact .vl-out { font-size: var(--fs-3); color: var(--text-2); }
