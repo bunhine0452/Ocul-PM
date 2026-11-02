@@ -2,9 +2,11 @@
 //
 // 앱 없이 동작한다. `.oculpm/` 마크다운을 읽기만 하고(쓰기 0), git 은 VS Code 내장 git 확장의 API 로만
 // 본다(자식 프로세스 0), 네트워크에 닿지 않는다(`src/guard.spec.ts` 가 지킨다). 보여 주는 것은 예외뿐이다:
-//   상태 표시줄 왼쪽  — 마지막 확인 명령 결과(✓/✗) · 어느 일지에도 없는 변경 수 · Claude 기다림
+//   사이드바 패널     — Claude 기다림 · 지금 볼 것 · 다음 할 일 · 최근 일지 (`panel.ts`)
+//   상태 표시줄 왼쪽  — 한 칸: Claude 기다림 · 마지막 확인 명령 결과(✓/✗) · 어느 일지에도 없는 변경 수
 //   상태 표시줄 오른쪽 — 지금 연 파일의 영수증(이 파일을 건드린 일지 · 돌린 명령)
 //   탐색기 배지       — 어느 일지에도 없는 변경 파일
+//   알림              — Claude 가 새로 기다리기 시작할 때 한 번
 // 앱과는 `bridge.ts` 로 잇는다 — 「Ocul 에서 열기」(앱 딥링크) · 「터미널에서 이어서」(사용자가 누를 때만).
 
 import * as vscode from "vscode";
@@ -12,42 +14,47 @@ import { branchChanges, gitApi } from "./git";
 import { COMMAND } from "./model/evidence";
 import type { Journal } from "./model/journal";
 import { livePlans, type Overview } from "./model/overview";
+import { arrivals } from "./model/panel";
 import { receiptMarkdown } from "./model/receipt";
 import { ago } from "./model/time";
 import { Project } from "./project";
 import { trackedFolders } from "./store";
 import { agoText, receiptText, whenLabel } from "./text";
-import { continueInTerminal, pickInApp, plansWithNext, renderClaude, showClaude } from "./bridge";
+import { continueInTerminal, kindText, notifyArrival, pickInApp, plansWithNext } from "./bridge";
+import { BADGE, openNodeInApp, Panel, planIdOf, preview } from "./panel";
 
 const t = vscode.l10n.t;
-const BADGE = "○";
 
 let projects: Project[] = [];
 let gitSub: vscode.Disposable | undefined;
+/** 프로젝트마다 이미 알린 기다림 — 처음 읽을 때는 비어 있지 않아도 울리지 않는다(`arrivals`). */
+const seen = new Map<Project, Set<string>>();
 
 export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   const summary = vscode.window.createStatusBarItem("ocul.summary", vscode.StatusBarAlignment.Left, 50);
   summary.name = "Ocul";
-  summary.command = "ocul.showExceptions";
+  summary.command = "ocul.showPanel";
   const file = vscode.window.createStatusBarItem("ocul.file", vscode.StatusBarAlignment.Right, 100);
   file.name = t("Ocul — this file's receipt");
   file.command = "ocul.fileHistory";
-  const claude = vscode.window.createStatusBarItem("ocul.claude", vscode.StatusBarAlignment.Left, 49);
-  claude.name = t("Ocul — Claude waiting");
-  claude.command = "ocul.showClaude";
   const decorations = new UnrecordedDecorations();
-  ctx.subscriptions.push(summary, file, claude, decorations, vscode.window.registerFileDecorationProvider(decorations));
+  const panel = new Panel(() => current());
+  ctx.subscriptions.push(summary, file, decorations, panel, vscode.window.registerFileDecorationProvider(decorations));
+  const reveal = () => panel.reveal();
 
   const render = () => {
     renderSummary(summary);
-    renderClaude(claude, current());
     renderFile(file);
     decorations.refresh();
+    panel.refresh();
+    ring(reveal);
   };
 
   const rebuild = async () => {
     for (const p of projects) p.dispose();
+    seen.clear();
     projects = (await trackedFolders()).map((root) => new Project(root));
+    await vscode.commands.executeCommand("setContext", "ocul.tracked", projects.length > 0);
     const git = await gitApi();
     for (const p of projects) {
       p.onDidChange(render);
@@ -63,11 +70,16 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     vscode.window.onDidChangeActiveTextEditor(render),
     vscode.workspace.onDidChangeWorkspaceFolders(() => void rebuild()),
     vscode.workspace.onDidChangeConfiguration((e) => e.affectsConfiguration("ocul") && render()),
-    vscode.commands.registerCommand("ocul.showExceptions", showExceptions),
+    vscode.commands.registerCommand("ocul.showPanel", reveal),
+    vscode.commands.registerCommand("ocul.panel.openInApp", (node) => openNodeInApp(current(), node)),
+    vscode.commands.registerCommand("ocul.panel.continue", (node) => continueInTerminal(current(), planIdOf(node))),
+    vscode.commands.registerCommand("ocul.panel.openToday", () => {
+      const p = current();
+      return p && openNodeInApp(p, undefined);
+    }),
     vscode.commands.registerCommand("ocul.fileHistory", fileHistory),
     vscode.commands.registerCommand("ocul.copyReceipt", copyReceipt),
     vscode.commands.registerCommand("ocul.refresh", () => rebuild()),
-    vscode.commands.registerCommand("ocul.showClaude", () => showClaude(current())),
     vscode.commands.registerCommand("ocul.openInApp", (arg?: vscode.Uri) => {
       const uri = arg instanceof vscode.Uri ? arg : vscode.window.activeTextEditor?.document.uri;
       const p = current(uri);
@@ -80,7 +92,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
   );
   // 「방금 전」 이 「12분 전」 이 되도록 — 1분마다 글만 다시 쓴다.
   // 기다림은 30분이 지나면 빠진다 — 같은 1분에 다시 잰다.
-  const tick = setInterval(() => (renderSummary(summary), renderClaude(claude, current())), 60_000);
+  const tick = setInterval(() => (renderSummary(summary), panel.refresh()), 60_000);
   ctx.subscriptions.push({ dispose: () => clearInterval(tick) });
   await rebuild();
 }
@@ -95,22 +107,42 @@ function current(uri = vscode.window.activeTextEditor?.document.uri): Project | 
   return (uri && projects.find((p) => p.rel(uri) !== null)) || projects[0];
 }
 
+/** Claude 가 새로 기다리면 알린다 — 지금 연 프로젝트가 아니어도(창 하나에 폴더 여럿). */
+function ring(reveal: () => Thenable<unknown>): void {
+  const on = vscode.workspace.getConfiguration("ocul").get<boolean>("notifyWhenClaudeWaits", true);
+  for (const p of projects) {
+    const r = arrivals(seen.get(p) ?? null, p.store.waiting, p.store.questions);
+    seen.set(p, r.seen);
+    if (on && r.fresh.length > 0) void notifyArrival(p, r.fresh[r.fresh.length - 1], reveal);
+  }
+}
+
+/**
+ * 상태 표시줄 한 칸 — 급한 것이 앞에 선다: Claude 기다림 · 확인 명령 결과 · 기록 없는 변경 수.
+ * 색은 손대야 할 때만: 실패면 빨강, Claude 가 기다리면 노랑, 그 밖에는 바탕 그대로.
+ */
 function renderSummary(item: vscode.StatusBarItem): void {
   const p = current();
   if (!p) return item.hide();
   const o = p.overview();
+  const waiting = p.store.waiting.length + p.store.questions.length;
   const parts: string[] = [];
-  item.backgroundColor = undefined;
+  if (waiting > 0) parts.push(`$(bell) ${t("Claude waiting {0}", waiting)}`);
   if (o.failing.length > 0) {
-    parts.push(`$(error) ${clip(o.failing[0].summary || o.failing[0].plan.title, 36)}`);
-    item.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
+    parts.push(`$(error) ${clip(o.failing[0].summary || o.failing[0].plan.title, waiting > 0 ? 24 : 36)}`);
   } else if (o.latest) {
     parts.push(`$(pass) ${t("passed {0}", agoText(ago(o.latest.ts, Date.now())))}`);
-  } else {
-    parts.push("$(circle-large-outline) Ocul");
+  } else if (waiting === 0) {
+    parts.push("$(eye) Ocul");
   }
   if (o.unrecorded.length > 0) parts.push(`${BADGE} ${o.unrecorded.length}`);
   item.text = parts.join("  ");
+  item.backgroundColor =
+    o.failing.length > 0
+      ? new vscode.ThemeColor("statusBarItem.errorBackground")
+      : waiting > 0
+        ? new vscode.ThemeColor("statusBarItem.warningBackground")
+        : undefined;
   item.tooltip = summaryTooltip(p, o);
   item.show();
 }
@@ -118,8 +150,10 @@ function renderSummary(item: vscode.StatusBarItem): void {
 function summaryTooltip(p: Project, o: Overview): vscode.MarkdownString {
   const md = new vscode.MarkdownString(undefined, true);
   // 아래 명령 링크만 누를 수 있게 — 다른 명령은 막힌다.
-  md.isTrusted = { enabledCommands: ["ocul.openInApp", "ocul.continueInTerminal", "ocul.showExceptions"] };
+  md.isTrusted = { enabledCommands: ["ocul.openInApp", "ocul.continueInTerminal", "ocul.showPanel"] };
   md.appendMarkdown(`**Ocul · ${escape(p.store.name)}**\n\n`);
+  for (const q of p.store.questions) md.appendMarkdown(`$(comment-discussion) ${escape(q.question)} · ${whenLabel(q.askedAt)}\n\n`);
+  for (const w of p.store.waiting) md.appendMarkdown(`$(bell) ${escape(w.message ?? kindText(w.kind))} · ${whenLabel(w.since)}\n\n`);
   if (o.latest) {
     const v = o.latest;
     md.appendMarkdown(
@@ -133,8 +167,8 @@ function summaryTooltip(p: Project, o: Overview): vscode.MarkdownString {
   if (o.unproven.length > 0) md.appendMarkdown(t("{0} journal entries today without a command run", o.unproven.length) + "\n\n");
   const next = plansWithNext(p)[0];
   if (next?.next) md.appendMarkdown(`${t("Next: {0}", escape(next.next.title))} · ${escape(next.title)}\n\n`);
-  md.appendMarkdown(t("Click for what needs your eyes."));
-  md.appendMarkdown(`\n\n[$(link-external) ${t("Open in Ocul")}](command:ocul.openInApp)`);
+  md.appendMarkdown(`[$(eye) ${t("Open the Ocul panel")}](command:ocul.showPanel)`);
+  md.appendMarkdown(` · [$(link-external) ${t("Open in Ocul")}](command:ocul.openInApp)`);
   if (next) md.appendMarkdown(` · [$(terminal) ${t("Continue in terminal")}](command:ocul.continueInTerminal)`);
   return md;
 }
@@ -188,53 +222,6 @@ class UnrecordedDecorations implements vscode.FileDecorationProvider, vscode.Dis
 }
 
 type Pick = vscode.QuickPickItem & { open?: () => Thenable<unknown> };
-
-const preview = (uri: vscode.Uri) => vscode.commands.executeCommand("markdown.showPreview", uri);
-const openFile = (uri: vscode.Uri) => vscode.window.showTextDocument(uri);
-
-async function showExceptions(): Promise<void> {
-  const p = current();
-  if (!p) return void vscode.window.showInformationMessage(t("No .oculpm/ folder in this workspace."));
-  const o = p.overview();
-  const items: Pick[] = [];
-  if (o.failing.length > 0) {
-    items.push({ label: t("Check command failed"), kind: vscode.QuickPickItemKind.Separator });
-    for (const v of o.failing)
-      items.push({
-        label: `$(error) ${v.plan.title}`,
-        description: whenLabel(v.ts),
-        detail: v.summary || t("no result line"),
-        open: () => openFile(p.store.planUri(v.plan.file)),
-      });
-  }
-  if (o.unproven.length > 0) {
-    items.push({ label: t("Today's journal entries without a command run"), kind: vscode.QuickPickItemKind.Separator });
-    for (const j of o.unproven)
-      items.push({ label: `· ${j.title || j.path}`, description: whenLabel(j.createdAt), open: () => preview(p.store.journalUri(j.path)) });
-  }
-  if (o.unrecorded.length > 0) {
-    items.push({ label: t("Changes in no journal entry"), kind: vscode.QuickPickItemKind.Separator });
-    for (const f of o.unrecorded)
-      items.push({ label: `${BADGE} ${f}`, open: () => openFile(vscode.Uri.joinPath(p.root, ...f.split("/"))) });
-  }
-  const nexts = plansWithNext(p);
-  if (nexts.length > 0) {
-    items.push({ label: t("Next up"), kind: vscode.QuickPickItemKind.Separator });
-    for (const pl of nexts)
-      items.push({
-        label: `$(arrow-right) ${pl.next?.title ?? ""}`,
-        description: pl.title,
-        detail: t("Continue with claude in the terminal"),
-        open: () => continueInTerminal(p, pl.id),
-      });
-  }
-  if (items.length === 0) {
-    const ok = o.latest ? t("Nothing needs your eyes. Last check passed {0}.", agoText(ago(o.latest.ts, Date.now()))) : t("Nothing needs your eyes.");
-    return void vscode.window.showInformationMessage(ok);
-  }
-  const pick = await vscode.window.showQuickPick(items, { placeHolder: t("Ocul · what needs your eyes in {0}", p.store.name), matchOnDetail: true });
-  await pick?.open?.();
-}
 
 async function fileHistory(arg?: vscode.Uri): Promise<void> {
   const uri = arg instanceof vscode.Uri ? arg : vscode.window.activeTextEditor?.document.uri;

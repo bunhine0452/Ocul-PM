@@ -1,11 +1,13 @@
 {
   "description": "코딩 에이전트가 한 일을 영수증으로 — 마지막 확인 명령 결과, 어느 일지에도 없는 변경, 파일마다의 기록. .oculpm/ 을 읽기만 하고, 네트워크도 LLM 도 쓰지 않아요.",
-  "cmd.showExceptions": "지금 볼 것",
   "cmd.fileHistory": "이 파일의 기록",
   "cmd.copyReceipt": "PR 영수증 복사",
   "cmd.refresh": "기록 다시 읽기",
   "config.explorerBadges": "어느 일지에도 없는 변경 파일을 탐색기에서 `○` 로 표시해요.",
   "cmd.openInApp": "Ocul 에서 열기",
-  "cmd.showClaude": "Claude 가 기다리는 것",
-  "cmd.continueInTerminal": "다음 항목을 터미널의 claude 로 이어서"
+  "cmd.continueInTerminal": "다음 항목을 터미널의 claude 로 이어서",
+  "cmd.showPanel": "Ocul 패널 보기",
+  "cmd.openToday": "Ocul 의 오늘 화면 열기",
+  "view.overview": "한눈에",
+  "config.notifyWhenClaudeWaits": "Claude 가 기다리기 시작하면(허락 · 입력 · 질문) 알림을 한 번 띄워요."
 }
