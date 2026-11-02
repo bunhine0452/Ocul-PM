@@ -26,6 +26,7 @@ const PILL: Record<ExceptionKind, { key: I18nKey; tone: string }> = {
   waiting: { key: "today.check.kind.waiting", tone: "warn" },
   hookWaiting: { key: "today.check.kind.waiting", tone: "warn" },
   verdict: { key: "today.check.kind.verdict", tone: "danger" },
+  stale: { key: "today.check.kind.stale", tone: "warn" },
   evidence: { key: "today.check.kind.evidence", tone: "warn" },
   unrecorded: { key: "today.check.kind.unrecorded", tone: "warn" },
   silent: { key: "today.check.kind.unrecorded", tone: "warn" },
@@ -39,6 +40,7 @@ const PRIMARY: Record<ExceptionKind, I18nKey> = {
   waiting: "today.check.openTerminal",
   hookWaiting: "today.check.dismissWaiting",
   verdict: "today.check.openOutput",
+  stale: "today.check.recheck",
   evidence: "today.check.diff",
   unrecorded: "today.check.viewChanges",
   silent: "today.check.viewChanges",
@@ -80,6 +82,15 @@ function useRowText(ex: TodayException): { title: string; meta: string; mono: bo
       // 누가 돌렸는지는 빼고 무엇이 나왔는지만 — 같은 에이전트 이름이 줄마다 섰다 ({#today-repeat}).
       const parts = [ex.plan.check, ex.verdict.summary || t("today.check.noSummary"), whenLabel(ex.verdict.ts)];
       return { title: t("today.check.verdictTitle", { plan: ex.plan.title }), meta: parts.filter(Boolean).join(" · "), mono: true };
+    }
+    case "stale": {
+      const [first, ...rest] = ex.files;
+      const files = rest.length > 0 ? t("today.check.moreFiles", { first, n: rest.length }) : first;
+      return {
+        title: t("today.check.staleTitle", { plan: ex.plan.title }),
+        meta: t("today.check.staleMeta", { when: whenLabel(ex.verdict.ts), files }),
+        mono: false,
+      };
     }
     case "evidence":
       return { title: ex.entry.title, meta: "", mono: false };

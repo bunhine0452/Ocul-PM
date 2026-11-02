@@ -41,6 +41,9 @@ pub struct DigestPlan {
     pub done_when: Option<String>,
     pub check: Option<String>,
     pub last_verdict: Option<super::judge::PlanVerdict>,
+    /// 판정이 ✓ 인데 그 뒤에 다시 저장된, 이 계획이 다룬 파일 (`stale::changed_after`). 비었으면 판정이 지금도 산다.
+    /// `build` 는 비워 두고 명령(`today_digest`)이 디스크를 보고 채운다.
+    pub stale_files: Vec<String>,
     /// 다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫은 건너뛴다. `[~]` 는 다른 세션이
     /// 잡은 것으로 본다 (`/oculpm:next` 와 같은 규칙).
     pub next: Option<DigestItem>,
@@ -123,6 +126,7 @@ pub fn build(mut details: Vec<PlanDetail>) -> TodayDigest {
             done_when: d.done_when.clone(),
             check: d.check.clone(),
             last_verdict: d.plan.last_verdict.clone(),
+            stale_files: Vec::new(),
             next,
         });
         for i in &leaves {
