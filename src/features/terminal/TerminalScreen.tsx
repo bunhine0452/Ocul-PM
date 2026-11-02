@@ -165,6 +165,9 @@ export function TerminalScreen({
   }, [lastId, sessions, setView]);
 
   const count = leaves(layout).length;
+  // 단축키 처리기는 칸 수를 닫아 두지 않고 ref 로 읽는다 — 나눈 직후 처리기가 다시 걸리기 전에 온 ⇧⌘↩ 도 맞게.
+  const countRef = useRef(count);
+  countRef.current = count;
   // 칸이 하나가 되면 「크게」는 뜻이 없다.
   useEffect(() => {
     if (count < 2) setZoomed(false);
@@ -221,14 +224,14 @@ export function TerminalScreen({
       } else if (c.key === "d") {
         e.preventDefault();
         void split(c.shift ? "col" : "row");
-      } else if (c.key === "enter" && c.shift && count > 1) {
+      } else if (c.key === "enter" && c.shift && countRef.current > 1) {
         e.preventDefault();
         setZoomed((z) => !z);
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [add, split, count]);
+  }, [add, split]);
 
   // Finder 에서 끌어다 놓은 파일 · 그림 → 커서 아래 세션의 입력에 따옴표 친 경로.
   const dropOver = useTerminalFileDrop(active, getPlatform() === "windows", pasteToTerm);
