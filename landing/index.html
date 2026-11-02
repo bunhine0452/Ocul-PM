@@ -48,7 +48,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "4.2.0",
+  "softwareVersion": "4.3.0",
   "description": "AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. 매일 AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)로 개발하는 사람을 위한 로컬-우선 AI 프로젝트 매니저 — 에이전트가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다. 앱은 사람이 볼 것(판정 실패 · 증거 없는 일지 · 기록 없는 변경)만 펼치고, 판정은 확인 명령의 결과 끝 줄로 읽습니다. 앱은 LLM 을 부르지 않습니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -70,7 +70,11 @@
     "서명된 배포 — Apple Developer ID 서명 · 공증. 릴리스는 태그 커밋의 CI 통과를 확인한 뒤 draft 로 만들어져 서명 · 공증 · 업데이터 서명을 검사한 다음에만 공개됩니다",
     "Windows · Linux 베타 — Windows 10 2004 이상 · 11(x64)과 Linux x64(AppImage · deb, glibc 2.35+). 릴리스마다 CI 러너에서 설치 스모크와 실제 앱 E2E 를 통과한 OS 만 올라갑니다",
     "같은 일을 worktree 여럿에서 — 터미널의 「여럿에서」 가 프롬프트 하나를 레인 2~4개의 claude 에 주고, 레인마다 바뀐 줄 · 그 안에서 쓴 일지 · 검증 명령의 끝 줄을 보여 줍니다. 명령으로 검증한 레인 가운데 가장 작은 변경에 「추천」 이 붙고, 「이것으로」 가 그 변경을 원래 폴더에 커밋 전 변경으로 가져옵니다",
-    "줄 메모 → Claude — 변경 화면의 줄마다 메모를 달아 한 묶음으로 보내고, 보낸 메모는 그 줄이 바뀌면 「고쳐짐」, 그대로면 「아직」 으로 저절로 표시됩니다. 터미널은 세션 둘을 나란히, Finder 에서 끌어다 놓으면 경로 입력, 이미지 경로에 올리면 미리보기. 창은 480pt 까지 줄어듭니다",
+    "줄 메모 → Claude — 변경 화면의 줄마다 메모를 달아 한 묶음으로 보내고, 보낸 메모는 그 줄이 바뀌면 「고쳐짐」, 그대로면 「아직」 으로 저절로 표시됩니다. Finder 에서 끌어다 놓으면 경로 입력, 이미지 경로에 올리면 미리보기. 창은 480pt 까지 줄어듭니다",
+    "통과 뒤 바뀜 — 계획의 확인 명령이 통과한 뒤 그 계획이 다룬 파일이 다시 저장되면 오늘 화면이 바뀐 파일과 함께 짚고, 「다시 확인」 이 claude 에게 확인 명령을 다시 돌리게 합니다. 확인 명령의 결과는 오늘 · 계획 · 계획 목록에서 같은 판정 줄(결과 선 · ✓/✗ · 끝 줄 그대로)로 섭니다",
+    "재수정 경고 — 플러그인이 에이전트가 최근 7일 안에 버그를 고친 파일을 다시 고치기 직전, 그 버그와 그때 돌린 확인 명령을 알려 줍니다. 막지 않습니다",
+    "PR 영수증 — 변경 화면의 「영수증 복사」 가 가지의 일지 · 돌린 명령의 끝 줄 · 계획의 확인 명령 결과 · 일지 없는 변경을 PR 설명용 마크다운으로. git 으로 받은 동료의 일지에는 그 사람 이름이 붙습니다",
+    "터미널을 몇 칸이든 — ⌘D 오른쪽 · ⇧⌘D 아래로 나누고, 선을 끌어 크기, ⇧⌘↩ 로 한 칸만 크게, ⌥⌘ + 방향키로 칸 이동, ⌘F 로 출력에서 찾기. Claude 가 일했는데 일지 없이 끝난 세션에는 「일지 없음」",
     "한국어 · English 화면 언어",
     "보이는 이름은 Ocul — 설치된 앱(Ocul-PM.app) · 내려받는 파일 · 데이터 폴더 · 플러그인 oculpm 은 이름이 그대로라 업데이트가 같은 자리에 깔립니다"
   ]
@@ -223,7 +227,7 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="/"><img src="icon.svg" alt="" width="24" height="24" />Ocul</a>
-    <span class="nav-ver" data-version>v4.2.0</span>
+    <span class="nav-ver" data-version>v4.3.0</span>
     <nav class="nav-links" aria-label="사이트">
       <a href="#screens">화면</a>
       <a href="/wiki">위키</a>
@@ -245,7 +249,7 @@
     <div class="ctas">
       <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">v4.2.0 받기</span><span class="sub">macOS · 무료</span>
+        <span class="lg">v4.3.0 받기</span><span class="sub">macOS · 무료</span>
       </a>
       <button class="cmd two" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Claude Code 플러그인 설치 명령 두 줄 복사"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">두 줄 복사</span></button>
     </div>
@@ -255,7 +259,7 @@
         <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
         <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
       </p>
-      <a class="whatsnew" href="#updates"><span class="ap-new">새 판</span>&nbsp; v4.2.0 — 같은 일을 여럿에서 돌려 증거로 고릅니다</a>
+      <a class="whatsnew" href="#updates"><span class="ap-new">새 판</span>&nbsp; v4.3.0 — 통과 뒤 바뀜을 짚고, 터미널은 몇 칸이든</a>
     </div>
 
     <div class="stage" id="screens" data-app>
@@ -371,6 +375,8 @@
       <div><dt>확인은 내용에 묶입니다</dt><dd>확인 표시는 그때 본문의 지문과 함께 남고, 에이전트가 뒤에 고치면 다시 묻습니다.</dd></div>
       <div><dt>같은 일을 여럿에서</dt><dd>프롬프트 하나를 worktree 2~4개의 claude 에. 검증 명령을 돌린 레인 가운데 가장 작은 변경에 「추천」 이 붙습니다.</dd></div>
       <div><dt>줄마다 메모를 Claude 에게</dt><dd>변경 줄에 메모를 달아 한 번에 보내고, 그 줄이 바뀌면 「고쳐짐」 이 저절로 붙습니다.</dd></div>
+      <div><dt>통과 뒤에 바뀌면 짚습니다</dt><dd>확인 명령이 ✓ 로 통과한 뒤 그 계획의 파일이 다시 저장되면, 오늘 화면이 바뀐 파일과 함께 다시 확인하라고 합니다.</dd></div>
+      <div><dt>터미널은 몇 칸이든</dt><dd><kbd>⌘D</kbd> 오른쪽 · <kbd>⇧⌘D</kbd> 아래로 나누고, <kbd>⌥⌘</kbd> + 방향키로 옮겨 다니고, <kbd>⌘F</kbd> 로 출력에서 찾습니다.</dd></div>
       <div><dt>앱은 LLM 을 부르지 않습니다</dt><dd>요약도 API 키도 없습니다. 생각은 에이전트가 하고, 앱은 증거를 그대로 보여 줍니다.</dd></div>
     </dl>
   </div>
@@ -407,10 +413,10 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
     <h2 id="updates-h">이 앱은 이 앱으로 만들어집니다.</h2>
     <p class="intro">이 저장소의 <b>일지 932건 · 계획 89개 · 릴리스 133개</b>가 Ocul 로 쌓였습니다. 아래 이력도 그 일지에서 나왔습니다.</p>
     <ul class="releases">
+      <li class="rel"><span class="ver">v4.3.0</span><div><h3>통과 뒤 바뀜을 짚고, 터미널은 몇 칸이든</h3><p>✓ 뒤에 바뀐 파일을 오늘 화면이 짚고, 최근 버그를 고친 파일을 다시 고치기 직전 에이전트가 그 버그를 듣습니다. PR 영수증 복사, 터미널 칸 나누기 · 찾기, 어디서나 같은 판정 줄.</p></div></li>
       <li class="rel"><span class="ver">v4.2.0</span><div><h3>여럿에서 고르고, 줄마다 말하고</h3><p>같은 일을 worktree 여럿에서 돌려 증거로 고르고, 변경 줄마다 메모를 달아 Claude 에게 보냅니다. 터미널 나란히 · 끌어다 놓기 · 이미지 미리보기, 창은 480pt 까지.</p></div></li>
       <li class="rel"><span class="ver">v4.1.0</span><div><h3>Claude 와 주고받기, 이름은 Ocul</h3><p>Claude 가 기다리면 알고, 앱에서 답하고, 앱에서 보냅니다. ⌃Tab · ⌥⌘1~9 로 오가고, 처음 쓰는 법이 생겼습니다.</p></div></li>
       <li class="rel"><span class="ver">v4.0.0</span><div><h3>다섯 면, 예외만</h3><p>오늘 화면은 판정 실패 · 증거 없는 일지 · 기록 없는 변경만 펼칩니다. 앱은 LLM 을 부르지 않고, 창 하나가 프로젝트 하나입니다.</p></div></li>
-      <li class="rel"><span class="ver">v3.17.0</span><div><h3>첫 실행부터 터미널까지</h3><p>시안 열일곱 장을 전부 옮긴 판. 첫 실행의 한 가지 행동, 일지의 사람 확인 줄, 변경의 일지별 묶기.</p></div></li>
     </ul>
     <p class="more"><a href="/changelog">전체 변경 이력</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스</a></p>
   </div>
@@ -459,7 +465,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
     <div class="ctas">
       <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">v4.2.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+        <span class="lg">v4.3.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
       </a>
       <a class="btn" href="/plugin">플러그인으로 시작</a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>
@@ -469,7 +475,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
       <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
       <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
     </p>
-    <p class="cta-ver">v4.2.0 — macOS · Windows · Linux(베타)</p>
+    <p class="cta-ver">v4.3.0 — macOS · Windows · Linux(베타)</p>
   </div>
 </section>
 </main>

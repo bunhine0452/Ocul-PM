@@ -48,7 +48,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og-en.png",
-  "softwareVersion": "4.2.0",
+  "softwareVersion": "4.3.0",
   "inLanguage": "en",
   "description": "Stop re-explaining to your AI where you left off yesterday. A local-first AI project manager for people who build with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends) every day — when the agent finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan items as its starting context. The app unfolds only what a person must see (failed verdicts · entries without evidence · unrecorded changes) and reads the verdict from a check command's last line of output. The app calls no LLM. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -73,7 +73,11 @@
     "English and Korean UI",
     "The visible name is Ocul — the installed app (Ocul-PM.app) · download files · data folder · the oculpm plugin keep their names, so updates land in the same place",
     "One task, several worktrees — the terminal's Race gives one prompt to claude in 2–4 lanes and shows, per lane, the changed lines, the journal entry written inside it and the last line of its check command. Among lanes checked by a command, the smallest change is marked Pick, and Use this brings that change into your folder as uncommitted changes",
-    "Line notes → Claude — comment on changed lines in Diff and send them in one go; a sent note shows Fixed once its line changes and Open while it stays. Two terminal sessions side by side, drag and drop from Finder to type a path, hover an image path to preview it. Windows shrink to 480pt"
+    "Line notes → Claude — comment on changed lines in Diff and send them in one go; a sent note shows Fixed once its line changes and Open while it stays. Drag and drop from Finder to type a path, hover an image path to preview it. Windows shrink to 480pt",
+    "Changed after pass — when a plan's check command passed but a file that plan touched was saved again afterwards, Today flags it with the changed files, and Check again has claude re-run the check. Check results read the same everywhere on Today, the plan page and the plan list: one verdict line (result rule · ✓/✗ · the command's own last line)",
+    "Re-fix warning — just before the agent edits a file a bug fix touched in the last 7 days, the plugin tells it about that bug and the check command run back then. It never blocks",
+    "PR receipt — Copy receipt in Diff turns the branch's journal entries · the last line of each command run · the plan's check result · changes in no entry into Markdown for a PR description. Entries teammates pushed through git carry their name",
+    "The terminal in as many panes as you like — ⌘D splits right, ⇧⌘D down, drag to resize, ⇧⌘↩ expands one pane, ⌥⌘ + arrows move between panes, ⌘F finds in output. A session where Claude worked but no entry was written says no journal"
   ]
 }
 </script>
@@ -225,7 +229,7 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="/en"><img src="/icon.svg" alt="" width="24" height="24" />Ocul</a>
-    <span class="nav-ver" data-version>v4.2.0</span>
+    <span class="nav-ver" data-version>v4.3.0</span>
     <nav class="nav-links" aria-label="Site">
       <a href="#screens">Screens</a>
       <a href="/wiki/en">Wiki</a>
@@ -247,7 +251,7 @@
     <div class="ctas">
       <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.2.0</span><span class="sub">macOS · free</span>
+        <span class="lg">Get v4.3.0</span><span class="sub">macOS · free</span>
       </a>
       <button class="cmd two" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
     </div>
@@ -257,7 +261,7 @@
         <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
         <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
       </p>
-      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.2.0 — Run one task in several worktrees, pick by evidence</a>
+      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.3.0 — Stale passes flagged, the terminal in as many panes as you like</a>
     </div>
 
     <div class="stage" id="screens" data-app>
@@ -373,6 +377,8 @@
       <div><dt>A check is tied to the content</dt><dd>“Checked” is stored with a fingerprint of the body. If the agent edits it later, it asks again.</dd></div>
       <div><dt>One task, several worktrees</dt><dd>One prompt to claude in 2–4 worktrees. Among lanes that ran a check command, the smallest change is marked “Pick”.</dd></div>
       <div><dt>Line notes for Claude</dt><dd>Comment on changed lines, send them in one go, and “Fixed” appears on its own when the line changes.</dd></div>
+      <div><dt>Passes that went stale get flagged</dt><dd>If a plan's files are saved again after its check passed, Today shows which ones and asks you to check again.</dd></div>
+      <div><dt>The terminal in as many panes as you like</dt><dd><kbd>⌘D</kbd> splits right, <kbd>⇧⌘D</kbd> down, <kbd>⌥⌘</kbd> + arrows move between panes, <kbd>⌘F</kbd> finds in output.</dd></div>
       <div><dt>The app calls no LLM</dt><dd>No summaries, no API keys. The agent does the thinking; the app shows the evidence as it is.</dd></div>
     </dl>
   </div>
@@ -409,10 +415,10 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
     <h2 id="updates-h">This app is built with this app.</h2>
     <p class="intro">This repository's <b>932 entries, 89 plans and 133 releases</b> were recorded with Ocul. The history below comes from those entries.</p>
     <ul class="releases">
+      <li class="rel"><span class="ver">v4.3.0</span><div><h3>Stale passes flagged, the terminal in panes</h3><p>Today flags files changed after a ✓, and the agent hears about a recent bug just before editing the file it fixed. Copy a PR receipt, split and search the terminal, and one verdict line everywhere.</p></div></li>
       <li class="rel"><span class="ver">v4.2.0</span><div><h3>Pick from several, comment per line</h3><p>Run one task in several worktrees and pick by evidence; comment on changed lines and send them to Claude in one go. Side-by-side terminals, drag and drop, image preview, windows down to 480pt.</p></div></li>
       <li class="rel"><span class="ver">v4.1.0</span><div><h3>Talking with Claude — the name is Ocul</h3><p>Know when Claude is waiting, answer it in the app, send it work from the app. ⌃Tab and ⌥⌘1–9 to move, and a first-run guide.</p></div></li>
       <li class="rel"><span class="ver">v4.0.0</span><div><h3>Five surfaces, exceptions only</h3><p>Today shows only failed verdicts, entries without evidence and unrecorded changes. The app calls no LLM, and one window is one project.</p></div></li>
-      <li class="rel"><span class="ver">v3.17.0</span><div><h3>From first run to terminal</h3><p>All seventeen design comps, shipped: one action on first run, a human-check line on entries, diffs grouped by entry.</p></div></li>
     </ul>
     <p class="more"><a href="/changelog">Full changelog</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub releases</a></p>
   </div>
@@ -461,7 +467,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
     <div class="ctas">
       <a class="btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.2.0</span><span class="sub">free · auto-updates</span>
+        <span class="lg">Get v4.3.0</span><span class="sub">free · auto-updates</span>
       </a>
       <a class="btn" href="/en/plugin">Start with the plugin</a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Teams &amp; partnerships</a>
@@ -471,7 +477,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
       <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
       <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
     </p>
-    <p class="cta-ver">v4.2.0 — macOS · Windows · Linux (beta)</p>
+    <p class="cta-ver">v4.3.0 — macOS · Windows · Linux (beta)</p>
   </div>
 </section>
 </main>
