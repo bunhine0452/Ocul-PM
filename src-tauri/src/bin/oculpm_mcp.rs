@@ -22,6 +22,10 @@ fn main() {
     if argv.first().map(String::as_str) == Some("verdict") {
         std::process::exit(ocul_pm_lib::oculpm::verdict::cli::run(&argv[1..]));
     }
+    // 재수정 경고(`refix`) — PreToolUse 훅이 고치기 직전에 부른다 (`oculpm::refix`).
+    if argv.first().map(String::as_str) == Some("refix") {
+        std::process::exit(ocul_pm_lib::oculpm::refix::run(&argv[1..]));
+    }
     let mut root: Option<std::path::PathBuf> = None;
     let mut args = argv.into_iter();
     while let Some(a) = args.next() {

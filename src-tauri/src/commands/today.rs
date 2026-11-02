@@ -43,8 +43,9 @@ async fn mark_stale(db: &Db, project_id: u32, out: &mut TodayDigest) {
             continue;
         };
         let (root, ts) = (root.clone(), v.ts.clone());
-        plan.stale_files = tokio::task::spawn_blocking(move || stale::changed_after(&root, &files, &ts))
-            .await
-            .unwrap_or_default();
+        plan.stale_files =
+            tokio::task::spawn_blocking(move || stale::changed_after(&root, &files, &ts))
+                .await
+                .unwrap_or_default();
     }
 }

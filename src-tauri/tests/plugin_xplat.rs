@@ -617,8 +617,15 @@ fn every_codex_hook_has_a_windows_variant_calling_the_same_script() {
 /// Claude Code 에만 있는 훅 이벤트 — Codex 의 이벤트 표(developers.openai.com/codex/hooks)에
 /// 없다. `StopFailure`: 턴이 API 오류로 끝날 때 Stop 대신 온다 (2026-10-24). `Notification` ·
 /// `UserPromptSubmit`: Claude 가 사람을 기다린다 / 그 기다림이 풀렸다 (10-29 #notify-hook) — Codex 판에
-/// 넣지 않는다(모르는 키로 훅 설정이 거부되면 Codex 사용자의 훅이 통째로 죽는다).
-const CLAUDE_ONLY_EVENTS: &[&str] = &["StopFailure", "Notification", "UserPromptSubmit"];
+/// 넣지 않는다(모르는 키로 훅 설정이 거부되면 Codex 사용자의 훅이 통째로 죽는다). `PreToolUse`(재수정 경고,
+/// 11-02): Codex 에도 이벤트는 있지만 이 훅의 matcher 는 Claude 의 편집 도구 이름(Edit · Write · MultiEdit ·
+/// NotebookEdit)이다 — Codex 는 다른 도구로 고쳐서 걸리지 않는다. 걸리지 않는 훅을 싣지 않는다.
+const CLAUDE_ONLY_EVENTS: &[&str] = &[
+    "StopFailure",
+    "Notification",
+    "UserPromptSubmit",
+    "PreToolUse",
+];
 
 #[test]
 fn the_codex_plugin_ships_the_same_hook_bundle_as_the_claude_one() {

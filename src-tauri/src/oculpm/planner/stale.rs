@@ -65,7 +65,11 @@ mod tests {
         let t: SystemTime = verdict.with_timezone(&chrono::Utc).into();
         touch(dir.path(), "src/before.ts", t - Duration::from_secs(60));
         touch(dir.path(), "src/after.ts", t + Duration::from_secs(60));
-        touch(dir.path(), ".oculpm/journal/x.md", t + Duration::from_secs(60));
+        touch(
+            dir.path(),
+            ".oculpm/journal/x.md",
+            t + Duration::from_secs(60),
+        );
         let files = [
             "src/after.ts",
             "src/before.ts",
@@ -85,8 +89,14 @@ mod tests {
 
     #[test]
     fn plan_log_journal_refs_become_cache_paths() {
-        assert_eq!(journal_rel(".oculpm/journal/20261102/Bugs/a.md"), "20261102/Bugs/a.md");
-        assert_eq!(journal_rel("journal/20261102/Bugs/a.md"), "20261102/Bugs/a.md");
+        assert_eq!(
+            journal_rel(".oculpm/journal/20261102/Bugs/a.md"),
+            "20261102/Bugs/a.md"
+        );
+        assert_eq!(
+            journal_rel("journal/20261102/Bugs/a.md"),
+            "20261102/Bugs/a.md"
+        );
         assert_eq!(journal_rel("20261102/Bugs/a.md"), "20261102/Bugs/a.md");
     }
 }
