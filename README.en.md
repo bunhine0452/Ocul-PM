@@ -72,6 +72,9 @@ What it doesn't give is written down too. Ambition itself is the human's job —
 
 ## 🚀 v4.3 — Stale passes flagged, the terminal in as many panes as you like
 
+- **4.3.1 · Open in VS Code** — files open at the line in VS Code or Cursor without the `code` shell command. Settings › Display › "Open files in": Auto · VS Code · Cursor · Default app · Custom.
+- **4.3.1 · The waiting window** — a project window Claude is waiting in says "· N waiting" in its title, counts on the Dock badge, and tops the ⌘O list (⌥⌘1).
+- **The Ocul VS Code extension** — reads `.oculpm/` without the app: the last check result and unrecorded-change count in the status bar, the open file's entries and the commands they ran, a PR receipt to copy. [ext-v0.2.0](https://github.com/bunhine0452/Ocul-PM/releases/tag/ext-v0.2.0) · Open VSX.
 - **Changed after pass** — when a plan's check command passed (✓) but a file that plan touched was saved again afterwards, Today's "Look first" shows it with the changed files. "Check again" has the claude in the in-app terminal re-run the check and record the result on that plan.
 - **Re-fix warning (plugin)** — just before the agent edits a file that a bug fix touched in the last 7 days, it hears about that bug and the check command run back then. It never blocks, and fires once per file per conversation. `/plugin update oculpm@oculpm`.
 - **PR receipt** — "Copy receipt" in Diff turns this branch's journal entries · the last line of each command run · the plan's check result · changes in no entry into Markdown for a PR description.
