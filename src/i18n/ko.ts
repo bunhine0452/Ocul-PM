@@ -827,6 +827,13 @@ export const ko = {
   "keys.diffNext": "다음·이전 일치",
   "keys.diffFiles": "파일 이동",
   "keys.diffFilter": "파일 필터",
+  "keys.g.terminal": "터미널",
+  "keys.termNew": "새 세션",
+  "keys.termSplitRight": "오른쪽으로 나누기",
+  "keys.termSplitDown": "아래로 나누기",
+  "keys.termPaneMove": "칸 사이 이동",
+  "keys.termZoom": "고른 칸만 크게 · 되돌리기",
+  "keys.termFind": "출력에서 찾기",
   "keys.startAdd": "폴더 열기",
   // v3 {#revive-recovery-cmds} — 워처 다시 시작 + 일지 캐시 복구
   // ── 출처 배지 (Osaurus 라운드 Phase 3) — 누가 이 기록을 만들었는가

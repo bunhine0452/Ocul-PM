@@ -129,6 +129,7 @@ const TESTS = new Set([
   "__tests__/terminal_attention.test.ts",
   // 터미널 칸 나누기 트리 (Orca split panes) — 한국어 테스트 이름.
   "__tests__/terminal_pane_layout.test.ts",
+  "__tests__/terminal_pane_nav.test.ts",
   // 판정 뒤 바뀜 — 한국어 테스트 이름.
   "__tests__/today_stale.test.ts",
   // PR 영수증 — 한국어 테스트 이름과 일지 제목 픽스처.

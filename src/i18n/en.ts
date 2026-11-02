@@ -815,6 +815,13 @@ export const en: Record<keyof typeof ko, string> = {
   "keys.diffNext": "Next · previous match",
   "keys.diffFiles": "Move between files",
   "keys.diffFilter": "Filter files",
+  "keys.g.terminal": "Terminal",
+  "keys.termNew": "New session",
+  "keys.termSplitRight": "Split right",
+  "keys.termSplitDown": "Split down",
+  "keys.termPaneMove": "Move between panes",
+  "keys.termZoom": "Expand the selected pane · restore",
+  "keys.termFind": "Find in output",
   "keys.startAdd": "Open folder",
   // v3 {#revive-recovery-cmds} — re-arm the watcher + rebuild the journal cache
   // ── Source badges (Osaurus round Phase 3) — who made this record
