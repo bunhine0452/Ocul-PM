@@ -43,6 +43,12 @@ export function laneNumberOf(sessionId: number): number | null {
   return null;
 }
 
+/** 세션이 레인의 것이면 그 레인 경로 — 그 칸을 나누면 새 칸도 같은 worktree 에서 뜬다(Orca 「cwd 이어받기」). */
+export function lanePathOf(sessionId: number): string | null {
+  for (const [path, id] of state.sessions) if (id === sessionId) return path;
+  return null;
+}
+
 export async function refreshRace(projectId: number): Promise<void> {
   const lanes = await raceApi.lanes(projectId);
   set({ lanes: Array.isArray(lanes) ? lanes : [] });

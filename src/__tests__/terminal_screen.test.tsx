@@ -18,6 +18,7 @@ const store = vi.hoisted(() => {
     },
     set,
     opened: [] as Array<string | null>,
+    cwds: [] as Array<string | null>,
     closed: [] as number[],
     mounted: [] as number[],
     subscribe: (fn: () => void) => {
@@ -30,8 +31,9 @@ const store = vi.hoisted(() => {
 vi.mock("@/features/terminal/termStore", () => ({
   subscribeTerms: store.subscribe,
   termsSnapshot: () => store.list,
-  openTerm: async (_projectId: number, prompt: string | null = null) => {
+  openTerm: async (_projectId: number, prompt: string | null = null, cwd: string | null = null) => {
     store.opened.push(prompt);
+    store.cwds.push(cwd);
     const id = store.list.length + 1;
     store.set([...store.list, info(id, prompt ? "claude" : "zsh")]);
     return id;
@@ -41,6 +43,7 @@ vi.mock("@/features/terminal/termStore", () => ({
     return () => {};
   },
   pasteToTerm: () => {},
+  focusTerm: () => {},
   closeTerm: (id: number) => {
     store.closed.push(id);
     store.set(store.list.filter((s) => s.id !== id));
@@ -54,7 +57,7 @@ vi.mock("@/api/oculpm", () => ({
 vi.mock("@/api/projects", () => ({ projectsApi: { onJournalAdded: async () => () => {} } }));
 
 import { __resetLangForTests, setLangSetting, t } from "@/i18n";
-import { TerminalScreen } from "@/features/terminal/TerminalScreen";
+import { TerminalScreen, __resetTermLayoutForTests } from "@/features/terminal/TerminalScreen";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
 import { NAV_BUS } from "@/lib/navRegistry";
@@ -78,6 +81,8 @@ beforeEach(() => {
   setLangSetting("ko");
   store.set([]);
   store.opened.length = 0;
+  store.cwds.length = 0;
+  __resetTermLayoutForTests();
   store.closed.length = 0;
   store.mounted.length = 0;
   journal.created = [];
@@ -166,34 +171,75 @@ describe("「다음」 실행", () => {
   });
 });
 
-describe("나란히 보기 (Orca 벤치마킹)", () => {
+describe("칸 나누기 (Orca split panes)", () => {
   const panes = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>(".tm-pane")].map((p) => p.dataset.termId);
+  const dirs = (root: HTMLElement) =>
+    [...root.querySelectorAll<HTMLElement>(".tm-node")].map((n) => (n.classList.contains("is-col") ? "col" : "row"));
 
-  it("⌘\\ 로 다른 세션을 오른쪽에 붙이고, 오른쪽 탭을 고르면 두 칸이 바뀌며, 닫히면 접힌다", async () => {
-    store.set([info(1, "zsh"), info(2, "claude")]);
-    const { container } = render(<TerminalScreen projectId={1} workday="20261029" />);
-    await waitFor(() => expect(store.mounted).toContain(2));
-    fireEvent.keyDown(window, { key: "\\", code: "Backslash", metaKey: true });
-    await waitFor(() => expect(panes(container)).toEqual(["2", "1"]));
-    expect(store.mounted).toContain(1);
-    expect(store.opened).toEqual([]);
-    // 오른쪽 세션(1)의 탭을 고르면 두 칸이 바뀐다.
-    fireEvent.click(screen.getAllByRole("tab")[0]);
-    await waitFor(() => expect(panes(container)).toEqual(["1", "2"]));
-    // 오른쪽 세션이 닫히면 접힌다.
-    act(() => store.set([info(1, "zsh")]));
-    await waitFor(() => expect(panes(container)).toEqual(["1"]));
-  });
-
-  it("세션이 하나뿐이면 새 셸을 오른쪽에 열고 왼쪽은 그대로 — 끄면 오른쪽 세션은 탭에 남는다", async () => {
+  it("⌘D 로 오른쪽, ⇧⌘D 로 아래 — 몇 번이든 나누고, 새 칸이 고른 칸이 된다", async () => {
     store.set([info(1, "zsh")]);
     const { container } = render(<TerminalScreen projectId={1} workday="20261029" />);
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("terminal.split")) }));
-    await waitFor(() => expect(store.opened).toEqual([null]));
+    await waitFor(() => expect(store.mounted).toContain(1));
+    fireEvent.keyDown(window, { key: "d", code: "KeyD", metaKey: true });
     await waitFor(() => expect(panes(container)).toEqual(["1", "2"]));
-    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("terminal.unsplit")) }));
-    await waitFor(() => expect(panes(container)).toEqual(["1"]));
+    fireEvent.keyDown(window, { key: "D", code: "KeyD", metaKey: true, shiftKey: true });
+    await waitFor(() => expect(panes(container)).toEqual(["1", "2", "3"]));
+    expect(dirs(container)).toEqual(["row", "col"]);
+    expect(store.opened).toEqual([null, null]);
+    // 칸이 둘 이상이면 칸마다 머리 — 고른 칸(마지막에 연 3)이 표시된다.
+    expect(container.querySelectorAll(".tm-pane-head")).toHaveLength(3);
+    expect(container.querySelector(".tm-leaf.is-active .tm-pane")?.getAttribute("data-term-id")).toBe("3");
+  });
+
+  it("칸의 세션이 닫히면 짝이 그 자리를 차지하고, 「하나로」는 고른 칸만 남긴다(세션은 탭에 남는다)", async () => {
+    store.set([info(1, "zsh")]);
+    const { container } = render(<TerminalScreen projectId={1} workday="20261029" />);
+    fireEvent.click(screen.getByRole("button", { name: t("terminal.splitRight") }));
+    await waitFor(() => expect(panes(container)).toEqual(["1", "2"]));
+    fireEvent.click(screen.getByRole("button", { name: t("terminal.splitDown") }));
+    await waitFor(() => expect(panes(container)).toEqual(["1", "2", "3"]));
+    act(() => store.set(store.list.filter((s) => s.id !== 2)));
+    await waitFor(() => expect(panes(container)).toEqual(["1", "3"]));
+    expect(dirs(container)).toEqual(["row"]);
+    fireEvent.click(screen.getByRole("button", { name: t("terminal.unsplit") }));
+    await waitFor(() => expect(panes(container)).toEqual(["3"]));
     expect(store.closed).toEqual([]);
     expect(screen.getAllByRole("tab")).toHaveLength(2);
+  });
+
+  it("칸에 없는 세션의 탭을 고르면 고른 칸에 갈아 끼우고, 칸에 있는 세션이면 그 칸을 고른다", async () => {
+    store.set([info(1, "zsh"), info(2, "zsh"), info(3, "claude")]);
+    const { container } = render(<TerminalScreen projectId={1} workday="20261029" />);
+    await waitFor(() => expect(panes(container)).toEqual(["3"]));
+    fireEvent.keyDown(window, { key: "d", code: "KeyD", metaKey: true });
+    await waitFor(() => expect(panes(container)).toEqual(["3", "4"]));
+    fireEvent.click(screen.getAllByRole("tab")[0]);
+    await waitFor(() => expect(panes(container)).toEqual(["3", "1"]));
+    fireEvent.click(screen.getAllByRole("tab")[2]);
+    await waitFor(() => expect(container.querySelector(".tm-leaf.is-active .tm-pane")?.getAttribute("data-term-id")).toBe("3"));
+    expect(panes(container)).toEqual(["3", "1"]);
+  });
+
+  it("⇧⌘↩ 은 고른 칸만 크게 — 다시 누르면 칸들이 돌아온다", async () => {
+    store.set([info(1, "zsh")]);
+    const { container } = render(<TerminalScreen projectId={1} workday="20261029" />);
+    fireEvent.keyDown(window, { key: "d", code: "KeyD", metaKey: true });
+    await waitFor(() => expect(panes(container)).toEqual(["1", "2"]));
+    fireEvent.keyDown(window, { key: "Enter", code: "Enter", metaKey: true, shiftKey: true });
+    await waitFor(() => expect(panes(container)).toEqual(["2"]));
+    fireEvent.keyDown(window, { key: "Enter", code: "Enter", metaKey: true, shiftKey: true });
+    await waitFor(() => expect(panes(container)).toEqual(["1", "2"]));
+  });
+
+  it("경계는 화살표로 크기를 바꾸고, 두 번 누르면 고르게", async () => {
+    store.set([info(1, "zsh")]);
+    render(<TerminalScreen projectId={1} workday="20261029" />);
+    fireEvent.keyDown(window, { key: "d", code: "KeyD", metaKey: true });
+    const sep = await screen.findByRole("separator");
+    expect(sep).toHaveAttribute("aria-valuenow", "50");
+    fireEvent.keyDown(sep, { key: "ArrowRight" });
+    expect(screen.getByRole("separator")).toHaveAttribute("aria-valuenow", "55");
+    fireEvent.doubleClick(screen.getByRole("separator"));
+    expect(screen.getByRole("separator")).toHaveAttribute("aria-valuenow", "50");
   });
 });
