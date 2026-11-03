@@ -65,9 +65,12 @@ function PlanItemLine({ item, depth, parent, locked, onSetStatus, onOpenJournal,
           />
         ) : null}
       </span>
-      <span className="plv-item-t">{title}</span>
-      {isUserItem(item.title) ? <span className="chip sm hairline">{t("plan.item.user")}</span> : null}
-      {item.status === "blocked" ? <span className="chip sm danger">{t("plan.status.blocked")}</span> : null}
+      {/* 칩은 제목 글줄 안에서 흐른다 — 제목이 두 줄로 꺾여도 끝말 바로 뒤에 붙는다(따로 서면 첫 줄 오른쪽에 떴다). */}
+      <span className="plv-item-t">
+        {title}
+        {isUserItem(item.title) ? <span className="chip sm hairline">{t("plan.item.user")}</span> : null}
+        {item.status === "blocked" ? <span className="chip sm danger">{t("plan.status.blocked")}</span> : null}
+      </span>
       {showNote ? <span className="plv-meta plv-item-note">· {item.note}</span> : null}
       {onSend && !parent && item.status !== "done" ? (
         <button

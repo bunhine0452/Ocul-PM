@@ -124,14 +124,16 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
           <div className="send-foot">
             <label className="send-target">
               <span>{t("send.target")}</span>
-              <select value={target} onChange={(e) => setTarget(e.target.value)}>
-                {sessions.map((s, i) => (
-                  <option key={s.id} value={String(s.id)}>
-                    {t("send.session", { n: i + 1, label: s.label, word: sessionWord(t, s) })}
-                  </option>
-                ))}
-                <option value={NEW}>{t("send.newSession")}</option>
-              </select>
+              <span className="select-wrap inline sm">
+                <select value={target} onChange={(e) => setTarget(e.target.value)}>
+                  {sessions.map((s, i) => (
+                    <option key={s.id} value={String(s.id)}>
+                      {t("send.session", { n: i + 1, label: s.label, word: sessionWord(t, s) })}
+                    </option>
+                  ))}
+                  <option value={NEW}>{t("send.newSession")}</option>
+                </select>
+              </span>
             </label>
             <span className="send-sp" />
             <button type="button" className="btn sm" onClick={close}>

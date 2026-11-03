@@ -50,7 +50,9 @@
 .chg-warn { color: var(--warn-text); font-weight: var(--fw-strong); }
 /* 경로 — 디렉터리부터 줄어들고 파일명은 온전히 남는다. */
 .chg-name { display: flex; align-items: baseline; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); }
-.chg-dir { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+/* 폴더는 앞에서 줄인다(「…/features/shell/」) — 파일에 가까운 폴더가 남아야 어느 파일인지 안다.
+   rtl 칸 + <bdi>(안은 ltr 그대로)로 말줄임표가 왼쪽에 선다. 끝에서 자르면 「src/features/she…」 가 됐다. */
+.chg-dir { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); direction: rtl; text-align: left; }
 /* 이름도 칸을 넘으면 말줄임 — 폴더가 먼저 줄고(shrink 100) 이름은 마지막이다. 전부는 title 에.
    `flex: none` 이던 때 긴 일지 파일 이름이 칸 밖 diff 쪽으로 넘쳤다. */
 .chg-base { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

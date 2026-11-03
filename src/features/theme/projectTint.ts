@@ -27,15 +27,18 @@ export const PROJECT_HEX: Record<ProjectColor, string> = {
 };
 
 /**
- * 물드는 바탕 — 창 · 목록 칸 · 본문 셋. **카드(`--bg-card`)와 입력칸 · 코드 칸(`--bg-inset`)은 물들이지
- * 않는다** (화면 검사 11-03): 다섯 단을 다 섞었더니 카드와 그 아래 바탕이 같은 색조로 붙어 카드의 테가
- * 사라지고, 따뜻한 회색 입력칸에 푸른 기가 섞여 탁해졌다. 바탕만 물들고 카드가 그 위에 깨끗하게 떠야
- * 「이 창은 이 프로젝트」와 「여기가 읽을 곳」이 같이 읽힌다.
+ * 물드는 바탕 — 창 · 목록 칸 · 본문, 그리고 안쪽 면(`--bg-inset`: 검색칸 · 코드 · 변경 머리줄 · 줄 번호).
+ * **카드(`--bg-card`)만 물들이지 않는다** (화면 검사 11-03): 카드까지 섞으면 카드와 그 아래 바탕이 같은
+ * 색조로 붙어 카드의 테가 사라진다. 바탕만 물들고 카드가 그 위에 깨끗하게 떠야 「이 창은 이 프로젝트」와
+ * 「여기가 읽을 곳」이 같이 읽힌다.
+ *
+ * 안쪽 면은 11-03 에 뺐다가 11-04 에 되돌렸다: 빼 두니 푸르게 물든 바탕 위에 따뜻한 베이지 검색칸 · 코드
+ * 칸이 서서 한 화면에 온도가 둘이었다. 같은 비율로 섞으면 바탕과 같은 온도의 한 단 어두운 면이 된다.
  */
-export const TINTED = ["--bg-window", "--bg-sidebar", "--bg-content"] as const;
+export const TINTED = ["--bg-window", "--bg-sidebar", "--bg-content", "--bg-inset"] as const;
 
 /** 예전에 물들이던 것 — 걷을 때 같이 걷는다(이 판 이전에 얹힌 값이 남지 않게). */
-const ALL_TINTED = [...TINTED, "--bg-card", "--bg-inset"] as const;
+const ALL_TINTED = [...TINTED, "--bg-card"] as const;
 
 /** 섞는 양 — 어두운 바탕은 같은 %로도 덜 보여 조금 더. */
 const AMOUNT = { light: 0.045, dark: 0.07 } as const;

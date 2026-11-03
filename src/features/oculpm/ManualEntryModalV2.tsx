@@ -245,38 +245,42 @@ export function ManualEntryModalV2({
               <label className="entry-label" htmlFor={`${titleId}-diff`}>
                 {t("manual.difficulty")}
               </label>
-              <select
-                id={`${titleId}-diff`}
-                className="set-modal-input"
-                value={difficulty ?? "_none"}
-                onChange={(e) =>
-                  setDifficulty(e.target.value === "_none" ? null : (e.target.value as Difficulty))
-                }
-              >
-                <option value="_none">{t("manual.none")}</option>
-                {DIFFICULTIES.map((d) => (
-                  <option key={d} value={d}>
-                    {t(`manual.diff.${d}`)}
-                  </option>
-                ))}
-              </select>
+              <span className="select-wrap">
+                <select
+                  id={`${titleId}-diff`}
+                  className="set-modal-input"
+                  value={difficulty ?? "_none"}
+                  onChange={(e) =>
+                    setDifficulty(e.target.value === "_none" ? null : (e.target.value as Difficulty))
+                  }
+                >
+                  <option value="_none">{t("manual.none")}</option>
+                  {DIFFICULTIES.map((d) => (
+                    <option key={d} value={d}>
+                      {t(`manual.diff.${d}`)}
+                    </option>
+                  ))}
+                </select>
+              </span>
             </div>
             <div className="entry-field">
               <label className="entry-label" htmlFor={`${titleId}-status`}>
                 {t("manual.status")}
               </label>
-              <select
-                id={`${titleId}-status`}
-                className="set-modal-input"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as EntryStatus)}
-              >
-                {ENTRY_STATUSES.map((st) => (
-                  <option key={st} value={st}>
-                    {t(`manual.st.${st}`)}
-                  </option>
-                ))}
-              </select>
+              <span className="select-wrap">
+                <select
+                  id={`${titleId}-status`}
+                  className="set-modal-input"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as EntryStatus)}
+                >
+                  {ENTRY_STATUSES.map((st) => (
+                    <option key={st} value={st}>
+                      {t(`manual.st.${st}`)}
+                    </option>
+                  ))}
+                </select>
+              </span>
             </div>
           </div>
 
@@ -320,7 +324,7 @@ export function ManualEntryModalV2({
               {t("manual.files")}<span className="entry-hint">{t("manual.filesHint")}</span>
             </label>
             {fileCandidates.length === 0 ? (
-              <div className="entry-hint">{t("manual.noFiles")}</div>
+              <div className="entry-hint entry-hint-solo">{t("manual.noFiles")}</div>
             ) : (
               <div className="entry-files">
                 {fileCandidates.map((path) => {

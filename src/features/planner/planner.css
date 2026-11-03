@@ -118,13 +118,16 @@
 .plv-item.is-deferred .plv-item-t { color: var(--text-2); }
 /* 항목 제목은 줄을 바꿔 끝까지 (#plan-head) — 접힌 끝난 단계의 한 줄(.plv-phase-done)만 말줄임. */
 .plv-item-t { min-width: 0; overflow-wrap: anywhere; }
+.plv-item-t > .chip { margin-left: var(--space-3); vertical-align: 1px; }
 .plv-item-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plv-item-j { margin-left: auto; }
 /* 「보내기」는 줄을 가리킬 때만 — 계획이 단추로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */
 .plv-item-send { margin-left: auto; opacity: 0; }
 .plv-item-send + .plv-item-j { margin-left: 0; }
 .plv-item:hover .plv-item-send, .plv-item-send:focus-visible { opacity: 1; }
-.plv-anchor { position: relative; flex: none; display: inline-flex; }
+/* 상자는 첫 글줄 한가운데 — 글줄 높이(1lh) 칸 안에서 가운데. baseline 정렬이던 때는 글자 없는 상자의
+   바닥이 기준선에 앉아 상자가 글보다 4px 위에 떴다(11-04). */
+.plv-anchor { position: relative; flex: none; display: inline-flex; align-self: flex-start; align-items: center; height: 1lh; }
 .plv-box-btn {
   display: inline-grid; place-items: center; padding: 2px;
   border: 0; border-radius: var(--radius-xs); background: transparent; cursor: pointer;
@@ -136,7 +139,8 @@
 .plv-box {
   display: inline-grid; place-items: center; flex: none;
   width: 15px; height: 15px; box-sizing: border-box;
-  border: 1.5px solid var(--sep-strong); border-radius: var(--radius-2xs);
+  /* 빈 상자의 테두리는 글자 회색의 반 — 머리카락 선(--sep-strong)으로는 밝은 테마에서 상자가 거의 안 보였다. */
+  border: 1.5px solid color-mix(in srgb, var(--text-2) 55%, transparent); border-radius: var(--radius-2xs);
   color: var(--text-on-accent);
 }
 .plv-box.is-done { background: var(--accent); border-color: var(--accent); }
