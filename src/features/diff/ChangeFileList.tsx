@@ -89,20 +89,15 @@ export function ChangeFileList({ changes, buckets, entries, selected, open, onTo
         <button type="button" className="chg-item chg-grp" aria-expanded={isOpen} onClick={() => onToggle(key)}>
           <span className="chg-r1">
             {isOpen ? <ChevronDown size={11} aria-hidden="true" /> : <ChevronRight size={11} aria-hidden="true" />}
-            <i
-              className="chg-dot"
-              style={{ "--c": `var(--t-${kind.cssVar})` } as React.CSSProperties}
-              role="img"
-              aria-label={t(kind.labelKey)}
-            />
             <span className="chg-ti">{cleanTitle(g.entry_title ?? "") || g.entry_path}</span>
             <span className="chg-count">{g.files.length}</span>
           </span>
           <span className="chg-meta">
-            {when}
+            {t(kind.labelKey)}
+            {when ? ` · ${when}` : null}
             {state === "command" ? <span className="chg-ok"> · ✓ {t("diff.evidence.command")}</span> : null}
             {state === "confirmed" ? <span className="chg-ok"> · ✓ {t("entry.verified")}</span> : null}
-            {state === "missing" ? <span className="chg-warn"> · ! {t("journal.evidence.missing")}</span> : null}
+            {state === "missing" ? <span className="chg-warn"> · {t("journal.evidence.missing")}</span> : null}
           </span>
         </button>
         {isOpen ? g.files.map((p) => fileRow(p, true)) : null}
@@ -128,7 +123,7 @@ export function ChangeFileList({ changes, buckets, entries, selected, open, onTo
           {buckets.groups.length > 0 ? (
             <section aria-label={t("diff.recorded.label")}>
               <h3 className="chg-bh">
-                <span className="chip sm outline">{t("diff.recorded.label")}</span>
+                <span className="chip sm hairline">{t("diff.recorded.label")}</span>
                 <span>{t("diff.recorded.count", { files: recordedFiles, n: buckets.groups.length })}</span>
               </h3>
               {buckets.groups.map(groupRow)}

@@ -25,7 +25,6 @@ function EntryRow({ entry, onOpen }: { entry: JournalEntrySummary; onOpen: (e: J
       <button type="button" className="tdy-ent" onClick={() => onOpen(entry)}>
         <span className="tdy-ent-tm mono">{clockOf(entry.created_at)}</span>
         <span className="tdy-ent-ty">
-          <span className="tdy-dot" style={{ background: `var(--t-${meta.cssVar})` }} aria-hidden="true" />
           {t(meta.labelKey)}
         </span>
         <span className="tdy-ent-ti">{entry.title}</span>

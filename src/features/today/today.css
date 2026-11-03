@@ -60,6 +60,13 @@
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .tdy-row:last-child { border-bottom: 0; }
+/* 먼저 볼 것 — 행마다 칩 폭이 달라 제목이 들쭉날쭉 시작하던 것을 한 칸(subgrid)으로 맞춘다.
+   칩 칸 · 내용 · 동작, 세 칸이 목록 전체에서 같은 선에 선다. */
+.tdy-rows.is-ex { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; }
+.tdy-rows.is-ex > .tdy-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; }
+.tdy-rows.is-ex > .tdy-row > .chip { justify-self: start; }
+/* 검증 없이 끝난 일지도 같은 칸 — 시각 칸은 목록에서 가장 긴 시각(「어제 19:39」 · 「yesterday 19:39」)의 폭. */
+.tdy-rows.is-ex > .tdy-unread > .tdy-time { width: auto; white-space: nowrap; }
 .tdy-row:focus-within { background: var(--bg-hover); }
 .tdy-row:focus-visible { outline-offset: var(--focus-offset-inset); }
 .tdy-row-t { flex: 1; min-width: 0; }
@@ -110,7 +117,7 @@
 }
 .tdy-ent-ti { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tdy-ent-ev { font-size: var(--fs-3); white-space: nowrap; }
-.tdy-ent-ev.is-command { color: var(--ok-text); font-weight: var(--fw-strong); }
+.tdy-ent-ev.is-command { color: var(--text-2); } /* 통과는 조용히 — 영수증 규칙 1 */
 .tdy-ent-ev.is-missing { color: var(--warn-text); font-weight: var(--fw-strong); }
 .tdy-ent-ev.is-verified { color: var(--text-2); }
 .tdy-ent-ev.is-none { color: var(--text-2); }

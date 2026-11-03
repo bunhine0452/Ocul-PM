@@ -365,12 +365,14 @@ describe("primitives.css — 아이콘 버튼 2크기 · 칩 수정자, 전역 �
     expect(prim).not.toMatch(/\.iconbtn\.(?:md|lg)\b/);
     // 걷은 화면의 옛 이름(pln-/pm-/gr-/home-/sk-iconbtn …)은 화면과 함께 걷었다 (2026-10-29).
   });
-  it("칩 수정자 — sm/outline/ok/warn/danger/info (accent 는 없다)", () => {
-    for (const mod of ["sm", "outline", "ok", "warn", "danger", "info"]) {
+  it("칩 수정자 — sm/hairline/ok/warn/danger/info (accent · outline 은 없다)", () => {
+    for (const mod of ["sm", "hairline", "ok", "warn", "danger", "info"]) {
       expect(prim).toMatch(new RegExp(`\\.chip\\.${mod} \\{`));
     }
     // 초록은 주 버튼과 통과(.chip.ok)에만 — 상태 이름에 초록 딱지를 붙이던 .chip.accent 는 걷었다.
     expect(prim).not.toMatch(/\.chip\.accent \{/);
+    // `outline` 은 Tailwind 유틸리티 이름이라 칩에 파란 링을 씌운다.
+    expect(prim).not.toMatch(/\.chip\.outline\b/);
   });
   it("App.css 가 primitives 를 전역으로 들이고 index.css 는 다시 들이지 않는다", () => {
     expect(read("App.css")).toMatch(/@import "\.\/styles\/primitives\.css";/);

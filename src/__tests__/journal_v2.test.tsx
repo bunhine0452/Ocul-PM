@@ -255,8 +255,8 @@ describe("작업 일지 — 목록", () => {
     expect(await findByText("기능 작업")).toBeInTheDocument();
     expect(getByText("오늘 · 5월 31일")).toBeInTheDocument();
     expect(rowTitles(container)).toEqual(["기능 작업", "버그 작업"]);
-    // 메타 줄: 시각 · 파일 수. 에이전트가 하나뿐이면 이름은 줄마다 쓰지 않는다 (화면 검사 {#journal-list}).
-    expect(container.querySelector(".jl-item .jl-meta")?.textContent).toBe("10:00 · 파일 2");
+    // 메타 줄: 종류 · 시각 · 파일 수. 에이전트가 하나뿐이면 이름은 줄마다 쓰지 않는다 (화면 검사 {#journal-list}).
+    expect(container.querySelector(".jl-item .jl-meta")?.textContent).toBe("기능 추가 · 10:00 · 파일 2");
     // 가장 위 줄이 자동으로 골라져 상세가 선다.
     await waitFor(() => expect(detailTitle(container)).toBe("기능 작업"));
     expect(container.querySelector('.jl-item[aria-current="true"] .jl-ti')?.textContent).toBe("기능 작업");

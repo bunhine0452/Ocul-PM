@@ -20,9 +20,6 @@
 .plv-grow { flex: 1; }
 .plv-sec-h { margin: 0 0 var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); }
 .plv-sec-n { flex: none; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.plv-sec-bar { flex: 0 0 64px; height: 4px; margin-left: auto; }
-.plv-bar { display: block; height: 4px; overflow: hidden; border-radius: var(--radius-pill); background: var(--bg-inset); }
-.plv-bar > i { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--accent); }
 
 /* ── 레일 ──────────────────────────────────────────────────── */
 .plv-rail {
@@ -114,7 +111,7 @@
 }
 .plv-phase-done:hover { background: var(--bg-hover); color: var(--text); }
 .plv-phase-done .plv-item-t { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plv-phase-ok { flex: none; color: var(--ok-text); }
+.plv-phase-ok { flex: none; color: var(--text-2); }
 .plv-item { display: flex; align-items: baseline; gap: var(--space-4); padding: var(--space-1) 0; font-size: var(--fs-4); }
 .plv-item.is-parent .plv-item-t { font-weight: var(--fw-strong); }
 .plv-item.is-dropped .plv-item-t { color: var(--text-2); text-decoration: line-through; }

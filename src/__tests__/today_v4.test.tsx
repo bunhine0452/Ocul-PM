@@ -269,10 +269,11 @@ describe("확인할 것 — 종류와 순서", () => {
     fx.plugin = { installed: true, behind: true, installed_version: "3.3.0", bundled_version: "4.0.0", path: "/p", scope: "project" } satisfies ClaudePluginStatus;
     renderToday();
 
-    // 판정 실패는 딱지가 아니라 판정 줄(시그니처)로 선다 — 딱지는 나머지 넷.
-    await waitFor(() => expect(pills()).toHaveLength(4));
+    // 모든 행이 같은 첫 칸(상태 칩)에서 시작한다 — 판정 실패도 「실패」 칩 옆에 판정 줄이 선다(영수증 규칙 4, 11-04).
+    await waitFor(() => expect(pills()).toHaveLength(5));
     expect(checkCard().querySelector('[data-kind="verdict"] .vl.is-fail')).not.toBeNull();
     expect(pills()).toEqual([
+      t("today.check.kind.verdict"),
       t("today.check.kind.unrecorded"),
       t("today.check.kind.unrecorded"),
       t("today.check.kind.blocked"),

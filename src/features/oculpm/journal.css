@@ -64,11 +64,9 @@
   flex: 1; min-width: 0; font-size: var(--fs-4); line-height: var(--lh-snug);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
-.jl-r1 .jl-dot { margin-top: 6px; }
 .jl-meta { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jl-ok { display: inline-flex; align-items: center; flex: none; color: var(--ok-text); }
+.jl-ok { display: inline-flex; align-items: center; flex: none; color: var(--text-2); }
 /* `<i>` 는 인라인이라 flex 밖에서는 크기가 죽는다 — 블록으로. */
-.jl-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--text-2)); flex: none; }
 .jl-more { margin: var(--space-5) var(--space-6); align-self: flex-start; }
 .jl-empty { padding: var(--space-6); font-size: var(--fs-3); color: var(--text-2); }
 
@@ -161,7 +159,7 @@
 .jd-prose li { margin: var(--space-1) 0; }
 .jd-prose strong { font-weight: var(--fw-strong); }
 .jd-prose a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
-.jd-prose blockquote { margin: var(--space-4) 0; padding: var(--space-1) var(--space-5); border-left: 3px solid var(--sep-strong); color: var(--text-2); }
+.jd-prose blockquote { margin: var(--space-4) 0; padding: var(--space-1) var(--space-5); border-left: 1px solid var(--sep-strong); color: var(--text-2); }
 .jd-prose :not(pre) > code {
   font-family: var(--mono); font-size: 0.88em; background: var(--bg-inset);
   padding: 0.1em 0.4em; border-radius: var(--radius-2xs); overflow-wrap: anywhere;

@@ -295,6 +295,9 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                   {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onRun={() => void runNext()} /> : null}
                   {split && split.mine.length > 0 ? <MineLine mine={split.mine} onOpen={openPlan} /> : null}
                   <LiveCard sessions={live} now={now} />
+                  {/* 단축키는 늘 떠 있는 크롬이 아니라 해야 할 것 칸 끝의 한 줄이다 — 윗줄은 탭과 동작만.
+                      두 칸 아래에 따로 두면 오른쪽 칸 길이만큼 떨어져 홀로 떠 있었다(11-04). */}
+                  {entries.length > 0 ? <p className="tdy-keys">{t("today.kbd.hint")}</p> : null}
                 </div>
                 {hasSide ? (
                   <div className="tdy-side">
@@ -306,8 +309,6 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                   </div>
                 ) : null}
               </div>
-              {/* 단축키는 늘 떠 있는 크롬이 아니라 목록 끝의 한 줄이다 — 윗줄은 탭과 동작만. */}
-              {entries.length > 0 ? <p className="tdy-keys">{t("today.kbd.hint")}</p> : null}
             </>
           )}
         </div>

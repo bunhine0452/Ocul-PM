@@ -123,7 +123,7 @@ components:
 
 # Design System: Ocul
 
-Scope: this file records the Ocul visual system as it was committed on the oculpm.com landing (`landing/home.css`, dark only, a Persuade surface). The landing palette is copied from the desktop app's dark family (`[data-theme="dark"]`, "Deep Forest") in `src/styles/tokens.css`. The app UI uses both the light and dark families from that file; the light family is not recorded here and the landing has no light tokens. **When the app's dark tokens change, the landing's `:root` must change with them.** Page strategy lives in `.impeccable/surfaces/landing-index-html.md`; product truth in `PRODUCT.md`.
+Scope: the last section, **App UI — 영수증**, is the philosophy every desktop-app screen follows (2026-11-04). Everything above it records the Ocul visual system as it was committed on the oculpm.com landing (`landing/home.css`, dark only, a Persuade surface). The landing palette is copied from the desktop app's dark family (`[data-theme="dark"]`, "Deep Forest") in `src/styles/tokens.css`. The app UI uses both the light and dark families from that file; the light family is not recorded here and the landing has no light tokens. **When the app's dark tokens change, the landing's `:root` must change with them.** Page strategy lives in `.impeccable/surfaces/landing-index-html.md`; product truth in `PRODUCT.md`.
 
 ## Overview
 
@@ -263,3 +263,27 @@ The hero object: a 14px-radius Window Sheet frame with Window lift, a 46px top b
 - **Don't** add uppercase or small-caps eyebrow labels above headings.
 - **Don't** fill anything with the accent except the primary action and the live answer target.
 - **Don't** introduce a second typeface or a system display face. Pretendard does display, body and labels.
+
+# App UI — 영수증 (Receipt)
+
+Decided 2026-11-04 by the user. It covers every desktop-app surface: Today, Journal, Planner, Diff, Terminal, Settings, the start window, the ⌘K palette, the project list and the dialogs. Tokens live in `src/styles/tokens.css` (light and dark families), the shared pieces in `src/styles/primitives.css` and `src/components/VerdictLine.tsx`. Code comments cite these rules as 「영수증 규칙 N」, so keep the numbering.
+
+**North star: the app hands you a receipt, not a 「다 됐습니다」.** A receipt is plain, exact and printed by the machine that did the work. It does not celebrate. The one line that is wrong is the one you notice, because nothing else on the paper competes with it. The screen should feel the same: calm, aligned and quiet, with the exception standing out because nothing else is shouting. Quality shows as precision (alignment, weight steps, tabular numerals, consistent truncation), never as ornament.
+
+### The six rules
+
+1. **색은 예외에만 (Colour only for exceptions).** Red is a failure or a block, amber is waiting, unverified, changed after a pass, or a person's turn. Passing, connected and current states are a grey ✓ (`.chip.ok` is transparent with a mono ✓). Journal kinds (bug, feature, refactor, chore) are not exceptions: the type badge is neutral and its icon carries the kind, and lists name the kind as the first word of the meta line instead of a coloured dot. A red dot on a bug *fix* used to read as a failure. Diff add/remove colours stay, because they are the diff's own notation. The accent fills only the primary button (rule 3) and focus.
+2. **기계 글씨는 고정폭 (Machine text is mono).** Command output, check commands, paths, hashes, versions and clock times are mono with tabular numerals and no ligatures. Anything a person or agent wrote (titles, notes, journal prose) is the sans. Mono is never a costume for "technical".
+3. **채운 단추는 화면에 하나 (One filled button per screen).** It is that screen's next action: 「터미널에서 실행」 on Today and Planner, 「Claude 에게 맡기기」 on Diff, the empty state's one action on Journal. Everything else is a regular or quiet button. 「새 일지」 is a regular button, because agents write journals and writing one by hand is the exception.
+4. **같은 뜻은 같은 모양 (Same meaning, same shape).** There are four status chips: `danger`, `warn`, neutral, and `hairline` (a state name such as 열림 · 내 차례 · 일지에 있음), plus the grey `ok` ✓. No screen invents its own pill. The class was renamed from `outline` because Tailwind's `outline` utility drew a blue ring on it. A verdict looks the same everywhere (`VerdictLine`: mark · last output line · time, with an optional sub line). Rows that open with a status chip align on one chip column (subgrid), so titles start on the same line.
+5. **접힌 것은 숫자로 말한다 (Folded things speak in numbers).** Progress shows as `3/5` in tabular figures, not as bars. Collapsed groups show their count. The planner's progress bars are gone.
+6. **움직임은 응답일 때만 (Motion only as a response).** A screen fades in 4px when you switch to it, menus open with a short transition, and the project tint eases when it changes. Nothing loops, pulses or animates on its own, and every motion drops to zero under reduced motion. One-shot entrances must not start invisible while the window is unfocused (`data-app-inactive` exempts them).
+
+### Refuse (in the app as well)
+
+- Coloured left stripes on rows, cards or callouts. The verdict line's 2px rule was removed for this reason.
+- Gradients, glow, glass, sparkles or pulsing status ornaments (the de-AI gate in `pnpm lint:design`).
+- Green "success" pills on every row. The exception has to win the page.
+- A second filled button competing with the screen's next action.
+- Truncating a filename while its folder still has room. Folders shrink to nothing first (`.chg-base` never shrinks).
+

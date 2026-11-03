@@ -12,7 +12,7 @@
   display: flex; align-items: center; gap: var(--space-3); min-height: var(--ctl-5); padding: 0 var(--space-4);
   border-top: 1px solid var(--border-card); background: var(--bg-inset); font-size: var(--fs-3); color: var(--text-2);
 }
-.diff-entry-foot[data-evidence="on"] > svg { color: var(--ok-text); }
+.diff-entry-foot[data-evidence="on"] > svg { color: var(--text-2); }
 .diff-entry-foot[data-evidence="off"] > svg { color: var(--warn-text); }
 .def-label { font-weight: var(--fw-bold); white-space: nowrap; }
 .def-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
