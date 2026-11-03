@@ -179,6 +179,7 @@ use crate::commands::{
     // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
     journal_missing_signals,
     list_open_project_ids,
+    recent_window_projects,
     list_projects,
     // Phase 2 — 참조·아웃라인·워크스페이스 심볼·시그니처·포맷팅
     // 코드 인텔리전스 — LSP (docs/lsp/00-master-plan.md)
@@ -341,6 +342,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             get_window_project,
             open_project_nav,
             list_open_project_ids,
+            recent_window_projects,
             close_window,
             // 업데이트 재시작을 건너 창을 되살린다 (재시작 직전 저장)
             save_window_session,

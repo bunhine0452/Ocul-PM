@@ -10,6 +10,8 @@ pub struct Registry {
     pub(super) windows: HashMap<String, Option<u32>>,
     /// 마지막으로 포커스된 창 — 메뉴 이벤트처럼 대상 창이 실려 오지 않는 요청이 쓴다.
     pub(super) last_focused: Option<String>,
+    /// 최근에 쓴 창 순서(앞 = 가장 최근) — 창 전환기(⌥Tab)가 이 순서로 줄을 세운다 (2026-11-04).
+    recent: Vec<String>,
     next_window: u32,
 }
 
@@ -81,12 +83,14 @@ impl Registry {
             self.next_window = self.next_window.max(n);
         }
         self.last_focused = Some(label.to_string());
+        self.touch(label);
     }
 
     /// 창을 등록한다. `main` 처럼 이미 떠 있는 창을 편입하는 데도 쓴다.
     pub(super) fn register(&mut self, label: &str, project: Option<u32>) {
         self.windows.insert(label.to_string(), project);
         self.last_focused = Some(label.to_string());
+        self.touch(label);
     }
 
     /// 새 창 라벨을 발급하고 등록한다.
@@ -128,6 +132,7 @@ impl Registry {
     /// 창이 닫혔다 — 레지스트리에서 빼고 남은 창 수를 돌려준다.
     pub(super) fn remove(&mut self, label: &str) -> usize {
         self.windows.remove(label);
+        self.recent.retain(|l| l != label);
         if self.last_focused.as_deref() == Some(label) {
             self.last_focused = None;
         }
@@ -137,7 +142,29 @@ impl Registry {
     pub(super) fn note_focus(&mut self, label: &str) {
         if self.windows.contains_key(label) {
             self.last_focused = Some(label.to_string());
+            self.touch(label);
         }
+    }
+
+    /// 이 창을 최근 순서의 맨 앞으로.
+    fn touch(&mut self, label: &str) {
+        self.recent.retain(|l| l != label);
+        self.recent.insert(0, label.to_string());
+    }
+
+    /// 프로젝트 창의 프로젝트 id 를 **최근에 쓴 순서**로 — 창 전환기의 줄 순서. 시작 창은 빠진다.
+    /// 한 번도 포커스되지 않은 창(드물다 — 등록이 곧 포커스다)은 라벨 순으로 끝에 붙는다.
+    pub fn recent_projects(&self) -> Vec<u32> {
+        let project = |l: &String| self.windows.get(l).copied().flatten();
+        let mut out: Vec<u32> = self.recent.iter().filter_map(project).collect();
+        let mut rest: Vec<&String> = self
+            .windows
+            .keys()
+            .filter(|l| !self.recent.contains(l))
+            .collect();
+        rest.sort();
+        out.extend(rest.into_iter().filter_map(project));
+        out
     }
 
     /// 프로젝트를 담은 창 하나 — 딥링크 확인 시트를 띄울 자리(시트는 프로젝트 창에만 있다).

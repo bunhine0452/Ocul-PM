@@ -535,6 +535,11 @@
    (`data-pc`) 를 저장하고 테마가 해석한다: --pc 는 아이콘·강조, --pc-soft 는
    마크 배경. 어느 요소든 `data-pc` 를 달면 같은 색이다.
    ============================================================ */
+/* --pc 는 물려받지 않는다 (11-04) — 윗줄(`.topbar[data-pc]`)의 색이 그 안의 색 없는 줄(⌘O 목록 · 창 전환기의
+   한 번도 색을 고르지 않은 프로젝트)에 내려앉아, 이 창의 색을 바꾸면 남의 프로젝트 점까지 같이 바뀌어 보였다.
+   색은 `data-pc` 를 단 그 요소에만 선다. 물려받기를 아는 브라우저가 아니면 아래 `:not([data-pc])` 규칙이 막는다. */
+@property --pc { syntax: "<color>"; inherits: false; initial-value: transparent; }
+@property --pc-soft { syntax: "<color>"; inherits: false; initial-value: transparent; }
 [data-pc="slate"]  { --pc: #6b7280; --pc-soft: rgba(107,114,128,0.12); }
 [data-pc="green"]  { --pc: #12a06b; --pc-soft: rgba(18,160,107,0.13); }
 [data-pc="blue"]   { --pc: #2f7fd8; --pc-soft: rgba(47,127,216,0.13); }

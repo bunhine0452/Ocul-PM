@@ -159,10 +159,21 @@
 /* 프로젝트 색 (2026-11-03) — 창 여럿 사이에서 어느 프로젝트인지. 윗줄 위 띠 + 이름 앞 점 + 목록 점.
    윗줄 바탕도 그 색으로 옅게 물든다 — 창을 나란히 세우면 3px 띠만으로는 잘 안 보였다(11-03 오후).
    강조색(주 버튼 · 고른 탭)은 `projectAccent.ts` 가 같은 색으로 바꾼다. */
+/* 11-04 「한 줄만 보이게 하지 말고 좀 더 구분가게」 — 윗줄 전체가 그 색의 면이 되고(밝게 14% · 어둡게 20%),
+   아랫선도 그 색을 띤다. 프로젝트 이름은 그 색의 알약 위에 서서, 창을 나란히 세우면 이름표처럼 읽힌다.
+   그라디언트 · 빛 없이 평평한 면 하나 — 바탕(projectTint.ts)은 더 옅게 같은 색. */
 .topbar[data-pc] {
+  /* 이 창의 색을 안쪽(이름 알약)에 내려 주는 이름 — --pc 는 물려받지 않는다(tokens.css @property). */
+  --win-pc: var(--pc);
   box-shadow: inset 0 3px 0 var(--pc);
-  background: color-mix(in srgb, var(--pc) 9%, var(--bg-window));
+  background: color-mix(in srgb, var(--pc) 14%, var(--bg-window));
+  border-bottom-color: color-mix(in srgb, var(--pc) 32%, var(--sep));
 }
+[data-theme="dark"] .topbar[data-pc] { background: color-mix(in srgb, var(--pc) 20%, var(--bg-window)); }
+.topbar[data-pc] .proj-switch { background: color-mix(in srgb, var(--win-pc) 16%, transparent); }
+.topbar[data-pc] .proj-switch:hover,
+.topbar[data-pc] .proj-switch[aria-expanded="true"] { background: color-mix(in srgb, var(--win-pc) 26%, transparent); }
+.topbar[data-pc] .proj-switch .proj-dot { width: 9px; height: 9px; }
 .proj-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--pc, transparent); }
 /* 색 없는 프로젝트 — 빈 고리. 윗줄(.topbar[data-pc])의 --pc 를 물려받아 남의 색 점이 서던 것을 막는다. */
 .proj-dot:not([data-pc]) { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
@@ -295,3 +306,37 @@
   /* 찾기는 ⌘K 로 — 단추까지 서면 설정 톱니가 창 밖으로 나간다. */
   .topbar .find-btn { display: none; }
 }
+
+/* ============================================================ WINDOW SWITCHER (⌥Tab, 11-04)
+   누르고 있는 동안만 서는 목록 — 화면 가운데 카드 한 장, 어둡게 덮지 않는다(⌘Tab 처럼 지나가는 것).
+   줄은 프로젝트 목록(⌘O)과 같은 점 · 이름 · 경로 · 칩. 고른 줄은 면(bg-active)으로만. */
+.win-switch-scrim { position: fixed; inset: 0; z-index: var(--z-command); display: grid; place-items: center; padding: var(--space-6); }
+.win-switch {
+  width: min(460px, 100%); max-height: min(520px, calc(100vh - 64px)); overflow: hidden;
+  display: flex; flex-direction: column;
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-l); box-shadow: var(--shadow-pop);
+  transition: opacity var(--dur-1) var(--ease-out), scale var(--dur-1) var(--ease-out);
+}
+@starting-style { .win-switch { opacity: 0; scale: 0.98; } }
+.win-switch-head {
+  display: flex; align-items: baseline; gap: var(--space-4);
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--sep);
+}
+.win-switch-title { font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text); }
+.win-switch-hint { margin-left: auto; font-size: var(--fs-3); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win-switch-alone { margin: 0; padding: var(--space-4) var(--space-5) 0; font-size: var(--fs-3); color: var(--text-2); }
+.win-switch-list { margin: 0; padding: var(--space-2); list-style: none; overflow-y: auto; }
+.win-switch-row {
+  display: flex; align-items: center; gap: var(--space-4);
+  min-height: 46px; padding: var(--space-2) var(--space-4); border-radius: var(--radius-m);
+  cursor: pointer;
+}
+.win-switch-row[aria-selected="true"] { background: var(--bg-active); }
+.win-switch-row .proj-dot { width: 9px; height: 9px; }
+.win-switch-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.win-switch-nm { font-size: var(--fs-4); font-weight: var(--fw-strong); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-switch-path { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-switch-here { flex: none; font-size: var(--fs-3); color: var(--text-2); }
+@media (prefers-reduced-motion: reduce) { .win-switch { transition: none; } }
