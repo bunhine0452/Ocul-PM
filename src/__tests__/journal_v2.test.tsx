@@ -522,14 +522,14 @@ describe("작업 일지 — 수동 일지 (사람이 직접 남기는 기록)", 
     const { findByText, getByText, getByLabelText, queryByText } = renderJournal();
     await findByText("기존 작업");
     fireEvent.click(getByText("새 일지"));
-    expect(getByText("수동 일지 작성")).toBeInTheDocument();
+    expect(getByText("일지 직접 쓰기")).toBeInTheDocument();
     fireEvent.change(getByLabelText(/제목/), { target: { value: "수동으로 적은 일" } });
-    fireEvent.change(getByLabelText(/slug/), { target: { value: "manual-note" } });
+    fireEvent.change(getByLabelText(/파일 이름/), { target: { value: "manual-note" } });
     fireEvent.click(getByText("작성"));
     await waitFor(() => expect(manualMock.calls).toBe(1));
     expect(manualMock.lastDraft?.title).toBe("수동으로 적은 일");
     expect(manualMock.lastDraft?.slug).toBe("manual-note");
-    await waitFor(() => expect(queryByText("수동 일지 작성")).toBeNull());
+    await waitFor(() => expect(queryByText("일지 직접 쓰기")).toBeNull());
   });
 
   it("잘못된 slug 는 인라인 에러 + 작성 비활성", async () => {
@@ -538,8 +538,8 @@ describe("작업 일지 — 수동 일지 (사람이 직접 남기는 기록)", 
     await findByText("기존 작업");
     fireEvent.click(getByText("새 일지"));
     fireEvent.change(getByLabelText(/제목/), { target: { value: "제목 있음" } });
-    fireEvent.change(getByLabelText(/slug/), { target: { value: "Bad Slug!" } });
-    expect(await findByText(/소문자\/숫자\/하이픈만/)).toBeInTheDocument();
+    fireEvent.change(getByLabelText(/파일 이름/), { target: { value: "Bad Slug!" } });
+    expect(await findByText(/영문 소문자 · 숫자 · - 만/)).toBeInTheDocument();
     const submit = getByText("작성");
     expect(submit).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(submit);
@@ -559,7 +559,7 @@ describe("journal ⌘N — exact modifiers off the mac", () => {
     const { findByText, queryByText } = renderJournal();
     await findByText("새 일지");
     fireEvent.keyDown(document.body, { key: "n", code: "KeyN", ...mods });
-    expect(queryByText("수동 일지 작성") !== null).toBe(opens);
+    expect(queryByText("일지 직접 쓰기") !== null).toBe(opens);
   });
 });
 
@@ -580,7 +580,7 @@ describe("작업 일지 — a11y", () => {
     const { container, findByText, getByText } = renderJournal();
     await findByText("기존 작업");
     fireEvent.click(getByText("새 일지"));
-    expect(getByText("수동 일지 작성")).toBeInTheDocument();
+    expect(getByText("일지 직접 쓰기")).toBeInTheDocument();
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
   });
 });

@@ -416,8 +416,14 @@
 /* 창을 보고 있지 않으면 무한 반복 애니메이션을 멈춘다 (`lib/idleMotion.ts` 가 속성을 단다).
    보는 사람이 없는데 숨쉬기·펄스가 화면 갱신을 계속 깨웠다 — 2026-10-08 검토. 색과
    모양은 그대로라 상태는 읽힌다. 컴포넌트 규칙의 `animation` 단축 속성이 재생 상태를
-   running 으로 되돌리므로 !important 다. */
-:root[data-app-inactive] *,
+   running 으로 되돌리므로 !important 다.
+
+   **한 번 끝나는 등장 애니메이션은 멈추지 않는다** (화면 검사 11-03). `.fade-in` · 대화창과 토스트의
+   `animate-in` · 업데이트 배너는 투명(opacity 0)에서 시작한다 — 여기서 멈추면 창이 뒤에 있는 동안
+   새로 그린 화면이 **투명한 채로 서 있었다**. 창을 나란히 세워 둘을 보며 하나만 포커스하면, 포커스
+   없는 창의 변경 화면 빈 상태 · 일지 목록이 빈 화면으로 보였다. 이것들은 300ms 안에 끝나 화면 갱신을
+   계속 깨우지 않는다. */
+:root[data-app-inactive] *:not(.fade-in, [class*="animate-in"], .update-banner),
 :root[data-app-inactive] *::before,
 :root[data-app-inactive] *::after {
   animation-play-state: paused !important;

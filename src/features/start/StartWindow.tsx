@@ -21,6 +21,7 @@ import { tError } from "@/i18n/errors";
 import type { Project } from "@/lib/bindings";
 import { kbd, readChord } from "@/lib/kbd";
 import { tildePath } from "@/lib/osPath";
+import { projectColorOf } from "@/features/shell/projectColor";
 import { dragRegion, isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { localWorkdayKey, shiftWorkday } from "@/lib/workday";
@@ -174,6 +175,8 @@ export function StartWindow() {
                       aria-label={t("start.openAria", { name: p.name })}
                       title={p.root_path}
                     >
+                      {/* 프로젝트 색 — 프로젝트 창 윗줄 · ⌘O 목록과 같은 점. 색이 없으면 빈 고리. */}
+                      <span className="start-row-dot" data-pc={projectColorOf(p.color)} aria-hidden="true" />
                       <span className="start-row-name">{p.name}</span>
                       <span className="start-row-path mono">{tildePath(p.root_path)}</span>
                     </button>

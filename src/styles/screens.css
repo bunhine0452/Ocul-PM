@@ -197,12 +197,16 @@
 .set-modal-desc { margin-bottom: var(--space-6); }
 .set-modal-input {
   width: 100%; height: 38px; padding: 0 var(--space-5); border-radius: var(--radius-m); border: 1px solid var(--border-card);
-  background: var(--bg-inset); font-family: var(--mono); font-size: var(--fs-4); color: var(--text); outline: none;
+  background: var(--bg-window); font-family: var(--mono); font-size: var(--fs-4); color: var(--text); outline: none;
 }
 .set-modal-input:focus { border-color: var(--accent); box-shadow: var(--ring-soft); }
+/* 사람이 읽는 글(제목 · 태그)은 본문 서체 — 고정폭은 파일 이름 · 키처럼 기계가 읽는 값에만 (화면 검사 11-03). */
+.set-modal-input.entry-input-text { font-family: var(--font); }
 .set-modal-actions { margin-top: 18px; }
 
-/* --- Manual entry modal (PR-R1 A4) — wide variant + form fields --- */
+/* --- Manual entry modal (PR-R1 A4) — wide variant + form fields ---
+   입력칸 바탕은 --bg-window (화면 검사 11-03) — 흰 대화창 위의 --bg-inset 베이지 면 다섯 개가 무겁게 겹쳤다.
+   칸은 테 하나로 갈리고, 포커스는 강조색 테. */
 .entry-form { overflow-y: auto; display: flex; flex-direction: column; gap: 14px; margin-top: var(--space-1); padding-right: 2px; }
 .entry-field { display: flex; flex-direction: column; gap: var(--space-2); }
 .entry-label { font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); }
@@ -213,9 +217,9 @@
 .entry-err { font-size: var(--fs-3); color: var(--t-bug); }
 /* 수동 일지 모달의 후보 파일 칩 행 — 디테일 뷰의 `.entry-filelist` 와 다른 것. */
 .entry-files { display: flex; flex-wrap: wrap; gap: var(--space-2); max-height: 108px; overflow-y: auto;
-  border: 1px solid var(--border-card); border-radius: var(--radius-m); background: var(--bg-inset); padding: var(--space-3); }
+  border: 1px solid var(--border-card); border-radius: var(--radius-m); background: var(--bg-window); padding: var(--space-3); }
 .entry-textarea { width: 100%; min-height: 104px; resize: vertical; padding: var(--space-4) var(--space-5); border-radius: var(--radius-m);
-  border: 1px solid var(--border-card); background: var(--bg-inset); font-family: var(--mono); font-size: var(--fs-4); color: var(--text); outline: none; }
+  border: 1px solid var(--border-card); background: var(--bg-window); font-family: var(--mono); font-size: var(--fs-4); color: var(--text); outline: none; }
 .entry-textarea:focus { border-color: var(--accent); box-shadow: var(--ring-soft); }
 .entry-tag { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-3); font-family: var(--mono);
   background: var(--bg-inset); border: 1px solid var(--border-card); border-radius: var(--radius-pill); padding: 2px var(--space-3); cursor: pointer; color: var(--text-2);
