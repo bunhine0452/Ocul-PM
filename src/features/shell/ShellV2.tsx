@@ -20,6 +20,7 @@ import { useTodayExceptions } from "@/features/today/useTodayExceptions";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { events, type JournalEntrySummary, type Project } from "@/lib/bindings";
 import { isMac as isMacPlatform } from "@/lib/platform";
+import { WindowSwitcher } from "./WindowSwitcher";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
 // mechanism (PR-UI 0 §0.6): App lazy-loads ShellV2 via React.lazy, so Vite
@@ -173,6 +174,7 @@ export default function ShellV2({
         badges={badges}
         slotRef={setActionSlot}
       />
+      <WindowSwitcher currentProjectId={projectId} projects={projects} />
       <ToolbarSlotContext.Provider value={actionSlot}>
       <main className="content">
         <div className="content-main">

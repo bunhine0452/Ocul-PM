@@ -41,7 +41,8 @@ export const TINTED = ["--bg-window", "--bg-sidebar", "--bg-content", "--bg-inse
 const ALL_TINTED = [...TINTED, "--bg-card"] as const;
 
 /** 섞는 양 — 어두운 바탕은 같은 %로도 덜 보여 조금 더. */
-const AMOUNT = { light: 0.045, dark: 0.07 } as const;
+// 11-04 — 한 단 올렸다(4.5% · 7% → 6.5% · 9.5%): 「윗줄 한 줄만 보인다」. 글자 대비는 바탕값에서 잰다.
+const AMOUNT = { light: 0.065, dark: 0.095 } as const;
 
 function parseHex(hex: string): [number, number, number] | null {
   const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());

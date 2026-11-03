@@ -118,6 +118,13 @@ pub async fn list_open_project_ids(app: AppHandle) -> Result<Vec<u32>, String> {
     Ok(app.state::<WindowProjects>().lock().all_open_projects())
 }
 
+/// 프로젝트 창들을 최근에 쓴 순서로 (앞 = 지금 창) — 창 전환기(⌥Tab, 2026-11-04)의 줄 순서.
+#[tauri::command]
+#[specta::specta]
+pub async fn recent_window_projects(app: AppHandle) -> Result<Vec<u32>, String> {
+    Ok(app.state::<WindowProjects>().lock().recent_projects())
+}
+
 /// 이 창을 닫는다 — Windows·Linux 의 `Ctrl+W` (macOS 는 앱 메뉴의 ⌘W 가 Rust 에서
 /// 직접 닫는다). 닫힘 훅(`CloseRequested`)이 레지스트리 정리와 마지막 창 판정을 한다.
 #[tauri::command]
