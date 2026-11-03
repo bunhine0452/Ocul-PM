@@ -160,8 +160,10 @@
 .jd-prose strong { font-weight: var(--fw-strong); }
 .jd-prose a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
 .jd-prose blockquote { margin: var(--space-4) 0; padding: var(--space-1) var(--space-5); border-left: 1px solid var(--sep-strong); color: var(--text-2); }
+/* 본문의 코드는 보통 굵기 — 굵은 고정폭이 문단마다 서면 글보다 코드가 먼저 읽혀 본문이 무거웠다(11-04).
+   굵기는 어디서 물려받든 여기서 못 박는다. */
 .jd-prose :not(pre) > code {
-  font-family: var(--mono); font-size: 0.88em; background: var(--bg-inset);
+  font-family: var(--mono); font-size: 0.88em; font-weight: var(--fw-body); background: var(--bg-inset);
   padding: 0.1em 0.4em; border-radius: var(--radius-2xs); overflow-wrap: anywhere;
 }
 .jd-prose pre {

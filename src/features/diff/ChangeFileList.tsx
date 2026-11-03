@@ -68,7 +68,7 @@ export function ChangeFileList({ changes, buckets, entries, selected, open, onTo
             {op}
           </span>
           <span className="chg-name">
-            {dir ? <span className="chg-dir">{dir}</span> : null}
+            {dir ? <span className="chg-dir"><bdi>{dir}</bdi></span> : null}
             <span className="chg-base">{base}</span>
           </span>
           {when ? <span className="chg-when">{when}</span> : null}

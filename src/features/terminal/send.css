@@ -13,7 +13,7 @@
 .send-foot { display: flex; align-items: center; gap: var(--space-3); }
 .send-target { display: flex; align-items: center; gap: var(--space-3); min-width: 0; font-size: var(--fs-3); color: var(--text-2); }
 .send-target select {
-  min-width: 0; max-width: 220px; height: var(--ctl-3);
+  min-width: 0; max-width: 220px; height: var(--ctl-3); padding-left: var(--space-3);
   border: 1px solid var(--border-card); border-radius: var(--radius-s);
   background: var(--bg-card); color: var(--text); font: inherit; font-size: var(--fs-3);
 }

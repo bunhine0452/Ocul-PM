@@ -133,13 +133,28 @@
 .chip.warn { background: var(--warn-soft); color: var(--warn-text); }
 .chip.danger { background: var(--danger-soft); color: var(--danger-text); }
 .chip.info { background: var(--info-soft); color: var(--info-text); }
+/* 단축키는 본문 서체 — 고정폭에서는 ⌘O 의 O 가 숫자 0 처럼 읽혔다(11-04). 키 이름은 사람이 누르는 글자다. */
 .kbd {
-  font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-strong); /* design-ignore -- 단축키 표시는 12px 아래 예외 */
+  font-family: var(--font); font-variant-numeric: tabular-nums; font-size: var(--fs-2); font-weight: var(--fw-strong); /* design-ignore -- 단축키 표시는 12px 아래 예외 */
   background: var(--bg-inset); border: 1px solid var(--sep);
   border-radius: var(--radius-xs); padding: 1px var(--space-2); color: var(--text-2);
   box-shadow: 0 1px 0 var(--sep);
 }
 .mono { font-family: var(--mono); }
+/* 고르기 칸 (11-04) — 브라우저 기본 화살표(굵은 검정) 대신 앱의 다른 꺾쇠처럼 가는 선 두 개.
+   `<span class="select-wrap"><select>…</select></span>` 로 감싼다 — select 는 ::after 를 갖지 못한다. */
+.select-wrap { position: relative; display: block; min-width: 0; }
+.select-wrap.inline { display: inline-block; }
+.select-wrap > select { appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 30px; }
+.select-wrap::after {
+  content: ""; position: absolute; right: 13px; top: 50%; width: 6px; height: 6px; pointer-events: none;
+  border-right: 1.5px solid var(--text-2); border-bottom: 1.5px solid var(--text-2);
+  transform: translateY(-70%) rotate(45deg);
+}
+.select-wrap.sm::after { right: 10px; width: 5px; height: 5px; }
+.select-wrap.sm > select { padding-right: 24px; }
+/* 체크 칸 · 라디오 — 브라우저 기본 파랑 대신 이 창의 강조색. */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 
 /* 검색·필터 입력 — **여기가 정의 자리다**. 2026-09-10 {#unify-search-input}
    이전에는 같은 물건이 13벌이었다(높이 23·24·26·26·26·28·29·30·30·32·32·60,
