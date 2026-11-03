@@ -713,7 +713,7 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.log.decisionCount": "{n} {n|decision|decisions}",
   "plan.log.decisions": "Decisions",
   "plan.emptyAgents": "Tell Claude Code what you want to do and a plan appears.",
-  "plan.error": "Something went wrong",
+  "plan.error": "Couldn't load the plan",
   "plan.confirmDoneTitle": "Complete without a verifying entry",
   "plan.confirmDoneBody1": "has no",
   "plan.confirmDoneBody2": "linked verifying entry",

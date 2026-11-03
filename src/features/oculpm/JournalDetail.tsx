@@ -2,7 +2,9 @@ import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
 import { LoadingState } from "@/components/LoadingState";
 import { Markdown } from "@/components/Markdown";
 import { ChevronLeft } from "@/components/Icons";
-import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { oculpmApi } from "@/api/oculpm";
+import { toAppError } from "@/api/invoke";
+import { tError } from "@/i18n/errors";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PatchView } from "@/features/diff/PatchView";
@@ -101,7 +103,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
         setDiffError(null);
       })
       .catch((e) => {
-        if (!cancelled) setDiffError(e instanceof OculpmApiError ? e.message : String(e));
+        if (!cancelled) setDiffError(tError(toAppError(e)));
       });
     return () => {
       cancelled = true;
@@ -118,7 +120,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
       setVerified(next);
       setStale(false);
     } catch (e) {
-      toast.destructive(t("entry.verifyFailed", { error: e instanceof OculpmApiError ? e.message : String(e) }));
+      toast.destructive(t("entry.verifyFailed", { error: tError(toAppError(e)) }));
     } finally {
       setVerifying(false);
     }
@@ -129,7 +131,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
     try {
       await oculpmApi.openEntryInEditor(projectId, entry.relative_path, editorCmd);
     } catch (e) {
-      toast.destructive(t("entry.openInEditorFailed", { error: e instanceof OculpmApiError ? e.message : String(e) }));
+      toast.destructive(t("entry.openInEditorFailed", { error: tError(toAppError(e)) }));
     }
   }, [projectId, entry.relative_path, editorCmd, t]);
 

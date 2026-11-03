@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { oculpmApi } from "@/api/oculpm";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import type { ChangeGroup } from "@/lib/bindings";
@@ -205,7 +205,7 @@ export function useDiffChanges(projectId: number): DiffChanges {
         );
       } catch (e) {
         toast.destructive(
-          t("entry.verifyFailed", { error: e instanceof OculpmApiError ? e.message : String(e) }),
+          t("entry.verifyFailed", { error: tError(toAppError(e)) }),
         );
       }
     },
