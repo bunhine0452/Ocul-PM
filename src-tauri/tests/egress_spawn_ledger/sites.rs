@@ -101,6 +101,13 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
     },
     Launch {
         path: "commands/external_editor.rs",
+        func: "spawn_editor_cli",
+        call: "std_cmd(&cli)",
+        reach: Reach::Local,
+        reason: "설정이 VS Code · Cursor(또는 자동으로 그것을 찾음)일 때 — 그 앱 번들 안(비-mac 은 PATH)의 `code` · `cursor` 도구에 `<프로젝트 폴더> [-g] <파일>` 을 셸 없이 넘겨 그 프로젝트의 편집기 창으로 연다. 도구는 이미 떠 있는 편집기에 로컬 IPC 로 넘기고 끝난다.",
+    },
+    Launch {
+        path: "commands/external_editor.rs",
         func: "shell_command",
         call: "std_cmd(\"sh\")",
         reach: Reach::Local,

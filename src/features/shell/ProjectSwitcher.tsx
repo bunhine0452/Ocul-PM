@@ -23,6 +23,7 @@ import type { HomeBrief, Project, ProjectAttention } from "@/lib/bindings";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { tildePath } from "@/lib/osPath";
 import { kbd } from "@/lib/kbd";
+import { isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 
 interface ProjectSwitcherProps {
@@ -181,8 +182,14 @@ export function ProjectSwitcher({
   const editor = useOpenInEditor(currentRoot, open);
   const openInEditor = () => {
     close(false);
-    // 빈 상대 경로 = 프로젝트 폴더 그 자체 (`open_in_editor`). VS Code 는 `vscode://file/<폴더>` 를 새 창으로 연다.
+    // 빈 상대 경로 = 프로젝트 폴더 그 자체 (`open_in_editor`). VS Code · Cursor 는 명령줄 도구로 그 폴더의 창을 연다 — 이미 열려 있으면 그 창이 앞으로 온다.
     editor.open("");
+  };
+
+  // 창이 둘 이상이면 나란히 세운다 (2026-11-03, `commands/window/tile.rs`). 맥은 창 메뉴의 ⌥⌘T 도 같다.
+  const tileWindows = () => {
+    close(false);
+    windowApi.tile().catch((e) => toast.warning(t("sidebar.tileWindowsFailed", { error: String(e?.message ?? e) })));
   };
 
   const ordered = byAttention(orderRecent(projects, brief), attention);
@@ -287,6 +294,12 @@ export function ProjectSwitcher({
                 />
               ))}
             </div>
+          ) : null}
+          {openWindows.length >= 2 ? (
+            <button type="button" role="menuitem" className="proj-pop-add" onClick={tileWindows}>
+              <span className="proj-pop-add-label">{t("sidebar.tileWindows", { n: openWindows.length })}</span>
+              {isMac() ? <kbd className="kbd proj-pop-key">{kbd("⌥⌘T")}</kbd> : null}
+            </button>
           ) : null}
           {currentRoot ? (
             <button type="button" role="menuitem" className="proj-pop-add" onClick={openInEditor}>

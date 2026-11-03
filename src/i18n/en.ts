@@ -39,6 +39,8 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.toCheck": "{n} to look at",
   "sidebar.switchProjectAria": "Switch project — now {name}",
   "sidebar.switchProjectTitle": "Recent projects ({key})",
+  "sidebar.tileWindows": "Tile {n} windows side by side",
+  "sidebar.tileWindowsFailed": "Could not tile the windows — {error}",
   "sidebar.addFolder": "Open folder…",
   "sidebar.openInEditor": "Open in {name}",
   "sidebar.openInEditorGeneric": "Open in your editor",

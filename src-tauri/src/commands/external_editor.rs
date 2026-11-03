@@ -38,7 +38,7 @@ pub async fn open_in_editor(
     } else {
         crate::path_guard::secure_join(&root, &rel_path)?
     };
-    open_file_with(&editor_cmd, &abs, line)
+    open_file_with(&editor_cmd, &abs, line, Some(&root))
 }
 
 /// 일지 `.md` 하나를 연다 — `editor_cmd` 가 없으면 OS 기본 앱(설정을 모르는 옛 호출부).
@@ -57,20 +57,38 @@ pub(super) fn open_journal_file(
     let Some(cmd) = editor_cmd else {
         return Ok(super::open_native::open_native(abs)?);
     };
-    open_file_with(cmd, abs, None).map_err(|e| AppError::new("open_failed", e))
+    // 일지는 `<프로젝트>/.oculpm/journal/…` 에 산다 — 그 프로젝트의 편집기 창으로 연다.
+    let root = abs
+        .ancestors()
+        .find(|p| p.file_name().is_some_and(|n| n == ".oculpm"))
+        .and_then(std::path::Path::parent);
+    open_file_with(cmd, abs, None, root).map_err(|e| AppError::new("open_failed", e))
 }
 
 /// 절대경로 하나를 설정이 고른 편집기로 연다 — `open_in_editor` 와 일지의
 /// 「파일로 열기」가 같은 길을 지난다. 경로 가드는 부르는 쪽이 이미 지났다.
+///
+/// `root` 는 그 파일의 프로젝트 폴더 — VS Code · Cursor 는 명령줄 도구로 **그 폴더의 창**에 연다
+/// (`editor_choice::editor_cli`). 도구를 못 찾거나 띄우지 못하면 예전처럼 주소로 연다.
 pub(super) fn open_file_with(
     editor_cmd: &str,
     abs: &std::path::Path,
     line: Option<u32>,
+    root: Option<&std::path::Path>,
 ) -> Result<(), String> {
     use super::editor_choice::{choose, detect_installed, editor_uri, EditorChoice};
     match choose(editor_cmd, detect_installed) {
-        // 주소는 OS 오프너가 연다 — `open vscode://…` 는 등록된 앱에 넘긴다.
         EditorChoice::Uri(scheme) => {
+            if let Some(root) = root {
+                match spawn_editor_cli(scheme, root, abs, line) {
+                    Ok(true) => return Ok(()),
+                    Ok(false) => {}
+                    Err(e) => {
+                        tracing::warn!(target: "editor", scheme, error = %e, "편집기 명령줄 도구 실패 — 주소로 연다")
+                    }
+                }
+            }
+            // 주소는 OS 오프너가 연다 — `open vscode://…` 는 등록된 앱에 넘긴다.
             let uri = editor_uri(scheme, abs, line);
             super::open_native::open_native(std::path::Path::new(&uri))
                 .map_err(|e| format!("Failed to open {scheme}: {e}"))
@@ -309,6 +327,31 @@ fn substitute_bare_path(template: &str, quoted: &str) -> String {
         // file to open. Avoids the silent "editor opened with no file" trap.
         format!("{template} {quoted}")
     }
+}
+
+/// 편집기의 명령줄 도구로 `<프로젝트> [-g] <파일>` 을 연다 — 셸을 거치지 않고 인자를 그대로 넘긴다.
+/// 도구가 없으면 `Ok(false)`. 도구는 곧 끝나므로 기다려 거둔다(좀비를 남기지 않게).
+fn spawn_editor_cli(
+    scheme: &str,
+    root: &std::path::Path,
+    abs: &std::path::Path,
+    line: Option<u32>,
+) -> std::io::Result<bool> {
+    use super::editor_choice::{editor_cli, editor_cli_args};
+    use std::process::Stdio;
+    let Some(cli) = editor_cli(scheme) else {
+        return Ok(false);
+    };
+    let mut child = crate::proc::std_cmd(&cli)
+        .args(editor_cli_args(root, abs, line))
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(true)
 }
 
 fn spawn_detached(command: &str) -> std::io::Result<()> {

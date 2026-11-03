@@ -13,6 +13,7 @@ import {
   serialize,
 } from "@/lib/settings";
 import { applyThemeAttrs, followsSystem, resolveThemeAttrs } from "@/features/theme/apply";
+import { accentFor, projectAccent } from "@/features/theme/projectAccent";
 
 interface SettingsContextValue {
   settings: Settings;
@@ -129,6 +130,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   //
   // Decision A (2026-05-31): SettingsContext 가 테마의 단일 소유자다. 무엇을 달지는
   // `resolveThemeAttrs` 가 순수하게 계산하고, 여기서는 그 결과를 `<html>` 에 얹기만 한다.
+  // 이 창의 프로젝트에 색이 있으면 그 색이 강조색이 된다 (2026-11-03, `projectAccent.ts`).
+  const projectColor = projectAccent.useValue();
   useEffect(() => {
     if (!loaded) return;
     const root = document.documentElement;
@@ -137,7 +140,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         root,
         resolveThemeAttrs({
           themeSetting: settings.theme,
-          colorTheme: settings.colorTheme,
+          colorTheme: accentFor(projectColor, settings.colorTheme),
           prefersDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
         }),
       );
@@ -148,7 +151,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
-  }, [loaded, settings.theme, settings.colorTheme]);
+  }, [loaded, settings.theme, settings.colorTheme, projectColor]);
 
   // App-wide UI scale: native webview zoom (like browser ⌘+/−). Unlike CSS
   // `zoom`, this reflows the page natively, so pixel-measuring components

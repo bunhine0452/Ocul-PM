@@ -81,6 +81,72 @@ fn installed(_app: &str, bin: &str) -> bool {
     std::env::split_paths(&path).any(|dir| names.iter().any(|n| dir.join(n).is_file()))
 }
 
+/// 편집기의 명령줄 도구 — 프로젝트 폴더를 **그 프로젝트의 창**으로 열 때 쓴다 (2026-11-03).
+///
+/// `vscode://file/<파일>` 은 그 파일을 품은 폴더가 열린 창이 없으면 **마지막으로 쓴 창**에 낱장으로
+/// 연다 — 프로젝트 A 의 파일이 프로젝트 B 의 VS Code 창에 끼어들었다. 명령줄 도구는 `<폴더> -g <파일>`
+/// 을 받아, 그 폴더의 창이 있으면 그 창에, 없으면 새 창으로 폴더째 연다.
+///
+/// macOS 는 앱 번들 안에 함께 오는 도구를 쓴다(`code` 셸 명령을 따로 설치하지 않아도 되고, Finder 로
+/// 띄운 앱이 셸의 PATH 를 몰라도 된다). 그 밖은 PATH 의 `code` · `cursor`. 못 찾으면 `None` — 부르는
+/// 쪽이 주소(`vscode://`)로 돌아간다.
+pub fn editor_cli(scheme: &str) -> Option<std::path::PathBuf> {
+    let (app, bin) = match scheme {
+        "vscode" => ("Visual Studio Code", "code"),
+        "cursor" => ("Cursor", "cursor"),
+        _ => return None,
+    };
+    cli_path(app, bin)
+}
+
+#[cfg(target_os = "macos")]
+fn cli_path(app: &str, bin: &str) -> Option<std::path::PathBuf> {
+    let mut roots = vec![std::path::PathBuf::from("/Applications")];
+    if let Some(home) = std::env::var_os("HOME") {
+        roots.push(Path::new(&home).join("Applications"));
+    }
+    roots
+        .iter()
+        .map(|r| {
+            r.join(format!("{app}.app"))
+                .join("Contents/Resources/app/bin")
+                .join(bin)
+        })
+        .find(|p| p.is_file())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn cli_path(_app: &str, bin: &str) -> Option<std::path::PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    let names: Vec<String> = if cfg!(target_os = "windows") {
+        vec![format!("{bin}.cmd"), format!("{bin}.exe")]
+    } else {
+        vec![bin.to_string()]
+    };
+    std::env::split_paths(&path)
+        .flat_map(|dir| names.iter().map(move |n| dir.join(n)))
+        .find(|p| p.is_file())
+}
+
+/// 명령줄 도구의 인자 — `<폴더>` 를 먼저 줘야 파일이 그 폴더의 창에 들어간다.
+/// 폴더 자체를 열 때는 폴더만, 줄이 있으면 `-g <파일>:<줄>`.
+pub fn editor_cli_args(root: &Path, abs: &Path, line: Option<u32>) -> Vec<std::ffi::OsString> {
+    let mut args = vec![root.as_os_str().to_os_string()];
+    if abs == root {
+        return args;
+    }
+    match line {
+        Some(n) => {
+            args.push("-g".into());
+            let mut target = abs.as_os_str().to_os_string();
+            target.push(format!(":{n}"));
+            args.push(target);
+        }
+        None => args.push(abs.as_os_str().to_os_string()),
+    }
+    args
+}
+
 /// `vscode://file/<절대경로>[:<줄>:1]`.
 ///
 /// 경로는 퍼센트 인코딩한다 — 공백 · `#` · `?` 가 주소를 끊는다. `/` 와 `:`(Windows
@@ -176,6 +242,35 @@ mod tests {
             editor_uri("vscode", &p, None),
             "vscode://file/tmp/%EB%82%B4%20%ED%8F%B4%EB%8D%94/a%23b%3F.md"
         );
+    }
+
+    /// 폴더가 먼저 — 그래야 파일이 그 프로젝트의 창으로 간다.
+    #[test]
+    fn cli_args_put_the_project_first() {
+        let root = PathBuf::from("/Users/me/proj");
+        let file = root.join("src/a b.rs");
+        assert_eq!(
+            editor_cli_args(&root, &root, None),
+            vec![root.clone().into_os_string()]
+        );
+        assert_eq!(
+            editor_cli_args(&root, &file, None),
+            vec![root.clone().into_os_string(), file.clone().into_os_string()]
+        );
+        assert_eq!(
+            editor_cli_args(&root, &file, Some(7)),
+            vec![
+                root.into_os_string(),
+                "-g".into(),
+                "/Users/me/proj/src/a b.rs:7".into()
+            ]
+        );
+    }
+
+    #[test]
+    fn cli_only_for_known_editors() {
+        assert_eq!(editor_cli("system"), None);
+        assert_eq!(editor_cli("subl"), None);
     }
 
     #[test]

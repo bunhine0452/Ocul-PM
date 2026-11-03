@@ -269,6 +269,7 @@ use crate::commands::{
     settings_get_all,
     settings_set,
     settings_set_many,
+    tile_app_windows,
     today_digest,
     today_teammates,
 };
@@ -298,6 +299,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             app_info,
             select_project_folder,
             set_project_color,
+            tile_app_windows,
             list_projects,
             create_project,
             delete_project,

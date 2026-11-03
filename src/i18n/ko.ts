@@ -35,6 +35,8 @@ export const ko = {
   "nav.toCheck": "먼저 볼 것 {n}개",
   "sidebar.switchProjectAria": "프로젝트 바꾸기 (지금 {name})",
   "sidebar.switchProjectTitle": "최근 프로젝트 ({key})",
+  "sidebar.tileWindows": "창 {n}개 나란히 놓기",
+  "sidebar.tileWindowsFailed": "창을 나란히 놓지 못했어요 — {error}",
   "sidebar.addFolder": "폴더 열기…",
   "sidebar.openInEditor": "{name} 에서 열기",
   "sidebar.openInEditorGeneric": "편집기에서 열기",

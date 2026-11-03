@@ -36,6 +36,7 @@ mod registry;
 mod session;
 #[cfg(test)]
 mod tests;
+mod tile;
 mod watchers;
 
 pub use attention::*;
@@ -45,6 +46,7 @@ pub use lifecycle::*;
 pub use projects::*;
 pub use registry::*;
 pub use session::*;
+pub use tile::*;
 pub use watchers::*;
 
 /// 추가로 만드는 창의 라벨 접두사. `tauri-plugin-window-state` 가 라벨 기준으로

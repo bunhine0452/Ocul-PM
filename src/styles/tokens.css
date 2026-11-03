@@ -510,6 +510,25 @@
   --accent-soft: rgba(95,213,208,0.16); --accent-ring: rgba(95,213,208,0.4);
 }
 
+/* amber · slate — 설정의 강조색 목록에는 없다. 프로젝트 색(노랑 · 회색)을 고른 창만 쓴다
+   (`features/theme/projectAccent.ts`, 2026-11-03). 흰 글자 대 --accent 도 AA 를 넘게 골랐다. */
+[data-accent="amber"] {
+  --accent: #a06a0a; --accent-strong: #94600a; --accent-text: #8a5a08;
+  --accent-soft: #fbf0d9; --accent-ring: rgba(160,106,10,0.35);
+}
+[data-theme="dark"][data-accent="amber"] {
+  --accent: #e0b155; --accent-strong: #d6a443; --accent-text: #ecc77e;
+  --accent-soft: rgba(224,177,85,0.16); --accent-ring: rgba(224,177,85,0.4);
+}
+[data-accent="slate"] {
+  --accent: #5b6472; --accent-strong: #4b5361; --accent-text: #4b5361;
+  --accent-soft: #eceef1; --accent-ring: rgba(91,100,114,0.35);
+}
+[data-theme="dark"][data-accent="slate"] {
+  --accent: #a3acba; --accent-strong: #97a1b0; --accent-text: #c3cad4;
+  --accent-soft: rgba(163,172,186,0.16); --accent-ring: rgba(163,172,186,0.4);
+}
+
 /* ============================================================
    프로젝트 색 (Phase 5 — 단일 정의). 예전엔 카드(home.css)·선택기(home.css)·
    탭 스트립(tabs.css)이 같은 8색을 각자 들고 있었다. hex 가 아니라 **id**

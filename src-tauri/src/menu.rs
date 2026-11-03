@@ -30,6 +30,8 @@ pub const APP_NAME: &str = "Ocul";
 pub const CLOSE_WINDOW: &str = "menu:close-window";
 /// 도움말 › 처음 쓰는 법 — 포커스된 창에 첫 실행 안내를 다시 띄운다 (ocul-next #tour-reopen).
 pub const TOUR: &str = "menu:tour";
+/// 창 › 프로젝트 창 나란히 — 보이는 앱 창 전부를 지금 화면에 같은 폭으로 (`commands/window/tile.rs`).
+pub const TILE_WINDOWS: &str = "menu:tile-windows";
 
 /// 메뉴의 「처음 쓰는 법」 — 그 창의 프런트가 안내 모달을 연다.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type, tauri_specta::Event)]
@@ -44,6 +46,7 @@ pub struct CloseKeyPressed {}
 /// 액셀러레이터. 창 하나가 프로젝트 하나라 **`⌘W` 는 창 닫기**다 (macOS 표준) — 단 터미널 세션이 여럿이면 세션부터.
 const ACC_NEW_WINDOW: &str = "Shift+CmdOrCtrl+N";
 const ACC_CLOSE_WINDOW: &str = "CmdOrCtrl+W";
+const ACC_TILE_WINDOWS: &str = "Alt+CmdOrCtrl+T";
 
 /// 메뉴 라벨 묶음. 프런트의 i18n 사전을 Rust 가 읽을 수 없으므로 최소 집합만
 /// 여기에 둔다 — 언어는 프런트가 `apply_menu_language` 로 알려준다.
@@ -62,6 +65,7 @@ struct Labels {
     select_all: &'static str,
     fullscreen: &'static str,
     minimize: &'static str,
+    tile_windows: &'static str,
     hide: &'static str,
     quit: &'static str,
     about: &'static str,
@@ -87,6 +91,7 @@ const KO: Labels = Labels {
     select_all: "전체 선택",
     fullscreen: "전체 화면",
     minimize: "최소화",
+    tile_windows: "프로젝트 창 나란히",
     hide: "Ocul 가리기",
     quit: "Ocul 종료",
     about: "Ocul 정보",
@@ -110,6 +115,7 @@ const EN: Labels = Labels {
     select_all: "Select All",
     fullscreen: "Toggle Full Screen",
     minimize: "Minimize",
+    tile_windows: "Tile Project Windows",
     hide: "Hide Ocul",
     quit: "Quit Ocul",
     about: "About Ocul",
@@ -175,8 +181,13 @@ pub fn build<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<(Menu<
         .fullscreen_with_text(l.fullscreen)
         .build()?;
 
+    let tile = MenuItemBuilder::with_id(TILE_WINDOWS, l.tile_windows)
+        .accelerator(ACC_TILE_WINDOWS)
+        .build(app)?;
     let window_menu = SubmenuBuilder::new(app, l.window)
         .minimize_with_text(l.minimize)
+        .separator()
+        .item(&tile)
         .build()?;
 
     let tour = MenuItemBuilder::with_id(TOUR, l.tour).build(app)?;
@@ -253,6 +264,11 @@ pub fn handle_event(app: &AppHandle, id: &str) {
                 let _ = win::new_window_inner(&handle).await;
             });
         }
+        TILE_WINDOWS => {
+            if let Err(e) = win::tile_inner(app) {
+                tracing::warn!(target: "menu", error = %e, "창 나란히 실패");
+            }
+        }
         TOUR => {
             use tauri_specta::Event;
             if let Some(label) = win::focused_app_window(app) {
@@ -312,6 +328,10 @@ mod tests {
                 "commands/window/watchers.rs",
                 include_str!("commands/window/watchers.rs"),
             ),
+            (
+                "commands/window/tile.rs",
+                include_str!("commands/window/tile.rs"),
+            ),
         ] {
             assert!(
                 !src.contains("set_menu("),
@@ -361,7 +381,7 @@ mod tests {
     /// 액셀러레이터가 겹치면 어느 항목이 이길지 플랫폼에 맡기게 된다.
     #[test]
     fn accelerators_do_not_collide() {
-        let all = [ACC_NEW_WINDOW, ACC_CLOSE_WINDOW];
+        let all = [ACC_NEW_WINDOW, ACC_CLOSE_WINDOW, ACC_TILE_WINDOWS];
         let mut sorted = all.to_vec();
         sorted.sort_unstable();
         sorted.dedup();
@@ -372,7 +392,7 @@ mod tests {
     /// 동작을 한다 — 접두사로 네임스페이스를 나눠 둔다.
     #[test]
     fn menu_ids_are_namespaced_and_unique() {
-        let ids = [NEW_WINDOW, CLOSE_WINDOW];
+        let ids = [NEW_WINDOW, CLOSE_WINDOW, TOUR, TILE_WINDOWS];
         for id in ids {
             assert!(id.starts_with("menu:"), "{id} 에 네임스페이스가 없다");
         }
