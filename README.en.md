@@ -70,6 +70,13 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
 
+## 🚀 v4.5 — Ocul and VS Code, as a pair
+
+- **Project colours reach VS Code** — the colour you pick in the app also tints that project's VS Code title bar (`.vscode/settings.json`; a file with comments is left alone).
+- **Open a journal entry's changed file in VS Code** — "Open in VS Code" on each changed file of an entry.
+- **From VS Code to the app** — the extension's "Open in Ocul" jumps to Today, the entries for that file, or a plan (the app asks before it opens anything).
+- **Ocul VS Code extension 0.3.0** — an Activity Bar panel (Claude waiting · needs your eyes · next up · recent entries), one status-bar item, a notification once when Claude starts waiting, and "Continue in terminal". Works without the app, never writes to `.oculpm/`, no network.
+
 ## 🚀 v4.4 — Many windows, many terminals, at your fingertips
 
 - **Project colours** — pick one of eight under "Color" in the project ▾ (⌘O) list, and it shows as a band across the top of the window, a dot before the name and on the project's row in ⌘O. With several windows open, Alt+Tab and Mission Control tell projects apart at a glance.
