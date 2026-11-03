@@ -179,7 +179,6 @@ use crate::commands::{
     // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
     journal_missing_signals,
     list_open_project_ids,
-    recent_window_projects,
     list_projects,
     // Phase 2 — 참조·아웃라인·워크스페이스 심볼·시그니처·포맷팅
     // 코드 인텔리전스 — LSP (docs/lsp/00-master-plan.md)
@@ -259,6 +258,7 @@ use crate::commands::{
     // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
     quick_look_file,
     read_project_file,
+    recent_window_projects,
     // W5 — action proposal apply-state
     // first-record-loop Phase 2 — 이어하기 자료 (Today 이어하기 카드)
     // F4 — 회고/인사이트 (+ PR-CI6 eval 추이, defer 원장)

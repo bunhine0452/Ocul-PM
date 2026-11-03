@@ -337,7 +337,12 @@ fn opening_a_project_checks_it_exists_first() {
 /// 창 전환기(⌥Tab)의 순서 — 최근에 포커스된 프로젝트 창이 앞, 시작 창은 빠지고, 닫힌 창은 사라진다.
 #[test]
 fn recent_projects_follow_focus_order() {
-    let mut reg = reg_with(&[("main", None), ("win-1", Some(3)), ("win-2", Some(5)), ("win-3", Some(8))]);
+    let mut reg = reg_with(&[
+        ("main", None),
+        ("win-1", Some(3)),
+        ("win-2", Some(5)),
+        ("win-3", Some(8)),
+    ]);
     reg.note_focus("win-1");
     reg.note_focus("win-3");
     reg.note_focus("main");
@@ -349,4 +354,3 @@ fn recent_projects_follow_focus_order() {
     reg.remove("win-3");
     assert_eq!(reg.recent_projects(), vec![5, 3]);
 }
-
