@@ -60,7 +60,8 @@ const FALLBACK: Record<ThemeKey, string> = {
   brightWhite: "#f4f4f6",
 };
 
-const THEME_ATTRS = ["data-theme", "data-preset", "data-accent"];
+// `data-tint` — 프로젝트 색이 바탕에 스민다(`projectTint.ts`). 강조색이 같아도 바탕은 바뀐다.
+const THEME_ATTRS = ["data-theme", "data-preset", "data-accent", "data-tint"];
 
 /**
  * 현재 문서에 적용된 테마 토큰을 읽어 xterm ITheme 을 만든다.
