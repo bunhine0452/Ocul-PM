@@ -91,43 +91,70 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* 최근 프로젝트 목록 */
+/* 최근 프로젝트 목록 — 찾기 한 줄 · 목록 · 아래 묶음(색 · 동작) 세 칸 (11-03 오후 다듬기).
+   칩·테두리를 덜어 이름이 먼저 읽힌다: 지금 프로젝트는 ✓ 하나, ⌥⌘n 은 줄에 올렸을 때만 진하게.
+   등장은 애니메이션이 아니라 전환 + @starting-style — 창이 뒤에 있을 때 애니메이션을 멈추는
+   `data-app-inactive` 에 첫 프레임(투명)으로 걸리지 않는다. */
 .proj-pop {
-  position: absolute; top: calc(100% + 4px); left: 0; width: 280px; z-index: var(--z-popover);
+  position: absolute; top: calc(100% + 6px); left: 0; width: 320px; z-index: var(--z-popover);
   background: var(--bg-card); border: 1px solid var(--border-card);
-  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
-  padding: var(--space-1); max-height: 380px; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 1px;
+  border-radius: var(--radius-l); box-shadow: var(--shadow-pop);
+  max-height: min(460px, calc(100vh - 80px)); overflow: hidden;
+  display: flex; flex-direction: column;
+  transform-origin: top left;
+  transition: opacity var(--dur-2) var(--ease-out), translate var(--dur-2) var(--ease-out), scale var(--dur-2) var(--ease-out);
+}
+@starting-style {
+  .proj-pop { opacity: 0; translate: 0 -4px; scale: 0.98; }
+}
+.proj-pop-search {
+  flex: none; display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-1) var(--space-4); border-bottom: 1px solid var(--sep);
+  color: var(--text-2);
+}
+.proj-pop-find {
+  flex: 1; min-width: 0; height: var(--ctl-5); padding: 0; border: none; outline: none;
+  background: transparent; color: var(--text); font-family: var(--font); font-size: var(--fs-4);
+}
+.proj-pop-find::placeholder { color: var(--text-2); }
+.proj-pop-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  padding: var(--space-2); display: flex; flex-direction: column; gap: 1px;
 }
 .proj-pop-item {
-  display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
-  padding: var(--space-3); border-radius: var(--radius-s); cursor: pointer;
+  display: flex; align-items: center; gap: var(--space-4); width: 100%; text-align: left;
+  padding: 7px var(--space-3); border-radius: var(--radius-s); cursor: pointer;
   background: none; border: none; color: var(--text); font-family: var(--font);
+  transition: background-color var(--dur-1) var(--ease-out);
 }
 .proj-pop-item:hover, .proj-pop-item:focus-visible { background: var(--bg-hover); }
-.proj-pop-item.on { background: var(--bg-active); }
-.proj-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.proj-pop-name { font-weight: var(--fw-strong); font-size: var(--fs-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* 그 줄을 부르는 키 — 줄 끝, 목록이 눈에 걸리지 않게 옅게. */
-.proj-pop-key { flex: none; color: var(--text-2); }
-.proj-pop-add-label { flex: 1; min-width: 0; }
-.proj-pop-path { font-size: var(--fs-3); color: var(--text-2); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.proj-pop-add {
-  display: flex; align-items: center; width: 100%; text-align: left;
-  margin-top: var(--space-1); padding: var(--space-3); cursor: pointer;
-  background: none; border: none; border-top: 1px solid var(--sep); border-radius: 0;
-  color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong);
+.proj-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.proj-pop-name {
+  font-weight: var(--fw-label); font-size: var(--fs-4); letter-spacing: var(--track-tight);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.proj-pop-add:hover, .proj-pop-add:focus-visible { background: var(--bg-hover); color: var(--text); }
-
-/* 목록 거르기 (2026-11-03) — 열면 바로 치는 칸. */
-.proj-pop-find {
-  width: 100%; box-sizing: border-box; height: var(--ctl-3); margin-bottom: var(--space-1);
-  padding: 0 var(--space-3); border: 1px solid var(--border-card); border-radius: var(--radius-s);
-  background: var(--bg-window); color: var(--text); font-family: var(--font); font-size: var(--fs-3);
+.proj-pop-item.on .proj-pop-name { font-weight: var(--fw-strong); }
+.proj-pop-path { font-size: var(--fs-3); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 그 줄을 부르는 키 — 평소엔 옅게, 줄에 올리면 읽힌다. */
+.proj-pop-key { flex: none; color: var(--text-2); opacity: 0.55; transition: opacity var(--dur-1) var(--ease-out); }
+.proj-pop-item:hover .proj-pop-key, .proj-pop-item:focus-visible .proj-pop-key, .proj-pop-act:hover .proj-pop-key { opacity: 1; }
+.proj-pop-open { flex: none; font-size: var(--fs-3); color: var(--text-2); }
+.proj-pop-check { flex: none; display: inline-flex; color: var(--accent-text); }
+.proj-pop-none { margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-2); font-size: var(--fs-3); }
+.proj-pop-foot {
+  flex: none; border-top: 1px solid var(--sep); padding: var(--space-2);
+  display: flex; flex-direction: column; gap: 1px;
 }
-.proj-pop-find:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: -1px; }
-.proj-pop-none { margin: 0; padding: var(--space-3); color: var(--text-2); font-size: var(--fs-3); }
+.proj-pop-act {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
+  height: var(--ctl-4); padding: 0 var(--space-3); border-radius: var(--radius-s); cursor: pointer;
+  background: none; border: none; color: var(--text-2);
+  font-family: var(--font); font-size: var(--fs-3);
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.proj-pop-act svg { flex: none; }
+.proj-pop-act:hover, .proj-pop-act:focus-visible { background: var(--bg-hover); color: var(--text); }
+.proj-pop-act-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 프로젝트 색 (2026-11-03) — 창 여럿 사이에서 어느 프로젝트인지. 윗줄 위 띠 + 이름 앞 점 + 목록 점.
    윗줄 바탕도 그 색으로 옅게 물든다 — 창을 나란히 세우면 3px 띠만으로는 잘 안 보였다(11-03 오후).
@@ -137,17 +164,21 @@
   background: color-mix(in srgb, var(--pc) 9%, var(--bg-window));
 }
 .proj-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--pc, transparent); }
+/* 색 없는 프로젝트 — 빈 고리. 윗줄(.topbar[data-pc])의 --pc 를 물려받아 남의 색 점이 서던 것을 막는다. */
+.proj-dot:not([data-pc]) { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
 .proj-colors {
-  display: flex; align-items: center; gap: var(--space-2);
-  margin-top: var(--space-1); padding: var(--space-3); border-top: 1px solid var(--sep);
+  display: flex; align-items: center; gap: 7px;
+  height: var(--ctl-4); padding: 0 var(--space-3);
 }
-.proj-colors-label { flex: 1; color: var(--text-2); font-size: var(--fs-3); font-weight: var(--fw-strong); }
+.proj-colors-label { flex: 1; color: var(--text-2); font-size: var(--fs-3); }
 .proj-swatch {
-  flex: none; width: 16px; height: 16px; padding: 0; border-radius: 50%; cursor: pointer;
+  flex: none; width: 14px; height: 14px; padding: 0; border-radius: 50%; cursor: pointer;
   background: var(--pc); border: 1px solid transparent; appearance: none; -webkit-appearance: none;
+  transition: scale var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
-.proj-swatch.none { background: transparent; border-color: var(--border-card); }
-.proj-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--text-2); }
+.proj-swatch:hover { scale: 1.15; }
+.proj-swatch.none { background: transparent; border-color: var(--sep-strong); }
+.proj-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--text); }
 .proj-swatch:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
 
 /* ============================================================ CONTENT */

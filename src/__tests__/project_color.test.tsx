@@ -25,6 +25,7 @@ import { toast } from "@/lib/toast";
 import { t } from "@/i18n";
 import { projectColorOf } from "@/features/shell/projectColor";
 import { accentFor } from "@/features/theme/projectAccent";
+import { applyProjectTint, mixHex } from "@/features/theme/projectTint";
 import type { Project } from "@/lib/bindings";
 
 const projects = [
@@ -112,5 +113,23 @@ describe("프로젝트 색", () => {
     fireEvent.click(container.querySelector(".proj-switch")!);
     await screen.findByRole("menuitemradio", { name: "파랑" });
     expect(screen.queryByRole("menuitem", { name: /나란히/ })).toBeNull();
+  });
+
+  it("바탕에 프로젝트 색을 섞는다 — 0% 는 그대로, 100% 는 그 색, 읽을 수 없는 값은 건너뛴다", () => {
+    expect(mixHex("#2f7fd8", "#ffffff", 0)).toBe("#ffffff");
+    expect(mixHex("#2f7fd8", "#ffffff", 1)).toBe("#2f7fd8");
+    expect(mixHex("#000000", "#ffffff", 0.5)).toBe("#808080");
+    expect(mixHex("#2f7fd8", "rgba(0,0,0,0.1)", 0.5)).toBeNull();
+  });
+
+  it("색이 없으면 얹은 바탕과 data-tint 를 걷는다", () => {
+    const root = document.createElement("div");
+    root.style.setProperty("--bg-window", "#123456");
+    root.setAttribute("data-tint", "blue");
+    applyProjectTint(root, undefined, "light");
+    expect(root.style.getPropertyValue("--bg-window")).toBe("");
+    expect(root.hasAttribute("data-tint")).toBe(false);
+    applyProjectTint(root, "teal", "dark");
+    expect(root.getAttribute("data-tint")).toBe("teal");
   });
 });

@@ -14,6 +14,7 @@ import {
 } from "@/lib/settings";
 import { applyThemeAttrs, followsSystem, resolveThemeAttrs } from "@/features/theme/apply";
 import { accentFor, projectAccent } from "@/features/theme/projectAccent";
+import { applyProjectTint } from "@/features/theme/projectTint";
 
 interface SettingsContextValue {
   settings: Settings;
@@ -136,14 +137,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (!loaded) return;
     const root = document.documentElement;
     const apply = () => {
-      applyThemeAttrs(
-        root,
-        resolveThemeAttrs({
-          themeSetting: settings.theme,
-          colorTheme: accentFor(projectColor, settings.colorTheme),
-          prefersDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
-        }),
-      );
+      const attrs = resolveThemeAttrs({
+        themeSetting: settings.theme,
+        colorTheme: accentFor(projectColor, settings.colorTheme),
+        prefersDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
+      });
+      applyThemeAttrs(root, attrs);
+      // 바탕도 프로젝트 색으로 옅게 — 테마 가족이 정해진 뒤에 그 가족의 바탕값을 읽어 섞는다.
+      applyProjectTint(root, projectColor, attrs.family);
     };
     apply();
     // "system"(과 알 수 없는 옛 값)만 OS 를 따라간다.

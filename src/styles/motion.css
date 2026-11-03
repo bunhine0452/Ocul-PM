@@ -1,0 +1,38 @@
+/* ============================================================
+   모션 — 셸 공용 한 벌 (2026-11-03, 사용자: 「고급스러운 모션과 심플함」).
+
+   원칙 셋:
+   1. **조용히, 짧게.** 위치는 4px 안쪽, 시간은 --dur-2(190ms) 안팎, 곡선은 --ease-out 하나.
+      튀는 스프링 · 무한 반복 · 흘러가는 그라디언트는 쓰지 않는다(de-AI 규율, PR #97).
+   2. **등장은 keyframe 이 아니라 전환 + @starting-style.** `data-app-inactive`(idleMotion.ts)가
+      창이 뒤에 있을 때 애니메이션을 멈추므로, keyframe 등장은 투명한 첫 프레임에 멈춰 섰다
+      (10-30 함정). 전환은 그 일시정지에 걸리지 않는다.
+   3. **줄여 달라고 하면 없다.** `base.css` 의 prefers-reduced-motion 이 전환 시간을 0 으로 접는다.
+   ============================================================ */
+
+/* 화면 바꾸기 — 새 화면이 아래에서 살짝 떠오르며 선다. 화면마다 다른 컴포넌트라 바꿀 때 새로
+   붙고(`ShellV2` 의 key={view}), @starting-style 은 새로 붙은 요소에만 걸린다. */
+.content-main > * {
+  transition: opacity var(--dur-2) var(--ease-out), translate var(--dur-3) var(--ease-out);
+}
+@starting-style {
+  .content-main > * { opacity: 0; translate: 0 4px; }
+}
+
+/* 좁은 창의 「⋯」 화면 동작 메뉴 — 프로젝트 목록과 같은 등장. */
+.topbar-actions.is-open {
+  transform-origin: top right;
+  transition: opacity var(--dur-2) var(--ease-out), translate var(--dur-2) var(--ease-out), scale var(--dur-2) var(--ease-out);
+}
+@starting-style {
+  .topbar-actions.is-open { opacity: 0; translate: 0 -4px; scale: 0.98; }
+}
+
+/* 프로젝트 색 · 밝게 ↔ 어둡게 — 바탕이 한 번에 뒤집히지 않고 스며 바뀐다. 면 셋만: 윗줄 · 본문 ·
+   셸 바탕. 글자색은 즉시 바뀐다(읽기가 먼저). */
+.app, .topbar, .content, .toolbar {
+  transition: background-color var(--dur-3) var(--ease-out), box-shadow var(--dur-3) var(--ease-out);
+}
+
+/* 탭 — 고른 탭의 바탕이 스며 들어온다(이미 있는 색 전환에 바탕만 길게). */
+.topnav-item.active { transition-duration: var(--dur-2); }

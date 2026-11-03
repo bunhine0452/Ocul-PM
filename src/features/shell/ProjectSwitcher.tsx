@@ -17,7 +17,7 @@ import { PROJECT_SLOTS, byAttention, projectSlotLabel, projectSlotOf } from "./p
 import { TermsChip } from "@/features/terminal/TermsChip";
 import { useTermOverview } from "@/features/terminal/status";
 import { orderRecent } from "@/features/start/useRecentProjects";
-import { ChevronDown } from "@/components/Icons";
+import { CheckMark, ChevronDown, Code2, Columns3, FolderPlus, SearchIcon } from "@/components/Icons";
 import { useT } from "@/i18n";
 import type { HomeBrief, Project, ProjectAttention } from "@/lib/bindings";
 import { NAV_BUS } from "@/lib/navRegistry";
@@ -219,96 +219,110 @@ export function ProjectSwitcher({
 
       {open ? (
         <div className="proj-pop" role="menu" aria-label={t("sidebar.switchProjectMenu")} ref={menuRef}>
-          <input
-            className="proj-pop-find"
-            type="text"
-            value={query}
-            placeholder={t("sidebar.findProject")}
-            aria-label={t("sidebar.findProject")}
-            spellCheck={false}
-            autoComplete="off"
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
-              const first = shown[0]?.p;
-              if (!first) return;
-              e.preventDefault();
-              close(false);
-              if (first.id !== currentProjectId) onOpenProject(first.id);
-            }}
-          />
-          {shown.length === 0 ? <p className="proj-pop-none">{t("sidebar.findProjectNone")}</p> : null}
-          {shown.map(({ p, i }) => {
-            const isCurrent = p.id === currentProjectId;
-            const elsewhere = !isCurrent && openWindows.includes(p.id);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                role="menuitem"
-                aria-current={isCurrent ? "true" : undefined}
-                className={"proj-pop-item" + (isCurrent ? " on" : "")}
-                onClick={() => {
-                  close(false);
-                  if (!isCurrent) onOpenProject(p.id);
-                }}
-              >
-                <span className="proj-dot" data-pc={projectColorOf(p.color)} aria-hidden="true" />
-                <span className="proj-pop-meta">
-                  <span className="proj-pop-name">{p.name}</span>
-                  <span className="proj-pop-path">{tildePath(p.root_path)}</span>
-                </span>
-                <AttentionChips attention={attention.get(p.id)} terms={terms.get(p.id)} />
-                {isCurrent ? (
-                  <span className="chip sm">{t("sidebar.currentProject")}</span>
-                ) : elsewhere ? (
-                  <span className="chip sm outline">{t("sidebar.openProject")}</span>
-                ) : null}
-                {i < PROJECT_SLOTS ? <kbd className="kbd proj-pop-key">{projectSlotLabel(i)}</kbd> : null}
-              </button>
-            );
-          })}
-          {currentProjectId != null ? (
-            <div className="proj-colors" role="group" aria-label={t("sidebar.projectColor")}>
-              <span className="proj-colors-label">{t("sidebar.projectColor")}</span>
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={!currentColor}
-                aria-label={t("sidebar.projectColorNone")}
-                title={t("sidebar.projectColorNone")}
-                className="proj-swatch none"
-                onClick={() => pickColor(null)}
-              />
-              {PROJECT_COLORS.map((c) => (
+          {/* 찾기 — 테 없는 한 줄. 열면 바로 친다. */}
+          <div className="proj-pop-search">
+            <SearchIcon size={15} strokeWidth={1.75} aria-hidden="true" />
+            <input
+              className="proj-pop-find"
+              type="text"
+              value={query}
+              placeholder={t("sidebar.findProject")}
+              aria-label={t("sidebar.findProject")}
+              spellCheck={false}
+              autoComplete="off"
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+                const first = shown[0]?.p;
+                if (!first) return;
+                e.preventDefault();
+                close(false);
+                if (first.id !== currentProjectId) onOpenProject(first.id);
+              }}
+            />
+          </div>
+          <div className="proj-pop-list">
+            {shown.length === 0 ? <p className="proj-pop-none">{t("sidebar.findProjectNone")}</p> : null}
+            {shown.map(({ p, i }) => {
+              const isCurrent = p.id === currentProjectId;
+              const elsewhere = !isCurrent && openWindows.includes(p.id);
+              return (
                 <button
-                  key={c}
+                  key={p.id}
+                  type="button"
+                  role="menuitem"
+                  aria-current={isCurrent ? "true" : undefined}
+                  className={"proj-pop-item" + (isCurrent ? " on" : "")}
+                  onClick={() => {
+                    close(false);
+                    if (!isCurrent) onOpenProject(p.id);
+                  }}
+                >
+                  <span className="proj-dot" data-pc={projectColorOf(p.color)} aria-hidden="true" />
+                  <span className="proj-pop-meta">
+                    <span className="proj-pop-name">{p.name}</span>
+                    <span className="proj-pop-path">{tildePath(p.root_path)}</span>
+                  </span>
+                  <AttentionChips attention={attention.get(p.id)} terms={terms.get(p.id)} />
+                  {elsewhere ? <span className="proj-pop-open">{t("sidebar.openProject")}</span> : null}
+                  {isCurrent ? (
+                    <span className="proj-pop-check" title={t("sidebar.currentProject")}>
+                      <CheckMark size={15} strokeWidth={2} aria-hidden="true" />
+                      <span className="sr-only">{t("sidebar.currentProject")}</span>
+                    </span>
+                  ) : i < PROJECT_SLOTS ? (
+                    <kbd className="kbd proj-pop-key">{projectSlotLabel(i)}</kbd>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+          <div className="proj-pop-foot">
+            {currentProjectId != null ? (
+              <div className="proj-colors" role="group" aria-label={t("sidebar.projectColor")}>
+                <span className="proj-colors-label">{t("sidebar.projectColor")}</span>
+                <button
                   type="button"
                   role="menuitemradio"
-                  aria-checked={currentColor === c}
-                  aria-label={t(`projectColor.${c}`)}
-                  title={t(`projectColor.${c}`)}
-                  className="proj-swatch"
-                  data-pc={c}
-                  onClick={() => pickColor(c)}
+                  aria-checked={!currentColor}
+                  aria-label={t("sidebar.projectColorNone")}
+                  title={t("sidebar.projectColorNone")}
+                  className="proj-swatch none"
+                  onClick={() => pickColor(null)}
                 />
-              ))}
-            </div>
-          ) : null}
-          {openWindows.length >= 2 ? (
-            <button type="button" role="menuitem" className="proj-pop-add" onClick={tileWindows}>
-              <span className="proj-pop-add-label">{t("sidebar.tileWindows", { n: openWindows.length })}</span>
-              {isMac() ? <kbd className="kbd proj-pop-key">{kbd("⌥⌘T")}</kbd> : null}
+                {PROJECT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={currentColor === c}
+                    aria-label={t(`projectColor.${c}`)}
+                    title={t(`projectColor.${c}`)}
+                    className="proj-swatch"
+                    data-pc={c}
+                    onClick={() => pickColor(c)}
+                  />
+                ))}
+              </div>
+            ) : null}
+            {openWindows.length >= 2 ? (
+              <button type="button" role="menuitem" className="proj-pop-act" onClick={tileWindows}>
+                <Columns3 size={15} strokeWidth={1.75} aria-hidden="true" />
+                <span className="proj-pop-act-label">{t("sidebar.tileWindows", { n: openWindows.length })}</span>
+                {isMac() ? <kbd className="kbd proj-pop-key">{kbd("⌥⌘T")}</kbd> : null}
+              </button>
+            ) : null}
+            {currentRoot ? (
+              <button type="button" role="menuitem" className="proj-pop-act" onClick={openInEditor}>
+                <Code2 size={15} strokeWidth={1.75} aria-hidden="true" />
+                <span className="proj-pop-act-label">{editor.label}</span>
+              </button>
+            ) : null}
+            <button type="button" role="menuitem" className="proj-pop-act" onClick={() => void addFolder()}>
+              <FolderPlus size={15} strokeWidth={1.75} aria-hidden="true" />
+              <span className="proj-pop-act-label">{t("sidebar.addFolder")}</span>
             </button>
-          ) : null}
-          {currentRoot ? (
-            <button type="button" role="menuitem" className="proj-pop-add" onClick={openInEditor}>
-              {editor.label}
-            </button>
-          ) : null}
-          <button type="button" role="menuitem" className="proj-pop-add" onClick={() => void addFolder()}>
-            {t("sidebar.addFolder")}
-          </button>
+          </div>
         </div>
       ) : null}
     </div>
