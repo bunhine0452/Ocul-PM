@@ -50,6 +50,9 @@
   background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
 }
 .start-row-open:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+/* 프로젝트 색 점 (화면 검사 11-03) — 프로젝트 창 · ⌘O 목록에는 있는데 시작 창에만 없었다. */
+.start-row-dot { flex: none; width: 8px; height: 8px; margin-right: calc(var(--space-1) * -1); border-radius: 50%; background: var(--pc); }
+.start-row-dot:not([data-pc]) { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
 .start-row-name {
   flex: none; max-width: 45%;
   font-size: var(--fs-5); font-weight: var(--fw-strong);

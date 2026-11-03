@@ -2,7 +2,7 @@
  * 프로젝트 색이 창 전체 바탕에 옅게 스민다 (2026-11-03).
  *
  * 강조색(`projectAccent.ts`)만으로는 버튼 · 고른 탭에만 색이 섰다 — 창을 나란히 세웠을 때 면적의 대부분인
- * 바탕(목록 · 본문 · 터미널)은 세 창이 똑같았다. 그래서 바탕 다섯 단(`--bg-*`)에 프로젝트 색을 몇 % 섞는다.
+ * 바탕(목록 · 본문 · 터미널)은 세 창이 똑같았다. 그래서 바탕 세 단(창 · 목록 칸 · 본문)에 프로젝트 색을 몇 % 섞는다.
  *
  * **CSS `color-mix()` 가 아니라 여기서 hex 로 섞는 이유:** 터미널(xterm)은 `--term-bg`(= `--bg-content`)를
  * `getComputedStyle` 로 읽어 색 문자열로 쓴다. 사용자 정의 속성의 계산값은 `color-mix(…)` 글자 그대로라
@@ -26,8 +26,16 @@ export const PROJECT_HEX: Record<ProjectColor, string> = {
   orange: "#d2703a",
 };
 
-/** 물드는 바탕 — 위에서 아래로 겹치는 다섯 단. */
-export const TINTED = ["--bg-window", "--bg-sidebar", "--bg-content", "--bg-card", "--bg-inset"] as const;
+/**
+ * 물드는 바탕 — 창 · 목록 칸 · 본문 셋. **카드(`--bg-card`)와 입력칸 · 코드 칸(`--bg-inset`)은 물들이지
+ * 않는다** (화면 검사 11-03): 다섯 단을 다 섞었더니 카드와 그 아래 바탕이 같은 색조로 붙어 카드의 테가
+ * 사라지고, 따뜻한 회색 입력칸에 푸른 기가 섞여 탁해졌다. 바탕만 물들고 카드가 그 위에 깨끗하게 떠야
+ * 「이 창은 이 프로젝트」와 「여기가 읽을 곳」이 같이 읽힌다.
+ */
+export const TINTED = ["--bg-window", "--bg-sidebar", "--bg-content"] as const;
+
+/** 예전에 물들이던 것 — 걷을 때 같이 걷는다(이 판 이전에 얹힌 값이 남지 않게). */
+const ALL_TINTED = [...TINTED, "--bg-card", "--bg-inset"] as const;
 
 /** 섞는 양 — 어두운 바탕은 같은 %로도 덜 보여 조금 더. */
 const AMOUNT = { light: 0.045, dark: 0.07 } as const;
@@ -57,7 +65,7 @@ export function applyProjectTint(
   color: ProjectColor | undefined,
   family: "light" | "dark",
 ): void {
-  for (const key of TINTED) root.style.removeProperty(key);
+  for (const key of ALL_TINTED) root.style.removeProperty(key);
   if (!color) {
     root.removeAttribute("data-tint");
     return;

@@ -136,6 +136,8 @@ const TESTS = new Set([
   "__tests__/diff_receipt.test.ts",
   "__tests__/settings_page.test.tsx",
   "__tests__/start_window.test.tsx",
+  // 일지 파일 이름 짓기 — 한글 제목이 입력값이다(한글뿐이면 note 로 떨어지는지가 계약).
+  "__tests__/manual_entry_slug.test.ts",
   "__tests__/app_window.test.tsx",
   "__tests__/os_path.test.ts",
   // ⌃Tab 순환 · 두 손가락 쓸기 판정 — 한국어 테스트 이름.

@@ -592,14 +592,25 @@ export const en: Record<keyof typeof ko, string> = {
   "entry.diffLoadFailed": "Couldn't load the change record: {error}",
   "entry.noDiff": "This entry has no recorded changes.",
   "entry.openInDiff": "Open in the Changes screen",
-  "manual.slugError": "Slug takes lowercase letters, digits, and hyphens only (1–60 chars). e.g. changelog-export-fix",
+  "manual.slugError": "File name takes lowercase letters, digits and hyphens only (1–60 chars). e.g. export-fix",
   "manual.commandFailed": "Could not run {command} — {message}",
   "manual.title": "Write an entry",
-  "manual.desc": "Record work the agent missed. Leave session_id blank and the active session — or manual-{workday}-… — is filled in for you.",
-  "manual.trigger": "Trigger",
+  "manual.desc": "Record work the agent didn't.",
+  "manual.trigger": "Kind",
+  "manual.slugField": "File name",
+  "manual.tagsPlaceholder": "e.g. terminal",
+  "manual.diff.verylow": "Very easy",
+  "manual.diff.low": "Easy",
+  "manual.diff.medium": "Medium",
+  "manual.diff.high": "Hard",
+  "manual.diff.superhigh": "Very hard",
+  "manual.st.planned": "To do",
+  "manual.st.in_progress": "In progress",
+  "manual.st.done": "Done",
+  "manual.st.abandoned": "Dropped",
   "manual.titleField": "Title",
   "manual.titlePlaceholder": "e.g. Export parameter mismatch",
-  "manual.slugHint": "kebab-case · 1–60 chars · ASCII",
+  "manual.slugHint": "made from the title · lowercase letters · digits · -",
   "manual.difficulty": "Difficulty",
   "manual.none": "— (none)",
   "manual.status": "Status",
@@ -908,7 +919,7 @@ export const en: Record<keyof typeof ko, string> = {
   // was armed; never reset.
   // {#fix-disabled-reason} 4차 — 막힌 버튼이 말하는 이유 (blocked()).
   "manual.blockedNoTitle": "Enter a title",
-  "manual.blockedNoSlug": "Enter a slug",
+  "manual.blockedNoSlug": "Enter a file name",
   // First-record card (plan first-record-loop {#p1-card}) — checks the first
   // journal entry per conversation. Success only counts an entry attributed
   // to a conversation id. Recorded ≠ reviewed.

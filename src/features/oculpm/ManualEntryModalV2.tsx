@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { Plus, X, CheckMark } from "@/components/Icons";
+import { X, CheckMark } from "@/components/Icons";
 import type {
   Difficulty,
   EntryStatus,
@@ -28,6 +28,16 @@ const DIFFICULTIES: Difficulty[] = ["verylow", "low", "medium", "high", "superhi
 // Mirrors backend validate_slug (oculpm/manager.rs). Reject early.
 const SLUG_RE = /^[a-z0-9-]{1,60}$/;
 
+/**
+ * 제목에서 파일 이름을 짓는다 (화면 검사 11-03) — 예전엔 「slug * kebab-case · ASCII」 칸을 사람이 꼭 채워야
+ * 했다. 제목의 영문 · 숫자 낱말을 잇고, 한글뿐이라 남는 게 없으면 `note`. 사람이 칸을 고치면 그 뒤로는 손대지 않는다.
+ */
+export function slugFromTitle(title: string): string {
+  const words = title.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  const slug = words.join("-").slice(0, 60).replace(/-+$/, "");
+  return slug || "note";
+}
+
 interface ManualEntryModalV2Props {
   projectId: number;
   /** YYYYMMDD — file-change autofill source + sentinel hint. */
@@ -52,16 +62,19 @@ export function ManualEntryModalV2({
   const { t } = useT();
   const titleId = useId();
   const [type, setType] = useState<EntryType>("feature");
-  const [slug, setSlug] = useState("");
+  const [slugDraft, setSlugDraft] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty | null>("medium");
-  const [status, setStatus] = useState<EntryStatus>("planned");
+  // 직접 쓰는 일지는 대개 이미 끝낸 일이다 — 기본은 「끝남」.
+  const [status, setStatus] = useState<EntryStatus>("done");
   const [tagsInput, setTagsInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [bodyMarkdown, setBodyMarkdown] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
+  // 파일 이름 — 고치기 전에는 제목을 따라간다.
+  const slug = slugDraft ?? slugFromTitle(title);
 
   const [fileCandidates, setFileCandidates] = useState<string[]>(() => seedFiles ?? []);
   const [filesTouched, setFilesTouched] = useState<Set<string>>(() => new Set(seedFiles ?? []));
@@ -164,13 +177,8 @@ export function ManualEntryModalV2({
   return (
     <AppDialog open onClose={dismiss} label={t("manual.title")} width={560} initialFocusRef={titleRef}>
       <div className="set-modal-body wide">
-        <div className="set-modal-title">
-          <Plus size={15} /> {t("manual.title")}{" "}
-          <span className="entry-hint">workday {workday}</span>
-        </div>
-        <div className="set-modal-desc">
-          {t("manual.desc", { workday })}
-        </div>
+        <div className="set-modal-title">{t("manual.title")}</div>
+        <div className="set-modal-desc">{t("manual.desc")}</div>
 
         <form
           className="entry-form"
@@ -183,14 +191,15 @@ export function ManualEntryModalV2({
           <div className="entry-field">
             <label className="entry-label">{t("manual.trigger")}</label>
             <div className="entry-chips">
-              {ENTRY_TYPES.map((t) => (
+              {ENTRY_TYPES.map((k) => (
                 <button
-                  key={t}
+                  key={k}
                   type="button"
-                  className={"scope-chip" + (type === t ? " on" : "")}
-                  onClick={() => setType(t)}
+                  aria-pressed={type === k}
+                  className={"scope-chip" + (type === k ? " on" : "")}
+                  onClick={() => setType(k)}
                 >
-                  {t}
+                  {t(`trigger.${k}`)}
                 </button>
               ))}
             </div>
@@ -204,7 +213,7 @@ export function ManualEntryModalV2({
             <input
               id={`${titleId}-title`}
               ref={titleRef}
-              className="set-modal-input"
+              className="set-modal-input entry-input-text"
               value={title}
               maxLength={140}
               placeholder={t("manual.titlePlaceholder")}
@@ -215,7 +224,7 @@ export function ManualEntryModalV2({
           {/* slug */}
           <div className="entry-field">
             <label className="entry-label" htmlFor={`${titleId}-slug`}>
-              slug<span className="req">*</span>
+              {t("manual.slugField")}
               <span className="entry-hint">{t("manual.slugHint")}</span>
             </label>
             <input
@@ -224,8 +233,8 @@ export function ManualEntryModalV2({
               value={slug}
               maxLength={60}
               aria-invalid={slugError != null}
-              placeholder="changelog-export-param-mismatch"
-              onChange={(e) => setSlug(e.target.value)}
+              placeholder="note"
+              onChange={(e) => setSlugDraft(e.target.value)}
             />
             {slugError ? <div className="entry-err">{slugError}</div> : null}
           </div>
@@ -247,7 +256,7 @@ export function ManualEntryModalV2({
                 <option value="_none">{t("manual.none")}</option>
                 {DIFFICULTIES.map((d) => (
                   <option key={d} value={d}>
-                    {d}
+                    {t(`manual.diff.${d}`)}
                   </option>
                 ))}
               </select>
@@ -262,9 +271,9 @@ export function ManualEntryModalV2({
                 value={status}
                 onChange={(e) => setStatus(e.target.value as EntryStatus)}
               >
-                {ENTRY_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                {ENTRY_STATUSES.map((st) => (
+                  <option key={st} value={st}>
+                    {t(`manual.st.${st}`)}
                   </option>
                 ))}
               </select>
@@ -292,9 +301,9 @@ export function ManualEntryModalV2({
             ) : null}
             <input
               id={`${titleId}-tags`}
-              className="set-modal-input"
+              className="set-modal-input entry-input-text"
               value={tagsInput}
-              placeholder="tag-name"
+              placeholder={t("manual.tagsPlaceholder")}
               onChange={(e) => setTagsInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === ",") {

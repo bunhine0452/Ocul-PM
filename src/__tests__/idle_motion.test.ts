@@ -35,4 +35,11 @@ describe("idle motion pause", () => {
     const app = readFileSync(resolve(__dirname, "../App.css"), "utf8");
     expect(app).toContain('@import "./styles/primitives.css";');
   });
+
+  // 화면 검사 11-03 — 등장 애니메이션이 투명한 첫 프레임에 멈추면 뒤에 있는 창이 빈 화면으로 보였다.
+  it("does not freeze one-shot entrance animations at their transparent first frame", () => {
+    const css = readFileSync(resolve(__dirname, "../styles/primitives.css"), "utf8");
+    const rule = /:root\[data-app-inactive\] \*([^{]*)/.exec(css)?.[1] ?? "";
+    for (const exempt of [".fade-in", "animate-in", ".update-banner"]) expect(rule).toContain(exempt);
+  });
 });

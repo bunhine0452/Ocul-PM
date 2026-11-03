@@ -525,7 +525,7 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
     const { findByText, getByText, container } = renderDiff();
     await findByText(/이 변경을 남긴 일지가 없어요/);
     fireEvent.click(getByText("직접 기록"));
-    expect(await findByText("수동 일지 작성")).toBeInTheDocument();
+    expect(await findByText("일지 직접 쓰기")).toBeInTheDocument();
     const chips = Array.from(container.ownerDocument.querySelectorAll(".entry-files .scope-chip.on")).map(
       (c) => c.textContent,
     );
