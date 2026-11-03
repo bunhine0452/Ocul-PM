@@ -110,6 +110,7 @@
 .proj-pop-name { font-weight: var(--fw-strong); font-size: var(--fs-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 그 줄을 부르는 키 — 줄 끝, 목록이 눈에 걸리지 않게 옅게. */
 .proj-pop-key { flex: none; color: var(--text-2); }
+.proj-pop-add-label { flex: 1; min-width: 0; }
 .proj-pop-path { font-size: var(--fs-3); color: var(--text-2); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .proj-pop-add {
   display: flex; align-items: center; width: 100%; text-align: left;
@@ -128,8 +129,13 @@
 .proj-pop-find:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: -1px; }
 .proj-pop-none { margin: 0; padding: var(--space-3); color: var(--text-2); font-size: var(--fs-3); }
 
-/* 프로젝트 색 (2026-11-03) — 창 여럿 사이에서 어느 프로젝트인지. 윗줄 위 띠 + 이름 앞 점 + 목록 점. */
-.topbar[data-pc] { box-shadow: inset 0 3px 0 var(--pc); }
+/* 프로젝트 색 (2026-11-03) — 창 여럿 사이에서 어느 프로젝트인지. 윗줄 위 띠 + 이름 앞 점 + 목록 점.
+   윗줄 바탕도 그 색으로 옅게 물든다 — 창을 나란히 세우면 3px 띠만으로는 잘 안 보였다(11-03 오후).
+   강조색(주 버튼 · 고른 탭)은 `projectAccent.ts` 가 같은 색으로 바꾼다. */
+.topbar[data-pc] {
+  box-shadow: inset 0 3px 0 var(--pc);
+  background: color-mix(in srgb, var(--pc) 9%, var(--bg-window));
+}
 .proj-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--pc, transparent); }
 .proj-colors {
   display: flex; align-items: center; gap: var(--space-2);

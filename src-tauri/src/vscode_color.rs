@@ -1,8 +1,10 @@
 //! 프로젝트 색 → VS Code 창 색 (2026-11-03).
 //!
 //! 프로젝트 ▾ 목록에서 색을 고르면 그 프로젝트의 `.vscode/settings.json` 에
-//! `workbench.colorCustomizations` 의 제목 표시줄 색을 맞춘다 — VS Code 창도 앱의 윗줄 띠와 같은 색이
-//! 되어 창 여럿 사이에서 갈린다(Peacock 확장과 같은 자리). 「색 없음」 이면 이 모듈이 쓰는 키만 걷는다.
+//! `workbench.colorCustomizations` 의 제목 표시줄 · 상태 표시줄 색을 맞춘다 — VS Code 창도 앱의 윗줄
+//! 띠와 같은 색이 되어 창 여럿 사이에서 갈린다(Peacock 확장과 같은 자리). 위아래 두 줄이라 창이 좁게
+//! 나란히 서도 어느 프로젝트인지 보인다(상태 표시줄은 11-03 오후에 더했다). 「색 없음」 이면 이 모듈이
+//! 쓰는 키만 걷는다.
 //!
 //! **주석 · 끝 쉼표가 있는 settings.json(JSONC)은 건드리지 않는다.** 엄격한 JSON 으로 읽히지 않으면
 //! 다시 쓰는 순간 사용자의 주석이 사라진다(config.toml 주석 유실의 교훈) — 그 경우 `Skipped` 로 알린다.
@@ -19,6 +21,9 @@ const OWNED_KEYS: &[&str] = &[
     "titleBar.inactiveBackground",
     "titleBar.inactiveForeground",
     "titleBar.border",
+    "statusBar.background",
+    "statusBar.foreground",
+    "statusBar.border",
 ];
 
 const SETTINGS_REL: &str = ".vscode/settings.json";
@@ -111,6 +116,9 @@ pub fn render(
             format!("{fg}99").into(),
         );
         custom.insert("titleBar.border".into(), bg.into());
+        custom.insert("statusBar.background".into(), bg.into());
+        custom.insert("statusBar.foreground".into(), fg.into());
+        custom.insert("statusBar.border".into(), bg.into());
     } else if custom == before {
         return Ok(None); // 걷을 것이 없었다 — 파일을 다시 쓰지 않는다.
     }
@@ -179,6 +187,15 @@ mod tests {
         );
         assert_eq!(
             v["workbench.colorCustomizations"]["titleBar.activeForeground"],
+            "#ffffff"
+        );
+        // 아래 상태 표시줄도 같은 색 — 좁게 나란히 선 창에서도 보이게.
+        assert_eq!(
+            v["workbench.colorCustomizations"]["statusBar.background"],
+            "#2f7fd8"
+        );
+        assert_eq!(
+            v["workbench.colorCustomizations"]["statusBar.foreground"],
             "#ffffff"
         );
 

@@ -22,6 +22,8 @@ export const commands = {
 	 *  VS Code 쪽이 실패해도 앱의 색은 저장된다 — 결과로 무엇이 됐는지 돌려준다.
 	 */
 	setProjectColor: (projectId: number, color: string | null) => typedError<VscodeColorOutcome, string>(__TAURI_INVOKE("set_project_color", { projectId, color })),
+	/**  보이는 앱 창 전부를 지금 창의 화면에 나란히 세운다. 세운 창의 수를 돌려준다. */
+	tileAppWindows: () => typedError<number, string>(__TAURI_INVOKE("tile_app_windows")),
 	listProjects: () => typedError<Project[], string>(__TAURI_INVOKE("list_projects")),
 	createProject: (name: string, rootPath: string) => typedError<number, string>(__TAURI_INVOKE("create_project", { name, rootPath })),
 	deleteProject: (projectId: number, deleteOculpm: boolean, deleteAgentsMd: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_project", { projectId, deleteOculpm, deleteAgentsMd })),

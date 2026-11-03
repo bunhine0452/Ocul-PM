@@ -4,6 +4,7 @@ import { FindButton } from "@/components/Toolbar";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { ProjectSwitcher } from "@/features/shell/ProjectSwitcher";
 import { projectColorOf } from "@/features/shell/projectColor";
+import { projectAccent } from "@/features/theme/projectAccent";
 import type { NavBadges } from "@/features/shell/useNavBadges";
 import { NAV_ENTRIES, navShortcutLabel } from "@/lib/navRegistry";
 import { useT } from "@/i18n";
@@ -80,6 +81,11 @@ export function TopBar({
   useEffect(() => setMore(false), [view]);
   // 프로젝트 색 — 창 위 띠. 창 여럿 사이에서 어느 프로젝트인지 한눈에 (2026-11-03).
   const color = projectColorOf(projects.find((p) => p.id === currentProjectId)?.color);
+  // 그 색이 이 창의 강조색도 된다 — 창을 나란히 세웠을 때 창 전체가 어느 프로젝트인지 말한다.
+  useEffect(() => {
+    projectAccent.set(color);
+  }, [color]);
+  useEffect(() => () => projectAccent.set(undefined), []);
   return (
     <header className="topbar" data-pc={color} {...drag}>
       <ProjectSwitcher

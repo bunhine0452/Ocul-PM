@@ -457,8 +457,8 @@ function resolve(chain: string[]): Record<string, string> {
 }
 
 const DARK = '[data-theme="dark"]';
-/** `data-accent` 팔레트 6종 중 5종 (green 은 바탕값이라 블록이 없다). */
-const ACCENTS = ["blue", "purple", "orange", "rose", "teal"];
+/** `data-accent` 팔레트 8종 중 7종 (green 은 바탕값이라 블록이 없다). amber · slate 는 프로젝트 색 전용. */
+const ACCENTS = ["blue", "purple", "orange", "rose", "teal", "amber", "slate"];
 
 type Theme = { name: string; tokens: Record<string, string> };
 
@@ -551,6 +551,10 @@ const ON_ACCENT_FLOOR: Record<string, number> = {
   "accent:rose/dark": 5.18,
   "accent:teal/light": 3.42,
   "accent:teal/dark": 8.97,
+  "accent:amber/light": 4.6,
+  "accent:amber/dark": 7.97,
+  "accent:slate/light": 5.98,
+  "accent:slate/dark": 6.9,
 };
 
 describe("--text-on-accent / --accent — 알려진 미달의 래칫", () => {
