@@ -48,11 +48,12 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og-en.png",
-  "softwareVersion": "4.6.0",
+  "softwareVersion": "4.7.0",
   "inLanguage": "en",
   "description": "Not “all done” — a receipt. Every time a coding agent (Claude Code, Codex, Cursor, Gemini CLI) finishes, what it changed and the command that checked it are kept in your project folder as a Markdown receipt. Ocul unfolds only what isn't proven — failed check commands, entries without command evidence, changes no entry mentions. Start with two lines of the Claude Code plugin, and add the desktop app if you want to see it on screen. The app calls no LLM, and there is no account, server or telemetry.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
+    "Window switcher — hold ⌥Tab (Ctrl+` on Windows · Linux) and your open project windows line up in recent order, with waiting and failed checks shown. Release to go there; a quick tap goes straight to the previous window",
     "Tile project windows — with two or more windows open, ⌥⌘T (or \"Tile N windows side by side\" in the ⌘O list) lines up every visible window at the same width. The project colour tints the window's accent and background, so side-by-side windows are told apart by colour alone. VS Code opens in that project folder's own window",
     "A pair with VS Code — a project's colour tints its VS Code title bar, and journal entries open their changed files in VS Code. The Ocul VS Code extension shows Claude waiting · needs your eyes · next up · recent entries in one panel without the app, and \"Open in Ocul\" jumps to that entry or plan in the app",
     "Project colours — pick one of eight and it shows as a band across the top of the window, a dot before the name and in the ⌘O list, so Alt+Tab and Mission Control tell several windows apart. Type in the ⌘O list to narrow it and ↩ to open",
@@ -233,7 +234,7 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="/en"><img src="/icon.svg" alt="" width="24" height="24" />Ocul</a>
-    <span class="nav-ver" data-version>v4.6.0</span>
+    <span class="nav-ver" data-version>v4.7.0</span>
     <nav class="nav-links" aria-label="Site">
       <a href="#screens">Screens</a>
       <a href="/wiki/en">Wiki</a>
@@ -256,7 +257,7 @@
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.6.0</span><span class="sub">macOS · free</span>
+        <span class="lg">Get v4.7.0</span><span class="sub">macOS · free</span>
       </a>
     </div>
     <div class="subrow">
@@ -265,7 +266,7 @@
         <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
         <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
       </p>
-      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.6.0 — Windows side by side, screens like a receipt</a>
+      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.7.0 — Switch windows with ⌥Tab, each window in its own colour</a>
     </div>
 
     <div class="stage" id="screens" data-app>
@@ -385,8 +386,8 @@
       <div><dt>Line notes for Claude</dt><dd>Comment on changed lines, send them in one go, and “Fixed” appears on its own when the line changes.</dd></div>
       <div><dt>Passes that went stale get flagged</dt><dd>If a plan's files are saved again after its check passed, Today shows which ones and asks you to check again.</dd></div>
       <div><dt>The terminal in as many panes as you like</dt><dd><kbd>⌘D</kbd> splits right, <kbd>⇧⌘D</kbd> down, <kbd>⌥⌘</kbd> + arrows move between panes, <kbd>⌘F</kbd> finds in output.</dd></div>
-      <div><dt>Windows side by side</dt><dd>One <kbd>⌥⌘T</kbd> lines up your open project windows at the same width, in the order they sit.</dd></div>
-      <div><dt>Each window its own colour</dt><dd>The project colour tints the accent, the background and the terminal. Cards stay white.</dd></div>
+      <div><dt>Switch and tile windows</dt><dd>Hold <kbd>⌥Tab</kbd> for your windows in recent order, tap it for the previous one. <kbd>⌥⌘T</kbd> lines them up at the same width.</dd></div>
+      <div><dt>Each window its own colour</dt><dd>The whole top bar takes the project colour, with the name on a pill of it. The background and terminal take a faint tint.</dd></div>
       <div><dt>The app calls no LLM</dt><dd>No summaries, no API keys. The agent does the thinking; the app shows the evidence as it is.</dd></div>
     </dl>
   </div>
@@ -423,10 +424,10 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
     <h2 id="updates-h">This app is built with this app.</h2>
     <p class="intro">This repository's <b>932 entries, 89 plans and 133 releases</b> were recorded with Ocul. The history below comes from those entries.</p>
     <ul class="releases">
+      <li class="rel"><span class="ver">v4.7.0</span><div><h3>Switch windows with ⌥Tab, each window in its own colour</h3><p>Hold ⌥Tab and your open project windows line up in recent order; a quick tap goes to the previous one. The whole top bar takes the project colour, with the name on a pill of it.</p></div></li>
       <li class="rel"><span class="ver">v4.6.0</span><div><h3>Windows side by side, screens like a receipt</h3><p>⌥⌘T lines up project windows at the same width, and VS Code opens a window per project. The project colour tints the whole window, and the screens were reworked on the "receipt" rule: colour only for exceptions.</p></div></li>
       <li class="rel"><span class="ver">v4.5.1</span><div><h3>Finds updates as soon as you're back online</h3><p>If an update check failed while offline, the app didn't look again for hours after the connection came back. Now it checks the moment you're online again, and every 10 minutes while checks keep failing.</p></div></li>
       <li class="rel"><span class="ver">v4.5.0</span><div><h3>Ocul and VS Code, as a pair</h3><p>A project's colour tints its VS Code title bar too, and an entry's changed files open in VS Code. The Ocul extension 0.3.0 puts Claude waiting · needs your eyes · next up in one panel, and "Open in Ocul" takes you to the app.</p></div></li>
-      <li class="rel"><span class="ver">v4.4.0</span><div><h3>Many windows, many terminals, at your fingertips</h3><p>Give each project a colour that bands the top of its window. ⌘W closes the terminal session first, and a working session asks before it closes. ⇧⌘[ ] between sessions, ⌘= ⌘- for text size, type to filter ⌘O.</p></div></li>
     </ul>
     <p class="more"><a href="/changelog">Full changelog</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub releases</a></p>
   </div>
@@ -476,7 +477,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.6.0</span><span class="sub">free · auto-updates</span>
+        <span class="lg">Get v4.7.0</span><span class="sub">free · auto-updates</span>
       </a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Teams &amp; partnerships</a>
     </div>
@@ -485,7 +486,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
       <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
       <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
     </p>
-    <p class="cta-ver">v4.6.0 — macOS · Windows · Linux (beta)</p>
+    <p class="cta-ver">v4.7.0 — macOS · Windows · Linux (beta)</p>
   </div>
 </section>
 </main>

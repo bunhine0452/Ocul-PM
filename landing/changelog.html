@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul (최신 v4.6.0)</title>
-<meta name="description" content="Ocul 의 전체 릴리스 노트 141개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul (최신 v4.7.0)</title>
+<meta name="description" content="Ocul 의 전체 릴리스 노트 142개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul (최신 v4.6.0)" />
-<meta property="og:description" content="Ocul 의 전체 릴리스 노트 141개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul (최신 v4.7.0)" />
+<meta property="og:description" content="Ocul 의 전체 릴리스 노트 142개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
-    <span class="nav-ver" data-version>v4.6.0</span>
+    <span class="nav-ver" data-version>v4.7.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>141개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>142개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v4-7-0">v4.7.0</a>
       <a href="#v4-6-0">v4.6.0</a>
       <a href="#v4-5-1">v4.5.1</a>
       <a href="#v4-5-0">v4.5.0</a>
@@ -60,10 +61,18 @@
       <a href="#v4-1-0">v4.1.0</a>
       <a href="#v4-0-0">v4.0.0</a>
       <a href="#v3-17-0">v3.17.0</a>
-      <a href="#v3-16-0">v3.16.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v4-7-0"><a href="#v4-7-0">v4.7.0</a></h2>
+      <div class="cl-body">
+<p><b>v4.6.0 과 같은 날 내는 둘째 판이자, 「마이너는 2주에 한 번」 도 건너뜁니다 — 사용자 결정(2026-11-04, 「응 바로 릴리즈해」).</b> 확인 날 기록이 없고 눈 확인 26건이 남았습니다. 코드 게이트(프런트 테스트 1,055건 · Rust 전체 · cargo-deny · typecheck · lint · build)는 PR CI 에서 통과했고, 화면은 앱 하네스로 찍어 봤지만 설치본에서 눌러 보지는 못했습니다.</p>
+<p><b>⌥Tab 으로 프로젝트 창을 오갑니다</b> (Windows · Linux 는 Ctrl+`). 누르고 있으면 열린 프로젝트 창이 최근에 쓴 순서로 화면 가운데 서고(색 점 · 이름 · 경로 · 기다림 · 확인 실패), Tab · ⇧Tab · ↑↓ 로 고른 뒤 손을 떼면 그 창이 앞으로 옵니다. 한 번 톡 누르면 목록 없이 바로 직전 창입니다. 터미널에서 Claude 가 돌고 있어도 됩니다.</p>
+<p><b>창마다 색이 더 또렷합니다.</b> 맨 위 한 줄이 아니라 윗줄 전체가 그 프로젝트 색의 면이 되고, 프로젝트 이름은 같은 색의 알약 위에 섭니다. 바탕도 조금 더 물들어, 창을 나란히 세우면 색만으로 갈립니다.</p>
+<p><b>한 번도 색을 고르지 않은 프로젝트의 색이 바뀌던 결함.</b> 프로젝트 목록 · 시작 창에서 색 없는 프로젝트의 점이 지금 창의 색을 물려받아, 이 창의 색을 바꾸면 그 프로젝트들까지 같이 바뀌어 보였습니다(저장된 색은 그대로였습니다). 이제 프로젝트 색은 그 줄에만 섭니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v4-6-0"><a href="#v4-6-0">v4.6.0</a></h2>
       <div class="cl-body">
