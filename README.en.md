@@ -72,6 +72,7 @@ What it doesn't give is written down too. Ambition itself is the human's job —
 
 ## 🚀 v4.5 — Ocul and VS Code, as a pair
 
+- **v4.5.1 — finds updates as soon as you're back online** — if a check failed while offline, the app didn't look again for hours after the connection returned. Now it checks the moment you're back online, and every 10 minutes while checks keep failing.
 - **Project colours reach VS Code** — the colour you pick in the app also tints that project's VS Code title bar (`.vscode/settings.json`; a file with comments is left alone).
 - **Open a journal entry's changed file in VS Code** — "Open in VS Code" on each changed file of an entry.
 - **From VS Code to the app** — the extension's "Open in Ocul" jumps to Today, the entries for that file, or a plan (the app asks before it opens anything).
