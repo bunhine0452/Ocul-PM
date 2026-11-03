@@ -145,6 +145,67 @@ describe("UpdateBanner", () => {
     }
   });
 
+  it("끊긴 채 켰다가 다시 연결되면 6시간을 기다리지 않고 다시 묻는다", async () => {
+    fx.checkError = "error sending request: offline";
+    const { container, findByText } = render(<UpdateBanner />);
+    await waitFor(() => expect(pluginCheck).toHaveBeenCalledTimes(1));
+    expect(container.querySelector(".update-banner")).toBeNull();
+
+    fx.checkError = null;
+    fx.update = { version: "9.9.0", downloadAndInstall: vi.fn(() => Promise.resolve()) };
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    expect(await findByText(/v9\.9\.0/)).toBeInTheDocument();
+  });
+
+  it("실패한 확인 뒤에는 창으로 돌아올 때도 바로 다시 묻는다", async () => {
+    fx.checkError = "error sending request: offline";
+    render(<UpdateBanner />);
+    await waitFor(() => expect(pluginCheck).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    fx.checkError = null;
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() => expect(pluginCheck).toHaveBeenCalledTimes(2));
+  });
+
+  it("online 이 오지 않아도(인터넷만 끊김) 실패한 동안 10분마다 다시 묻는다", async () => {
+    vi.useFakeTimers();
+    try {
+      fx.checkError = "error sending request: offline";
+      render(<UpdateBanner />);
+      await act(async () => {});
+      expect(pluginCheck).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        vi.advanceTimersByTime(10 * 60 * 1000 + 1);
+      });
+      expect(pluginCheck).toHaveBeenCalledTimes(2);
+      // 성공하면 짧은 재시도는 멈춘다.
+      fx.checkError = null;
+      await act(async () => {
+        vi.advanceTimersByTime(10 * 60 * 1000 + 1);
+      });
+      expect(pluginCheck).toHaveBeenCalledTimes(3);
+      await act(async () => {
+        vi.advanceTimersByTime(60 * 60 * 1000);
+      });
+      expect(pluginCheck).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("성공한 확인 뒤의 online 은 다시 묻지 않는다", async () => {
+    render(<UpdateBanner />);
+    await waitFor(() => expect(pluginCheck).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    expect(pluginCheck).toHaveBeenCalledTimes(1);
+  });
+
   it("stays hidden when there is no update", async () => {
     fx.update = null;
     const { container } = render(<UpdateBanner />);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, X } from "@/components/Icons";
 import { useUpdater } from "@/lib/updater";
 import { useT } from "@/i18n";
@@ -40,6 +40,8 @@ export const SMOKE_AUTO_INSTALL = import.meta.env.VITE_OCULPM_UPDATER_SMOKE === 
 const PERIODIC_MS = 24 * 60 * 60 * 1000;
 /** 깨어날 때 다시 묻는 최소 간격 — 6시간. */
 const WAKE_MIN_MS = 6 * 60 * 60 * 1000;
+/** 확인이 실패한 동안 다시 묻는 간격 — 10분. */
+const FAILED_RETRY_MS = 10 * 60 * 1000;
 
 export function UpdateBanner() {
   const { t } = useT();
@@ -54,6 +56,15 @@ export function UpdateBanner() {
   // 창을 닫아도 앱이 살아 있어 프로세스가 며칠을 살고, 기동 때
   // 한 번 물어본 뒤로는 새 버전을 영영 몰랐다. 깨어남은 마지막 확인에서
   // `WAKE_MIN_MS` 가 지났을 때만 — 창을 오갈 때마다 GitHub 을 두드리지 않는다.
+  //
+  // 확인이 **실패**했으면(오프라인 등) 그 시각은 「물어봤다」 로 치지 않는다 — 네트워크가
+  // 돌아오는 순간(`online`)과 다음 깨어남에서 6시간을 기다리지 않고 바로 다시 묻는다.
+  // 예전에는 끊긴 채 켠 앱이 다시 연결돼도 6~24시간 새 버전을 몰랐다(11-03).
+  const failedRef = useRef(false);
+  useEffect(() => {
+    failedRef.current = status.kind === "error";
+  }, [status]);
+
   useEffect(() => {
     let last = Date.now();
     void check();
@@ -63,18 +74,33 @@ export function UpdateBanner() {
     }, PERIODIC_MS);
     const onWake = () => {
       if (document.visibilityState !== "visible") return;
-      if (Date.now() - last < WAKE_MIN_MS) return;
+      if (!failedRef.current && Date.now() - last < WAKE_MIN_MS) return;
+      last = Date.now();
+      void check();
+    };
+    const onOnline = () => {
+      if (!failedRef.current) return;
       last = Date.now();
       void check();
     };
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
+    window.addEventListener("online", onOnline);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
+      window.removeEventListener("online", onOnline);
     };
   }, [check]);
+
+  // Wi-Fi 는 붙어 있는데 인터넷만 안 되는 경우(로그인 화면이 있는 공용 와이파이 등)는
+  // `online` 이 오지 않는다 — 실패한 동안은 짧은 간격으로 스스로 다시 묻는다.
+  useEffect(() => {
+    if (status.kind !== "error") return;
+    const retry = window.setTimeout(() => void check(), FAILED_RETRY_MS);
+    return () => window.clearTimeout(retry);
+  }, [status.kind, check]);
 
   useEffect(() => {
     if (status.kind === "available") setVersion(status.version);
