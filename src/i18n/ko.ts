@@ -719,7 +719,7 @@ export const ko = {
   "plan.log.decisionCount": "결정 {n}",
   "plan.log.decisions": "결정",
   "plan.emptyAgents": "Claude Code 에 하고 싶은 일을 말하면 계획이 생겨요.",
-  "plan.error": "문제가 발생했어요",
+  "plan.error": "계획을 불러오지 못했어요",
   // 왜 못 누르는지 ({#fix-disabled-reason}) — `disabled` 는 포커스도 마우스도
   // 안 받아 이 문장들이 도달하지 않는다. `blocked()` 가 나른다 (lib/blocked.ts).
   "plan.confirmDoneTitle": "검증 일지 없이 완료",

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { oculpmApi } from "@/api/oculpm";
+import { toAppError } from "@/api/invoke";
+import { tError } from "@/i18n/errors";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { groupByWorkday, type JournalDay } from "./useJournalDays";
 import { useJournalEvents } from "./useOculpmLive";
@@ -80,7 +82,7 @@ export function useJournalSearch(
         setCounts({ total: page.total, loaded: entries.length });
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof OculpmApiError ? e.message : String(e));
+        setError(tError(toAppError(e)));
         setDays(null);
         setCounts(null);
       } finally {

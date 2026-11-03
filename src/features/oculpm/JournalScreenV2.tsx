@@ -490,14 +490,15 @@ export function JournalScreenV2({
                 </>
               }
               empty={
-                loading && days == null ? (
+                // 못 불러왔는데 「일지가 없어요」 를 같이 띄우면 없는 건지 못 읽은 건지 모른다.
+                error ? null : loading && days == null ? (
                   <SkeletonList rows={4} height={44} />
                 ) : (
                   <p className="jl-empty">{filtered ? t("journal.noMatch") : t("journal.empty")}</p>
                 )
               }
               footer={
-                !allPeriod && !searching && !(loading && days == null) ? (
+                !allPeriod && !searching && !error && !(loading && days == null) ? (
                   <button type="button" className="btn sm jl-more" onClick={() => setShowAll(true)}>
                     {t("journal.loadMore")}
                   </button>

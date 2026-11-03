@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { t } from "@/i18n";
+import { toAppError } from "@/api/invoke";
 import { tError } from "@/i18n/errors";
 import { commands, type PlanDetail, type PlanItemDto, type PlanSummary } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -60,7 +61,7 @@ export function usePlanDocument(projectId: number): PlanDocument {
         setPlans([]);
       }
     } catch (e) {
-      setError(String(e));
+      setError(tError(toAppError(e)));
       setPlans([]);
     }
   }, [projectId]);
@@ -85,7 +86,7 @@ export function usePlanDocument(projectId: number): PlanDocument {
         else setError(tError(res.error));
       } catch (e) {
         if (selectedIdRef.current !== selectedId) return;
-        setError(String(e));
+        setError(tError(toAppError(e)));
       } finally {
         if (!silent && selectedIdRef.current === selectedId) setLoadingDetail(false);
       }
@@ -120,7 +121,7 @@ export function usePlanDocument(projectId: number): PlanDocument {
       void refreshPlans();
     } else {
       setDetail(prevDetail);
-      toast.destructive(t("plan.statusFailed", { error: res.error }));
+      toast.destructive(t("plan.statusFailed", { error: tError(res.error) }));
     }
   };
 
