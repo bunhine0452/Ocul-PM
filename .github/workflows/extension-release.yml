@@ -150,6 +150,8 @@ jobs:
 
       # 마켓과 무관하게 **항상** GitHub Release 에 .vsix 를 건다 — 토큰이 없는
       # 동안에도 `code --install-extension` 으로 받을 자리가 하나는 있어야 한다.
+      # `--latest=false` 필수: 앱 업데이터는 releases/latest/download/latest.json 을 읽는다.
+      # 확장 릴리스가 latest 가 되면 설치된 앱이 전부 업데이트를 못 찾는다(ext-v0.3.0, 11-03).
       - name: GitHub Release (.vsix 첨부)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -157,6 +159,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" "${{ needs.package.outputs.vsix }}" \
             --repo "$GITHUB_REPOSITORY" \
             --title "VS Code 확장 ${GITHUB_REF_NAME#ext-v}" \
+            --latest=false \
             --notes "VS Code 확장 \`oculpm.ocul\` ${GITHUB_REF_NAME#ext-v} — 릴리스 노트는 extension/CHANGELOG.md. 설치: \`code --install-extension ${{ needs.package.outputs.vsix }}\` (VS Code 1.101+). 마켓 게시는 토큰이 준비되면 같은 태그에서 다시 돈다." \
             || gh release upload "$GITHUB_REF_NAME" "${{ needs.package.outputs.vsix }}" --repo "$GITHUB_REPOSITORY" --clobber
 
