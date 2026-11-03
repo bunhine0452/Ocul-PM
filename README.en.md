@@ -70,6 +70,14 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
 
+## 🚀 v4.6 — Windows side by side, screens like a receipt
+
+- **Tile project windows** — with two or more windows open, "Tile N windows side by side" in the ⌘O list or ⌥⌘T lines up every visible window at the same width (in their current order; adds a row when a column would be narrower than 480pt).
+- **VS Code opens per project** — "Open in VS Code" opens the file at its line in that project folder's VS Code window. Project colours reach the VS Code status bar too.
+- **The project colour across the window** — the accent becomes the project colour, and the background · list · content · search box · terminal take a faint tint (cards stay white).
+- **Screens like a receipt** — colour only for failed · blocked · waiting · unverified; a pass is a grey ✓. Kinds are a word instead of a coloured dot, progress is a number instead of a bar, and the coloured left stripes are gone. The six rules are in [DESIGN.md](DESIGN.md), "App UI — 영수증".
+- **Fixed** a background window showing a blank screen, error card wording, and internal values in the "Write an entry" dialog.
+
 ## 🚀 v4.5 — Ocul and VS Code, as a pair
 
 - **v4.5.1 — finds updates as soon as you're back online** — if a check failed while offline, the app didn't look again for hours after the connection returned. Now it checks the moment you're back online, and every 10 minutes while checks keep failing.
@@ -78,19 +86,11 @@ What it doesn't give is written down too. Ambition itself is the human's job —
 - **From VS Code to the app** — the extension's "Open in Ocul" jumps to Today, the entries for that file, or a plan (the app asks before it opens anything).
 - **Ocul VS Code extension 0.3.0** — an Activity Bar panel (Claude waiting · needs your eyes · next up · recent entries), one status-bar item, a notification once when Claude starts waiting, and "Continue in terminal". Works without the app, never writes to `.oculpm/`, no network.
 
-## 🚀 v4.4 — Many windows, many terminals, at your fingertips
-
-- **Project colours** — pick one of eight under "Color" in the project ▾ (⌘O) list, and it shows as a band across the top of the window, a dot before the name and on the project's row in ⌘O. With several windows open, Alt+Tab and Mission Control tell projects apart at a glance.
-- **⌘W closes the terminal session first** — with several sessions in the terminal, ⌘W closes only the selected one; the window closes from the last session.
-- **A working session asks before it closes** — closing a session where Claude is still working (⌘W or ✕) asks first. An idle shell closes straight away.
-- **Between sessions with ⇧⌘[ / ⇧⌘]** — previous · next session, the same keys as iTerm and Terminal.app.
-- **Terminal text size ⌘= / ⌘- / ⌘0** — applies to every window and session, and is remembered.
-- **Type to filter the ⌘O list** — start typing part of a name or path as soon as it opens; ↩ opens the first row. ⌥⌘ numbers stay put.
-
 ## Earlier releases at a glance
 
 The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
 
+- **Many windows, many terminals, at your fingertips** (4.4) — project colours (a band across the top · a dot before the name · the ⌘O list), ⌘W closes the terminal session first, a working session asks before it closes, ⇧⌘[ ] between sessions, ⌘= ⌘- ⌘0 text size, type to filter ⌘O.
 - **Stale passes flagged, the terminal in many panes** (4.3) — Today flags files saved again after a ✓ check, plus the re-fix warning (plugin) · PR receipt · teammates' entries · the verdict line, terminal split panes · find, Open in VS Code · the waiting window · the Ocul VS Code extension 0.2.0 (4.3.1 · 4.3.2).
 - **Pick from several, comment per line** (4.2) — run one task in 2–4 worktrees of claude and pick by evidence, line notes → Claude (Fixed · Open on their own), drag from Finder · image previews, windows down to 480pt, entry titles as "Area: what was done".
 - **Talking with Claude, and the name is Ocul** (4.1) — the visible name Ocul (the install name stays), one line on Today plus an OS notification when Claude waits, answering Claude in the app through the MCP tool `ask_user`, "Send to Claude" · `/goal`, ⌃Tab · ⌥⌘1–9, a first-run guide.
