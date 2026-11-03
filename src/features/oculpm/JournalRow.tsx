@@ -51,7 +51,9 @@ export function JournalRow({ entry, selected, onSelect, showAgent = true }: Jour
   const kind = TRIGGER_META[entry.type] ?? TRIGGER_META.chore;
   const open = entry.status !== "done";
   const evState = evidenceStateOf(entry);
+  // 종류는 색 점이 아니라 첫 낱말로(영수증 규칙 1 — 색은 예외에만, 11-04). 빨간 점이 버그 수정을 실패처럼 보이게 했다.
   const meta = [
+    t(kind.labelKey),
     timeLabel(entry.created_at),
     showAgent ? agentLabel(entry.agent_id) : "",
     entry.files_count > 0 ? t("journal.row.files", { n: entry.files_count }) : "",
@@ -67,12 +69,6 @@ export function JournalRow({ entry, selected, onSelect, showAgent = true }: Jour
       onClick={() => onSelect(entry)}
     >
       <span className="jl-r1">
-        <i
-          className="jl-dot"
-          style={{ "--c": `var(--t-${kind.cssVar})` } as React.CSSProperties}
-          role="img"
-          aria-label={t(kind.labelKey)}
-        />
         <span className="jl-ti">{plainTitle(entry.title) || entry.slug}</span>
         {open ? (
           <span className="chip sm">

@@ -120,12 +120,16 @@
    `.sm` 만 예외로 알약이다: 18px 에서 `--radius-s`(7px)는 이미 반원(9px)에
    가까워, 상자로 두면 "덜 된 알약" 으로 보인다. */
 .chip.sm { height: var(--ctl-1); padding: 0 var(--space-2); font-size: var(--fs-2); border-radius: var(--radius-pill); }
-.chip.outline { background: transparent; border: 1px solid var(--sep); }
+/* 상태 이름(열림 · 내 차례 · 일지에 있음)은 머리카락 선 하나. 이름이 `outline` 이던 때(~11-04)는
+   Tailwind 의 `outline` 유틸리티(1px 파란 링)와 겹쳐 중립이어야 할 칩에 파란 테가 섰다. */
+.chip.hairline { background: transparent; border: 1px solid var(--sep-strong); color: var(--text-2); }
 /* 읽지 않은 터미널 소식의 점 — 프로젝트 목록 · 시작 창의 「새 소식」 (TermsChip). */
 .terms-unseen { display: inline-block; width: 6px; height: 6px; margin-right: var(--space-1); border-radius: 50%; background: var(--info); }
-/* .chip.accent 는 걷었다 — 초록은 주 버튼과 통과(.chip.ok)에만 (화면 검사 #green-meaning, 10-29).
-   「열림」 · 「내 차례」 같은 상태 이름은 중립(.chip.outline)이다. */
-.chip.ok { background: var(--ok-soft); color: var(--ok-text); }
+/* 영수증 규칙 1 (11-04) — 색은 예외에만. 통과 · 연결됨 · 최신은 회색 ✓ 하나로 조용히 선다.
+   초록 바탕 딱지가 줄마다 서면 「다 됐습니다」 를 외치는 화면이 된다 — 그건 영수증이 아니라 광고다.
+   .chip.accent 는 10-29 에 걷었다. */
+.chip.ok { background: transparent; color: var(--text-2); padding-left: 0; }
+.chip.ok::before { content: "✓"; font-family: var(--mono); font-weight: var(--fw-strong); }
 .chip.warn { background: var(--warn-soft); color: var(--warn-text); }
 .chip.danger { background: var(--danger-soft); color: var(--danger-text); }
 .chip.info { background: var(--info-soft); color: var(--info-text); }
@@ -191,17 +195,9 @@
   white-space: nowrap; flex: none;
 }
 .tbadge .dot { width: 6px; height: 6px; border-radius: 50%; }
-.t-bugfix { background: var(--t-bug-soft); color: var(--t-bug); }
-/* `--accent-text` 가 아니라 자기 색이다 (2026-09-09 {#feature-badge-accent-clash}).
-   나머지 넷은 전부 `--t-*` 를 쓰는데 이 하나만 액센트를 썼다. `--t-feature-soft`
-   는 :root 와 [data-theme="dark"] 두 곳에만 있고 `[data-accent]` 열 블록
-   어디에도 없어서, 액센트를 초록에서 바꾸는 순간 **초록 바탕에 파란(보라·
-   주황·빨강·청록) 글자**가 됐다 — 기본 초록만 우연히 맞았다.
-   이 배지는 triggerMeta.tsx 한 곳에서 나와 일지·Today·변경·검색에 전부 뜬다. */
-.t-feature { background: var(--t-feature-soft); color: var(--t-feature); }
-.t-refactor { background: var(--t-refactor-soft); color: var(--t-refactor); }
-.t-error { background: var(--t-error-soft); color: var(--t-error); }
-.t-chore { background: var(--t-chore-soft); color: var(--t-chore); }
+/* 영수증 규칙 1 — 종류는 예외가 아니다. 버그를 고친 일지에 빨간 딱지가 서면 실패로 읽힌다.
+   다섯 종류는 아이콘이 말하고 색은 모두 중립이다(11-04, 이전엔 --t-* 다섯 색). */
+.tbadge { background: var(--bg-inset); color: var(--text-2); }
 
 /* 화면 진입 — 얕은 상승 + 페이드. 모든 스크린 전환이 같은 곡선을 공유한다.
 

@@ -48,7 +48,7 @@ export function NoteSlot({
     <div className={"dl-note" + (note.sent ? (note.fixed ? " is-fixed" : " is-sent") : "")}>
       {note.sent ? (
         <span
-          className={"chip sm " + (!isJudged(note) ? "outline" : note.fixed ? "ok" : "warn")}
+          className={"chip sm " + (!isJudged(note) ? "hairline" : note.fixed ? "ok" : "warn")}
           title={
             note.side === "old" ? t("diff.notes.oldSideTitle") : note.unsure ? t("diff.notes.unsureTitle") : undefined
           }

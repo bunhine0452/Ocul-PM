@@ -198,7 +198,7 @@ export function RaceStrip({ projectId }: { projectId: number }) {
                   {t("race.lane", { n })}
                 </button>
                 {lane.path === recommended ? (
-                  <span className="chip sm outline" title={t("race.recommendedTitle")}>
+                  <span className="chip sm hairline" title={t("race.recommendedTitle")}>
                     {t("race.recommended")}
                   </span>
                 ) : null}

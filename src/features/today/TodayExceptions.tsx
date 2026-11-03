@@ -186,6 +186,7 @@ function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "s
       summary={ex.verdict.summary}
       when={whenLabel(ex.verdict.ts)}
       sub={sub.filter(Boolean).join(" · ")}
+      bare
     />
   );
 }
@@ -212,14 +213,14 @@ function ExceptionRow({
         if (e.target === e.currentTarget) onFocus();
       }}
     >
+      {/* 모든 행이 같은 첫 칸(상태 칩)에서 시작한다 — 판정 줄도 칩 옆에 선다(영수증 규칙 4, 11-04). */}
+      <span className={"chip sm " + pill.tone}>{t(pill.key)}</span>
       {ex.kind === "verdict" || ex.kind === "stale" ? (
-        // 판정 줄 — 딱지 대신 결과 선과 끝 줄이 이 행의 표시다(시그니처, `VerdictLine`).
         <div className="tdy-row-t">
           <VerdictRow ex={ex} />
         </div>
       ) : (
         <>
-          <span className={"chip sm " + pill.tone}>{t(pill.key)}</span>
           <div className="tdy-row-t">
             <div className="tdy-row-title">{title}</div>
             {meta ? <div className={"tdy-meta" + (mono ? " mono" : "")}>{meta}</div> : null}
@@ -386,7 +387,7 @@ export function TodayExceptions({
               </div>
             </div>
           ) : (
-            <ul className="tdy-rows" aria-label={t("today.check.title")}>
+            <ul className="tdy-rows is-ex" aria-label={t("today.check.title")}>
               {first.map((ex, i) => (
                 <ExceptionRow key={ex.key} ex={ex} {...nav(i)} onPrimary={onPrimary} onAnswer={onAnswer} />
               ))}
@@ -404,7 +405,7 @@ export function TodayExceptions({
               {t("today.unread.allRead")}
             </button>
           </header>
-          <ul className="tdy-rows" aria-label={t("today.unread.title")}>
+          <ul className="tdy-rows is-ex" aria-label={t("today.unread.title")}>
             {unread.map((ex, j) => (
               <UnreadRow
                 key={ex.key}

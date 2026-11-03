@@ -66,7 +66,7 @@ function PlanItemLine({ item, depth, parent, locked, onSetStatus, onOpenJournal,
         ) : null}
       </span>
       <span className="plv-item-t">{title}</span>
-      {isUserItem(item.title) ? <span className="chip sm outline">{t("plan.item.user")}</span> : null}
+      {isUserItem(item.title) ? <span className="chip sm hairline">{t("plan.item.user")}</span> : null}
       {item.status === "blocked" ? <span className="chip sm danger">{t("plan.status.blocked")}</span> : null}
       {showNote ? <span className="plv-meta plv-item-note">· {item.note}</span> : null}
       {onSend && !parent && item.status !== "done" ? (
@@ -121,15 +121,13 @@ export function PlanItems({
         const name = nameOf(g.phase);
         return (
           <section key={g.phase} className="plv-phase" aria-label={name}>
-            {/* 단계 = 카드 한 장(10-30): 머리 띠에 이름 · 수 · 진행 막대. 테두리 없이 두 칸으로 서 있던 때는
-                어디까지가 한 단계인지, 「보내기」 가 어느 항목의 것인지 안 보였다. */}
+            {/* 단계 = 카드 한 장(10-30): 머리 띠에 이름 · 수. 테두리 없이 두 칸으로 서 있던 때는
+                어디까지가 한 단계인지, 「보내기」 가 어느 항목의 것인지 안 보였다. 진행 막대는 걷었다 —
+                접힌 것은 숫자로 말한다(영수증 규칙 5, 11-04). */}
             <h3 className="plv-sec-h">
               <span className="plv-sec-name">{name}</span>
               <span className="plv-sec-n">
                 {done}/{total}
-              </span>
-              <span className="plv-bar plv-sec-bar" aria-hidden="true">
-                <i style={{ width: `${total > 0 ? Math.round((done / total) * 100) : 0}%` }} />
               </span>
             </h3>
             {g.items.map((r) => (

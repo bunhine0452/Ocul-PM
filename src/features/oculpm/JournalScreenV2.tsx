@@ -331,10 +331,12 @@ export function JournalScreenV2({
     }
   };
 
+  // 윗줄의 보통 단추 — 일지는 에이전트가 쓰고 직접 쓰기는 드문 예외다. 채운 단추는 화면에 하나,
+  // 그 화면의 다음 행동(빈 화면의 「지난 커밋에서 만들기」)에만 (영수증 규칙 3, 11-04).
   const newEntry = (
     <button
       type="button"
-      className="btn primary"
+      className="btn"
       onClick={() => setManualOpen(true)}
       {...blocked(todayKey ? null : t("journal.newDisabled"), t("journal.newTitle"))}
     >

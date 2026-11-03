@@ -483,11 +483,11 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
     ];
     const { container } = renderDiff();
     await waitFor(() => expect(container.querySelectorAll(".chg-grp")).toHaveLength(2));
-    await waitFor(() => expect(container.textContent).toContain("! 검증 없음"));
+    await waitFor(() => expect(container.textContent).toContain("· 검증 없음"));
     const grp = Array.from(container.querySelectorAll(".chg-grp"));
     expect(grp[0].querySelector(".chg-ti")?.textContent).toBe("새 폴더 감시 경합");
     expect(grp[0].querySelector(".chg-count")?.textContent).toBe("2");
-    expect(grp[0].textContent).toContain("! 검증 없음");
+    expect(grp[0].textContent).toContain("· 검증 없음");
     expect(grp[1].textContent).toContain("✓ 명령");
   });
 

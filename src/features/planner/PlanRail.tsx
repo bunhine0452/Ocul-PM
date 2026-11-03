@@ -11,7 +11,6 @@ import { railOrder } from "./planList";
 
 function RailRow({ plan, selected, onSelect }: { plan: PlanSummary; selected: boolean; onSelect: () => void }) {
   const { t } = useT();
-  const pct = plan.item_count > 0 ? Math.round((plan.done_count / plan.item_count) * 100) : 0;
   const v = plan.last_verdict;
   return (
     <li>
@@ -21,9 +20,6 @@ function RailRow({ plan, selected, onSelect }: { plan: PlanSummary; selected: bo
           <span className="plv-meta mono">
             {plan.done_count}/{plan.item_count}
           </span>
-        </span>
-        <span className="plv-bar" aria-hidden="true">
-          <i style={{ width: `${pct}%` }} />
         </span>
         {v ? (
           <VerdictLine compact state={v.passed ? "pass" : "fail"} summary={v.summary} when={whenLabel(v.ts)} />

@@ -180,7 +180,7 @@ export function StartWindow() {
                       <span className="start-row-name">{p.name}</span>
                       <span className="start-row-path mono">{tildePath(p.root_path)}</span>
                     </button>
-                    {elsewhere ? <span className="chip sm outline">{t("start.openChip")}</span> : null}
+                    {elsewhere ? <span className="chip sm hairline">{t("start.openChip")}</span> : null}
                     <TermsChip terms={terms.get(p.id)} />
                     {/* 일지 없는 파일은 있을 때만 — 줄마다 「0」 이 서 있으면 예외가 묻힌다. */}
                     {row.toCheck != null && row.toCheck > 0 ? (

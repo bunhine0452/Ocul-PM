@@ -328,7 +328,7 @@
 .dl-note {
   display: flex; align-items: flex-start; gap: var(--space-3);
   margin: var(--space-1) var(--space-4) var(--space-2) 44px; padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border-card); border-left: 3px solid var(--accent); border-radius: var(--radius-s);
+  border: 1px solid var(--border-card); border-radius: var(--radius-s);
   background: var(--bg-card); font-family: var(--font-sans); font-size: var(--fs-4); line-height: var(--lh-body); color: var(--text);
 }
 .dl-note-text {
@@ -343,8 +343,7 @@
 }
 .dl-note-input:focus { outline: var(--focus-w) solid var(--focus-color); outline-offset: 0; }
 .dl-note-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
-/* 보낸 메모(#notes-track) — 판정 칩이 앞에, 고쳐진 메모는 글을 흐리게. 왼쪽 줄은 상태 색. */
-.dl-note.is-sent { border-left-color: var(--warn); }
-.dl-note.is-fixed { border-left-color: var(--ok); }
+/* 보낸 메모(#notes-track) — 판정 칩이 앞에서 상태를 말하고, 고쳐진 메모는 글을 흐리게.
+   왼쪽 3px 상태 색 줄은 걷었다(영수증 — 칩이 이미 말하는 것을 띠로 되풀이하지 않는다, 11-04). */
 .dl-note.is-fixed .dl-note-text { color: var(--text-2); }
 .dl-note > .chip { flex: none; margin-top: 1px; }
