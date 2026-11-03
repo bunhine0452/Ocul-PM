@@ -1319,6 +1319,13 @@ jobs:
             exit 0
           fi
           current="$(gh release view --json tagName --jq .tagName 2>/dev/null || echo v0.0.0)"
+          # latest 가 앱 릴리스(vX.Y.Z)가 아니면(확장 ext-v* 등) 업데이터 엔드포인트가 깨진 상태다 —
+          # 비교하지 않고 이 버전으로 되찾는다. 예전에는 sort -V 가 `ext-v0.3.0` 을 더 크다고 봐서
+          # v4.5.0 · v4.5.1 이 latest 를 못 옮겼다(11-03).
+          case "$current" in
+            v[0-9]*) ;;
+            *) echo "::warning::releases/latest 가 앱 릴리스가 아니다($current) — 이 버전으로 되찾는다"; current=v0.0.0 ;;
+          esac
           newest="$(printf '%s\n%s\n' "${current#v}" "$VERSION" | sort -V | tail -1)"
           if [ "$newest" = "$VERSION" ] && [ "${current#v}" != "$VERSION" ]; then
             gh release edit "$TAG" --draft=false --latest
