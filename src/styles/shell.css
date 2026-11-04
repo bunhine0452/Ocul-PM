@@ -161,11 +161,11 @@
    강조색(주 버튼 · 고른 탭)은 `projectAccent.ts` 가 같은 색으로 바꾼다. */
 /* 11-04 「한 줄만 보이게 하지 말고 좀 더 구분가게」 — 윗줄 전체가 그 색의 면이 되고(밝게 14% · 어둡게 20%),
    아랫선도 그 색을 띤다. 프로젝트 이름은 그 색의 알약 위에 서서, 창을 나란히 세우면 이름표처럼 읽힌다.
-   그라디언트 · 빛 없이 평평한 면 하나 — 바탕(projectTint.ts)은 더 옅게 같은 색. */
+   그라디언트 · 빛 없이 평평한 면 하나 — 바탕(projectTint.ts)은 더 옅게 같은 색.
+   위 가장자리의 3px 색 띠는 걷었다(11-04 「상단에 굵은 줄 없애고」) — 면과 이름 알약만으로 갈린다. */
 .topbar[data-pc] {
   /* 이 창의 색을 안쪽(이름 알약)에 내려 주는 이름 — --pc 는 물려받지 않는다(tokens.css @property). */
   --win-pc: var(--pc);
-  box-shadow: inset 0 3px 0 var(--pc);
   background: color-mix(in srgb, var(--pc) 14%, var(--bg-window));
   border-bottom-color: color-mix(in srgb, var(--pc) 32%, var(--sep));
 }
@@ -282,56 +282,46 @@
   container-type: inline-size; container-name: screen;
 }
 
-/* 가운데 폭(781–900, 11-04) — 탭 이름은 서 있는데 「찾기 ⌘K」 가 자리를 먹어 화면 동작(「+ 새 일지」)이 줄
-   안 스크롤 칸에서 반쯤 잘렸다. 찾기만 돋보기로 줄인다 — ⌘K 는 툴팁 · 팔레트에 남는다. 화면 동작은 줄지
-   않는다 — 모자라면 프로젝트 이름이 먼저 준다. */
+/* 좁은 창 — 접기 단계 `data-fit` (11-04, `features/shell/useTopbarFit.ts`). 폭 숫자(@media 640 · 780 · 900)로
+   정하던 때는 화면마다 다른 「화면 동작」 폭을 못 봤다 — 터미널 창 800 에서 프로젝트 이름이 0px 로 짓눌리고,
+   그 아래에서는 「새 세션 ⌘T」 가 잘렸다. 이제 윗줄이 실제로 들어가는지 재서 한 단계씩 접는다:
+     1  단축키 표시(⌘T · ⌘K)를 감추고 찾기는 돋보기 — ⌘K 는 툴팁 · 팔레트에 남는다
+     2  탭 이름을 아이콘으로 — 이름은 화면에서만 감춘다(접근명 · E2E 의 탭 찾기가 글자로 읽는다)
+     3  화면 동작을 「⋯」 메뉴로 — 줄 안 스크롤 칸이 29px 로 짓눌려 누를 수 없었다(레드팀 10-31)
+   화면 동작은 줄지 않는다(잘리지 않게) — 모자라면 다음 단계로 간다. 신호등 자리(84px)는 줄이지 않는다
+   (76 이었을 때 macOS 27 의 더 큰 신호등에 이름이 붙었다, 11-02). 이름은 56px 아래로 짓눌리지 않는다. */
 .topbar-actions { flex-shrink: 0; }
-@media (max-width: 900px) {
-  .topbar .find-btn .kbd { display: none; }
-  .topbar .find-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.proj-switch-wrap { min-width: 56px; }
+.topbar[data-fit] .kbd { display: none; }
+.topbar[data-fit] .find-label,
+.topbar:is([data-fit="2"], [data-fit="3"]) .topnav-label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
-/* 좁은 창(10-30) — 맥북 프로 14 의 3분의 1(약 500pt)까지 줄인다. 탭은 아이콘, 찾기는 돋보기, 단축키
-   표시는 감추고 프로젝트 이름은 짧게. 4.0 에서 사이드바가 걷혀 창 폭이 곧 화면 폭이라 @media 로 본다.
-   이름은 화면에서만 감춘다(접근명 · E2E 의 탭 찾기가 글자로 읽는다).
-   윗줄의 선은 780 이다(11-04) — 640 이었을 때 660~780 창은 탭 이름(292px)이 서는 대신 프로젝트 이름이
-   「나…」 까지 짓눌렸다(「답답해」). 화면 안 격자의 접힘 선(@container screen 640 / 460)과는 따로다. */
-@media (max-width: 780px) {
-  .topbar { gap: var(--space-2); padding: 0 var(--space-3); }
-  /* 신호등 자리(84px)는 좁아져도 줄이지 않는다 — 76 이었을 때 macOS 27 의 더 큰 신호등(오른쪽 끝 약 75)에
-     프로젝트 이름이 붙었다(11-02 사용자 제보).
-     이름은 줄의 남는 자리를 다 쓴다(11-04 「답답해」) — 104px 상한이 걸려 있어 640 창에서 줄 가운데 160px 가
-     비어 있는데도 「Ocul-…」 로 잘렸다. 탭 · 단추는 줄지 않으니 모자랄 때만 이름이 … 로 준다(56 까지). ▾ 는
-     감춘다 — 알약 면이 이미 누르는 것이고, 그 14px 이 이름 두 글자다. */
-  .proj-switch-wrap { flex: 0 1 auto; min-width: 56px; max-width: 240px; }
-  .proj-switch > svg { display: none; }
-  .topnav { padding-left: var(--space-2); }
-  .topnav-item { padding: 0 var(--space-2); gap: var(--space-1); }
-  .topnav-ico { display: inline-flex; }
-  .topnav-label, .topbar .find-label {
-    position: absolute; width: 1px; height: 1px; overflow: hidden;
-    clip-path: inset(50%); white-space: nowrap;
-  }
-  .topbar .kbd { display: none; }
-  .topbar-fill { min-width: var(--space-2); }
-  /* 화면 동작은 「⋯」 메뉴로 — 줄 안 스크롤 칸이 29px 로 짓눌려 누를 수 없었다(레드팀 10-31). */
-  .topbar-actions { display: none; }
-  .topbar-actions.is-open {
-    display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1);
-    position: absolute; top: calc(100% + 4px); right: var(--space-3); z-index: var(--z-popover);
-    min-width: 200px; padding: var(--space-2); overflow: visible;
-    border: 1px solid var(--border-card); border-radius: var(--radius-m);
-    background: var(--bg-card); box-shadow: var(--shadow-pop);
-  }
-  .topbar-actions.is-open > * { justify-content: flex-start; }
-  .topbar-actions.is-open .kbd { display: inline-flex; margin-left: auto; }
-  .topbar-more { display: inline-flex; }
-  .topbar-actions:empty + .topbar-more { display: none; }
+.topbar:is([data-fit="2"], [data-fit="3"]) .topnav { padding-left: var(--space-2); }
+.topbar:is([data-fit="2"], [data-fit="3"]) .topnav-item { padding: 0 var(--space-2); gap: var(--space-1); }
+.topbar:is([data-fit="2"], [data-fit="3"]) .topnav-ico { display: inline-flex; }
+.topbar[data-fit="3"] { gap: var(--space-2); padding-right: var(--space-3); }
+/* ▾ 는 감춘다 — 알약 면이 이미 누르는 것이고, 그 14px 이 이름 두 글자다. */
+.topbar[data-fit="3"] .proj-switch > svg { display: none; }
+.topbar[data-fit="3"] .proj-switch-wrap { max-width: 240px; }
+.topbar[data-fit="3"] .topbar-fill { min-width: var(--space-2); }
+.topbar[data-fit="3"] .topbar-actions { display: none; }
+.topbar[data-fit="3"] .topbar-actions.is-open {
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1);
+  position: absolute; top: calc(100% + 4px); right: var(--space-3); z-index: var(--z-popover);
+  min-width: 200px; padding: var(--space-2); overflow: visible;
+  border: 1px solid var(--border-card); border-radius: var(--radius-m);
+  background: var(--bg-card); box-shadow: var(--shadow-pop);
 }
+.topbar[data-fit="3"] .topbar-actions.is-open > * { justify-content: flex-start; }
+.topbar[data-fit="3"] .topbar-actions.is-open .kbd { display: inline-flex; margin-left: auto; }
+.topbar[data-fit="3"] .topbar-more { display: inline-flex; }
+.topbar[data-fit="3"] .topbar-actions:empty + .topbar-more { display: none; }
 /* 더 좁으면(≤460 — 480 창에 글자 125% 가 이 폭이다) 프로젝트 이름도 화면에서 감추고 탭을 더 붙인다 —
    찾기 · 설정이 창 밖(396–467 / 384)으로 밀려났다(레드팀 10-31). */
 @media (max-width: 460px) {
-  .topbar { gap: var(--space-1); padding-right: var(--space-1); }
-  .proj-switch-wrap { max-width: 40px; }
+  .topbar, .topbar[data-fit="3"] { gap: var(--space-1); padding-right: var(--space-1); }
+  .proj-switch-wrap, .topbar[data-fit="3"] .proj-switch-wrap { min-width: 40px; max-width: 40px; }
   .proj-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .topnav { gap: 0; padding-left: var(--space-1); }
   .topnav-item { padding: 0 var(--space-1); }
