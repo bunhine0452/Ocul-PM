@@ -38,9 +38,21 @@ pub async fn terminal_image_preview(path: String) -> Result<TermImage, AppError>
         .map_err(|e| AppError::new("image_unreadable", e.to_string()))?
 }
 
-fn read_image(path: &Path) -> Result<TermImage, AppError> {
-    use base64::Engine;
+/// 터미널의 이미지 경로를 누르면 그 파일을 파일 탐색기(Finder)에서 선택된 채로 연다 (11-04 「클릭 시 경로로
+/// 이동」). 미리보기와 같은 문 — 절대경로 · 실제 파일의 확장자가 이미지 · 정규 파일 — 을 지난 것만 넘긴다.
+#[tauri::command]
+#[specta::specta]
+pub async fn terminal_image_reveal(path: String) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let real = image_file(Path::new(&path))?;
+        super::external_editor::reveal_path(&real).map_err(|e| AppError::new("image_unreadable", e))
+    })
+    .await
+    .map_err(|e| AppError::new("image_unreadable", e.to_string()))?
+}
 
+/// 그림 파일만 지나는 문 — 절대경로 · 심링크를 푼 실제 파일 · 이미지 확장자 · 정규 파일. 푼 경로를 돌려준다.
+fn image_file(path: &Path) -> Result<std::path::PathBuf, AppError> {
     let unreadable = |e: std::io::Error| AppError::new("image_unreadable", e.to_string());
     if !path.is_absolute() {
         return Err(AppError::new("image_unreadable", "not an absolute path"));
@@ -58,6 +70,15 @@ fn read_image(path: &Path) -> Result<TermImage, AppError> {
     if !meta.is_file() {
         return Err(AppError::code("image_not_image"));
     }
+    Ok(real)
+}
+
+fn read_image(path: &Path) -> Result<TermImage, AppError> {
+    use base64::Engine;
+
+    let unreadable = |e: std::io::Error| AppError::new("image_unreadable", e.to_string());
+    let real = image_file(path)?;
+    let meta = std::fs::metadata(&real).map_err(unreadable)?;
     if meta.len() > MAX_IMAGE_BYTES {
         return Err(AppError::code("image_too_large"));
     }

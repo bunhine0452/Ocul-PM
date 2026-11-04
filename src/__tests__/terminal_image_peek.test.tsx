@@ -83,7 +83,7 @@ describe("fileLinks", () => {
     expect(openUrl).toHaveBeenCalledTimes(1);
     expect(openUrl).toHaveBeenCalledWith("https://oculpm.com");
     expect(onImage).toHaveBeenCalledTimes(1);
-    expect(onImage).toHaveBeenCalledWith({ kind: "open", path: "/tmp/a.png", x: 10, y: 10 });
+    expect(onImage).toHaveBeenCalledWith({ kind: "reveal", path: "/tmp/a.png", x: 10, y: 10 });
     expect(onFile).toHaveBeenCalledTimes(1);
     expect(onFile).toHaveBeenCalledWith({ path: "/repo/src/main.ts", line: null, x: 10, y: 10 });
     expect(handler.allowNonHttpProtocols).toBe(true);
@@ -104,7 +104,7 @@ describe("TermImagePeek", () => {
     });
     expect(screen.getByRole("tooltip").textContent).toContain("home.png");
     expect(screen.getByRole("tooltip").textContent).toContain("2.0 KB");
-    expect(screen.getByRole("tooltip").textContent).toContain("눌러서 크게");
+    expect(screen.getByRole("tooltip").textContent).toContain("⌘ 누르면 크게");
 
     act(() => peekEvent({ kind: "open", path: "/tmp/shots/home.png", x: 40, y: 40 }));
     const dialog = screen.getByRole("dialog");

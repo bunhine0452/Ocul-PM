@@ -50,6 +50,8 @@ export const terminalApi = {
   /** 터미널에 찍힌 이미지 경로의 그림 — 그림 시그니처 · 16MB 를 백엔드가 본다(`commands/term_image.rs`). */
   imagePreview: (path: string): Promise<TermImage> =>
     call("terminal_image_preview", commands.terminalImagePreview(path)),
+  /** 터미널의 이미지 경로를 파일 탐색기(Finder)에서 선택된 채로 연다 — 그림 파일만(`term_image.rs`). */
+  imageReveal: (path: string): Promise<null> => call("terminal_image_reveal", commands.terminalImageReveal(path)),
   onSessionsChanged: (cb: () => void) => subscribe(events.termSessionsChanged, () => cb()),
   /** 이 창을 닫거나(`quit` 이면 앱을 끄기) 전에 묻는다 — 백엔드가 **이 창에만** 보낸다(`subscribeHere`). */
   onCloseAsked: (cb: (ask: TermCloseAsked) => void) => subscribeHere(events.termCloseAsked, cb),

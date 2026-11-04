@@ -157,17 +157,23 @@ pub async fn open_url(url: String) -> Result<(), String> {
 #[specta::specta]
 pub async fn reveal_in_file_manager(project_root: String, rel_path: String) -> Result<(), String> {
     let abs = resolve_project_file(&project_root, &rel_path)?;
+    reveal_path(&abs)
+}
+
+/// 이미 검사를 지난 절대경로를 파일 탐색기에서 선택된 채로 연다 — 프로젝트 파일(위)과 터미널의
+/// 이미지 경로(`term_image.rs`, 그림 파일만)가 함께 쓴다. 셸을 거치지 않고 인자를 그대로 넘긴다.
+pub(crate) fn reveal_path(abs: &std::path::Path) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let mut cmd = {
         let mut c = crate::proc::std_cmd("open");
-        c.arg("-R").arg(&abs);
+        c.arg("-R").arg(abs);
         c
     };
     // 리눅스 파일 관리자에는 "선택한 채로 열기"의 공통 규약이 없다 — 부모
     // 폴더를 여는 것이 어느 데스크톱에서나 통하는 최대한이다.
     #[cfg(target_os = "linux")]
     let mut cmd = {
-        let parent = abs.parent().unwrap_or(&abs).to_path_buf();
+        let parent = abs.parent().unwrap_or(abs).to_path_buf();
         let mut c = crate::proc::std_cmd("xdg-open");
         c.arg(parent);
         c
@@ -176,7 +182,7 @@ pub async fn reveal_in_file_manager(project_root: String, rel_path: String) -> R
     // /select,<경로>` 는 공백·쉼표가 든 경로를 인자 인용과 다르게 읽는다.
     #[cfg(target_os = "windows")]
     {
-        tauri_plugin_opener::reveal_item_in_dir(&abs)
+        tauri_plugin_opener::reveal_item_in_dir(abs)
             .map_err(|e| format!("Failed to reveal file: {e}"))
     }
     #[cfg(not(target_os = "windows"))]

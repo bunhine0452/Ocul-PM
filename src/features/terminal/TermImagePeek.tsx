@@ -2,7 +2,8 @@
  * 터미널 이미지 미리보기 (2026-10-30, 3.12.0 의 것을 4.x 디자인으로 다시).
  *
  * 링크에 올리면 **카드** — 마우스를 가로채지 않는다(가로채면 xterm 이 곧바로 leave 를 쏘아
- * 카드가 깜빡인다). 누르면 **크게** — 스크림 위, Esc · 바깥 클릭으로 닫고 경로를 복사할 수 있다.
+ * 카드가 깜빡인다). 누르면 그 파일을 Finder 에서 연다(11-04). ⌘ 를 누른 채 누르면 **크게** — 스크림 위,
+ * Esc · 바깥 클릭으로 닫고 경로를 복사할 수 있다.
  * 그림 뒤는 바둑판이라 투명 PNG(스크린숏 · 아이콘)가 바탕에 묻히지 않는다. 같은 경로를 다시
  * 가리키면 읽은 것을 쓴다(최근 넷).
  */
@@ -14,6 +15,7 @@ import { Copy, X } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { formatBytes } from "@/lib/format";
+import { kbd } from "@/lib/kbd";
 import { toast } from "@/lib/toast";
 import { closePeek, useImagePeek, type Peek } from "./imagePeek";
 
@@ -156,7 +158,7 @@ function TermImagePeek({ path, x, y, pinned }: Peek) {
       <div className="tm-peek-cap">
         <span className="tm-peek-name">{name}</span>
         {facts ? <span className="tm-peek-facts">{facts}</span> : null}
-        {load.status === "ready" ? <span className="tm-peek-hint">{t("terminal.peek.hint")}</span> : null}
+        {load.status === "ready" ? <span className="tm-peek-hint">{t("terminal.peek.hint", { mod: kbd("⌘") })}</span> : null}
       </div>
     </div>
   );

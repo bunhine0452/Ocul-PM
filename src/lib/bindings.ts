@@ -124,6 +124,11 @@ export const commands = {
 	/**  업데이트 재시작 뒤 이 창이 이을 claude 세션 — 창 복원이 맡겨 둔 것을 한 번 가져간다. */
 	termTakeResume: () => __TAURI_INVOKE<TermResume[]>("term_take_resume"),
 	terminalImagePreview: (path: string) => typedError<TermImage, AppError>(__TAURI_INVOKE("terminal_image_preview", { path })),
+	/**
+	 *  터미널의 이미지 경로를 누르면 그 파일을 파일 탐색기(Finder)에서 선택된 채로 연다 (11-04 「클릭 시 경로로
+	 *  이동」). 미리보기와 같은 문 — 절대경로 · 실제 파일의 확장자가 이미지 · 정규 파일 — 을 지난 것만 넘긴다.
+	 */
+	terminalImageReveal: (path: string) => typedError<null, AppError>(__TAURI_INVOKE("terminal_image_reveal", { path })),
 	/**  레인을 `count` 개(2~4) 만든다 — 지금 `HEAD` 에서, 앱 데이터 폴더에. */
 	raceStart: (projectId: number, count: number) => typedError<RaceLane[], AppError>(__TAURI_INVOKE("race_start", { projectId, count })),
 	/**

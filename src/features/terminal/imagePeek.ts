@@ -2,9 +2,16 @@
  * 터미널 이미지 미리보기의 상태 — 창 하나에 하나, 모듈 범위(`termStore` 와 같은 꼴).
  *
  * 링크(`fileLinks.ts`)가 사건을 넣고, 화면(`TermImagePeek.tsx`)이 그린다. 올리면 **카드**,
- * 누르면 **고정**(크게). 고정된 동안에는 다른 링크를 스쳐도 바꾸지 않는다.
+ * 누르면 **그 파일을 Finder 에서**(11-04 「클릭 시 경로로 이동」), ⌘ 를 누른 채 누르면 **고정**(크게).
+ * 고정된 동안에는 다른 링크를 스쳐도 바꾸지 않는다.
  */
 import { useSyncExternalStore } from "react";
+
+import { toAppError } from "@/api/invoke";
+import { terminalApi } from "@/api/terminal";
+import { t } from "@/i18n";
+import { tError } from "@/i18n/errors";
+import { toast } from "@/lib/toast";
 
 import type { ImageLinkEvent } from "./fileLinks";
 
@@ -39,6 +46,13 @@ export function peekEvent(event: ImageLinkEvent): void {
     return;
   }
   const { path, x, y } = event;
+  if (event.kind === "reveal") {
+    if (current && !current.pinned) set(null);
+    terminalApi
+      .imageReveal(path)
+      .catch((e: unknown) => toast.warning(t("terminal.peek.revealFailed", { error: tError(toAppError(e)) })));
+    return;
+  }
   if (event.kind === "open") return set({ path, x, y, pinned: true });
   if (current?.pinned) return;
   timer = setTimeout(() => {
