@@ -1,0 +1,35 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ocul app icon (mono)">
+  <defs>
+    <linearGradient id="ar-bg" x1="512" y1="80" x2="512" y2="944" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2b2b2a"></stop><stop offset="1" stop-color="#0c0c0c"></stop>
+    </linearGradient>
+    <radialGradient id="ar-glow" cx="0.5" cy="0.48" r="0.55" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.07"></stop><stop offset="1" stop-color="#ffffff" stop-opacity="0"></stop>
+    </radialGradient>
+    <filter id="ar-sh" x="200" y="200" width="624" height="640" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#000000" flood-opacity="0.4"></feDropShadow>
+    </filter>
+  </defs>
+  <rect x="80" y="80" width="864" height="864" rx="204" fill="url(#ar-bg)"></rect>
+  <rect x="80" y="80" width="864" height="864" rx="204" fill="url(#ar-glow)"></rect>
+  <rect x="81.5" y="81.5" width="861" height="861" rx="202.5" stroke="#fff" stroke-opacity="0.1" stroke-width="3"></rect>
+
+  
+  <!-- 마크 확대 (2026-08-15): 타일 여백이 과해 보여 동심 아크를 중심 기준
+       1.4배 균일 확대했다. 반지름·대시·회전값은 원본 그대로 두고 그룹
+       변환만 얹어, 아크 간격·선폭 비례가 설계 그대로 유지된다.
+       마크 지름 420 → 588 (타일 864 의 48.6% → 68%). -->
+  <g transform="translate(512 512) scale(1.4) translate(-512 -512)">
+  <g filter="url(#ar-sh)" fill="none" stroke-linecap="round">
+    
+    <circle cx="512" cy="512" r="190" stroke="#5a5a58" stroke-width="40" stroke-dasharray="970 224" transform="rotate(125 512 512)"></circle>
+    
+    <circle cx="512" cy="512" r="132" stroke="#a6a6a3" stroke-width="40" stroke-dasharray="640 190" transform="rotate(-40 512 512)"></circle>
+    
+    <circle cx="512" cy="512" r="74" stroke="#ffffff" stroke-width="40" stroke-dasharray="330 135" transform="rotate(70 512 512)"></circle>
+  </g>
+
+  
+  <circle cx="512" cy="512" r="22" fill="#ffffff"></circle>
+  </g>
+</svg>

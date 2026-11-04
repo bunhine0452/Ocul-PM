@@ -94,25 +94,32 @@ describe("프로젝트 색", () => {
     expect(accentFor(undefined, "teal")).toBe("teal");
   });
 
-  it("창이 둘 이상 열려 있으면 「나란히 놓기」 가 서고, 누르면 창을 세운다", async () => {
-    openIds.mockResolvedValue([1, 2]);
+  it("창이 둘 이상 열려 있으면 「창 정리」 2~6 이 서고, 고른 수만큼 세운다 — 열린 창보다 많은 수는 못 누른다", async () => {
+    openIds.mockResolvedValue([1, 2, 3]);
     const { container } = render(
       <ProjectSwitcher projectName="a" currentProjectId={1} projects={projects} onOpenProject={() => {}} />,
     );
     fireEvent.click(container.querySelector(".proj-switch")!);
-    const item = await screen.findByRole("menuitem", { name: /창 2개 나란히 놓기/ });
-    fireEvent.click(item);
-    await waitFor(() => expect(tile).toHaveBeenCalledTimes(1));
+    const three = await screen.findByRole("menuitem", { name: "창 3개 정리" });
+    for (const n of [2, 3]) expect(screen.getByRole("menuitem", { name: `창 ${n}개 정리` })).not.toHaveAttribute("aria-disabled");
+    const four = screen.getByRole("menuitem", { name: "창 4개 정리" });
+    expect(four).toHaveAttribute("aria-disabled", "true");
+    expect(four).toHaveAttribute("title", "창이 4개 열려 있어야 해요");
+    for (const n of [5, 6]) expect(screen.getByRole("menuitem", { name: `창 ${n}개 정리` })).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(four);
+    expect(tile).not.toHaveBeenCalled();
+    fireEvent.click(three);
+    await waitFor(() => expect(tile).toHaveBeenCalledWith(3));
   });
 
-  it("창이 하나뿐이면 「나란히 놓기」 는 없다", async () => {
+  it("창이 하나뿐이면 「창 정리」 는 없다", async () => {
     openIds.mockResolvedValue([1]);
     const { container } = render(
       <ProjectSwitcher projectName="a" currentProjectId={1} projects={projects} onOpenProject={() => {}} />,
     );
     fireEvent.click(container.querySelector(".proj-switch")!);
     await screen.findByRole("menuitemradio", { name: "파랑" });
-    expect(screen.queryByRole("menuitem", { name: /나란히/ })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: /정리/ })).toBeNull();
   });
 
   it("바탕에 프로젝트 색을 섞는다 — 0% 는 그대로, 100% 는 그 색, 읽을 수 없는 값은 건너뛴다", () => {

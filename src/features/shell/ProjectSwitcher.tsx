@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { projectsApi } from "@/api/projects";
 import { windowApi } from "@/api/window";
+import { TileChoices } from "./TileChoices";
 import { useOpenInEditor } from "./useOpenInEditor";
 import { addProjectFromFolder } from "@/features/start/addFolder";
 import { PROJECT_COLORS, projectColorOf } from "./projectColor";
@@ -17,13 +18,12 @@ import { PROJECT_SLOTS, byAttention, projectSlotLabel, projectSlotOf } from "./p
 import { TermsChip } from "@/features/terminal/TermsChip";
 import { useTermOverview } from "@/features/terminal/status";
 import { orderRecent } from "@/features/start/useRecentProjects";
-import { CheckMark, ChevronDown, Code2, Columns3, FolderPlus, SearchIcon } from "@/components/Icons";
+import { CheckMark, ChevronDown, Code2, FolderPlus, SearchIcon } from "@/components/Icons";
 import { useT } from "@/i18n";
 import type { HomeBrief, Project, ProjectAttention } from "@/lib/bindings";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { tildePath } from "@/lib/osPath";
 import { kbd } from "@/lib/kbd";
-import { isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 
 interface ProjectSwitcherProps {
@@ -186,10 +186,10 @@ export function ProjectSwitcher({
     editor.open("");
   };
 
-  // 창이 둘 이상이면 나란히 세운다 (2026-11-03, `commands/window/tile.rs`). 맥은 창 메뉴의 ⌥⌘T 도 같다.
-  const tileWindows = () => {
+  // 창이 둘 이상이면 최근 창 n 개(2~6)를 칸으로 세운다 (11-04, `TileChoices` · `commands/window/tile.rs`).
+  const tileWindows = (n: number) => {
     close(false);
-    windowApi.tile().catch((e) => toast.warning(t("sidebar.tileWindowsFailed", { error: String(e?.message ?? e) })));
+    windowApi.tile(n).catch((e) => toast.warning(t("sidebar.tileWindowsFailed", { error: String(e?.message ?? e) })));
   };
 
   const ordered = byAttention(orderRecent(projects, brief), attention);
@@ -305,13 +305,7 @@ export function ProjectSwitcher({
                 ))}
               </div>
             ) : null}
-            {openWindows.length >= 2 ? (
-              <button type="button" role="menuitem" className="proj-pop-act" onClick={tileWindows}>
-                <Columns3 size={15} strokeWidth={1.75} aria-hidden="true" />
-                <span className="proj-pop-act-label">{t("sidebar.tileWindows", { n: openWindows.length })}</span>
-                {isMac() ? <kbd className="kbd proj-pop-key">{kbd("⌥⌘T")}</kbd> : null}
-              </button>
-            ) : null}
+            {openWindows.length >= 2 ? <TileChoices open={openWindows.length} onTile={tileWindows} /> : null}
             {currentRoot ? (
               <button type="button" role="menuitem" className="proj-pop-act" onClick={openInEditor}>
                 <Code2 size={15} strokeWidth={1.75} aria-hidden="true" />

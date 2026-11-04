@@ -30,7 +30,7 @@ pub const APP_NAME: &str = "Ocul";
 pub const CLOSE_WINDOW: &str = "menu:close-window";
 /// 도움말 › 처음 쓰는 법 — 포커스된 창에 첫 실행 안내를 다시 띄운다 (ocul-next #tour-reopen).
 pub const TOUR: &str = "menu:tour";
-/// 창 › 프로젝트 창 나란히 — 보이는 앱 창 전부를 지금 화면에 같은 폭으로 (`commands/window/tile.rs`).
+/// 창 › 프로젝트 창 정리 — 최근에 쓴 창 6개까지를 지금 화면에 칸으로 (`commands/window/tile.rs`).
 pub const TILE_WINDOWS: &str = "menu:tile-windows";
 
 /// 메뉴의 「처음 쓰는 법」 — 그 창의 프런트가 안내 모달을 연다.
@@ -91,7 +91,7 @@ const KO: Labels = Labels {
     select_all: "전체 선택",
     fullscreen: "전체 화면",
     minimize: "최소화",
-    tile_windows: "프로젝트 창 나란히",
+    tile_windows: "프로젝트 창 정리",
     hide: "Ocul 가리기",
     quit: "Ocul 종료",
     about: "Ocul 정보",
@@ -115,7 +115,7 @@ const EN: Labels = Labels {
     select_all: "Select All",
     fullscreen: "Toggle Full Screen",
     minimize: "Minimize",
-    tile_windows: "Tile Project Windows",
+    tile_windows: "Arrange Project Windows",
     hide: "Hide Ocul",
     quit: "Quit Ocul",
     about: "About Ocul",
@@ -265,7 +265,7 @@ pub fn handle_event(app: &AppHandle, id: &str) {
             });
         }
         TILE_WINDOWS => {
-            if let Err(e) = win::tile_inner(app) {
+            if let Err(e) = win::tile_inner(app, None) {
                 tracing::warn!(target: "menu", error = %e, "창 나란히 실패");
             }
         }

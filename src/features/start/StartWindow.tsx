@@ -1,15 +1,20 @@
 /**
  * 시작 창 — 프로젝트가 없는 창 (창 하나 = 프로젝트 하나, 4.0).
  *
- * 한 칸이다 — **최근 프로젝트**(최근 활동 순, 줄마다 오늘 기록 수와 확인할 것). 「열기」를
+ * 한 장이다 — **최근 프로젝트**(최근 활동 순, 줄마다 오늘 기록 수와 확인할 것). 「열기」를
  * 누르면 **이 창이** 그 프로젝트가 된다(이미 다른 창에 열려 있으면 그 창이 앞으로 온다).
  * 폴더를 새로 고르면 곧바로 그 프로젝트가 되고, 기록 파일은 프로젝트 창이 열리며 만든다.
  * 「처음 쓰는 방법」 세 단계 칸은 첫 실행 안내(`features/tour`)가 대신한다(ocul-next #tour-retire).
  *
  * 3.x 의 시작 탭·첫 실행 마법사·프로젝트 관리 시트·새 프로젝트 마법사를 이 한 장이
  * 대신한다. 서버도 계정도 없다 — 기록은 전부 프로젝트 폴더의 마크다운이다.
+ *
+ * 11-04 다시 그림(「촌스럽고 구려」): 베이지 캔버스 위 흰 카드 한 장 · 줄마다 다른 자리에 선 딱지 · 줄마다 반복된
+ * 긴 mono 경로가 웹 페이지처럼 보였다. 이제 창 전체가 한 면이고, 목록은 영수증처럼 칸이 맞는 표다 — 이름 · 어디 ·
+ * 예외 · 날짜가 줄마다 같은 세로선에 선다(subgrid). 「열림」 딱지 대신 **열린 창**과 **최근** 두 묶음으로 나누고,
+ * 경로는 이름과 폴더 이름이 같으면 그 위 폴더만 쓴다(`whereOf`). 채운 단추는 「폴더 열기」 하나(영수증 규칙 3).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { toAppError } from "@/api/invoke";
 import { projectsApi } from "@/api/projects";
@@ -30,6 +35,14 @@ import { useTermOverview } from "@/features/terminal/status";
 import { addProjectFromFolder } from "./addFolder";
 import { useRecentProjects, type RecentProject } from "./useRecentProjects";
 import "./start.css";
+
+/** 「어디」 칸 — 폴더 이름이 프로젝트 이름과 같으면 되풀이하지 않고 그 위 폴더만(`~/Desktop/git`). */
+export function whereOf(name: string, root: string): string {
+  const path = tildePath(root).replace(/[\\/]+$/, "");
+  const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  if (cut <= 0 || path.slice(cut + 1) !== name) return path;
+  return path.slice(0, cut);
+}
 
 function dayLabel(row: RecentProject, lang: Lang, t: ReturnType<typeof useT>["t"]): string {
   const today = localWorkdayKey();
@@ -139,6 +152,59 @@ export function StartWindow() {
   };
 
   const drag = dragRegion();
+  const opened = rows.filter((r) => openElsewhere.includes(r.project.id));
+  const rest = rows.filter((r) => !openElsewhere.includes(r.project.id));
+
+  // ↑↓ 로 줄을 옮긴다 — 줄은 단추라 Enter 는 그대로 「열기」다.
+  const onListKey = (e: ReactKeyboardEvent<HTMLElement>) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const all = [...e.currentTarget.querySelectorAll<HTMLButtonElement>(".start-row-open")];
+    if (all.length === 0) return;
+    e.preventDefault();
+    const at = all.indexOf(document.activeElement as HTMLButtonElement);
+    const next = at < 0 ? 0 : Math.min(all.length - 1, Math.max(0, at + (e.key === "ArrowDown" ? 1 : -1)));
+    all[next].focus();
+  };
+
+  const renderRow = (row: RecentProject) => {
+    const p = row.project;
+    return (
+      <li key={p.id} className="start-row">
+        {/* 줄 전체가 「열기」 — 따로 선 단추가 줄마다 가운데를 비우고 줄을 두 겹으로 키웠다(10-30). */}
+        <button
+          type="button"
+          className="start-row-open"
+          onClick={() => adopt(p)}
+          aria-label={t("start.openAria", { name: p.name })}
+          title={p.root_path}
+        >
+          {/* 프로젝트 색 — 프로젝트 창 윗줄 · ⌘O 목록과 같은 점. 색이 없으면 빈 고리. */}
+          <span className="start-row-dot" data-pc={projectColorOf(p.color)} aria-hidden="true" />
+          <span className="start-row-name">{p.name}</span>
+          <span className="start-row-path mono">{whereOf(p.name, p.root_path)}</span>
+        </button>
+        <span className="start-row-flags">
+          <TermsChip terms={terms.get(p.id)} />
+          {/* 일지 없는 파일은 있을 때만 — 줄마다 「0」 이 서 있으면 예외가 묻힌다. */}
+          {row.toCheck != null && row.toCheck > 0 ? (
+            <span className="chip sm warn" title={t("start.toCheckTitle")}>
+              {t("start.toCheck", { n: row.toCheck })}
+            </span>
+          ) : null}
+        </span>
+        <span className="start-row-day">{dayLabel(row, lang, t)}</span>
+        <button
+          type="button"
+          className="iconbtn sm start-row-forget"
+          onClick={() => void forget(p)}
+          aria-label={t("start.forgetAria", { name: p.name })}
+          title={t("start.forget")}
+        >
+          <X size={13} />
+        </button>
+      </li>
+    );
+  };
 
   return (
     <div className={"start" + (isMac() ? " is-mac" : "")}>
@@ -149,11 +215,12 @@ export function StartWindow() {
       </header>
 
       <div className="start-body">
-        <section className="card start-card" aria-labelledby="start-recent-title">
-          <div className="start-card-head">
+        <section className="start-col" aria-labelledby="start-recent-title">
+          <div className="start-head">
             <h2 id="start-recent-title">{t("start.recent")}</h2>
+            {rows.length > 0 ? <span className="start-count">{rows.length}</span> : null}
             <span className="start-spacer" />
-            <button type="button" className="btn sm" onClick={() => void pickFolder()} aria-busy={busy}>
+            <button type="button" className="btn sm primary" onClick={() => void pickFolder()} aria-busy={busy}>
               {t("start.openFolder")}
               <kbd className="kbd">{kbd("⌘O")}</kbd>
             </button>
@@ -161,47 +228,28 @@ export function StartWindow() {
           {loaded && rows.length === 0 ? (
             <p className="start-empty">{t("start.empty")}</p>
           ) : (
-            <ul className="start-list">
-              {rows.map((row) => {
-                const p = row.project;
-                const elsewhere = openElsewhere.includes(p.id);
-                return (
-                  <li key={p.id} className="start-row">
-                    {/* 줄 전체가 「열기」 — 따로 선 단추가 줄마다 가운데를 비우고 줄을 두 겹으로 키웠다(10-30). */}
-                    <button
-                      type="button"
-                      className="start-row-open"
-                      onClick={() => adopt(p)}
-                      aria-label={t("start.openAria", { name: p.name })}
-                      title={p.root_path}
-                    >
-                      {/* 프로젝트 색 — 프로젝트 창 윗줄 · ⌘O 목록과 같은 점. 색이 없으면 빈 고리. */}
-                      <span className="start-row-dot" data-pc={projectColorOf(p.color)} aria-hidden="true" />
-                      <span className="start-row-name">{p.name}</span>
-                      <span className="start-row-path mono">{tildePath(p.root_path)}</span>
-                    </button>
-                    {elsewhere ? <span className="chip sm hairline">{t("start.openChip")}</span> : null}
-                    <TermsChip terms={terms.get(p.id)} />
-                    {/* 일지 없는 파일은 있을 때만 — 줄마다 「0」 이 서 있으면 예외가 묻힌다. */}
-                    {row.toCheck != null && row.toCheck > 0 ? (
-                      <span className="chip sm warn" title={t("start.toCheckTitle")}>
-                        {t("start.toCheck", { n: row.toCheck })}
-                      </span>
-                    ) : null}
-                    <span className="start-row-day">{dayLabel(row, lang, t)}</span>
-                    <button
-                      type="button"
-                      className="iconbtn sm start-row-forget"
-                      onClick={() => void forget(p)}
-                      aria-label={t("start.forgetAria", { name: p.name })}
-                      title={t("start.forget")}
-                    >
-                      <X size={13} />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="start-groups" onKeyDown={onListKey}>
+              {opened.length > 0 ? (
+                <>
+                  <p className="start-group" id="start-group-open">
+                    {t("start.groupOpen")}
+                  </p>
+                  <ul className="start-list" aria-labelledby="start-group-open">
+                    {opened.map(renderRow)}
+                  </ul>
+                  {rest.length > 0 ? (
+                    <p className="start-group" id="start-group-rest">
+                      {t("start.groupRest")}
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+              {rest.length > 0 ? (
+                <ul className="start-list" aria-labelledby={opened.length > 0 ? "start-group-rest" : undefined}>
+                  {rest.map(renderRow)}
+                </ul>
+              ) : null}
+            </div>
           )}
           <p className="start-foot">{t("start.footRecent")}</p>
         </section>

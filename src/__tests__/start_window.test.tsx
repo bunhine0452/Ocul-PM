@@ -48,10 +48,11 @@ vi.mock("@/api/projects", () => ({
     },
   },
 }));
+const openIds = vi.hoisted(() => vi.fn(async (): Promise<number[]> => []));
 vi.mock("@/api/window", () => ({
   windowApi: {
     adoptProject: fx.adopt,
-    openProjectIds: async () => [],
+    openProjectIds: () => openIds(),
     onOpenProjectsChanged: () => Promise.resolve(() => {}),
   },
 }));
@@ -64,7 +65,7 @@ vi.mock("@/api/oculpm", () => ({
   },
 }));
 
-import { StartWindow } from "@/features/start/StartWindow";
+import { StartWindow, whereOf } from "@/features/start/StartWindow";
 import { __resetLangForTests, setLangSetting, t } from "@/i18n";
 import { localWorkdayKey } from "@/lib/workday";
 
@@ -90,21 +91,38 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  openIds.mockResolvedValue([]);
   __resetLangForTests();
 });
 
 describe("최근 프로젝트", () => {
-  it("줄마다 이름 · ~ 경로 · 오늘 기록 수 · 확인할 것, 「열기」는 이 창을 그 프로젝트로", async () => {
+  it("줄마다 이름 · 어디(이름과 같은 폴더는 그 위만) · 오늘 기록 수 · 확인할 것, 「열기」는 이 창을 그 프로젝트로", async () => {
     fx.projects = [project(1, "ai-pm", "/Users/me/Desktop/git/ai-pm")];
     render(<StartWindow />);
     const recent = screen.getByRole("region", { name: t("start.recent") });
     const row = await within(recent).findByText("ai-pm");
     const li = row.closest("li")!;
-    expect(within(li).getByText("~/Desktop/git/ai-pm")).toBeInTheDocument();
+    expect(within(li).getByText("~/Desktop/git")).toBeInTheDocument();
     expect(await within(li).findByText(t("start.today", { n: 58 }))).toBeInTheDocument();
     expect(await within(li).findByText(t("start.toCheck", { n: 4 }))).toHaveClass("warn");
     fireEvent.click(within(li).getByRole("button", { name: t("start.openAria", { name: "ai-pm" }) }));
     expect(fx.adopt).toHaveBeenCalledWith(1);
+  });
+
+  it("「어디」 칸 — 폴더 이름이 프로젝트 이름과 같을 때만 줄인다", () => {
+    expect(whereOf("ai-pm", "/Users/me/Desktop/git/ai-pm")).toBe("~/Desktop/git");
+    expect(whereOf("Ocul-PM", "/Users/me/Desktop/git/ai-pm")).toBe("~/Desktop/git/ai-pm");
+    expect(whereOf("ai-pm", "/Users/me/Desktop/git/ai-pm/")).toBe("~/Desktop/git");
+  });
+
+  it("다른 창에 열린 프로젝트는 「열린 창」 묶음에, 나머지는 「최근」 에 선다", async () => {
+    fx.projects = [project(1, "ai-pm", "/Users/me/a/ai-pm"), project(2, "blog", "/Users/me/b/blog")];
+    openIds.mockResolvedValue([2]);
+    render(<StartWindow />);
+    const open = await screen.findByRole("list", { name: t("start.groupOpen") });
+    expect(within(open).getByText("blog")).toBeInTheDocument();
+    const rest = screen.getByRole("list", { name: t("start.groupRest") });
+    expect(within(rest).getByText("ai-pm")).toBeInTheDocument();
   });
 
   it("프로젝트가 없으면 폴더를 열라고 한 문장으로 말한다 — 세 단계 칸은 없다", async () => {

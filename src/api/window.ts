@@ -50,10 +50,10 @@ export const windowApi = {
   onAttentionChanged: (cb: () => void) => subscribe(events.projectAttentionChanged, () => cb()),
 
   /**
-   * 보이는 앱 창 전부를 지금 화면에 같은 폭으로 나란히 세운다 — 세운 창의 수
-   * (`commands/window/tile.rs`). macOS 는 창 메뉴의 「프로젝트 창 나란히」(⌥⌘T)도 같은 함수다.
+   * 최근에 쓴 창 `count` 개(2~6, 없으면 6개까지 전부)를 지금 화면에 칸으로 세운다 — 세운 창의 수
+   * (`commands/window/tile.rs`). macOS 는 창 메뉴의 「프로젝트 창 정리」(⌥⌘T)가 count 없이 부른다.
    */
-  tile: () => call<number>("tile_app_windows", commands.tileAppWindows()),
+  tile: (count?: number) => call<number>("tile_app_windows", commands.tileAppWindows(count ?? null)),
 
   /** 이 창을 닫는다 — Windows·Linux 의 Ctrl+W (맥은 앱 메뉴의 ⌘W). */
   closeThisWindow: () => call<null>("close_window", commands.closeWindow()),

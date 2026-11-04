@@ -34,9 +34,12 @@ pub async fn settings_set(
     key: String,
     value: String,
 ) -> Result<(), String> {
-    db.settings_set(key.clone(), value)
+    db.settings_set(key.clone(), value.clone())
         .await
         .map_err(|e| e.to_string())?;
+    if key == crate::app_icon::KEY {
+        crate::app_icon::apply(&app, crate::app_icon::AppIcon::parse(&value));
+    }
     announce(&app, vec![key]);
     Ok(())
 }
@@ -56,9 +59,12 @@ pub async fn settings_set_many(
 ) -> Result<(), String> {
     let mut keys = Vec::with_capacity(entries.len());
     for (k, v) in entries {
-        db.settings_set(k.clone(), v)
+        db.settings_set(k.clone(), v.clone())
             .await
             .map_err(|e| e.to_string())?;
+        if k == crate::app_icon::KEY {
+            crate::app_icon::apply(&app, crate::app_icon::AppIcon::parse(&v));
+        }
         keys.push(k);
     }
     announce(&app, keys);

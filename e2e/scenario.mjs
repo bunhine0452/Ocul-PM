@@ -78,7 +78,7 @@ export async function runScenario(ctx) {
     await installProbes(wd);
     // 4.0 — 첫 창은 시작 창이다 (창 하나 = 프로젝트 하나). 빈 데이터 폴더라 최근
     // 프로젝트는 빈 한 칸이다(「세 단계」 칸은 처음 쓰는 법 안내가 대신한다, ocul-next #tour-retire).
-    const start = await waitFor(wd, "return document.querySelector('.start .start-card') ? 'start-window' : null;", [], {
+    const start = await waitFor(wd, "return document.querySelector('.start .start-col') ? 'start-window' : null;", [], {
       timeout: 60_000,
       desc: "시작 창(빈 데이터 폴더)",
     });
@@ -104,7 +104,7 @@ export async function runScenario(ctx) {
   await report.step("시작 창 폴더 열기 → 픽스처 프로젝트 → 이 창이 그 프로젝트가 된다 (.oculpm 초기화)", async (rec) => {
     await stubFolderPicker(wd, fixture);
     // 「폴더 열기」 — 최근 프로젝트 칸 머리의 단추. 새 폴더면 등록하고 곧바로 이 창이 그 프로젝트가 된다.
-    await clickCss(wd, ".start-card-head .btn", 0);
+    await clickCss(wd, ".start-head .btn", 0);
     await waitFor(wd, "return !!document.querySelector('header.topbar .topnav .topnav-item');", [], { timeout: 60_000, desc: "프로젝트 셸(윗줄)" });
     // 기록 파일은 프로젝트 창이 열리며 만든다 (oculpmInit).
     if (!(await pollFs(join(fixture, ".oculpm"), 60_000))) throw new Error(".oculpm/ 이 60초 안에 안 생겼다 (oculpmInit)");
