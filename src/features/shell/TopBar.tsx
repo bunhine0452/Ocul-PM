@@ -11,6 +11,7 @@ import { useT } from "@/i18n";
 import type { Project } from "@/lib/bindings";
 import { kbd } from "@/lib/kbd";
 import { dragRegion } from "@/lib/platform";
+import { useTopbarFit } from "./useTopbarFit";
 
 // 셸 윗줄 (4.0) — 사이드바를 걷고 한 줄에 모은다.
 //
@@ -56,6 +57,9 @@ export function TopBar({
   const [more, setMore] = useState(false);
   const moreRef = useRef<HTMLButtonElement | null>(null);
   const slotBox = useRef<HTMLDivElement | null>(null);
+  const barRef = useRef<HTMLElement | null>(null);
+  // 접기 단계 — 실제로 들어가는지 재서 정한다(`useTopbarFit`). 3 이면 화면 동작이 「⋯」 메뉴로 간다.
+  const fit = useTopbarFit(barRef, slotBox);
   useEffect(() => {
     if (!more) return;
     const onDown = (e: MouseEvent) => {
@@ -79,6 +83,10 @@ export function TopBar({
   }, [more]);
   // 화면을 바꾸면 접는다 — 다른 화면의 동작이 열린 채 남지 않게.
   useEffect(() => setMore(false), [view]);
+  // 메뉴로 접히지 않는 단계로 돌아오면 열린 메뉴도 닫는다.
+  useEffect(() => {
+    if (fit < 3) setMore(false);
+  }, [fit]);
   // 프로젝트 색 — 창 위 띠. 창 여럿 사이에서 어느 프로젝트인지 한눈에 (2026-11-03).
   const color = projectColorOf(projects.find((p) => p.id === currentProjectId)?.color);
   // 그 색이 이 창의 강조색도 된다 — 창을 나란히 세웠을 때 창 전체가 어느 프로젝트인지 말한다.
@@ -87,7 +95,7 @@ export function TopBar({
   }, [color]);
   useEffect(() => () => projectAccent.set(undefined), []);
   return (
-    <header className="topbar" data-pc={color} {...drag}>
+    <header className="topbar" data-pc={color} data-fit={fit || undefined} ref={barRef} {...drag}>
       <ProjectSwitcher
         projectName={projectName}
         currentProjectId={currentProjectId}
