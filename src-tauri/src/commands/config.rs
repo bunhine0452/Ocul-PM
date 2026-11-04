@@ -38,7 +38,7 @@ pub async fn settings_set(
         .await
         .map_err(|e| e.to_string())?;
     if key == crate::app_icon::KEY {
-        crate::app_icon::apply(&app, crate::app_icon::AppIcon::parse(&value));
+        crate::app_icon::apply(&app, &value, true);
     }
     announce(&app, vec![key]);
     Ok(())
@@ -63,7 +63,7 @@ pub async fn settings_set_many(
             .await
             .map_err(|e| e.to_string())?;
         if k == crate::app_icon::KEY {
-            crate::app_icon::apply(&app, crate::app_icon::AppIcon::parse(&v));
+            crate::app_icon::apply(&app, &v, true);
         }
         keys.push(k);
     }
