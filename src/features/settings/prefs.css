@@ -37,3 +37,16 @@
   .prefs-row { flex-direction: column; align-items: stretch; gap: var(--space-3); }
   .prefs-label { width: auto; }
 }
+
+/* 앱 아이콘 고르기 (11-04) — 실제 아이콘 34px 아홉. 고른 것은 바깥 고리(글자색) 하나, 그림자 · 확대 없음. */
+.app-icons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.app-icon-opt {
+  display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: none; border-radius: var(--radius-l); background: transparent; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  transition: box-shadow var(--dur-1) var(--ease-out);
+}
+.app-icon-opt > svg { display: block; }
+.app-icon-opt:hover { box-shadow: inset 0 0 0 1px var(--sep-strong); }
+.app-icon-opt[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--text); }
+.app-icon-opt:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: 1px; }

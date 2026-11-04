@@ -597,16 +597,13 @@ pub fn run() {
             // 못 열면 크래시 대신 이유를 보이고 「새로 시작 / 종료」 를 묻는다.
             let db = crate::db::startup::open_or_ask(&app_data);
             app.manage(db);
-            // 앱 아이콘(컬러 · 흑백, 11-04) — 저장된 값을 다시 건다. 컬러(기본)면 아무 일도 없다.
+            // 앱 아이콘(11-04) — 저장된 변형을 다시 건다. 기본이면 번들이 이미 그 꼴이라 Dock 만 되돌리고 끝.
             {
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
                     let db = handle.state::<crate::db::Db>();
                     if let Ok(Some(raw)) = db.settings_get(crate::app_icon::KEY.to_string()).await {
-                        let icon = crate::app_icon::AppIcon::parse(&raw);
-                        if icon != crate::app_icon::AppIcon::Color {
-                            crate::app_icon::apply(&handle, icon);
-                        }
+                        crate::app_icon::apply(&handle, &raw, false);
                     }
                 });
             }
