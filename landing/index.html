@@ -48,12 +48,13 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "4.7.0",
+  "softwareVersion": "4.8.0",
   "description": "「다 됐습니다」 대신, 영수증을 받으세요. 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI)가 일을 끝낼 때마다 무엇을 바꿨고 어떤 명령으로 확인했는지가 프로젝트 폴더에 마크다운 영수증으로 남습니다. Ocul 은 그중 확인 안 된 것만 펼칩니다 — 실패한 확인 명령 · 명령 증거 없는 일지 · 어느 일지에도 없는 변경. Claude Code 플러그인 두 줄로 시작하고, 화면으로 보고 싶으면 데스크톱 앱을 더합니다. 앱은 LLM 을 부르지 않고, 계정 · 서버 · 텔레메트리가 없습니다.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
+    "창 정리 · 앱 아이콘 — ⌘O 목록에서 최근 창 2~6개를 반반 · 셋 · 네 칸 · 3+2 · 3×2 로 정리하고(⌥⌘T 는 6개까지), 설정에서 앱 아이콘을 초록 · 다크 · 라이트 · 흑백 · 색 다섯 중 하나로 고릅니다(macOS). 터미널에 찍힌 이미지 경로는 줄을 넘겨도 미리 보고, 누르면 Finder 에서 엽니다",
     "창 전환기 — ⌥Tab(Windows · Linux 는 Ctrl+`)을 누르고 있으면 열린 프로젝트 창이 최근에 쓴 순서로 서고 기다림 · 확인 실패를 함께 보여 줍니다. 손을 떼면 그 창으로, 톡 누르면 직전 창으로 갑니다",
-    "프로젝트 창 나란히 — 창이 둘 이상이면 ⌥⌘T(또는 ⌘O 목록의 「창 N개 나란히 놓기」)가 보이는 창 전부를 지금 화면에 같은 폭으로 세웁니다. 프로젝트 색은 그 창의 강조색과 바탕까지 물들여, 나란히 선 창이 색만으로 갈립니다. VS Code 는 프로젝트마다 그 폴더의 창으로 열립니다",
+    "프로젝트 창 정리 — 창이 둘 이상이면 ⌥⌘T(또는 ⌘O 목록의 「창 정리」)가 최근에 쓴 창 6개까지를 지금 화면에 칸으로 세웁니다. 프로젝트 색은 그 창의 강조색과 바탕까지 물들여, 나란히 선 창이 색만으로 갈립니다. VS Code 는 프로젝트마다 그 폴더의 창으로 열립니다",
     "VS Code 와 짝 — 프로젝트 색이 VS Code 창 제목 표시줄에도 서고, 일지의 변경 파일을 VS Code 로 엽니다. VS Code 확장 Ocul 은 앱 없이도 Claude 기다림 · 지금 볼 것 · 다음 할 일 · 최근 일지를 패널 하나에 보여 주고, 「Ocul 에서 열기」 로 앱의 그 일지 · 계획으로 갑니다",
     "프로젝트 색 — 8색 중 하나를 고르면 창 맨 위 띠 · 이름 앞 점 · ⌘O 목록에 서서, 창 여럿을 띄워도 Alt+Tab · Mission Control 에서 프로젝트가 갈립니다. ⌘O 목록은 쳐서 좁히고 ↩ 로 엽니다",
     "다섯 화면 — 오늘 · 작업 일지 · 계획 · 변경 · 터미널, 그리고 설정과 프로젝트가 없을 때의 시작 창. 원칙은 「예외만 보여 준다」: 화면의 크기는 에이전트가 한 양이 아니라 사람이 볼 것에 비례하고, 하루 3건이든 60건이든 모드 없이 같은 화면입니다",
@@ -232,7 +233,7 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="/"><img src="icon.svg" alt="" width="24" height="24" />Ocul</a>
-    <span class="nav-ver" data-version>v4.7.0</span>
+    <span class="nav-ver" data-version>v4.8.0</span>
     <nav class="nav-links" aria-label="사이트">
       <a href="#screens">화면</a>
       <a href="/wiki">위키</a>
@@ -255,7 +256,7 @@
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Claude Code 플러그인 설치 명령 두 줄 복사"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">두 줄 복사</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">v4.7.0 받기</span><span class="sub">macOS · 무료</span>
+        <span class="lg">v4.8.0 받기</span><span class="sub">macOS · 무료</span>
       </a>
     </div>
     <div class="subrow">
@@ -264,7 +265,7 @@
         <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
         <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
       </p>
-      <a class="whatsnew" href="#updates"><span class="ap-new">새 판</span>&nbsp; v4.7.0 — ⌥Tab 으로 창을 오가고, 창마다 색이 또렷하게</a>
+      <a class="whatsnew" href="#updates"><span class="ap-new">새 판</span>&nbsp; v4.8.0 — 창을 2~6개로 정리하고, 앱 아이콘을 고르고</a>
     </div>
 
     <div class="stage" id="screens" data-app>
@@ -384,7 +385,7 @@
       <div><dt>터미널은 몇 칸이든</dt><dd><kbd>⌘D</kbd> 오른쪽 · <kbd>⇧⌘D</kbd> 아래로 나누고, <kbd>⌥⌘</kbd> + 방향키로 옮겨 다니고, <kbd>⌘F</kbd> 로 출력에서 찾습니다.</dd></div>
       <div><dt>VS Code 와 같은 색</dt><dd>프로젝트에 고른 색이 그 프로젝트 VS Code 창의 제목 표시줄에도 섭니다. 일지의 변경 파일은 VS Code 로 바로.</dd></div>
       <div><dt>VS Code 안의 Ocul</dt><dd>확장 패널에 Claude 기다림 · 지금 볼 것 · 다음 할 일. 앱 없이도 돌고, 「Ocul 에서 열기」 로 앱까지.</dd></div>
-      <div><dt>창을 오가고, 나란히</dt><dd><kbd>⌥Tab</kbd> 을 누르고 있으면 최근 순 창 목록, 톡 누르면 직전 창. <kbd>⌥⌘T</kbd> 로 같은 폭으로 나란히.</dd></div>
+      <div><dt>창을 오가고, 정리하고</dt><dd><kbd>⌥Tab</kbd> 을 누르고 있으면 최근 순 창 목록, 톡 누르면 직전 창. ⌘O 목록에서 최근 창 2~6개를 칸으로 정리합니다.</dd></div>
       <div><dt>창마다 제 색</dt><dd>윗줄 전체가 프로젝트 색이 되고 이름은 그 색 알약 위에. 바탕 · 터미널도 옅게 물듭니다.</dd></div>
       <div><dt>앱은 LLM 을 부르지 않습니다</dt><dd>요약도 API 키도 없습니다. 생각은 에이전트가 하고, 앱은 증거를 그대로 보여 줍니다.</dd></div>
     </dl>
@@ -422,10 +423,10 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
     <h2 id="updates-h">이 앱은 이 앱으로 만들어집니다.</h2>
     <p class="intro">이 저장소의 <b>일지 932건 · 계획 89개 · 릴리스 133개</b>가 Ocul 로 쌓였습니다. 아래 이력도 그 일지에서 나왔습니다.</p>
     <ul class="releases">
+      <li class="rel"><span class="ver">v4.8.0</span><div><h3>창을 2~6개로 정리하고, 앱 아이콘을 고르고</h3><p>⌘O 목록에서 최근 창 2~6개를 칸으로 정리하고, 앱 아이콘을 아홉 가지 중에서 고릅니다. 시작 창을 다시 그렸고, 터미널의 줄 넘긴 이미지 경로도 미리 보며, 좁은 창에서 윗줄 단추가 잘리지 않습니다.</p></div></li>
       <li class="rel"><span class="ver">v4.7.0</span><div><h3>⌥Tab 으로 창을 오가고, 창마다 색이 또렷하게</h3><p>⌥Tab 을 누르고 있으면 열린 프로젝트 창이 최근 순으로 서고, 톡 누르면 직전 창으로. 윗줄 전체가 프로젝트 색이 되고 이름은 그 색 알약 위에 섭니다.</p></div></li>
       <li class="rel"><span class="ver">v4.6.0</span><div><h3>창을 나란히, 화면은 영수증처럼</h3><p>⌥⌘T 로 프로젝트 창을 같은 폭으로 세우고, VS Code 는 프로젝트마다 따로 열립니다. 프로젝트 색이 창 전체에 옅게 스미고, 화면은 색을 예외에만 쓰는 「영수증」 원칙으로 다시 다듬었습니다.</p></div></li>
       <li class="rel"><span class="ver">v4.5.1</span><div><h3>다시 연결되면 업데이트를 바로 찾는다</h3><p>인터넷이 끊긴 채 업데이트 확인이 실패하면, 다시 연결돼도 몇 시간 동안 새 버전을 몰랐습니다. 이제 연결이 돌아오는 즉시, 그리고 실패한 동안은 10분마다 다시 찾습니다.</p></div></li>
-      <li class="rel"><span class="ver">v4.5.0</span><div><h3>VS Code 와 짝이 된다</h3><p>프로젝트 색이 VS Code 창 제목 표시줄에도 서고, 일지의 변경 파일은 VS Code 로 열립니다. 확장 Ocul 0.3.0 은 Claude 기다림 · 지금 볼 것 · 다음 할 일을 패널 하나에, 「Ocul 에서 열기」 로 앱까지.</p></div></li>
     </ul>
     <p class="more"><a href="/changelog">전체 변경 이력</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스</a></p>
   </div>
@@ -475,7 +476,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Claude Code 플러그인 설치 명령 두 줄 복사"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">두 줄 복사</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">v4.7.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+        <span class="lg">v4.8.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
       </a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>
     </div>
@@ -484,7 +485,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
       <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
       <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
     </p>
-    <p class="cta-ver">v4.7.0 — macOS · Windows · Linux(베타)</p>
+    <p class="cta-ver">v4.8.0 — macOS · Windows · Linux(베타)</p>
   </div>
 </section>
 </main>

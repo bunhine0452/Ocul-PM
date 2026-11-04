@@ -70,24 +70,25 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
 
+## 🚀 v4.8 — Arrange 2–6 windows, pick your app icon
+
+- **Arrange 2–6 windows** — layout buttons in the ⌘O list put your n most recent windows side by side · in thirds · in a 2×2 grid · 3+2 · 3×2. Other windows stay put; ⌥⌘T arranges up to six.
+- **Nine app icons** — Settings › Display › App icon: green · dark · light · mono · blue · violet · pink · orange · teal (macOS, Dock and Finder).
+- **The start window, redrawn** — no card, a table whose columns line up, grouped into open windows and recent.
+- **Image paths in the terminal** — a path wrapped onto the next line now previews too; click to show it in Finder (⌘-click to enlarge).
+- **The top bar in narrow windows** — it measures and folds one step at a time, so New session and Find no longer get cut off and the project name isn't crushed. The thick colour band along the top is gone.
+
 ## 🚀 v4.7 — Switch windows with ⌥Tab, each window in its own colour
 
 - **Window switcher ⌥Tab** (Ctrl+` on Windows · Linux) — hold it and your open project windows line up in recent order (with waiting · failed check marks); release to go there. A quick tap goes straight to the previous window.
 - **A clearer colour per window** — the whole top bar takes the project colour and the name sits on a pill of it, so side-by-side windows are told apart by colour alone.
 - **Fixed** — dots of projects you never gave a colour followed the current window's colour.
 
-## 🚀 v4.6 — Windows side by side, screens like a receipt
-
-- **Tile project windows** — with two or more windows open, "Tile N windows side by side" in the ⌘O list or ⌥⌘T lines up every visible window at the same width (in their current order; adds a row when a column would be narrower than 480pt).
-- **VS Code opens per project** — "Open in VS Code" opens the file at its line in that project folder's VS Code window. Project colours reach the VS Code status bar too.
-- **The project colour across the window** — the accent becomes the project colour, and the background · list · content · search box · terminal take a faint tint (cards stay white).
-- **Screens like a receipt** — colour only for failed · blocked · waiting · unverified; a pass is a grey ✓. Kinds are a word instead of a coloured dot, progress is a number instead of a bar, and the coloured left stripes are gone. The six rules are in [DESIGN.md](DESIGN.md), "App UI — 영수증".
-- **Fixed** a background window showing a blank screen, error card wording, and internal values in the "Write an entry" dialog.
-
 ## Earlier releases at a glance
 
 The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
 
+- **Windows side by side, screens like a receipt** (4.6) — ⌥⌘T tiles project windows at the same width, VS Code opens per project, the project colour tints the whole window, colour only for exceptions (the "receipt" rule, DESIGN.md), and a fix for background windows showing blank.
 - **Ocul and VS Code, as a pair** (4.5) — project colours on the VS Code title bar, open an entry's changed files in VS Code, "Open in Ocul" from the extension, the Ocul VS Code extension 0.3.0 (panel · one status-bar item · a waiting notification), and finding updates as soon as you're back online (4.5.1).
 - **Many windows, many terminals, at your fingertips** (4.4) — project colours (a band across the top · a dot before the name · the ⌘O list), ⌘W closes the terminal session first, a working session asks before it closes, ⇧⌘[ ] between sessions, ⌘= ⌘- ⌘0 text size, type to filter ⌘O.
 - **Stale passes flagged, the terminal in many panes** (4.3) — Today flags files saved again after a ✓ check, plus the re-fix warning (plugin) · PR receipt · teammates' entries · the verdict line, terminal split panes · find, Open in VS Code · the waiting window · the Ocul VS Code extension 0.2.0 (4.3.1 · 4.3.2).
