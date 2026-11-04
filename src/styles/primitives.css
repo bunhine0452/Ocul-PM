@@ -140,6 +140,8 @@
   border-radius: var(--radius-xs); padding: 1px var(--space-2); color: var(--text-2);
   box-shadow: 0 1px 0 var(--sep);
 }
+/* 채운 단추 안의 키 — 밝은 키캡이 초록 면 위에 따로 떠 보였다(11-04 시작 창). 단추 글자색의 옅은 면으로. */
+.btn.primary .kbd { background: color-mix(in srgb, currentColor 18%, transparent); border-color: transparent; box-shadow: none; color: inherit; }
 .mono { font-family: var(--mono); }
 /* 고르기 칸 (11-04) — 브라우저 기본 화살표(굵은 검정) 대신 앱의 다른 꺾쇠처럼 가는 선 두 개.
    `<span class="select-wrap"><select>…</select></span>` 로 감싼다 — select 는 ::after 를 갖지 못한다. */

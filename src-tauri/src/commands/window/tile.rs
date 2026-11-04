@@ -1,12 +1,14 @@
-//! 프로젝트 창 나란히 놓기 (2026-11-03).
+//! 프로젝트 창 정리 (2026-11-03, 11-04 에 「2개~6개」로).
 //!
 //! 프로젝트마다 창을 띄워 에이전트를 돌리면 창이 셋 넷이 된다. macOS 의 창 분할(⌃⌥ 화살표 ·
 //! 「이동 및 크기 조절」)은 반쪽 · 4분의 1 뿐이라 셋을 같은 폭으로 세울 수 없었고, 손으로 맞추면
-//! 폭이 들쭉날쭉했다. 이 명령은 지금 보이는 앱 창 전부를 **지금 창이 있는 화면**의 작업 영역(메뉴
-//! 막대 · Dock 을 뺀 곳)에 같은 폭의 칸으로 세운다.
+//! 폭이 들쭉날쭉했다. 이 명령은 **최근에 쓴 창 n개**(2~6, 지금 창 포함)를 지금 창이 있는 화면의 작업
+//! 영역(메뉴 막대 · Dock 을 뺀 곳)에 칸으로 세운다 — 2 반반 · 3 세로 셋 · 4 네 칸 · 5 위 셋 아래 둘 · 6 셋씩
+//! 두 줄. 처음엔 열린 창 전부를 한 번에 세웠는데, 「3개 나란히」 말고 몇 개를 정리할지 고르고 싶다는
+//! 요청(11-04)이 있었다. 고르지 않은 창은 제자리에 둔다.
 //!
-//! - 순서는 지금 놓인 순서(왼쪽 → 오른쪽, 위 → 아래)를 따른다 — 손으로 고른 자리를 흐트리지 않는다.
-//! - 한 칸이 최소 폭(480pt)보다 좁아지면 줄을 하나 늘린다. 마지막 줄의 창은 그 줄의 폭을 나눠 쓴다.
+//! - 칸 순서는 지금 놓인 순서(왼쪽 → 오른쪽, 위 → 아래)를 따른다 — 손으로 고른 자리를 흐트리지 않는다.
+//! - 한 칸이 최소 폭(480pt)보다 좁아지면 열을 줄이고 줄을 늘린다(작은 화면의 3 → 위 둘 아래 하나).
 //! - 배치(`tile_layout`)는 순수 함수라 Tauri 없이 테스트한다.
 
 use super::*;
@@ -20,15 +22,27 @@ pub struct TileCell {
     pub h: u32,
 }
 
+/// 한 번에 정리하는 창의 최대 수 — 6 을 넘으면 칸이 너무 작아 창이 제 구실을 못 한다.
+pub const TILE_MAX: usize = 6;
+
+/// n 개일 때 바라는 열 수 — 4 는 네 칸(2×2), 5 · 6 은 세 열 두 줄. 한 줄 넷은 칸이 너무 좁았다.
+fn preferred_cols(n: usize) -> usize {
+    match n {
+        0..=3 => n.max(1),
+        4 => 2,
+        _ => 3,
+    }
+}
+
 /// `n` 개의 창을 `area` 에 칸으로 나눈다. `min_w` 는 한 칸의 최소 폭(물리 px).
 ///
-/// 열 수는 「최소 폭을 지키는 가장 많은 열」로 줄 수를 정한 뒤, 줄마다 고르게 나눈다
-/// (창 5개 · 최대 4열 → 2줄 → 3 + 2). 나눗셈의 나머지 픽셀은 마지막 칸이 먹어 빈틈이 없다.
+/// 열 수는 바라는 열(`preferred_cols`)과 「최소 폭을 지키는 가장 많은 열」 중 작은 것으로 줄 수를 정한 뒤,
+/// 줄마다 고르게 나눈다(창 5개 → 2줄 → 3 + 2). 나눗셈의 나머지 픽셀은 마지막 칸이 먹어 빈틈이 없다.
 pub fn tile_layout(area: TileCell, n: usize, min_w: u32) -> Vec<TileCell> {
     if n == 0 {
         return Vec::new();
     }
-    let max_cols = ((area.w / min_w.max(1)) as usize).clamp(1, n);
+    let max_cols = ((area.w / min_w.max(1)) as usize).clamp(1, preferred_cols(n));
     let rows = n.div_ceil(max_cols);
     let cols = n.div_ceil(rows);
     let mut out = Vec::with_capacity(n);
@@ -50,28 +64,33 @@ pub fn tile_layout(area: TileCell, n: usize, min_w: u32) -> Vec<TileCell> {
     out
 }
 
-/// 보이는 앱 창 전부를 지금 창의 화면에 나란히 세운다. 세운 창의 수를 돌려준다.
+/// 최근에 쓴 창 `count` 개(없으면 보이는 창 전부, 많아야 6)를 지금 창의 화면에 칸으로 세운다.
+/// 세운 창의 수를 돌려준다.
 #[tauri::command]
 #[specta::specta]
-pub async fn tile_app_windows(app: AppHandle) -> Result<u32, String> {
-    tile_inner(&app)
+pub async fn tile_app_windows(app: AppHandle, count: Option<u32>) -> Result<u32, String> {
+    tile_inner(&app, count.map(|c| c as usize))
 }
 
-pub(crate) fn tile_inner(app: &AppHandle) -> Result<u32, String> {
+pub(crate) fn tile_inner(app: &AppHandle, count: Option<usize>) -> Result<u32, String> {
     let labels: Vec<String> = {
         let state = app.state::<WindowProjects>();
         let reg = state.lock();
-        reg.windows.keys().cloned().collect()
+        reg.recent_labels()
     };
-    // 숨긴 창(상주 모드에서 마지막으로 닫아 둔 휴면 창)은 세지 않는다.
+    // 숨긴 창(상주 모드에서 마지막으로 닫아 둔 휴면 창)은 세지 않는다. 최근에 쓴 순서 그대로 앞에서 n 개.
+    let take = count.unwrap_or(TILE_MAX).clamp(1, TILE_MAX);
     let mut windows: Vec<tauri::WebviewWindow> = labels
         .iter()
         .filter_map(|l| app.get_webview_window(l))
         .filter(|w| w.is_visible().unwrap_or(false))
+        .take(take)
         .collect();
     if windows.is_empty() {
         return Ok(0);
     }
+    // 앞으로 올리는 순서 — 덜 최근 것부터, 지금 창이 마지막. 고르지 않은 창 위로 서되 최근 순서(⌥Tab)는 그대로.
+    let raise: Vec<tauri::WebviewWindow> = windows.iter().rev().cloned().collect();
 
     let focused = focused_app_window(app).and_then(|l| app.get_webview_window(&l));
     let monitor = focused
@@ -122,6 +141,9 @@ pub(crate) fn tile_inner(app: &AppHandle) -> Result<u32, String> {
             cell.h.saturating_sub(dh),
         ));
     }
+    for w in &raise {
+        let _ = w.set_focus();
+    }
     if let Some(w) = focused {
         let _ = w.set_focus();
     }
@@ -148,6 +170,44 @@ mod layout_tests {
             vec![(0, 1000), (1000, 1000), (2000, 1000)]
         );
         assert!(cells.iter().all(|c| c.y == 50 && c.h == 1800));
+    }
+
+    /// 넷은 네 칸, 여섯은 셋씩 두 줄 — 넓은 화면이어도 한 줄에 넷 이상 세우지 않는다.
+    #[test]
+    fn four_is_a_grid_and_six_is_two_rows_of_three() {
+        let four = tile_layout(AREA, 4, 480);
+        assert_eq!(
+            four.iter()
+                .map(|c| (c.x, c.y, c.w, c.h))
+                .collect::<Vec<_>>(),
+            vec![
+                (0, 50, 1500, 900),
+                (1500, 50, 1500, 900),
+                (0, 950, 1500, 900),
+                (1500, 950, 1500, 900)
+            ]
+        );
+        let six = tile_layout(AREA, 6, 480);
+        assert!(six.iter().all(|c| c.w == 1000 && c.h == 900));
+        assert_eq!(six.iter().filter(|c| c.y == 50).count(), 3);
+        let two = tile_layout(AREA, 2, 480);
+        assert!(two.iter().all(|c| c.w == 1500 && c.h == 1800));
+    }
+
+    /// 작은 화면에서 셋이 최소 폭을 못 지키면 위 둘 · 아래 하나.
+    #[test]
+    fn three_on_a_small_screen_wraps() {
+        let small = TileCell {
+            x: 0,
+            y: 0,
+            w: 1280,
+            h: 800,
+        };
+        let cells = tile_layout(small, 3, 480);
+        assert_eq!(
+            cells.iter().map(|c| (c.x, c.y, c.w)).collect::<Vec<_>>(),
+            vec![(0, 0, 640), (640, 0, 640), (0, 400, 1280)]
+        );
     }
 
     /// 칸이 최소 폭보다 좁아지면 줄을 늘린다 — 5개, 최대 3열 → 2줄(3 + 2), 마지막 줄은 그 줄을 나눠 쓴다.

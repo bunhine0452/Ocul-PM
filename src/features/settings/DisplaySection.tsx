@@ -4,10 +4,12 @@
  * 밝기는 세 가지뿐이다 (시스템 · 밝게 · 어둡게). 3.x 의 테마 프리셋·가져오기는 걷었다 —
  * 프리셋을 쓰던 사람은 여기서 아무것도 골라져 있지 않게 보이고, 하나를 누르면 그것이 된다.
  * 글자 크기는 웹뷰 줌(`uiScale`)이라 픽셀을 재는 화면도 같이 커진다.
+ * 앱 아이콘(11-04, macOS) — 컬러 · 흑백. 저장하면 백엔드가 Dock 과 번들 아이콘을 바로 바꾼다(`app_icon.rs`).
  */
 import { useSettings } from "@/contexts/SettingsContext";
 import { resolveLang, useT, type Lang } from "@/i18n";
-import type { Theme } from "@/lib/settings";
+import { isMac } from "@/lib/platform";
+import type { AppIcon, Theme } from "@/lib/settings";
 import { EditorRow } from "./EditorRow";
 import { useSaveSetting } from "./saveSetting";
 import { PrefsCard, PrefsRow, PrefsSeg } from "./prefsUi";
@@ -66,6 +68,19 @@ export function DisplaySection({ id }: { id: string }) {
           onChange={(next) => save("uiScale", Number(next))}
         />
       </PrefsRow>
+      {isMac() ? (
+        <PrefsRow label={t("prefs.display.appIcon")} meta={t("prefs.display.appIconMeta")}>
+          <PrefsSeg<AppIcon>
+            label={t("prefs.display.appIcon")}
+            value={settings.appIcon}
+            options={[
+              { id: "color", label: t("prefs.display.appIconColor") },
+              { id: "mono", label: t("prefs.display.appIconMono") },
+            ]}
+            onChange={(next) => save("appIcon", next)}
+          />
+        </PrefsRow>
+      ) : null}
       <EditorRow />
     </PrefsCard>
   );

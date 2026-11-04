@@ -149,8 +149,10 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
-objc2-foundation = { version = "0.3", features = ["NSString", "NSArray", "NSURL"] }
+# 앱 아이콘 흑백(11-04, `app_icon.rs`) — Dock 아이콘(NSApplication) · 번들 아이콘(NSWorkspace).
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem", "NSApplication", "NSResponder", "NSImage", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", features = ["NSString", "NSArray", "NSURL", "NSData", "NSBundle"] }
 
 # 쓰지 않는 직접 의존 — **판 고정만** 한다 (2026-10-24). tauri-plugin-deep-link 2.6.2 의
 # Linux 코드가 `ini::ParseOption { enabled_quote, enabled_escape }` 두 필드로만 만드는데

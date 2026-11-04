@@ -7,6 +7,8 @@ import type { LangSetting } from "@/i18n";
 export type Theme = "light" | "dark" | "system";
 /** Accent color palette, applied via `[data-accent]` over light/dark tokens. */
 export type ColorTheme = "green" | "blue" | "purple" | "orange" | "rose" | "teal";
+/** 앱 아이콘 (11-04) — 컬러 · 흑백. */
+export type AppIcon = "color" | "mono";
 
 /// Every setting we recognize. Keys are the exact column values in the
 /// `settings` SQLite table; values are stringified.
@@ -15,6 +17,8 @@ export const KEYS = {
   theme: "theme",
   colorTheme: "color_theme",
   uiScale: "ui_scale",
+  // 앱 아이콘 컬러 / 흑백 (11-04, macOS) — 저장하면 백엔드가 Dock · 번들 아이콘을 바꾼다(`app_icon.rs`).
+  appIcon: "app_icon",
   // (`ui_density` 「간단 / 전문」은 4.0 에서 걷었다 — 밀도는 하나다. 옛 값은 DB 에 남는다.)
   // UI 언어. SQLite 에 있으므로 창을 여러 개 띄워도 전 창이 같은 값을 본다
   // (localStorage 가 아니다 — docs/20260811_three-features/00-master-plan.md D4).
@@ -39,6 +43,8 @@ export interface Settings {
   /** App-wide UI scale (zoom). 1 = 100%. Applied as CSS `zoom` on <html> so
    *  both rem-based (shadcn) and px-based (ui_v2) text scale uniformly. */
   uiScale: number;
+  /** 앱 아이콘 — 컬러(기본) · 흑백. macOS 만 그린다. 모르는 값은 백엔드가 컬러로 읽는다. */
+  appIcon: AppIcon;
   /** UI 언어. "system" 은 OS 로케일을 따른다 (`resolveLang` — src/i18n). */
   language: LangSetting;
   /**
@@ -70,6 +76,7 @@ export const DEFAULTS: Settings = {
   theme: "system",
   colorTheme: "green",
   uiScale: 1,
+  appIcon: "color",
   language: "system",
   contentLanguage: "system",
 
@@ -82,6 +89,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.theme]: "theme",
   [KEYS.colorTheme]: "colorTheme",
   [KEYS.uiScale]: "uiScale",
+  [KEYS.appIcon]: "appIcon",
   [KEYS.language]: "language",
   [KEYS.contentLanguage]: "contentLanguage",
   [KEYS.externalEditorCommand]: "externalEditorCommand",
@@ -105,6 +113,7 @@ function coerce<K extends keyof Settings>(field: K, raw: string): Settings[K] {
   }
   // 옛 프리셋 id(`nord` …)·`custom:<id>` 가 저장돼 있으면 시스템으로 읽는다 (4.0 에서 걷었다).
   if (field === "theme") return (raw === "light" || raw === "dark" ? raw : "system") as Settings[K];
+  if (field === "appIcon") return (raw === "mono" ? "mono" : "color") as Settings[K];
   // string-typed
   return raw as Settings[K];
 }

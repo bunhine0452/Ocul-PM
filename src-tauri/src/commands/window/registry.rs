@@ -152,19 +152,32 @@ impl Registry {
         self.recent.insert(0, label.to_string());
     }
 
-    /// 프로젝트 창의 프로젝트 id 를 **최근에 쓴 순서**로 — 창 전환기의 줄 순서. 시작 창은 빠진다.
-    /// 한 번도 포커스되지 않은 창(드물다 — 등록이 곧 포커스다)은 라벨 순으로 끝에 붙는다.
-    pub fn recent_projects(&self) -> Vec<u32> {
-        let project = |l: &String| self.windows.get(l).copied().flatten();
-        let mut out: Vec<u32> = self.recent.iter().filter_map(project).collect();
-        let mut rest: Vec<&String> = self
+    /// 창 라벨 전부를 **최근에 쓴 순서**로(시작 창 포함). 한 번도 포커스되지 않은 창(드물다 — 등록이 곧
+    /// 포커스다)은 라벨 순으로 끝에 붙는다. 창 정리(`tile.rs`)가 「최근 n개」를 고를 때 쓴다.
+    pub fn recent_labels(&self) -> Vec<String> {
+        let mut out: Vec<String> = self
+            .recent
+            .iter()
+            .filter(|l| self.windows.contains_key(*l))
+            .cloned()
+            .collect();
+        let mut rest: Vec<String> = self
             .windows
             .keys()
             .filter(|l| !self.recent.contains(l))
+            .cloned()
             .collect();
         rest.sort();
-        out.extend(rest.into_iter().filter_map(project));
+        out.extend(rest);
         out
+    }
+
+    /// 프로젝트 창의 프로젝트 id 를 **최근에 쓴 순서**로 — 창 전환기의 줄 순서. 시작 창은 빠진다.
+    pub fn recent_projects(&self) -> Vec<u32> {
+        self.recent_labels()
+            .iter()
+            .filter_map(|l| self.windows.get(l).copied().flatten())
+            .collect()
     }
 
     /// 프로젝트를 담은 창 하나 — 딥링크 확인 시트를 띄울 자리(시트는 프로젝트 창에만 있다).

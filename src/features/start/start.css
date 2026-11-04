@@ -1,81 +1,119 @@
 /* ============================================================
-   start.css — 시작 창 (4.0, 시안 Start.dc.html).
-   사이드바가 없는 전창 표면이다. 최근 프로젝트 카드 한 장이 캔버스(--bg-sidebar)
-   가운데 선다. 처음 쓰는 법은 첫 실행 안내(features/tour)가 맡는다(#tour-retire).
+   start.css — 시작 창 (4.0, 11-04 다시 그림).
+   사이드바가 없는 전창 표면이다. 처음 쓰는 법은 첫 실행 안내(features/tour)가 맡는다(#tour-retire).
+
+   11-04 「촌스럽고 구려」 — 베이지 캔버스 위 흰 카드 한 장이 웹 페이지처럼 떴고, 딱지가 줄마다 다른 자리에
+   섰다. 이제 창 전체가 한 면(--bg-content)이고, 목록은 칸이 맞는 표다: 점 · 이름 · 어디 · 예외 · 날짜 · ×
+   여섯 칸이 모든 줄에서 같은 세로선에 선다(subgrid — 영수증 규칙 4). 묶음은 「열린 창」 · 「최근」 둘.
    ============================================================ */
 .start {
   flex: 1 1 auto; min-height: 0;
   display: flex; flex-direction: column;
-  background: var(--bg-sidebar); color: var(--text);
+  background: var(--bg-content); color: var(--text);
 }
 
-/* 머리줄 — 창을 잡는 자리이자 macOS 신호등 자리. 제목은 가운데. */
+/* 머리줄 — 창을 잡는 자리이자 macOS 신호등 자리. 제목은 가운데, 면과 같은 바탕이라 경계선이 없다. */
 .start-bar {
   height: var(--toolbar-h); flex: none;
   display: flex; align-items: center; justify-content: center;
   padding: 0 var(--space-6);
   user-select: none;
 }
-.start-bar-title { font-size: var(--fs-4); font-weight: var(--fw-strong); }
+.start-bar-title { font-size: var(--fs-4); font-weight: var(--fw-strong); color: var(--text-2); }
 
 .start-body {
-  flex: 1 1 auto; min-height: 0;
-  /* 카드는 내용만큼 — 창 높이까지 늘어 목록 아래가 비던 것(10-30). 넘치면 목록이 스크롤한다. */
-  display: flex; justify-content: center; align-items: flex-start;
-  padding: var(--space-5) 32px 32px;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; justify-content: center;
+  padding: var(--space-6) 32px 40px;
+  container-type: inline-size; container-name: screen;
 }
-.start-card { display: flex; flex-direction: column; min-height: 0; max-height: 100%; overflow: hidden; width: 100%; max-width: 760px; }
-.start-card-head {
-  height: 40px; flex: none;
-  display: flex; align-items: center; gap: var(--space-3);
-  padding: 0 var(--space-6);
-  border-bottom: 1px solid var(--sep);
-}
-.start-card-head h2 { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
-.start-spacer { flex: 1; }
-.start-card-head .kbd { margin-left: var(--space-1); }
+.start-col { width: 100%; max-width: 720px; display: flex; flex-direction: column; }
 
-/* 최근 프로젝트 — 한 줄에 하나(10-30): 이름 · 경로 · (예외 딱지) · 날짜 · ×. 줄 전체가 「열기」.
-   두 줄(이름 / 경로)에 줄마다 「열기」 단추 · 「일지 없는 파일 0」 이 서 있던 때는 열한 줄이 창을 넘었고
-   가운데가 비었다. */
-.start-list { list-style: none; margin: 0; padding: var(--space-1) 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.start-row {
+/* 머리 — 「최근 프로젝트 11」 · 채운 단추 「폴더 열기 ⌘O」 하나. 아래 hairline 이 표의 머리선이다. */
+.start-head {
   display: flex; align-items: center; gap: var(--space-3);
-  padding: 0 var(--space-4) 0 var(--space-2);
+  padding: 0 0 var(--space-5);
+  border-bottom: 1px solid var(--sep-strong);
 }
-.start-row:hover, .start-row:focus-within { background: var(--bg-hover); }
+.start-head h2 { margin: 0; font-size: var(--fs-6); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); }
+.start-count { font-size: var(--fs-4); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.start-spacer { flex: 1; }
+.start-head .kbd { margin-left: var(--space-1); }
+
+/* 묶음 이름 — 작은 회색 글씨 한 줄. 첫 묶음 앞엔 머리선이 있어 위 여백만 다르다. */
+.start-group {
+  margin: var(--space-6) 0 var(--space-1); padding: 0;
+  font-size: var(--fs-3); font-weight: var(--fw-label); color: var(--text-2);
+}
+.start-groups > .start-group:first-child { margin-top: var(--space-5); }
+
+/* 표 — 두 묶음이 같은 칸 너비를 쓰도록 열 정의는 .start-groups 가 갖고, 목록 · 줄 · 줄의 「열기」 단추는
+   subgrid 로 그 선을 이어 받는다. 이름 칸은 가장 긴 이름에 맞추되 260px 에서 멈춘다. */
+.start-groups {
+  display: grid;
+  grid-template-columns: 8px fit-content(260px) minmax(0, 1fr) auto auto 24px;
+  column-gap: var(--space-5);
+  padding-top: var(--space-2);
+}
+.start-groups > .start-group { grid-column: 1 / -1; }
+.start-list {
+  grid-column: 1 / -1; display: grid; grid-template-columns: subgrid;
+  list-style: none; margin: 0; padding: 0;
+}
+.start-row {
+  grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center;
+  position: relative; min-height: 38px;
+}
+/* 줄의 면 — 칸 사이 틈까지 덮도록 줄보다 양옆으로 조금 넓게. 글자는 머리선과 같은 세로선에 남는다. */
+.start-row::before {
+  content: ""; position: absolute; inset: 1px calc(var(--space-3) * -1);
+  border-radius: var(--radius-m); background: transparent; pointer-events: none;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.start-row:hover::before, .start-row:focus-within::before { background: var(--bg-hover); }
 .start-row-open {
-  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--space-4);
-  height: var(--ctl-5); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-s);
+  grid-column: 1 / 4; display: grid; grid-template-columns: subgrid; align-items: center;
+  align-self: stretch; padding: 0; border: 0; border-radius: var(--radius-s);
   background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  position: relative;
 }
-.start-row-open:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
-/* 프로젝트 색 점 (화면 검사 11-03) — 프로젝트 창 · ⌘O 목록에는 있는데 시작 창에만 없었다. */
-.start-row-dot { flex: none; width: 8px; height: 8px; margin-right: calc(var(--space-1) * -1); border-radius: 50%; background: var(--pc); }
+.start-row-open:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+/* 프로젝트 색 점 — 프로젝트 창 · ⌘O 목록과 같은 점. 색이 없으면 빈 고리. */
+.start-row-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pc); }
 .start-row-dot:not([data-pc]) { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
 .start-row-name {
-  flex: none; max-width: 45%;
-  font-size: var(--fs-5); font-weight: var(--fw-strong);
+  min-width: 0; font-size: var(--fs-5); font-weight: var(--fw-strong); letter-spacing: var(--track-tight);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .start-row-path {
-  flex: 1 1 auto; min-width: 0; font-size: var(--fs-3); color: var(--text-2);
+  min-width: 0; font-size: var(--fs-3); color: var(--text-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.start-row-day { flex: none; min-width: 5.5em; text-align: right; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.start-row-flags { position: relative; display: flex; justify-content: flex-end; gap: var(--space-2); }
+.start-row-day {
+  position: relative; text-align: right; font-size: var(--fs-3); color: var(--text-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
 /* × 는 줄을 가리킬 때만 — 열한 줄이 × 로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */
-.start-row-forget { color: var(--text-2); opacity: 0; }
+.start-row-forget { position: relative; justify-self: end; color: var(--text-2); opacity: 0; }
 .start-row:hover .start-row-forget, .start-row-forget:focus-visible { opacity: 1; }
+
 .start-forget-body { margin: 0 0 var(--space-4); }
 .start-forget-wipe { display: flex; align-items: flex-start; gap: var(--space-3); cursor: pointer; }
 .start-forget-wipe input { margin-top: 3px; flex: none; }
 .start-forget-wipe b { display: block; font-weight: var(--fw-label); color: var(--text); }
 .start-forget-sub { display: block; margin-top: 2px; color: var(--text-2); }
-.start-empty { margin: 0; padding: var(--space-7) var(--space-6); color: var(--text-2); font-size: var(--fs-4); }
+.start-empty { margin: 0; padding: var(--space-8) 0; color: var(--text-2); font-size: var(--fs-4); }
 .start-foot {
-  margin: 0; flex: none;
-  padding: var(--space-5) var(--space-6);
+  margin: var(--space-7) 0 0; padding: var(--space-5) 0 0;
   border-top: 1px solid var(--sep);
   font-size: var(--fs-3); color: var(--text-2);
 }
 
+/* 좁은 창 — 칸 사이를 줄이고, 더 좁으면 「어디」 칸을 감춘다(이름 · 예외 · 날짜가 먼저). 접힘 선은 한 벌(640 / 460). */
+@container screen (max-width: 640px) {
+  .start-groups { column-gap: var(--space-4); }
+}
+@container screen (max-width: 460px) {
+  .start-row-path { display: none; }
+}

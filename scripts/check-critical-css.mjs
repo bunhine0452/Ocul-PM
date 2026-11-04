@@ -28,7 +28,7 @@ const REQUIRED = [
   // 안 띄운 창이라 lazy 청크에 있으면 무스타일이 된다.
   ".start",
   ".start-body",
-  ".start-card",
+  ".start-col",
   ".start-row",
   // 처음 쓰는 법 — 시작 창이든 프로젝트 창이든 처음 열자마자 뜬다(세 단계 칸을 대신한다).
   ".tour",
