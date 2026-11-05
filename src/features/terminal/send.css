@@ -3,6 +3,7 @@
 .send-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-4); }
 .send-ctx { margin: 0; font-size: var(--fs-3); color: var(--text); overflow-wrap: anywhere; }
 .send-ctx-k { color: var(--text-2); }
+.send-hint { margin: 0; font-size: var(--fs-3); color: var(--text-2); }
 .send-text {
   width: 100%; resize: vertical; min-height: 84px;
   padding: var(--space-3) var(--space-4); border-radius: var(--radius-s);

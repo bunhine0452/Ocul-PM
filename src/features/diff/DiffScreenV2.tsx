@@ -25,7 +25,7 @@ import { useDiffChanges } from "./useDiffChanges";
 import { useDiffFile } from "./useDiffFile";
 import { useGroupEntries } from "./useGroupEntries";
 import "./changes.css";
-import { requestSendToClaude, sendOrRun } from "@/features/terminal/sendToClaude";
+import { requestSendToClaude, sendOrRun, toastQueued } from "@/features/terminal/sendToClaude";
 import { projectFileApi } from "@/api/projectFile";
 import { applyResolution, clearNotes, composeNotes, hydrateNotes, isJudged, markSent, useDiffNotes } from "./diffNoteStore";
 import { tError } from "@/i18n/errors";
@@ -147,8 +147,10 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const askClaude = () => {
     const text = recordRequestText(unrecorded, t("diff.unrecorded.prompt"), (n) => t("diff.unrecorded.promptMore", { n }));
     void sendOrRun(projectId, text)
-      .then((n) => {
-        if (n != null) toast.info(t("send.sent", { n }));
+      .then((res) => {
+        if (res == null) return;
+        if (res.outcome.outcome === "sent") toast.info(t("send.sent", { n: res.n }));
+        else toastQueued(t, res.n, res.outcome.key);
       })
       .catch((e) => toast.destructive(t("send.failed", { error: tError(toAppError(e)) })));
   };
