@@ -70,7 +70,14 @@ pub fn start_background_watchers(app: &AppHandle) {
             // 넘겨받기 전에 diff 기준선 스냅샷을 디스크·HEAD 와 맞춘다 (stat·git 만).
             {
                 let db = handle.state::<crate::db::Db>();
-                match crate::baseline::prune(&db, project.id, &root).await {
+                // 워처와 같은 `.gitignore` 판정 — `respect_gitignore` 를 끈 프로젝트는 걷지 않는다.
+                let respect = crate::oculpm::spec::OculpmConfig::load(
+                    &root.join(".oculpm").join("config.toml"),
+                )
+                .map(|c| c.watcher.respect_gitignore)
+                .unwrap_or(true);
+                let ignored = crate::oculpm::watcher_queue::ProjectGitignore::load(&root, respect);
+                match crate::baseline::prune(&db, project.id, &root, ignored).await {
                     Ok(0) => {}
                     Ok(n) => tracing::info!(
                         target: "oculpm::bootstrap",

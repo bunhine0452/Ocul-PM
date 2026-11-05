@@ -228,10 +228,12 @@ impl WatcherInner {
             }
         };
 
-        // 0.5 루트 `.gitignore` 가 바뀌었다 — 아래 판정(과 사전 필터)이 새 규칙을
-        //     쓰도록 다시 읽는다. 이 이벤트 자체는 평소대로 흘려보낸다 (사용자 파일).
-        if rel_str == ".gitignore" {
-            self.project_gitignore.reload(&self.root);
+        // 0.5 어느 층의 `.gitignore` 가 바뀌었다 — 아래 판정(과 사전 필터)이 새 규칙을
+        //     쓰도록 그 폴더 것을 잊는다. 이 이벤트 자체는 평소대로 흘려보낸다 (사용자 파일).
+        if path.file_name().is_some_and(|n| n == ".gitignore") {
+            if let Some(dir) = path.parent() {
+                self.project_gitignore.invalidate(dir);
+            }
         }
 
         // 1. Self-suppress.
