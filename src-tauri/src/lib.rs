@@ -274,6 +274,8 @@ use crate::commands::{
     tile_app_windows,
     today_digest,
     today_teammates,
+    update_check_claim,
+    update_check_report,
 };
 // 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
 use crate::commands::new_window::new_window;
@@ -442,6 +444,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 베타 버그 리포트 — 「진단 정보 복사」 (#w5-report)
             // 설치 형식 (크로스플랫폼 L-UPD #upd-target-missing)
             install_kind,
+            // 업데이트 확인 관문 — 창이 여럿이어도 앱이 한 번 묻는다
+            update_check_claim,
+            update_check_report,
         ])
         .events(collect_events![
             // .oculpm/ subsystem (W1-PR2)
@@ -627,6 +632,7 @@ pub fn run() {
             // 창 → 프로젝트 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowProjects::default());
             app.manage(crate::terminal::TermSessions::default());
+            app.manage(crate::commands::UpdateGate::default());
             app.manage(crate::oculpm::claude_waiting::ClaudeWaitingState::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());

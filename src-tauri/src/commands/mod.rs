@@ -27,6 +27,7 @@ pub mod tags;
 pub mod term_image;
 pub mod terminal;
 pub mod today;
+pub mod update_gate;
 pub mod velocity;
 pub mod window;
 
@@ -55,6 +56,7 @@ pub use review::*;
 pub use scorecard::*;
 pub use tags::*;
 pub use today::*;
+pub use update_gate::*;
 pub use velocity::*;
 pub use window::*;
 

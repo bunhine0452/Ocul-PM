@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, X } from "@/components/Icons";
+import { updateGateApi } from "@/api/installKind";
 import { useUpdater } from "@/lib/updater";
 import { useT } from "@/i18n";
 
@@ -43,6 +44,15 @@ const WAKE_MIN_MS = 6 * 60 * 60 * 1000;
 /** 확인이 실패한 동안 다시 묻는 간격 — 10분. */
 const FAILED_RETRY_MS = 10 * 60 * 1000;
 
+/**
+ * 배너의 **자동** 확인 — 창마다의 규칙(위 간격들)을 지난 뒤, 앱 전체 관문(`update_gate.rs`)에
+ * 한 번 더 묻는다. 다른 창이 묻는 중이거나 방금 「새 판 없음」을 받았으면 GitHub 에 가지 않는다
+ * (11-05 실측: 창 여럿을 연 1분에 확인 12번이 몰려 실패). 설정의 확인 단추는 관문을 거치지 않는다.
+ */
+async function autoCheck(check: () => Promise<unknown>, urgent = false): Promise<void> {
+  if (await updateGateApi.claim(urgent)) await check();
+}
+
 export function UpdateBanner() {
   const { t } = useT();
   const { status, check, install, restartNow } = useUpdater();
@@ -67,21 +77,21 @@ export function UpdateBanner() {
 
   useEffect(() => {
     let last = Date.now();
-    void check();
+    void autoCheck(check);
     const timer = window.setInterval(() => {
       last = Date.now();
-      void check();
+      void autoCheck(check);
     }, PERIODIC_MS);
     const onWake = () => {
       if (document.visibilityState !== "visible") return;
       if (!failedRef.current && Date.now() - last < WAKE_MIN_MS) return;
       last = Date.now();
-      void check();
+      void autoCheck(check);
     };
     const onOnline = () => {
       if (!failedRef.current) return;
       last = Date.now();
-      void check();
+      void autoCheck(check, true);
     };
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
@@ -96,10 +106,11 @@ export function UpdateBanner() {
 
   // Wi-Fi 는 붙어 있는데 인터넷만 안 되는 경우(로그인 화면이 있는 공용 와이파이 등)는
   // `online` 이 오지 않는다 — 실패한 동안은 짧은 간격으로 스스로 다시 묻는다.
+  // 관문이 다른 창 몫이라며 거절하면 상태가 그대로라 — 한 번 뒤가 아니라 실패한 동안 계속 돈다.
   useEffect(() => {
     if (status.kind !== "error") return;
-    const retry = window.setTimeout(() => void check(), FAILED_RETRY_MS);
-    return () => window.clearTimeout(retry);
+    const retry = window.setInterval(() => void autoCheck(check), FAILED_RETRY_MS);
+    return () => window.clearInterval(retry);
   }, [status.kind, check]);
 
   useEffect(() => {

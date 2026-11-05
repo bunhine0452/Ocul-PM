@@ -16,7 +16,10 @@ vi.mock("@tauri-apps/plugin-updater", () => ({
 }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn(() => Promise.resolve()) }));
 vi.mock("@/api/window", () => ({ windowApi: { saveSession: vi.fn(() => Promise.resolve(null)) } }));
-vi.mock("@/api/installKind", () => ({ installKindApi: { get: () => Promise.resolve(null) } }));
+vi.mock("@/api/installKind", () => ({
+  installKindApi: { get: () => Promise.resolve(null) },
+  updateGateApi: { claim: () => Promise.resolve(true), report: () => {} },
+}));
 vi.mock("@/lib/oculpmLog", () => ({ oculpmLog: { info: () => {}, warn: () => {} } }));
 vi.mock("@/lib/toast", () => ({ toast: { info: vi.fn() } }));
 vi.mock("@/api/terminal", () => ({

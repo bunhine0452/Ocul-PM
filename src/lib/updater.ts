@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { windowApi } from "@/api/window";
-import { installKindApi } from "@/api/installKind";
+import { installKindApi, updateGateApi } from "@/api/installKind";
 import { terminalApi } from "@/api/terminal";
 import { t } from "@/i18n";
 import { busyReason, onBusyChange } from "./busyGuard";
@@ -127,6 +127,8 @@ export function useUpdater() {
     } catch (e) {
       outcome = { kind: "failed", message: errMessage(e) };
     }
+    // 다른 창의 자동 확인이 이 결과를 쓴다 (`update_gate.rs`).
+    updateGateApi.report(outcome.kind === "found" ? "found" : outcome.kind === "none" ? "none" : "failed");
     const next = statusAfterCheck(install, outcome);
     setUpdate(upd);
     setStatus(next);
