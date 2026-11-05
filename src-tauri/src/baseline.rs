@@ -219,9 +219,15 @@ pub async fn remove(db: &Db, project_id: u32, root: &Path, rel: &str) -> crate::
     }
 }
 
-/// 앱이 뜰 때 한 번 — 꺼진 사이 사라졌거나 HEAD 에 들어간 파일의 스냅샷을 걷는다.
+/// 앱이 뜰 때 한 번 — 꺼진 사이 사라졌거나 HEAD 에 들어간 파일, 그리고 `.gitignore`
+/// (어느 층이든 — 워처와 같은 `ignored` 매처)가 거르는 파일의 스냅샷을 걷는다.
 /// stat 과 `git ls-tree` 뿐이고 파일을 읽지 않는다. 걷은 수를 돌려준다.
-pub async fn prune(db: &Db, project_id: u32, root: &Path) -> Result<u32, String> {
+pub async fn prune(
+    db: &Db,
+    project_id: u32,
+    root: &Path,
+    ignored: crate::oculpm::watcher_queue::ProjectGitignore,
+) -> Result<u32, String> {
     let paths = db
         .snapshot_paths(project_id)
         .await
@@ -234,7 +240,10 @@ pub async fn prune(db: &Db, project_id: u32, root: &Path) -> Result<u32, String>
         let mut head = crate::git::nesting::HeadIndex::default();
         paths
             .into_iter()
-            .filter(|rel| root.join(rel).is_file() && !head.contains(&root, rel))
+            .filter(|rel| {
+                let abs = root.join(rel);
+                abs.is_file() && !ignored.is_ignored(&abs) && !head.contains(&root, rel)
+            })
             .collect::<Vec<_>>()
     })
     .await
@@ -355,7 +364,8 @@ mod tests {
         std::fs::remove_file(root.join("a.txt")).unwrap();
         std::fs::write(root.join("c.txt"), "c\n").unwrap();
         assert_eq!(sync_one(&db, pid, &root, "c.txt").await, Ok(true));
-        assert_eq!(prune(&db, pid, &root).await, Ok(1));
+        let none = crate::oculpm::watcher_queue::ProjectGitignore::none();
+        assert_eq!(prune(&db, pid, &root, none).await, Ok(1));
         assert!(db
             .get_file_snapshot(pid, "a.txt".into())
             .await
@@ -366,5 +376,34 @@ mod tests {
             .await
             .unwrap()
             .is_some());
+    }
+
+    /// 프로젝트 안에 따로 있는 저장소의 `.gitignore` 가 거르는 파일 — 옛 판이 찍어 둔 스냅샷을
+    /// 기동 정리가 걷는다(11-05 실측: 한 저장소 983장 중 976장). 거르지 않는 파일은 남는다.
+    #[tokio::test]
+    async fn prune_drops_snapshots_a_nested_gitignore_excludes() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("proj");
+        std::fs::create_dir_all(root.join("app/.llm-cache")).unwrap();
+        std::fs::write(root.join("app/.llm-cache/x.sse"), "data\n").unwrap();
+        std::fs::write(root.join("app/main.ts"), "let a = 1;\n").unwrap();
+        let db = Db::open(dir.path().join("t.db")).await.unwrap();
+        let pid = db
+            .create_project("proj".into(), root.to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        assert_eq!(
+            sync_one(&db, pid, &root, "app/.llm-cache/x.sse").await,
+            Ok(true)
+        );
+        assert_eq!(sync_one(&db, pid, &root, "app/main.ts").await, Ok(true));
+
+        std::fs::write(root.join("app/.gitignore"), ".llm-cache/\n").unwrap();
+        let off = crate::oculpm::watcher_queue::ProjectGitignore::load(&root, false);
+        assert_eq!(prune(&db, pid, &root, off).await, Ok(0));
+        let on = crate::oculpm::watcher_queue::ProjectGitignore::load(&root, true);
+        assert_eq!(prune(&db, pid, &root, on).await, Ok(1));
+        let left = db.snapshot_paths(pid).await.unwrap();
+        assert_eq!(left, vec!["app/main.ts".to_string()]);
     }
 }

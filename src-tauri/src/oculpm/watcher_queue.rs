@@ -38,7 +38,7 @@
 //! 전부 원자 계수기라 뜨거운 길에 잠금이 하나도 늘지 않는다. 워처 시작 이후
 //! 단조 증가하고 리셋하지 않는다.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -159,24 +159,28 @@ pub fn build_gitignore_from_lines(root: &Path, lines: &[String]) -> Gitignore {
 /// 예전엔 워처를 켤 때 한 번 읽고 끝이었다 — 워처가 도는 동안 `.gitignore` 를 새로
 /// 만들거나 고치면 앱을 다시 켤 때까지 그 규칙이 안 먹었다 (2026-10-18 실측: 워처가
 /// 켜진 뒤 생긴 `.gitignore` 의 `.work/` 아래 119개 파일이 색인에 들어가 있었다).
-/// 루트 `.gitignore` 의 이벤트가 오면 [`Self::reload`] 로 다시 읽는다.
+/// `.gitignore` 의 이벤트가 오면 [`Self::invalidate`] 로 그 폴더 것을 다시 읽는다.
+///
+/// **모든 층의 `.gitignore`** 를 본다 (2026-11-05). 루트 것만 읽던 때는 프로젝트 폴더 아래에
+/// 저장소가 따로 있으면(`project/naeri/.git`) 그 저장소의 규칙이 안 먹었다 — 설치본 실측:
+/// 한 프로젝트의 `naeri/` 기준선 스냅샷 983장 중 976장이 `naeri/.gitignore` 가 거르는 파일
+/// (972장이 `.llm-cache`)이었다. git 처럼 깊은 쪽부터 묻고, 처음으로 답(무시 · 예외)을 주는
+/// 층이 이긴다. 폴더마다 한 번만 읽어 둔다(없음도 기억).
 #[derive(Clone)]
 pub struct ProjectGitignore {
-    /// `watcher.respect_gitignore` — 꺼져 있으면 다시 읽지도 않는다.
+    /// `watcher.respect_gitignore` — 꺼져 있으면 읽지도 않는다.
     enabled: bool,
-    slot: Arc<std::sync::RwLock<Option<Gitignore>>>,
+    root: Arc<PathBuf>,
+    /// 폴더 → 그 폴더의 `.gitignore` (없으면 `None`).
+    cache: Arc<std::sync::RwLock<HashMap<PathBuf, Option<Arc<Gitignore>>>>>,
 }
 
 impl ProjectGitignore {
     pub fn load(root: &Path, enabled: bool) -> Self {
-        let gi = if enabled {
-            load_project_gitignore(root)
-        } else {
-            None
-        };
         Self {
             enabled,
-            slot: Arc::new(std::sync::RwLock::new(gi)),
+            root: Arc::new(root.to_path_buf()),
+            cache: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
     }
 
@@ -185,31 +189,54 @@ impl ProjectGitignore {
         Self::load(Path::new(""), false)
     }
 
-    pub fn is_ignored(&self, abs_path: &Path) -> bool {
-        match self.slot.read() {
-            Ok(g) => g
-                .as_ref()
-                .is_some_and(|gi| gi.matched_path_or_any_parents(abs_path, false).is_ignore()),
-            Err(_) => false,
+    fn matcher_for(&self, dir: &Path) -> Option<Arc<Gitignore>> {
+        if let Ok(c) = self.cache.read() {
+            if let Some(hit) = c.get(dir) {
+                return hit.clone();
+            }
         }
+        let fresh = load_dir_gitignore(dir).map(Arc::new);
+        if let Ok(mut c) = self.cache.write() {
+            c.insert(dir.to_path_buf(), fresh.clone());
+        }
+        fresh
     }
 
-    /// 루트 `.gitignore` 가 바뀌었다 — 디스크에서 다시 읽는다 (지워졌으면 규칙 없음).
-    pub fn reload(&self, root: &Path) {
-        if !self.enabled {
-            return;
+    pub fn is_ignored(&self, abs_path: &Path) -> bool {
+        if !self.enabled || !abs_path.starts_with(self.root.as_path()) {
+            return false;
         }
-        let fresh = load_project_gitignore(root);
-        if let Ok(mut g) = self.slot.write() {
-            *g = fresh;
+        let mut dir = abs_path.parent();
+        while let Some(d) = dir {
+            if !d.starts_with(self.root.as_path()) {
+                break;
+            }
+            if let Some(gi) = self.matcher_for(d) {
+                let m = gi.matched_path_or_any_parents(abs_path, false);
+                if m.is_ignore() {
+                    return true;
+                }
+                if m.is_whitelist() {
+                    return false;
+                }
+            }
+            dir = d.parent();
+        }
+        false
+    }
+
+    /// `dir/.gitignore` 가 생기거나 · 바뀌거나 · 지워졌다 — 다음 판정 때 다시 읽는다.
+    pub fn invalidate(&self, dir: &Path) {
+        if let Ok(mut c) = self.cache.write() {
+            c.remove(dir);
         }
     }
 }
 
-/// 프로젝트의 `.gitignore` (없으면 `None`).
-pub fn load_project_gitignore(root: &Path) -> Option<Gitignore> {
-    let gi_path = root.join(".gitignore");
-    if !gi_path.exists() {
+/// 한 폴더의 `.gitignore` (없으면 `None`).
+fn load_dir_gitignore(dir: &Path) -> Option<Gitignore> {
+    let gi_path = dir.join(".gitignore");
+    if !gi_path.is_file() {
         return None;
     }
     let (gi, _err) = Gitignore::new(&gi_path);
