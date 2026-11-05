@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul (최신 v4.8.0)</title>
-<meta name="description" content="Ocul 의 전체 릴리스 노트 143개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul (최신 v4.9.0)</title>
+<meta name="description" content="Ocul 의 전체 릴리스 노트 144개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul (최신 v4.8.0)" />
-<meta property="og:description" content="Ocul 의 전체 릴리스 노트 143개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul (최신 v4.9.0)" />
+<meta property="og:description" content="Ocul 의 전체 릴리스 노트 144개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
-    <span class="nav-ver" data-version>v4.8.0</span>
+    <span class="nav-ver" data-version>v4.9.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>143개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>144개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v4-9-0">v4.9.0</a>
       <a href="#v4-8-0">v4.8.0</a>
       <a href="#v4-7-0">v4.7.0</a>
       <a href="#v4-6-0">v4.6.0</a>
@@ -60,10 +61,19 @@
       <a href="#v4-3-0">v4.3.0</a>
       <a href="#v4-2-0">v4.2.0</a>
       <a href="#v4-1-0">v4.1.0</a>
-      <a href="#v4-0-0">v4.0.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v4-9-0"><a href="#v4-9-0">v4.9.0</a></h2>
+      <div class="cl-body">
+<p><b>v4.8.0 다음 날 내는 마이너라 「마이너는 2주에 한 번」 을 건너뜁니다 — 사용자 결정(2026-11-05, 「배포까지 완료해」).</b> 확인 날 기록이 없고 눈 확인이 남아 있습니다. 코드 게이트는 PR CI 에서 통과했지만, 설치본에서 눌러 보지는 못했습니다.</p>
+<p><b>Claude 가 일하는 중이면 보낼 말을 줄 세웠다가 넣습니다.</b> 「Claude 에게 보내기」 · 변경 화면의 「Claude 에게 맡기기」 를 Claude 가 일하는 중에 누르면, 지금 하는 일 한가운데 끼어들지 않고 기다렸다가 손을 놓는 순간 넣습니다. 여러 개가 쌓였으면 한 번에 묶어서요. 권한을 묻는 중에 보내면 붙여 넣은 뒤의 Enter 가 떠 있는 선택지를 눌러 버릴 수 있던 것도 막았습니다 — 묻는 중에는 늘 줄로 갑니다. 일하는 중에 꼭 지금 넣고 싶으면 「지금 끼워 넣기」(⇧⌘↩), 줄에서 빼려면 알림의 「취소」.</p>
+<p><b>프로젝트 안에 저장소가 따로 있어도 그 <code>.gitignore</code> 를 따릅니다.</b> 프로젝트 폴더 아래에 git 저장소가 여럿 있으면(<code>project/app/.git</code>) 맨 위 <code>.gitignore</code> 만 읽어서, 각 저장소가 거르는 캐시 · 빌드 부산물까지 변경 감시가 따라다니고 비교용 사본이 DB 에 쌓였습니다(실측: 한 저장소의 사본 983장 중 976장). 이제 모든 층의 <code>.gitignore</code> 를 따르고, 앱이 뜰 때 이미 쌓인 사본을 걷습니다.</p>
+<p><b>업데이트 확인을 앱 전체에서 한 번만 합니다.</b> 창마다 따로 GitHub 에 물어서, 창을 여러 개 열면 확인이 한꺼번에 몰려 실패하곤 했습니다. 이제 한 창이 묻고 그 결과를 다른 창이 씁니다. 설정의 「업데이트 확인」 단추는 그대로 바로 묻습니다.</p>
+<p><b>앱 DB 가 조금 가벼워집니다.</b> 하는 일 없이 쓰기만 늘리던 색인 셋을 지웠습니다(약 3MB).</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v4-8-0"><a href="#v4-8-0">v4.8.0</a></h2>
       <div class="cl-body">
