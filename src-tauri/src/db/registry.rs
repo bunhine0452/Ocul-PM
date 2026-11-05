@@ -125,6 +125,11 @@ pub(super) const MIGRATIONS: &[(i64, &str)] = &[
         44,
         include_str!("../../migrations/044_drop_dead_feature_tables.sql"),
     ),
+    // 기본 키 앞부분과 똑같은 색인 셋 (쓰기만 늘리고 읽기에 안 쓰인다).
+    (
+        45,
+        include_str!("../../migrations/045_drop_redundant_indexes.sql"),
+    ),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
