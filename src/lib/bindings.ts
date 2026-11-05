@@ -725,6 +725,13 @@ export const commands = {
 	newWindow: () => typedError<null, string>(__TAURI_INVOKE("new_window")),
 	/**  이 실행 파일의 설치 형식 (업데이터의 키 선택과 같은 규칙). */
 	installKind: () => __TAURI_INVOKE<InstallKind>("install_kind"),
+	/**
+	 *  자동 확인 전에 묻는다 — `true` 면 이 창이 묻고 [`update_check_report`] 로 알린다.
+	 *  `urgent` 는 네트워크가 막 돌아왔을 때(실패 뒤 `online`).
+	 */
+	updateCheckClaim: (urgent: boolean) => __TAURI_INVOKE<boolean>("update_check_claim", { urgent }),
+	/**  확인 결과 — `none` · `found` · `failed` (설정에서 사람이 누른 확인도 알린다). */
+	updateCheckReport: (outcome: string) => __TAURI_INVOKE<void>("update_check_report", { outcome }),
 };
 
 /** Events */

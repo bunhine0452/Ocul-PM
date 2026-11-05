@@ -12,3 +12,19 @@ export const installKindApi = {
       .then(() => commands.installKind())
       .catch(() => null),
 };
+
+/**
+ * 업데이트 확인 관문 (11-05, `commands/update_gate.rs`) — 창이 여럿이어도 앱이 한 번 묻는다.
+ * 같은 업데이터 창구라 여기 둔다. 커맨드를 못 부르면(웹뷰 밖 · 낡은 다리) 예전처럼 묻는다.
+ */
+export const updateGateApi = {
+  claim: (urgent: boolean): Promise<boolean> =>
+    Promise.resolve()
+      .then(() => commands.updateCheckClaim(urgent))
+      .then((ok) => ok !== false)
+      .catch(() => true),
+  report: (outcome: "none" | "found" | "failed"): void =>
+    void Promise.resolve()
+      .then(() => commands.updateCheckReport(outcome))
+      .catch(() => {}),
+};

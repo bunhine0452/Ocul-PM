@@ -11,6 +11,9 @@ const fx = {
   checkError: null as string | null,
   /** `install_kind` 커맨드의 응답 — null 이면 커맨드가 실패한 것으로 친다. */
   install: null as null | { os: string; arch: string; bundle_type: string | null; updater_targets: string[] },
+  /** 업데이트 관문의 답 — null 이면 커맨드가 없는 것(예전처럼 묻는다). */
+  gate: null as null | boolean,
+  reports: [] as string[],
 };
 
 vi.mock("@tauri-apps/plugin-updater", () => ({
@@ -31,6 +34,8 @@ vi.mock("@/lib/bindings", async (importOriginal) => {
         }),
       openUrl: (url: string) => openUrl(url),
       oculpmLog: () => Promise.resolve(null),
+      updateCheckClaim: () => (fx.gate == null ? Promise.reject(new Error("no ipc")) : Promise.resolve(fx.gate)),
+      updateCheckReport: (o: string) => Promise.resolve(void fx.reports.push(o)),
     },
   };
 });
@@ -51,6 +56,8 @@ afterEach(() => {
   fx.update = null;
   fx.checkError = null;
   fx.install = null;
+  fx.gate = null;
+  fx.reports.length = 0;
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   // 호출 기록만 지운다 (구현은 남긴다) — 재시작 테스트가 서로의 호출 수를
@@ -204,6 +211,20 @@ describe("UpdateBanner", () => {
       window.dispatchEvent(new Event("online"));
     });
     expect(pluginCheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("다른 창이 묻는 중이면(관문 거절) 이 창은 GitHub 에 가지 않는다", async () => {
+    fx.gate = false;
+    render(<UpdateBanner />);
+    await act(async () => {});
+    await act(async () => {});
+    expect(pluginCheck).not.toHaveBeenCalled();
+  });
+
+  it("물으면 결과를 관문에 알린다 — 다른 창의 자동 확인이 쓴다", async () => {
+    fx.gate = true;
+    render(<UpdateBanner />);
+    await waitFor(() => expect(fx.reports).toEqual(["none"]));
   });
 
   it("stays hidden when there is no update", async () => {
