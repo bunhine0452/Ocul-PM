@@ -70,24 +70,23 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
 
+## 🚀 v4.9.1 — Windows: one title bar with the app, PowerShell 7 in the terminal
+
+- **The app's top bar is the title bar** — no more OS title bar stacked on top (and left white in dark mode). Minimize · maximize · close sit in the top-right corner, Windows 11 style; drag the empty space to move or snap, double-click to maximize.
+- **PowerShell 7 in the terminal** — if `pwsh` is installed it is what opens, so your PowerShell 7 profile loads (5.1 otherwise).
+- **Asks before closing a running terminal** — a session running something other than Claude (`npm run dev`) now asks before the session, window or app closes, as on macOS. Records that sometimes failed with "Access is denied" now wait instead.
+
 ## 🚀 v4.9 — Queue messages while Claude works
 
 - **Queued messages** — press "Send to Claude" · "Ask Claude" while Claude is working or asking, and the message waits, then goes in all at once the moment Claude is free. It never presses a choice in a prompt; "Send now" (⇧⌘↩) when you must, and "Cancel" on the notice takes it back.
 - **Nested repositories' `.gitignore`** — a repository inside a project now has its rules followed, so caches and build output aren't watched, and copies already stored are cleared at launch.
 - **One update check for the whole app** — with many windows open, one window asks and the rest share the answer. Three DB indexes that did nothing were dropped too.
 
-## 🚀 v4.8 — Arrange 2–6 windows, pick your app icon
-
-- **Arrange 2–6 windows** — layout buttons in the ⌘O list put your n most recent windows side by side · in thirds · in a 2×2 grid · 3+2 · 3×2. Other windows stay put; ⌥⌘T arranges up to six.
-- **Nine app icons** — Settings › Display › App icon: green · dark · light · mono · blue · violet · pink · orange · teal (macOS, Dock and Finder).
-- **The start window, redrawn** — no card, a table whose columns line up, grouped into open windows and recent.
-- **Image paths in the terminal** — a path wrapped onto the next line now previews too; click to show it in Finder (⌘-click to enlarge).
-- **The top bar in narrow windows** — it measures and folds one step at a time, so New session and Find no longer get cut off and the project name isn't crushed. The thick colour band along the top is gone.
-
 ## Earlier releases at a glance
 
 The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
 
+- **Arrange 2–6 windows, pick your app icon** (4.8) — layout buttons in the ⌘O list arrange your 2–6 most recent windows (⌥⌘T does six), nine app icons (macOS), the start window as a table whose columns line up, previews for terminal image paths that wrap, and a narrow-window top bar that measures and folds one step at a time.
 - **Switch windows with ⌥Tab, each window in its own colour** (4.7) — the ⌥Tab window switcher (a tap goes to the previous window), the whole top bar in the project colour, and a fix for uncoloured projects' dots following the current window's colour.
 - **Windows side by side, screens like a receipt** (4.6) — ⌥⌘T tiles project windows at the same width, VS Code opens per project, the project colour tints the whole window, colour only for exceptions (the "receipt" rule, DESIGN.md), and a fix for background windows showing blank.
 - **Ocul and VS Code, as a pair** (4.5) — project colours on the VS Code title bar, open an entry's changed files in VS Code, "Open in Ocul" from the extension, the Ocul VS Code extension 0.3.0 (panel · one status-bar item · a waiting notification), and finding updates as soon as you're back online (4.5.1).
