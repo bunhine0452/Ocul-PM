@@ -35,7 +35,8 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, rmSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+// `import.meta.dirname` = OS 경로 그대로. `new URL(…).pathname` 은 Windows 에서 "/C:/…" 가 되어 드라이브가 두 번 붙었다.
+const ROOT = join(import.meta.dirname, "..");
 const TARGET = join(ROOT, "src-tauri", "target");
 
 /** 세대가 쌓이는 디렉터리들 — 프로파일 디렉터리 안에서 이 이름만 훑는다. */

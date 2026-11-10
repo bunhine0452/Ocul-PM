@@ -14,7 +14,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
-const ROOT = new URL("../src", import.meta.url).pathname;
+// `import.meta.dirname` = OS 경로 그대로. `new URL(…).pathname` 은 Windows 에서 "/C:/…" 가 되어 드라이브가 두 번 붙었다.
+const ROOT = join(import.meta.dirname, "..", "src");
 
 // Files that are explicitly allowed to call `localStorage` directly.
 // Add a new entry ONLY with justification; the goal is to keep this list

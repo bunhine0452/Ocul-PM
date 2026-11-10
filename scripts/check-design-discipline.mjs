@@ -145,7 +145,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
-const SRC = new URL("../src", import.meta.url).pathname;
+// `import.meta.dirname` = OS 경로 그대로. `new URL(…).pathname` 은 Windows 에서 "/C:/…" 가 되어 드라이브가 두 번 붙었다.
+const SRC = join(import.meta.dirname, "..", "src");
 const SKIP_DIRS = new Set(["__tests__"]);
 
 /** 규칙별 예외 파일 (src 기준 상대 경로). 늘리지 말고 줄이는 방향으로만. */
@@ -367,7 +368,8 @@ function collectVars(rel, src, isCss) {
 
 const violations = [];
 for await (const file of walk(SRC)) {
-  const rel = relative(SRC, file);
+  // 허용 목록(ALLOW · VIEWPORT_MEDIA_ALLOW …)은 `/` 로 적혀 있다 — Windows 의 `styles\shell.css` 도 같은 이름으로.
+  const rel = relative(SRC, file).split("\\").join("/");
   if (rel === "lib/bindings.ts") continue;
   const raw = await readFile(file, "utf8");
   const isCss = file.endsWith(".css");

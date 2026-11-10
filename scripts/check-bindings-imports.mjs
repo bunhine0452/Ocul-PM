@@ -13,7 +13,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
-const ROOT = new URL("../src", import.meta.url).pathname;
+// `import.meta.dirname` = OS 경로 그대로. `new URL(…).pathname` 은 Windows 에서 "/C:/…" 가 되어 드라이브가 두 번 붙었다.
+const ROOT = join(import.meta.dirname, "..", "src");
 
 /** 래퍼 자신과, 아직 옮기지 않은 직접 호출자. */
 export const ALLOWLIST = new Set([

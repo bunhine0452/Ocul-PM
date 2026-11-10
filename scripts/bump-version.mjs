@@ -29,8 +29,10 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { join, sep } from "node:path";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+// `import.meta.dirname` = OS 경로 그대로. `new URL(…).pathname` 은 Windows 에서 "/C:/…" 가 되어 드라이브가 두 번 붙었다.
+const ROOT = join(import.meta.dirname, "..") + sep;
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
 

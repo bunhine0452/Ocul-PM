@@ -29,7 +29,8 @@ import { fileURLToPath } from "node:url";
 // 테스트가 모양을 순서까지 못박을 수 있게 (#ratchet-policy).
 import { MAX_LINES, GOVERNED, EXCLUDED, isGoverned } from "./file-size-policy.mjs";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+// `import.meta.dirname` = OS 경로 그대로. `new URL(…).pathname` 은 Windows 에서 "/C:/…" 가 되어 드라이브가 두 번 붙었다.
+const ROOT = join(import.meta.dirname, "..");
 
 // 정책을 여기서도 다시 내보낸다 — 이 스크립트를 물고 있던 기존 테스트
 // (`src/__tests__/file_size_ratchet.test.ts`)의 import 를 깨지 않는다.
