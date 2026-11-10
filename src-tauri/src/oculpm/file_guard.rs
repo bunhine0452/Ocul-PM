@@ -600,7 +600,11 @@ mod tests {
             .create_new(true)
             .open(&path)
             .unwrap_err();
-        assert_eq!(raw.kind(), ErrorKind::PermissionDenied, "OS 의 모양: {raw:?}");
+        assert_eq!(
+            raw.kind(),
+            ErrorKind::PermissionDenied,
+            "OS 의 모양: {raw:?}"
+        );
 
         let releaser = std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(80));

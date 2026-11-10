@@ -186,7 +186,10 @@ fn shell_command() -> (CommandBuilder, String) {
     {
         match find_pwsh(std::env::var_os("PATH").as_deref()) {
             Some(pwsh) => (CommandBuilder::new(pwsh), "pwsh".to_string()),
-            None => (CommandBuilder::new("powershell.exe"), "powershell".to_string()),
+            None => (
+                CommandBuilder::new("powershell.exe"),
+                "powershell".to_string(),
+            ),
         }
     }
     #[cfg(not(windows))]

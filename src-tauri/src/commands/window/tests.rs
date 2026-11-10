@@ -373,10 +373,21 @@ fn first_window_config_matches_spawned_windows() {
         let w = &windows[0];
         assert_eq!(w["width"].as_f64(), Some(WINDOW_W), "{name} width");
         assert_eq!(w["height"].as_f64(), Some(WINDOW_H), "{name} height");
-        assert_eq!(w["minWidth"].as_f64(), Some(WINDOW_MIN_W), "{name} minWidth");
-        assert_eq!(w["minHeight"].as_f64(), Some(WINDOW_MIN_H), "{name} minHeight");
+        assert_eq!(
+            w["minWidth"].as_f64(),
+            Some(WINDOW_MIN_W),
+            "{name} minWidth"
+        );
+        assert_eq!(
+            w["minHeight"].as_f64(),
+            Some(WINDOW_MIN_H),
+            "{name} minHeight"
+        );
         // 라벨을 적지 않으면 첫 창은 `main` — 레지스트리가 그 이름으로 편입한다.
-        assert!(w.get("label").is_none(), "{name}: 첫 창 라벨은 {FIRST_WINDOW}");
+        assert!(
+            w.get("label").is_none(),
+            "{name}: 첫 창 라벨은 {FIRST_WINDOW}"
+        );
     }
     let win = read_conf("tauri.windows.conf.json");
     assert_eq!(
@@ -399,6 +410,9 @@ fn caption_permissions_are_windows_only() {
         "core:window:allow-toggle-maximize",
         "core:window:allow-set-theme",
     ] {
-        assert!(!granted.contains(p), "{p} 는 default.json(모든 OS)이 아니라 windows-caption.json 에");
+        assert!(
+            !granted.contains(p),
+            "{p} 는 default.json(모든 OS)이 아니라 windows-caption.json 에"
+        );
     }
 }

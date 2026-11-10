@@ -390,9 +390,17 @@ fn windows_busy_counts_running_programs_not_idle_shells() {
     while std::time::Instant::now() < settle && sessions.busy_all().busy > 0 {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
-    assert_eq!(sessions.busy_all(), TermBusy::default(), "빈 셸은 묻지 않는다");
-    sessions.write(claude.id, "ping -n 8 127.0.0.1 >nul\r").unwrap();
-    sessions.write(other.id, "ping -n 8 127.0.0.1 >nul\r").unwrap();
+    assert_eq!(
+        sessions.busy_all(),
+        TermBusy::default(),
+        "빈 셸은 묻지 않는다"
+    );
+    sessions
+        .write(claude.id, "ping -n 8 127.0.0.1 >nul\r")
+        .unwrap();
+    sessions
+        .write(other.id, "ping -n 8 127.0.0.1 >nul\r")
+        .unwrap();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     while std::time::Instant::now() < deadline && sessions.busy_all().busy < 2 {
         std::thread::sleep(std::time::Duration::from_millis(100));
