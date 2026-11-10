@@ -61,7 +61,17 @@ yanked = "warn"
 # (심링크 대상 버퍼를 선언된 크기로 잡아 거대 할당)가 더해져 게이트가 붉었고, 같은 날
 # tauri-plugin-updater 2.14.1 이 zip ^9 로 올라 `cargo update -p tauri-plugin-updater`
 # 한 줄로 넷 다 닫았다(zip 9.2.2). 해제 조건이 채워져 ignore 를 비운다.
-ignore = []
+ignore = [
+  # RUSTSEC-2026-0459 — libsqlite3-sys 0.38.2(번들 SQLite 3.53.x, CVE-2026-119375). DB 와 페이지 크기가
+  # 다른 `-wal` 을 함께 열면 초기화 안 된 페이지 캐시가 읽힌다 — 피해자가 그 두 파일을 열어야 하는 로컬 공격.
+  # 우리에게 닿지 않는 이유: 앱 · oculpm-mcp 가 여는 SQLite 는 사용자 앱 데이터 폴더의 `ocul-pm.db` 하나뿐이고
+  # (db/startup.rs · commands/config.rs · oculpm/journal_search/cache.rs) 그 파일은 앱만 쓴다. 저장소의
+  # `.oculpm/` 나 프로젝트 안의 `.db` 는 열지 않으므로, 남의 저장소를 열어도 조작된 DB · WAL 짝을 건넬 길이 없다.
+  # 못 올리는 이유: 고친 판은 rusqlite 0.41(libsqlite3-sys 0.39, SQLite 3.54)인데 tokio-rusqlite 최신 0.8.0 이
+  # rusqlite ^0.40.1 을 문다(2026-11-10 확인).
+  # 해제 조건: tokio-rusqlite 가 rusqlite ≥0.41 을 받으면(또는 그것을 걷으면) 올리고 이 줄을 지운다.
+  { id = "RUSTSEC-2026-0459", reason = "앱 데이터 폴더의 자기 DB 하나만 연다 — tokio-rusqlite 가 rusqlite 0.41 을 받으면 올리고 지운다" },
+]
 
 # ─────────────────────────────────────────────────────────────────────────────
 [licenses]
