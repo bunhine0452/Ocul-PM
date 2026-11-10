@@ -95,6 +95,13 @@ owner: claude-code
 - [x] **출시 차단 (실측 확정)** — 결정 2026-09-25: 설치 파일이 없을 때만 VC++ 자동 설치 + Windows 10 2004 미만 차단(L-PKG 후속 구현 중). Windows 릴리스 exe 가 `MSVCP140.dll`(C++ 런타임, ONNX Runtime 유래 추정)을 가져오면 VC++ 재배포 없는 PC 에서 앱이 안 뜬다. 러너엔 깔려 있어 설치 스모크가 못 잡는다 — L-PKG 가 dumpbin 으로 확인 중. 앱 옆 DLL 배포는 호스트 복사본을 깨므로 피할 것 (L-PTY2 발견) {#win-msvcp140}
 - [x] Windows 경로 후속 둘 — deepLinkPlan.resolveRegisteredProject 가 끝의 `/` 만 떼서 `\`·대소문자가 다르면 등록 프로젝트를 못 찾는다, homeModel 의 `~` 줄임이 `C:\Users\x` 를 모른다 (L-UI2 발견) {#ui-winpath-followups}
 - [x] Windows·Linux 에서 `directories::ProjectDirs` 경로가 Tauri `app_data_dir` 과 갈린다 — `ocul-pm config` CLI 가 GUI 와 **다른 DB** 를 열고 oculpm.log 가 ptyhost.log 와 다른 폴더에 쌓인다(lib.rs setup_logging · config/cli.rs open_db). macOS 는 같은 경로라 불변 (L-PTY2 발견) {#paths-projectdirs-mismatch}
+- [x] Windows 창: OS 제목줄 대신 셸 윗줄이 제목줄 — 최소화·최대화·닫기를 앱이 그린다 (11-10 사용자 요청, #ui-chrome 뒤집음) {#win-app-titlebar}
+- [x] Windows 에서 lint 스크립트 일곱이 뿌리를 `URL.pathname` 으로 만들어 `C:\C:\…` 로 깨진다 — pnpm lint 가 첫 관문에서 멈춘다 {#win-lint-paths}
+- [x] 앱 터미널이 Windows PowerShell 5.1(`powershell.exe`)만 띄워 PowerShell 7 사용자의 프로필이 안 읽힌다 — PATH 의 `pwsh.exe` 우선 (11-10 사용자 지적) {#win-term-pwsh}
+- [x] Windows 의 터미널 「도는 중」 이 claude 만 센다 — `npm run dev` 가 도는 창도 묻지 않고 닫힌다. 셸의 자식 프로세스로 판정 {#win-term-busy}
+- [x] 어두운 테마인데 Windows 창의 1px 위 테두리(#F3F3F3)와 시작 창 스크롤바가 밝다 — 창 테마 연동 · 시작 창 color-scheme {#win-chrome-theme}
+- [x] `pnpm tauri:log` 가 셸 문법이라 Windows(cmd.exe)에서 깨진다 — Node 스크립트로 {#win-tauri-log}
+- [x] portability 「Rust — windows-latest」 가 4.8 부터 붉다 — 잠금 파일 「삭제 대기」 의 접근 거부(os 5)를 기다리지 않고 오류로 끝내던 결함 · editor_choice 기댓값의 `/` {#win-lock-access-denied}
 
 ## W3 — 패키징 · E2E (W2 합류 뒤, 병렬 2) {#w3}
 - [x] tauri.windows.conf.json·tauri.linux.conf.json 분리 — tauri.conf.json(macOS) 불변 (D3) {#w3-conf}
@@ -174,5 +181,12 @@ owner: claude-code
 | 2026-09-29T03:41:19+09:00 | #integ-win-plugin-mcp | claude-code | ☐→x |  | 결정(2026-09-28 위임): 앱의 「MCP 서버」 등록(절대경로 .exe) 유지, 플러그인 1개 원칙 — 플러그인 저장소 무서명 exe 안은 공급망 위험으로 기각. README 설치 절·앱 안내 문구 일치 |
 | 2026-09-29T06:05:55+09:00 | #w4-surfaces | claude-code | ☐→x | journal/20260929/Features_to_add/0605_feature_release-v3-6-0-windows-linux-beta.md | v3.6.0 공개(run 36477736356 전 잡 success) — 자산 10·키 5, 랜딩 oculpm.com v3.6.0 |
 | 2026-10-01T18:27:21+09:00 | #fs-mac-rename-old-name | claude-code | ☐→x | .oculpm/journal/20261001/Bugs/1827_bug_fsevents-sticky-created-flag.md | StaleFlagFilter(macOS 만) — 사라진 경로의 Create·내용 Modify 를 디바운서 앞에서 버림. 지우기도 Update 로 찍히던 것 함께. CRLF 발췌는 9c8d9280 이 이미 고침 |
+| 2026-11-10T18:03:00+09:00 | #win-app-titlebar | claude-code | →x | .oculpm/journal/20261110/Features_to_add/1801_feature_windows-app-title-bar.md | 판정 ✓ pnpm test 1081 passed · cargo test --lib commands::window 36 passed · typecheck/lint/build 0. 실기기 Windows 11 150%: 최대화=작업 영역 · 복원 · ✕ 종료 확인, 호버·끌기는 사용자 눈 |
+| 2026-11-10T18:03:00+09:00 | #win-lint-paths | claude-code | →x | .oculpm/journal/20261110/Bugs/1802_bug_lint-scripts-windows-paths.md | 판정 ✓ pnpm lint 6관문 ✓ exit 0 (Windows) · 스크립트 import 테스트 4 files 66 passed |
+| 2026-11-10T19:21:00+09:00 | #win-term-pwsh | claude-code | →x | .oculpm/journal/20261110/Bugs/1917_bug_terminal-pwsh-on-windows.md | 판정 ✓ cargo test --lib terminal:: 7 passed. 실기기: PowerShell 7.6.9 + 프로필 로드(starship) |
+| 2026-11-10T19:21:00+09:00 | #win-term-busy | claude-code | →x | .oculpm/journal/20261110/Bugs/1918_bug_windows-terminal-busy-children.md | 판정 ✓ ConPTY 테스트 TermBusy { busy: 2, claude: 1 } · clippy -D warnings 0. 실기기 빈 pwsh 창은 묻지 않고 닫힘 |
+| 2026-11-10T19:21:00+09:00 | #win-chrome-theme | claude-code | →x | .oculpm/journal/20261110/Bugs/1919_bug_windows-native-chrome-theme.md | 판정 ✓ pnpm test 1085 passed. 실기기 윗줄 #F3F3F3→#202020, 시작 창 스크롤바 #FCFCFC→#2C2C2C |
+| 2026-11-10T19:21:00+09:00 | #win-tauri-log | claude-code | →x | .oculpm/journal/20261110/Chores/1920_chore_tauri-log-node-script.md | 판정 ✓ pnpm tauri:log --help exit 0, %TEMP% 로그에 쌓임. macOS 미실행 |
+| 2026-11-10T19:58:00+09:00 | #win-lock-access-denied | claude-code | →x | .oculpm/journal/20261110/Bugs/1948_bug_windows-rust-ci-red-tests.md | 판정 ✓ cargo test --no-fail-fast (Windows 11) 35 binaries · 1115 passed · 0 failed |
 <!-- oculpm:plan-log archived: 62 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
