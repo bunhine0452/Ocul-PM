@@ -318,3 +318,85 @@ fn busy_all_counts_every_window_and_only_claude_sessions_are_resumable() {
         "한 번만 가져간다"
     );
 }
+
+/// Windows 의 셸 고르기 — PATH 에서 먼저 잡히는 `pwsh.exe`, 없으면 `None`(→ `powershell.exe`).
+/// 디렉터리 순서가 우선순위이고, 상대 PATH 항목은 보지 않는다.
+#[test]
+fn pwsh_is_found_on_path_in_order_and_only_in_absolute_dirs() {
+    let root = tempfile::tempdir().unwrap();
+    let empty = root.path().join("empty");
+    let first = root.path().join("first");
+    let second = root.path().join("second");
+    for dir in [&empty, &first, &second] {
+        std::fs::create_dir_all(dir).unwrap();
+    }
+    std::fs::write(first.join("pwsh.exe"), b"").unwrap();
+    std::fs::write(second.join("pwsh.exe"), b"").unwrap();
+
+    let path = std::env::join_paths([&empty, &second, &first]).unwrap();
+    assert_eq!(find_pwsh(Some(&path)), Some(second.join("pwsh.exe")));
+
+    let none = std::env::join_paths([&empty]).unwrap();
+    assert_eq!(find_pwsh(Some(&none)), None);
+    assert_eq!(find_pwsh(None), None);
+
+    // 상대 항목(`first` 를 상대 경로로) — 작업 폴더에 따라 뜻이 바뀌므로 건너뛴다.
+    let relative = std::env::join_paths([std::path::Path::new("first")]).unwrap();
+    assert_eq!(find_pwsh(Some(&relative)), None);
+}
+
+/// Windows 의 자식 프로세스 탐침 — 띄운 자식이 있으면 참, 자식 없는 프로세스는 거짓.
+/// 콘솔 프로그램이 자식으로 두는 콘솔 호스트는 세지 않는다(그래서 ping 은 거짓이다).
+#[cfg(windows)]
+#[test]
+fn windows_child_probe_sees_children_but_not_console_hosts() {
+    let mut ping = crate::proc::std_cmd("ping")
+        .args(["-n", "6", "127.0.0.1"])
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    assert_eq!(has_child_process(std::process::id()), Some(true));
+    assert_eq!(has_child_process(ping.id()), Some(false));
+    let _ = ping.kill();
+    let _ = ping.wait();
+}
+
+/// 위 unix 판의 Windows 짝 — 실제 의사 콘솔(ConPTY)의 cmd. 빈 셸은 「도는 중」 이 아니고, 무언가 띄운
+/// 셸은 claude 든 아니든 「도는 중」 이다(예전 Windows 는 상태 신호를 보낸 claude 만 셌다).
+#[cfg(windows)]
+#[test]
+fn windows_busy_counts_running_programs_not_idle_shells() {
+    let sessions = TermSessions::default();
+    let open = |label: &str| {
+        let mut cmd = CommandBuilder::new("cmd.exe");
+        cmd.args(["/d", "/q"]);
+        let spec = OpenSpec {
+            window: "main".into(),
+            project_id: 4,
+            cwd: std::env::temp_dir(),
+            cols: 80,
+            rows: 24,
+            prompt: None,
+            lane: None,
+            resume: false,
+        };
+        sessions.start(spec, cmd, label.into(), |_| {}).unwrap()
+    };
+    let claude = open("claude");
+    let other = open("cmd");
+    let _idle = open("cmd");
+    let settle = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    // 셸이 뜨는 동안의 순간(초기화 자식)을 지나 빈 셸 셋이 모두 쉬는 것을 본다.
+    while std::time::Instant::now() < settle && sessions.busy_all().busy > 0 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert_eq!(sessions.busy_all(), TermBusy::default(), "빈 셸은 묻지 않는다");
+    sessions.write(claude.id, "ping -n 8 127.0.0.1 >nul\r").unwrap();
+    sessions.write(other.id, "ping -n 8 127.0.0.1 >nul\r").unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline && sessions.busy_all().busy < 2 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert_eq!(sessions.busy_all(), TermBusy { busy: 2, claude: 1 });
+    sessions.close_all();
+}

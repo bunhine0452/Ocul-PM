@@ -116,7 +116,9 @@ struct Session {
 impl Session {
     /// 셸 위에서 무언가가 도는가 — 터미널의 포그라운드 프로세스 그룹이 셸이 아니면 그렇다(macOS
     /// 터미널이 닫기 전에 묻는 기준). 빈 셸까지 세면 터미널 탭을 한 번 연 창은 닫을 때마다 물었다.
-    /// 그룹을 물을 수 없는 OS 는 상태 신호를 보낸 프로그램(claude)이 있을 때만.
+    /// Windows 에는 프로세스 그룹이 없다 — 셸에게 자식 프로세스가 있으면 도는 것이다(2026-11-10. 그전엔
+    /// 상태 신호를 보낸 claude 만 세어, `npm run dev` 가 도는 창도 묻지 않고 닫혔다). 그것도 물을 수 없으면
+    /// 상태 신호를 보낸 프로그램(claude)이 있을 때만.
     fn busy(&self) -> bool {
         if !self.info.alive {
             return false;
@@ -126,6 +128,10 @@ impl Session {
             (self.master.process_group_leader(), self.child.process_id())
         {
             return fg as u32 != shell;
+        }
+        #[cfg(windows)]
+        if let Some(running) = self.child.process_id().and_then(has_child_process) {
+            return running;
         }
         self.info.status.is_some()
     }
@@ -178,8 +184,10 @@ fn size(cols: u16, rows: u16) -> PtySize {
 fn shell_command() -> (CommandBuilder, String) {
     #[cfg(windows)]
     {
-        let cmd = CommandBuilder::new("powershell.exe");
-        (cmd, "powershell".to_string())
+        match find_pwsh(std::env::var_os("PATH").as_deref()) {
+            Some(pwsh) => (CommandBuilder::new(pwsh), "pwsh".to_string()),
+            None => (CommandBuilder::new("powershell.exe"), "powershell".to_string()),
+        }
     }
     #[cfg(not(windows))]
     {
@@ -199,6 +207,63 @@ fn shell_command() -> (CommandBuilder, String) {
         let mut cmd = CommandBuilder::new(&shell);
         cmd.arg("-l");
         (cmd, name)
+    }
+}
+
+/// Windows 의 셸은 PowerShell 7(`pwsh.exe`)이 PATH 에 있으면 그것이다 (2026-11-10).
+///
+/// 예전에는 늘 `powershell.exe`(Windows PowerShell 5.1, OS 기본)였다. PowerShell 7 을 쓰는 사람의 프로필
+/// (fnm · starship · zoxide …)은 `Documents\PowerShell\` 에 있고 5.1 은 `Documents\WindowsPowerShell\` 을
+/// 읽는다 — 앱 터미널만 설정이 하나도 없는 맨 셸로 떴다(사용자 지적). Windows Terminal 도 pwsh 가 있으면
+/// 그것을 기본 프로필로 만든다. 없으면 5.1 그대로라 예전과 같다.
+///
+/// 디렉터리 순서가 곧 우선순위다(셸이 찾는 순서). Store 판 pwsh 는 `WindowsApps` 의 앱 실행 별칭인데,
+/// Rust 의 `is_file()` 은 그것도 파일로 본다(이 PC 에서 직접 확인) — CreateProcess 도 그대로 띄운다.
+/// 상대 PATH 항목은 작업 폴더에 따라 뜻이 바뀌므로 건너뛴다(`proc.rs` 와 같은 규칙).
+#[cfg(any(windows, test))]
+fn find_pwsh(path_var: Option<&std::ffi::OsStr>) -> Option<PathBuf> {
+    std::env::split_paths(path_var?)
+        .filter(|dir| dir.is_absolute())
+        .map(|dir| dir.join("pwsh.exe"))
+        .find(|candidate| candidate.is_file())
+}
+
+/// Windows — 이 pid 를 부모로 둔 프로세스가 있나. 스냅숏을 못 뜨면 `None`.
+///
+/// 콘솔 호스트(`conhost.exe` · `OpenConsole.exe`)는 세지 않는다 — 자기 콘솔을 만든 콘솔 프로그램은 그것을
+/// 자식으로 둔다. PTY 의 셸은 앱이 띄운 의사 콘솔에 붙어 있어 보통 없지만, 하나라도 끼면 빈 셸이 늘
+/// 「도는 중」 이 되어 닫을 때마다 묻는다. pid 재사용은 보지 않는다 — 셸이 살아 있으니 그 pid 는 셸 것이다.
+#[cfg(windows)]
+fn has_child_process(parent: u32) -> Option<bool> {
+    use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+        TH32CS_SNAPPROCESS,
+    };
+    const HOSTS: [&str; 2] = ["conhost.exe", "openconsole.exe"];
+    // SAFETY: 스냅숏 핸들은 이 함수 안에서만 쓰고 닫는다. 항목 구조체는 dwSize 를 채워 넘긴다.
+    unsafe {
+        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snap == INVALID_HANDLE_VALUE {
+            return None;
+        }
+        let mut entry: PROCESSENTRY32W = std::mem::zeroed();
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+        let mut found = false;
+        let mut more = Process32FirstW(snap, &mut entry) != 0;
+        while more {
+            if entry.th32ParentProcessID == parent && entry.th32ProcessID != parent {
+                let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(0);
+                let name = String::from_utf16_lossy(&entry.szExeFile[..len]).to_ascii_lowercase();
+                if !HOSTS.contains(&name.as_str()) {
+                    found = true;
+                    break;
+                }
+            }
+            more = Process32NextW(snap, &mut entry) != 0;
+        }
+        CloseHandle(snap);
+        Some(found)
     }
 }
 

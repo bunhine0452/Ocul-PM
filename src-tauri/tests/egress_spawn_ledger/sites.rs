@@ -44,9 +44,16 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
     Launch {
         path: "terminal.rs",
         func: "shell_command",
+        call: "CommandBuilder::new(pwsh)",
+        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 쳐 넣는 claude 한 줄"),
+        reason: "Windows — 위와 같다. PATH 에 PowerShell 7(`pwsh.exe`)이 있으면 그 전체 경로로 띄운다(사용자의 PowerShell 7 프로필이 읽히게, 2026-11-10). 앱이 치는 것은 `claude $env:OCULPM_PROMPT` 한 줄뿐.",
+    },
+    Launch {
+        path: "terminal.rs",
+        func: "shell_command",
         call: "CommandBuilder::new(\"powershell.exe\")",
         reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 쳐 넣는 claude 한 줄"),
-        reason: "Windows — 위와 같다(PowerShell, `claude $env:OCULPM_PROMPT`).",
+        reason: "Windows — 위와 같다(pwsh 가 없을 때의 Windows PowerShell 5.1, `claude $env:OCULPM_PROMPT`).",
     },
     // ── 창구 ──
     Launch {
@@ -222,6 +229,16 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
             "busy_all_counts_every_window_and_only_claude_sessions_are_resumable",
             "CommandBuilder::new(\"/bin/sh\")",
         )],
+    ),
+    (
+        "terminal_tests.rs",
+        "위의 Windows 짝 — 의사 콘솔(ConPTY)의 cmd 세 개에서 빈 셸은 안 세고, `ping 127.0.0.1` 을 띄운 셸은 도는 세션 · claude 세션으로 세는지 본다. 루프백만 — 기기 밖에 닿지 않는다.",
+        &[("windows_busy_counts_running_programs_not_idle_shells", "CommandBuilder::new(\"cmd.exe\")")],
+    ),
+    (
+        "terminal_tests.rs",
+        "Windows 자식 프로세스 탐침 — `ping -n 6 127.0.0.1` 을 자식으로 띄워 「자식 있음」, ping 자신은 콘솔 호스트만 있어 「없음」 인지 본다. 루프백만 — 기기 밖에 닿지 않는다.",
+        &[("windows_child_probe_sees_children_but_not_console_hosts", "std_cmd(\"ping\")")],
     ),
     (
         "git/safe.rs",
