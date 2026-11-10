@@ -105,7 +105,7 @@ pub(super) async fn spawn_window(
     let builder =
         WebviewWindowBuilder::new(app, label, WebviewUrl::App(window_url(label, nav).into()))
             .title(title);
-    // 제목 숨김은 macOS 전용 빌더 메서드다 (오버레이 타이틀바와 짝). 비-mac 은 OS 의
+    // 제목 숨김은 macOS 전용 빌더 메서드다 (오버레이 타이틀바와 짝). Linux 는 OS 의
     // 네이티브 제목줄 그대로 — 제목(프로젝트 이름)이 보인다. 신호등은 셸의 윗줄(44px)
     // 가운데에 — 첫 창은 tauri.conf.json 의 `trafficLightPosition` 이 같은 값을 준다.
     #[cfg(target_os = "macos")]
@@ -115,6 +115,11 @@ pub(super) async fn spawn_window(
             TRAFFIC_LIGHT_X,
             TRAFFIC_LIGHT_Y,
         ));
+    // Windows 는 제목줄이 없는 창이다 (2026-11-10) — 셸 윗줄이 제목줄이고 최소화 · 최대화 · 닫기는
+    // 프런트가 그린다(`windows/CaptionButtons.tsx`). 그림자는 켠 채(기본값)라 테두리 1px · 윈도우 11 의
+    // 둥근 모서리 · 가장자리 크기 조절이 남는다. 첫 창은 `tauri.windows.conf.json` 이 같은 값을 준다.
+    #[cfg(target_os = "windows")]
+    let builder = builder.decorations(false);
     let builder = builder
         .inner_size(WINDOW_W, WINDOW_H)
         .min_inner_size(WINDOW_MIN_W, WINDOW_MIN_H)

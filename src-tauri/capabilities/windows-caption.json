@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "windows-caption",
+  "description": "Windows window chrome — the window has no OS title bar (decorations: false), so the app draws minimize · maximize/restore and tells the native window its light/dark theme (the 1px top edge and the system menu are drawn by the OS in the window's theme). Close goes through the close_window command (its CloseRequested guard asks about running terminal sessions). macOS keeps the OS traffic lights and Linux the native bar, so neither gets these.",
+  "platforms": ["windows"],
+  "windows": ["main", "win-*"],
+  "permissions": [
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-set-theme"
+  ]
+}

@@ -6,6 +6,8 @@
  * 않는다 — `lint:bindings` 가 그 규율을 지킨다.
  */
 
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
 import { call, subscribe, subscribeHere } from "@/api/invoke";
 import { commands, events, type ProjectAttention, type WindowProjectChanged } from "@/lib/bindings";
 
@@ -55,8 +57,25 @@ export const windowApi = {
    */
   tile: (count?: number) => call<number>("tile_app_windows", commands.tileAppWindows(count ?? null)),
 
-  /** 이 창을 닫는다 — Windows·Linux 의 Ctrl+W (맥은 앱 메뉴의 ⌘W). */
+  /**
+   * 이 창을 닫는다 — Windows·Linux 의 Ctrl+W (맥은 앱 메뉴의 ⌘W), Windows 제목줄의 ✕.
+   * 닫힘 훅(`CloseRequested`)을 지나므로 도는 터미널 세션이 있으면 먼저 묻는다.
+   */
   closeThisWindow: () => call<null>("close_window", commands.closeWindow()),
+
+  // Windows 제목줄 단추 (`windows/CaptionButtons.tsx`) — 백엔드 커맨드가 아니라 Tauri 의 창 API 다.
+  // 권한은 `capabilities/windows-caption.json`(Windows 만). `async` 라 웹뷰 밖(테스트 · 브라우저
+  // 미리보기)에서 `getCurrentWindow()` 가 던지는 것도 거절된 Promise 로 온다 — 부르는 쪽이 삼킨다.
+  /** 이 창을 작업 표시줄로 내린다. */
+  minimize: async () => getCurrentWindow().minimize(),
+  /** 최대화 ↔ 이전 크기. */
+  toggleMaximize: async () => getCurrentWindow().toggleMaximize(),
+  /** 지금 최대화돼 있나 — 단추 모양(□ ↔ ❐)이 따른다. */
+  isMaximized: async () => getCurrentWindow().isMaximized(),
+  /** 창 크기가 바뀌었다 — 최대화 · 복원 · 스냅 · 가장자리 끌기 모두 여기로 온다. */
+  onResized: async (cb: () => void) => getCurrentWindow().onResized(() => cb()),
+  /** 네이티브 창의 테마 — `null` 이면 OS 를 따른다 (`features/theme/apply.ts` `windowThemeFor`). */
+  setTheme: async (theme: "light" | "dark" | null) => getCurrentWindow().setTheme(theme),
 
   /**
    * 새 시작 창 — macOS 앱 메뉴의 「새 창」과 같은 생성 함수다

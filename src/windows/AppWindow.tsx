@@ -20,6 +20,7 @@ import { ShortcutCheatsheet } from "@/components/ShortcutCheatsheet";
 import { TourHost } from "@/features/tour/TourHost";
 import { StartWindow } from "@/features/start/StartWindow";
 import ProjectWindow from "@/windows/ProjectWindow";
+import { CaptionButtons } from "@/windows/CaptionButtons";
 
 import { projectsApi } from "@/api/projects";
 import { windowApi } from "@/api/window";
@@ -135,6 +136,8 @@ export default function AppWindow({
       <UpdateBanner />
       <ShortcutCheatsheet />
       <TourHost />
+      {/* Windows 창 단추 — 오류 경계 밖이라 화면이 깨진 창에도 닫기가 남는다 (macOS 는 OS 의 신호등). */}
+      <CaptionButtons />
     </div>
   );
 }

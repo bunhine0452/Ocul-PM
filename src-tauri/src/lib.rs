@@ -559,7 +559,18 @@ pub fn run() {
         // `oculpm://` — 웹에서 앱으로 오는 유일한 길. 플러그인은 URL 을
         // 나르기만 하고, 무엇을 할지는 확인 시트가 정한다 (무확인 실행 0).
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        // 창 위치 · 크기 · 최대화는 기억하되 **제목줄 유무는 기억하지 않는다** — 기본값(`StateFlags::all`)은
+        // 저장된 `decorated` 를 창이 뜰 때 되살린다. Windows 창은 4.9 까지 OS 제목줄이 있었으므로 그 값이
+        // `true` 로 남아 있고, 되살리면 앱이 그린 제목줄 위에 OS 제목줄이 한 번 더 선다. 제목줄은 OS 마다
+        // 코드가 정한다(`tauri.windows.conf.json` · `window/lifecycle.rs`) — 사용자가 바꾸는 상태가 아니다.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::all()
+                        & !tauri_plugin_window_state::StateFlags::DECORATIONS,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())

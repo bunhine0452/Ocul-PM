@@ -1,4 +1,17 @@
 {
+  "app": {
+    "windows": [
+      {
+        "title": "Ocul",
+        "width": 1150,
+        "height": 780,
+        "minWidth": 480,
+        "minHeight": 520,
+        "decorations": false,
+        "transparent": false
+      }
+    ]
+  },
   "bundle": {
     "targets": ["nsis"],
     "windows": {

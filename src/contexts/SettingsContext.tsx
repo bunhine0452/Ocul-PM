@@ -12,7 +12,9 @@ import {
   keyForField,
   serialize,
 } from "@/lib/settings";
-import { applyThemeAttrs, followsSystem, resolveThemeAttrs } from "@/features/theme/apply";
+import { applyThemeAttrs, followsSystem, resolveThemeAttrs, windowThemeFor } from "@/features/theme/apply";
+import { windowApi } from "@/api/window";
+import { drawsCaptionButtons } from "@/lib/platform";
 import { accentFor, projectAccent } from "@/features/theme/projectAccent";
 import { applyProjectTint } from "@/features/theme/projectTint";
 
@@ -153,6 +155,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, [loaded, settings.theme, settings.colorTheme, projectColor]);
+
+  // Windows — 네이티브 창(제목줄 없는 창의 1px 위 테두리 · 시스템 메뉴)도 같은 테마로 (2026-11-10).
+  // 「시스템」 은 `null` 이라 창이 OS 를 따르고, 웹뷰의 prefers-color-scheme 도 OS 값으로 돌아온다 —
+  // 위 효과의 matchMedia 구독이 그 변화를 받아 다시 칠한다. macOS 는 건드리지 않는다(D3).
+  useEffect(() => {
+    if (!loaded || !drawsCaptionButtons()) return;
+    void windowApi.setTheme(windowThemeFor(settings.theme)).catch(() => {});
+  }, [loaded, settings.theme]);
 
   // App-wide UI scale: native webview zoom (like browser ⌘+/−). Unlike CSS
   // `zoom`, this reflows the page natively, so pixel-measuring components

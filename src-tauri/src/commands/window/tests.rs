@@ -354,3 +354,51 @@ fn recent_projects_follow_focus_order() {
     reg.remove("win-3");
     assert_eq!(reg.recent_projects(), vec![5, 3]);
 }
+
+fn read_conf(name: &str) -> serde_json::Value {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(name);
+    let raw = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{name}: {e}"));
+    serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{name}: {e}"))
+}
+
+/// 첫 창은 설정 파일이, 나머지 창은 `spawn_window` 가 띄운다 — 크기가 어긋나면 첫 창만 다른 크기로
+/// 뜬다. Windows 는 첫 창을 `tauri.windows.conf.json` 이 통째로 다시 적고(병합 패치는 배열을 갈아
+/// 끼운다) 거기서 제목줄을 끈다 — 빠지면 첫 창에만 OS 제목줄이 앱이 그린 제목줄 위에 한 번 더 선다.
+#[test]
+fn first_window_config_matches_spawned_windows() {
+    for name in ["tauri.conf.json", "tauri.windows.conf.json"] {
+        let conf = read_conf(name);
+        let windows = conf["app"]["windows"].as_array().expect("app.windows");
+        assert_eq!(windows.len(), 1, "{name}: 첫 창은 하나");
+        let w = &windows[0];
+        assert_eq!(w["width"].as_f64(), Some(WINDOW_W), "{name} width");
+        assert_eq!(w["height"].as_f64(), Some(WINDOW_H), "{name} height");
+        assert_eq!(w["minWidth"].as_f64(), Some(WINDOW_MIN_W), "{name} minWidth");
+        assert_eq!(w["minHeight"].as_f64(), Some(WINDOW_MIN_H), "{name} minHeight");
+        // 라벨을 적지 않으면 첫 창은 `main` — 레지스트리가 그 이름으로 편입한다.
+        assert!(w.get("label").is_none(), "{name}: 첫 창 라벨은 {FIRST_WINDOW}");
+    }
+    let win = read_conf("tauri.windows.conf.json");
+    assert_eq!(
+        win["app"]["windows"][0]["decorations"],
+        serde_json::json!(false),
+        "Windows 첫 창은 제목줄 없이"
+    );
+}
+
+/// 창 단추의 최소화 · 최대화와 창 테마 권한은 Windows 에만 연다 — macOS 는 OS 신호등, Linux 는
+/// 네이티브 제목줄이라 그 OS 의 웹뷰가 창을 내리고 키우거나 창 테마를 바꿀 일이 없다.
+#[test]
+fn caption_permissions_are_windows_only() {
+    let cap = read_conf("capabilities/windows-caption.json");
+    assert_eq!(cap["platforms"], serde_json::json!(["windows"]));
+    let default = read_conf("capabilities/default.json");
+    let granted = default["permissions"].to_string();
+    for p in [
+        "core:window:allow-minimize",
+        "core:window:allow-toggle-maximize",
+        "core:window:allow-set-theme",
+    ] {
+        assert!(!granted.contains(p), "{p} 는 default.json(모든 OS)이 아니라 windows-caption.json 에");
+    }
+}

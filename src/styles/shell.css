@@ -30,6 +30,9 @@
 /* macOS 오버레이 타이틀바 — 신호등(x 16, 버튼 셋)이 이 줄 왼쪽에 앉는다
    (tauri.conf.json `trafficLightPosition` · window/mod.rs `TRAFFIC_LIGHT_*`). */
 .is-mac .topbar { padding-left: 84px; }
+/* Windows 는 제목줄이 없는 창 — 단추 셋(`windows/CaptionButtons.tsx`, 46px × 3)이 이 줄 오른쪽 끝에
+   앉는다. 좁은 창의 오른쪽 여백 규칙(아래 data-fit · ≤460)보다 이 선택자가 무겁다 — 단추 자리는 줄지 않는다. */
+:root[data-platform="windows"] .topbar { padding-right: calc(var(--caption-w) * 3 + var(--space-2)); }
 .topbar-fill { flex: 1; min-width: var(--space-4); align-self: stretch; }
 /* 화면 동작 — 화면의 <Toolbar> 가 포털로 채운다. 좁은 창에서는 압착 대신 가로 스크롤. */
 .topbar-actions {

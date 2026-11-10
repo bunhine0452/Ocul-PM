@@ -185,3 +185,11 @@ App Sandbox 가 필수인데 이 앱의 핵심(내장 터미널이 띄우는 `cl
   W0 와 함께 PR #31 로 먼저 합류했다. "컴파일 영향이 큰 순" 규칙은 Rust 레인끼리에만 적용한다.
 - **`.gitattributes` 를 W1 이 아니라 W0 가 소유** — 모든 레인의 공통 기반이라 한 레인에 두면
   다른 레인이 CRLF 실패를 제각각 "고치려" 든다(W0 첫 실행 vitest 36건).
+- **Windows 창 크롬 — 네이티브 제목줄에서 앱이 그리는 제목줄로** (2026-11-10, 사용자 요청). W2 L-UI 는
+  「비-mac 은 네이티브 제목줄」(`#ui-chrome`)이었다. Windows 에서 그 결과는 44px 셸 윗줄 위에 OS 제목줄
+  띠가 하나 더 서는 것이었고, 다크 테마에서도 그 띠만 흰색이었다. 이제 Windows 창은 `decorations: false`
+  (`tauri.windows.conf.json` · `window/lifecycle.rs`)이고 셸 윗줄이 제목줄이다 — 드래그 영역은 macOS 와 같은
+  `dragRegion()`, 최소화 · 최대화 · 닫기는 `windows/CaptionButtons.tsx` 가 오른쪽 위 구석에 띄운다(macOS
+  신호등과 같은 자리 비우기). Linux 는 네이티브 그대로(창 관리자마다 단추 자리가 다르다). 잃은 것: Windows 11
+  최대화 단추 위 스냅 레이아웃 플라이아웃(Win+Z · 화면 위로 끌기는 남는다), 제목줄 우클릭 시스템 메뉴(창 스타일에
+  WS_SYSMENU 는 남아 있다 — Alt+Space 가 웹뷰를 지나 거기 닿는지는 실기기에서 아직 안 봤다).

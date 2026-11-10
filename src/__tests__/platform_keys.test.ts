@@ -10,7 +10,14 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { __setPlatformForTests, detectPlatform, dragRegion, type Platform } from "@/lib/platform";
+import {
+  __setPlatformForTests,
+  detectPlatform,
+  dragRegion,
+  drawsCaptionButtons,
+  drawsOwnTitleBar,
+  type Platform,
+} from "@/lib/platform";
 import {
   isCmdKey,
   isModChord,
@@ -416,13 +423,23 @@ describe("cheatsheet and nav numbers — OS notation", () => {
   });
 });
 
-describe("window chrome — drag regions only on macOS", () => {
-  it("mac gets data-tauri-drag-region; Windows·Linux get nothing (native title bar)", () => {
-    __setPlatformForTests("mac");
-    expect(dragRegion()).toEqual({ "data-tauri-drag-region": true });
-    for (const os of OTHERS) {
+describe("window chrome — the app draws the title bar on macOS and Windows", () => {
+  it("mac · Windows get data-tauri-drag-region; Linux gets nothing (native title bar)", () => {
+    for (const os of ["mac", "windows"] as const) {
       __setPlatformForTests(os);
-      expect(dragRegion()).toEqual({});
+      expect(dragRegion(), os).toEqual({ "data-tauri-drag-region": true });
+      expect(drawsOwnTitleBar(), os).toBe(true);
     }
+    __setPlatformForTests("linux");
+    expect(dragRegion()).toEqual({});
+    expect(drawsOwnTitleBar()).toBe(false);
+  });
+
+  it("only Windows gets app-drawn caption buttons (mac has the OS traffic lights)", () => {
+    const drawn = (["mac", "windows", "linux"] as const).filter((os) => {
+      __setPlatformForTests(os);
+      return drawsCaptionButtons();
+    });
+    expect(drawn).toEqual(["windows"]);
   });
 });

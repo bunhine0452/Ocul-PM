@@ -39,6 +39,19 @@ export function followsSystem(themeSetting: string): boolean {
   return themeSetting !== "light" && themeSetting !== "dark";
 }
 
+/**
+ * 네이티브 창에 알릴 테마 — 밝게 · 어둡게는 그대로, 「시스템」(과 알 수 없는 옛 값)은 `null`(OS 를 따른다).
+ *
+ * Windows 만 쓴다(`SettingsContext`). 제목줄 없는 창의 1px 위 테두리와 시스템 메뉴는 OS 가 창 테마로
+ * 그린다 — 앱만 어둡게 하면 어두운 창 위에 밝은 선이 남았다(실측 #F3F3F3, 11-10). 「시스템」 을 고정값으로
+ * 보내면 안 된다: Windows 의 Tauri 는 창 테마를 웹뷰의 `prefers-color-scheme` 에도 걸어서, 고정하면 앱이
+ * 따라가야 할 OS 신호가 끊긴다. `null` 이면 창이 OS 를 따르고 웹뷰도 OS 값을 다시 받는다.
+ */
+export function windowThemeFor(themeSetting: string): ThemeFamily | null {
+  if (themeSetting === "light" || themeSetting === "dark") return themeSetting;
+  return null;
+}
+
 /** 계산한 속성을 실제 `<html>` 에 적용한다. */
 export function applyThemeAttrs(root: HTMLElement, attrs: ThemeAttrs): void {
   root.setAttribute("data-theme", attrs.family);

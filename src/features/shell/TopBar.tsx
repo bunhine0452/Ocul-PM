@@ -50,7 +50,8 @@ export function TopBar({
   slotRef,
 }: TopBarProps) {
   const { t } = useT();
-  // 빈 자리는 창을 잡는 띠다 — macOS 오버레이 타이틀바에서만 (`dragRegion`).
+  // 빈 자리는 창을 잡는 띠다 — 이 줄이 제목줄인 macOS · Windows 에서만 (`dragRegion`). Windows 의 창 단추 셋은
+  // 이 줄 오른쪽 끝에 떠 있다(`windows/CaptionButtons.tsx`).
   const drag = dragRegion();
   // 좁은 창(≤640)에서 화면 동작은 「⋯」 메뉴로 — 줄 안 스크롤 칸이 29px(480 에선 5px)로 짓눌려 「새 세션 ·
   // 새 일지」 를 누를 수 없었다(레드팀 10-31). 넓은 창에서는 이 단추가 보이지 않고 칸은 늘 그대로다.

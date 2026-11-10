@@ -56,7 +56,9 @@ pub const WINDOW_PREFIX: &str = "win-";
 /// 시작 창이거나 프로젝트 창이고, 똑같이 닫힌다.
 pub const FIRST_WINDOW: &str = "main";
 
-/// 기본 크기·최소 크기는 `tauri.conf.json` 의 첫 창과 맞춘다.
+/// 기본 크기·최소 크기는 `tauri.conf.json` 의 첫 창과 맞춘다 — Windows 는 첫 창을
+/// `tauri.windows.conf.json` 이 통째로 다시 적으므로(병합 패치는 배열을 갈아 끼운다) 거기도.
+/// 셋이 어긋나지 않는지는 `tests.rs` 의 `first_window_config_matches_spawned_windows` 가 본다.
 const WINDOW_W: f64 = 1150.0;
 const WINDOW_H: f64 = 780.0;
 /// 맥북 프로 14(1512pt)의 3분의 1 까지 — 화면 한쪽에 세워 두고 다른 일과 나란히(10-30). 좁은 창의

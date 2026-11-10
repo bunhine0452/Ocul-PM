@@ -15,3 +15,48 @@
   color: var(--text);
 }
 .winroot .app { flex: 1 1 auto; min-height: 0; height: auto; }
+
+/* 네이티브 위젯(스크롤바 · 폼)이 테마를 따르게 — 시작 창에도 (2026-11-10). base.css 의 같은 두 줄은 셸
+   청크에만 실려, 처음 뜬 시작 창은 늘 밝은 기본 위젯이었다. Windows 의 기본 스크롤바는 macOS 와 달리 늘
+   서 있어 어두운 시작 창에 밝은 막대가 섰다. macOS 는 그대로(D3 — 속성 없는 :root). */
+:root[data-platform] { color-scheme: light; }
+:root[data-platform][data-theme="dark"] { color-scheme: dark; }
+
+/* ── Windows 창 단추 (2026-11-10, `CaptionButtons.tsx`) ──────────────────────
+   창 오른쪽 위 구석에 떠 있다 — 윗줄(44px) 높이 전체에 46px 단추 셋, 구석까지 닫기다. 윗줄은 그 자리를
+   비운다(shell.css). 바탕이 투명이라 윗줄의 프로젝트 색이 그대로 비친다. 맨 위 층(z-top)인 것은 macOS
+   신호등과 같다 — 모달 · 팔레트 · 부트 스플래시 위에서도 창을 내리고 닫을 수 있다.
+   글리프는 OS 의 것(Segoe Fluent Icons, Windows 10 은 같은 코드의 MDL2 Assets) — 힌팅된 글꼴이라 배율
+   125 · 150% 에서도 1px 선이 번지지 않는다(SVG 선은 번진다). 시스템 글꼴이라 CSP 와 무관하다. */
+.wincaption {
+  position: fixed; top: 0; right: 0; z-index: var(--z-top);
+  display: flex; height: var(--toolbar-h);
+}
+.wincaption-btn {
+  width: var(--caption-w); height: 100%; flex: none;
+  display: grid; place-items: center;
+  padding: 0; border: none; border-radius: 0;
+  appearance: none; -webkit-appearance: none;
+  background: transparent; color: var(--text);
+  font-family: var(--caption-glyph); font-size: var(--fs-1); line-height: 1; /* design-ignore -- 글자가 아니라 아이콘 글리프: Windows 제목줄 단추의 10px */
+  cursor: default;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+/* 대체 글이 빈 생성 글자 — 접근명은 aria-label 이 갖는다. */
+.wincaption-btn[data-caption="min"]::before { content: "\E921" / ""; }
+.wincaption-btn[data-caption="max"]::before { content: "\E922" / ""; }
+.wincaption-btn[data-caption="restore"]::before { content: "\E923" / ""; }
+.wincaption-btn[data-caption="close"]::before { content: "\E8BB" / ""; }
+.wincaption-btn:hover { background: var(--bg-hover); }
+.wincaption-btn:active { background: var(--bg-active); }
+.wincaption-btn[data-caption="close"]:hover { background: var(--caption-close); color: var(--caption-close-text); }
+.wincaption-btn[data-caption="close"]:active {
+  background: color-mix(in srgb, var(--caption-close) 90%, transparent); color: var(--caption-close-text);
+}
+/* 창이 뒤에 있으면 글리프가 옅어진다 — 네이티브 제목줄과 같다. */
+:root[data-app-inactive] .wincaption-btn:not(:hover) { color: var(--text-2); }
+/* 480 창에 글자 125%(≤460) — 윗줄의 탭 · 찾기 · 설정이 들어가도록 단추를 40px 로 줄인다(138 → 120). */
+/* design-ignore -- 창 단추는 창의 크롬이다: 창 폭이 곧 그 폭이다(화면 폭이 아니다) */
+@media (max-width: 460px) {
+  :root[data-platform="windows"] { --caption-w: 40px; }
+}

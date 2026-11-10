@@ -39,7 +39,7 @@ export function Toolbar({ title, sub, leading, children, find = false }: Toolbar
   // e.target, not ancestors), so the attribute goes on the container AND each
   // non-interactive child (title/sub/spacer). `leading` and action `children`
   // are buttons — they intentionally omit it so they stay clickable.
-  // macOS 에서만 — Windows·Linux 는 네이티브 제목줄이 있다 (`dragRegion`).
+  // 앱이 제목줄을 그리는 macOS · Windows 에서만 — Linux 는 네이티브 제목줄이 있다 (`dragRegion`).
   const drag = dragRegion();
   return (
     <div className="toolbar" {...drag}>

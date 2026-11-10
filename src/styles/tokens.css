@@ -578,6 +578,12 @@
 :root[data-platform="windows"] {
   --font: "Pretendard Variable", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
   --mono: "Cascadia Mono", Consolas, "Pretendard Hangul", "Malgun Gothic", monospace;
+  /* 창 단추 (2026-11-10, `windows/CaptionButtons.tsx`) — Windows 11 의 치수와 색이다. 닫기의 빨강은
+     테마 · 강조색을 따르지 않는다: OS 가 모든 창에 같은 빨강을 쓰고, 사용자는 그 색으로 닫기를 찾는다. */
+  --caption-w: 46px;
+  --caption-close: #c42b1c;
+  --caption-close-text: #ffffff;
+  --caption-glyph: "Segoe Fluent Icons", "Segoe MDL2 Assets";
 }
 :root[data-platform="linux"] {
   --font: "Pretendard Variable", "Noto Sans CJK KR", "Noto Sans KR", Cantarell, Ubuntu,
