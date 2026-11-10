@@ -257,12 +257,14 @@ mod tests {
             editor_cli_args(&root, &file, None),
             vec![root.clone().into_os_string(), file.clone().into_os_string()]
         );
+        // `-g 파일:줄` 의 파일은 OS 의 경로 그대로다 — Windows 의 `join` 은 `\` 로 잇는다(`…\src/a b.rs:7`).
+        // 기댓값을 `/` 로만 적어 두어 이 테스트가 Windows CI 에서 늘 붉었다.
         assert_eq!(
             editor_cli_args(&root, &file, Some(7)),
             vec![
                 root.into_os_string(),
                 "-g".into(),
-                "/Users/me/proj/src/a b.rs:7".into()
+                format!("{}:7", file.display()).into()
             ]
         );
     }

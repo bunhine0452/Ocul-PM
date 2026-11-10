@@ -195,9 +195,16 @@ impl FileGuard {
                             waited_ms,
                         });
                     }
-                    let step = policy.poll_ms.max(1).min(policy.wait_ms - waited_ms);
-                    std::thread::sleep(std::time::Duration::from_millis(step));
-                    waited_ms += step;
+                    wait_one_step(&policy, &mut waited_ms);
+                }
+                // Windows — 지워지는 중(「삭제 대기」)인 락 파일 자리의 `create_new` 는 `AlreadyExists` 가
+                // 아니라 `PermissionDenied`(os 5)다. 놓는 쪽이 지웠어도 다른 프로세스(백신 · 색인기 …)가 그
+                // 파일을 잠깐 열고 있으면 이름이 그동안 남는다 — Windows CI 에서 `Io { code: 5 }` 로 실측.
+                // 쥐고 있는 것과 같으니 기다린다(그 파일은 곧 사라지므로 걷어내기는 하지 않는다). 기다림이
+                // 다하도록 그대로면 진짜 권한 문제로 보고 아래 `Io` 로 돌려준다.
+                #[cfg(windows)]
+                Err(e) if e.kind() == ErrorKind::PermissionDenied && waited_ms < policy.wait_ms => {
+                    wait_one_step(&policy, &mut waited_ms);
                 }
                 Err(source) => {
                     return Err(GuardError::Io {
@@ -261,6 +268,13 @@ fn read_nonce(path: &Path) -> std::io::Result<Option<String>> {
 ///
 /// 읽을 수 없거나 시각이 미래면 **오래되지 않았다**고 답한다 — 판정할 수 없는
 /// 주인의 자리는 뺏지 않는다 (`pid` 의 "모름은 죽음이 아니다" 와 같은 원칙).
+/// 기다림 한 칸 — 남은 예산을 넘지 않게 자고 그만큼 센다.
+fn wait_one_step(policy: &GuardPolicy, waited_ms: &mut u64) {
+    let step = policy.poll_ms.max(1).min(policy.wait_ms - *waited_ms);
+    std::thread::sleep(std::time::Duration::from_millis(step));
+    *waited_ms += step;
+}
+
 fn is_stale(path: &Path, now: DateTime<Utc>, stale_after_seconds: i64) -> bool {
     std::fs::metadata(path)
         .and_then(|m| m.modified())
@@ -544,5 +558,56 @@ mod tests {
             h.join().unwrap();
         }
         assert_eq!(peak.load(Ordering::SeqCst), 1, "임계구역에 둘이 들어갔다");
+    }
+
+    /// Windows — 남이 놓는 찰나(지웠는데 아직 누가 열고 있어 「삭제 대기」 인 락 파일)에 달려들면
+    /// `create_new` 가 `AlreadyExists` 가 아니라 `PermissionDenied`(os 5)로 실패한다. 그것은 쥐고 있는
+    /// 것과 같다 — 기다렸다 잡아야지 오류로 돌아가면 안 된다(Windows CI 의
+    /// `only_one_thread_is_inside_at_a_time` 가 가끔 `Io { Os { code: 5 } }` 로 붉던 까닭).
+    ///
+    /// 요즘 Windows 의 `remove_file` 은 열린 핸들이 있어도 이름을 바로 비운다(POSIX 식 삭제) — 이 PC 에서는
+    /// 그것으로 재현되지 않았다. 그래서 옛 방식 삭제 표시(`FileDispositionInfo`)로 「삭제 대기」 를 직접 만든다.
+    #[cfg(windows)]
+    #[test]
+    fn windows_delete_pending_lock_is_waited_out_not_an_error() {
+        use std::os::windows::fs::OpenOptionsExt;
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FileDispositionInfo, SetFileInformationByHandle, DELETE, FILE_DISPOSITION_INFO,
+        };
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".thing.lock");
+        std::fs::write(&path, b"{}").unwrap();
+        // 남(백신 · 색인기 …)이 그 파일을 쥔 채 지운다 — 핸들이 닫힐 때까지 이름이 남는다.
+        let holder = std::fs::OpenOptions::new()
+            .access_mode(DELETE)
+            .open(&path)
+            .unwrap();
+        let info = FILE_DISPOSITION_INFO { DeleteFile: true };
+        // SAFETY: 살아 있는 핸들과 그 크기의 구조체를 넘긴다.
+        let ok = unsafe {
+            SetFileInformationByHandle(
+                holder.as_raw_handle() as _,
+                FileDispositionInfo,
+                (&info as *const FILE_DISPOSITION_INFO).cast(),
+                std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32,
+            )
+        };
+        assert_ne!(ok, 0, "삭제 표시: {}", std::io::Error::last_os_error());
+        let raw = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .unwrap_err();
+        assert_eq!(raw.kind(), ErrorKind::PermissionDenied, "OS 의 모양: {raw:?}");
+
+        let releaser = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(80));
+            drop(holder);
+        });
+        let got = FileGuard::acquire(&path, Utc::now(), GuardPolicy::waiting(3_000));
+        releaser.join().unwrap();
+        assert!(got.is_ok(), "삭제 대기는 기다렸다 잡는다: {:?}", got.err());
     }
 }
