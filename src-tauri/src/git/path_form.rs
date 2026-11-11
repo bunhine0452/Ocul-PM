@@ -62,7 +62,8 @@ pub fn plain(p: &Path) -> PathBuf {
 /// 캐시 열쇠용 모양 — [`plain`] 으로 `\\?\` 를 걷고, 윈도우에서는 `/` 를 `\` 로,
 /// 대소문자를 소문자로 편다 (윈도우 파일시스템은 대소문자를 가리지 않는다). 같은 폴더가
 /// `rev-parse` 의 `C:/a/b` 와 `canonicalize` 의 `\\?\C:\a\b` 로 따로 들어와도 한 칸이다.
-/// 다른 OS 에서는 그대로다.
+/// 다른 OS 에서는 그대로다 (지금 부르는 자리는 윈도우 전용 캐시뿐이다).
+#[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn cache_key(p: &Path) -> PathBuf {
     #[cfg(windows)]
     {

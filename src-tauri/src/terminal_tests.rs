@@ -84,7 +84,7 @@ fn program_status_probe_is_answered_and_reports_become_the_session_status() {
     use std::sync::mpsc;
     let sessions = TermSessions::default();
     let (tx, rx) = mpsc::channel::<TermEvent>();
-    let n = program_status::QUERY_REPLY.len();
+    let n = crate::program_status::QUERY_REPLY.len();
     let script = format!(
         "stty raw -echo; printf '\\033]7501;?\\033\\\\'; r=$(head -c {n}); stty sane; \
          case \"$r\" in *states=idle*) printf 'REPLY_OK:';; *) printf 'REPLY_BAD:';; esac; \
