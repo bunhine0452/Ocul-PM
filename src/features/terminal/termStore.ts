@@ -24,6 +24,7 @@ import { alertIfWaiting } from "./attention";
 import { createImagePathProvider, createOscLinkHandler } from "./fileLinks";
 import { createFileRefProvider, openFileMenu } from "./fileRefs";
 import { peekEvent } from "./imagePeek";
+import { pushImeTrace } from "./imeTrace";
 import { attachImeBridge } from "./imeBridge";
 import { LAUNCH_WATCH_CHARS, launchFailed } from "./launchCheck";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
@@ -254,7 +255,13 @@ export async function openTerm(
   entries.set(info.id, entry);
   const id = info.id;
   const e = entry;
-  term.onData((data) => void terminalApi.write(id, data).catch(() => {}));
+  term.onData((data) => {
+    // 실제로 PTY 에 보낸 짧은 입력을 입력 기록 링에 남긴다 — 한글이 두 번 찍힐 때 앱이 두 번
+    // 보냈는지, 그 뒤(ConPTY · 셸 · claude)에서 겹쳤는지를 덤프(⌃⌥⇧I)만 보고 가린다(2026-11-11
+    // Windows). 키 입력 길이(8자 이하)만 — 붙여넣기 · 프롬프트 본문은 남기지 않는다.
+    if (data.length <= 8) pushImeTrace("pty-write", { data: JSON.stringify(data) });
+    void terminalApi.write(id, data).catch(() => {});
+  });
   term.onResize((size) => queuePtyResize(id, e, size));
   notify();
   return id;
