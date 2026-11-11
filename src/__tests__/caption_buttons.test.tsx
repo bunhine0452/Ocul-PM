@@ -6,6 +6,7 @@ import { axe } from "vitest-axe";
 
 const h = vi.hoisted(() => ({
   maximized: false,
+  asks: 0,
   resized: [] as Array<() => void>,
   unlistened: 0,
   minimize: vi.fn(async () => {}),
@@ -17,7 +18,10 @@ vi.mock("@/api/window", () => ({
     minimize: h.minimize,
     toggleMaximize: h.toggleMaximize,
     closeThisWindow: h.close,
-    isMaximized: async () => h.maximized,
+    isMaximized: async () => {
+      h.asks += 1;
+      return h.maximized;
+    },
     onResized: async (cb: () => void) => {
       h.resized.push(cb);
       return () => {
@@ -27,7 +31,7 @@ vi.mock("@/api/window", () => ({
   },
 }));
 
-import { CaptionButtons } from "@/windows/CaptionButtons";
+import { CaptionButtons, MAXIMIZED_SYNC_DEBOUNCE_MS } from "@/windows/CaptionButtons";
 import { ko } from "@/i18n/ko";
 import { __setPlatformForTests } from "@/lib/platform";
 
@@ -35,6 +39,7 @@ afterEach(() => {
   cleanup();
   __setPlatformForTests(null);
   h.maximized = false;
+  h.asks = 0;
   h.resized = [];
   h.unlistened = 0;
   h.minimize.mockClear();
@@ -96,5 +101,26 @@ describe("caption buttons", () => {
 
     unmount();
     await waitFor(() => expect(h.unlistened).toBe(1));
+  });
+
+  it("a window drag (a resize event per frame) asks the window once, after it settles", async () => {
+    __setPlatformForTests("windows");
+    vi.useFakeTimers();
+    try {
+      render(<CaptionButtons />);
+      await act(async () => {});
+      expect(h.asks).toBe(1); // first paint asks at once
+      await act(async () => {
+        for (let frame = 0; frame < 60; frame++) {
+          for (const cb of h.resized) cb();
+          vi.advanceTimersByTime(16);
+        }
+      });
+      expect(h.asks).toBe(1);
+      await act(async () => void vi.advanceTimersByTime(MAXIMIZED_SYNC_DEBOUNCE_MS));
+      expect(h.asks).toBe(2); // was 61 (one isMaximized IPC per resize event)
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
