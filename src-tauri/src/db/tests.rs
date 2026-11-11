@@ -407,3 +407,26 @@ fn only_statements_that_remove_data_count_as_destructive() {
         "CREATE TRIGGER t AFTER DELETE ON chunks BEGIN SELECT 1; END;"
     ));
 }
+
+/// sqlite-vec 는 043 전 DB(새 파일 포함)에만 건다 — 다 올라간 DB 는 기동마다 걸지 않는다.
+#[tokio::test]
+async fn sqlite_vec_is_registered_only_before_043() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("ocul-pm.db");
+    assert!(needs_sqlite_vec(&path), "새 파일은 002 가 vec0 를 만든다");
+    {
+        let c = rusqlite::Connection::open(&path).unwrap();
+        c.pragma_update(None, "user_version", 42).unwrap();
+    }
+    assert!(needs_sqlite_vec(&path), "043 전 DB 는 vec0 DROP 이 남았다");
+    std::fs::remove_file(&path).unwrap();
+    let db = Db::open(path.clone()).await.unwrap();
+    db.close().await.unwrap();
+    assert!(!needs_sqlite_vec(&path), "다 올라간 DB 는 걸 필요가 없다");
+    assert!(
+        registry::MIGRATIONS
+            .iter()
+            .any(|(v, sql)| *v == LAST_VEC0_MIGRATION && sql.contains("chunk_embeddings")),
+        "LAST_VEC0_MIGRATION 은 vec0 를 지우는 마이그레이션을 가리킨다"
+    );
+}
