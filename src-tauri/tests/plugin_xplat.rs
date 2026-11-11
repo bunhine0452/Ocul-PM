@@ -563,6 +563,17 @@ fn the_windows_event_sink_writes_the_same_line_as_the_inline_one() {
     assert_eq!(a.len(), 1);
     assert_eq!(b.len(), 1, "cwd 로 루트를 찾아 한 줄 — CR 은 떼고");
     assert!(b[0]["oculpm_ts"].is_string());
+    // 인라인 싱크의 시각은 **UTC** 다 — Windows Git Bash 에서는 `date` 대신 내장
+    // `TZ=UTC0 printf '%(…)T'` 로 찍는데(11-11, 프로세스 0), `%(…)T` 는 그냥 두면 현지
+    // 시각이다. 그 함정이 돌아오면 여기서 몇 시간 어긋난다.
+    let ts = a[0]["oculpm_ts"].as_str().unwrap();
+    let at = chrono::NaiveDateTime::parse_from_str(ts, "%Y-%m-%dT%H:%M:%SZ")
+        .unwrap_or_else(|e| panic!("UTC ISO-8601 이 아니다 {ts:?}: {e}"));
+    let drift = (chrono::Utc::now().naive_utc() - at).num_seconds().abs();
+    assert!(
+        drift < 600,
+        "oculpm_ts 가 UTC 가 아니다: {ts} (차이 {drift}s)"
+    );
     assert_eq!(strip(a[0].clone()), strip(b[0].clone()));
 }
 
@@ -799,6 +810,138 @@ fn the_shuttle_speaks_only_on_stderr_when_nothing_is_found() {
     assert_eq!(out.status.code(), Some(1), "{}", describe(&out));
     assert!(out.stdout.is_empty(), "stdout 은 MCP 프로토콜 전용");
     assert!(String::from_utf8_lossy(&out.stderr).contains("OCULPM_MCP_BIN"));
+}
+
+/// 훅 모드(`OCULPM_HOOK_QUIET=1`, PreToolUse 가 셔틀로 바이너리를 바로 부른다 — 11-11)에서는
+/// 못 찾아도 **조용히** exit 0 — stdin 은 비우고 아무 말도 하지 않는다 (「모든 실패는 무해」).
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn the_shuttle_stays_silent_in_hook_mode_when_nothing_is_found() {
+    let tmp = tempfile::tempdir().unwrap();
+    let shuttle = isolated_shuttle(tmp.path());
+    let home = tmp.path().join("empty-home");
+    std::fs::create_dir_all(&home).unwrap();
+    let mut cmd = Command::new(hook_shell());
+    cmd.arg(&shuttle)
+        .args(["hook", "pre-tool-use"])
+        .env_remove("OCULPM_MCP_BIN")
+        .env("OCULPM_HOOK_QUIET", "1")
+        .env("HOME", &home)
+        .env("LOCALAPPDATA", &home);
+    for var in ["XDG_DATA_HOME", "ProgramFiles", "ProgramW6432"] {
+        cmd.env_remove(var);
+    }
+    let out = spawn_with_stdin(cmd, &"{\"x\":1}".repeat(20_000));
+    assert_eq!(out.status.code(), Some(0), "{}", describe(&out));
+    assert!(
+        out.stdout.is_empty() && out.stderr.is_empty(),
+        "{}",
+        describe(&out)
+    );
+}
+
+/// 플러그인만 먼저 올라가고 앱은 옛 판인 사용자 — 옛 바이너리는 `hook` 을 몰라 exit 2 를 낸다.
+/// PreToolUse 에서 2 는 「막기」라 편집이 통째로 막힌다. 셔틀의 훅 모드는 그것을 0 으로 접는다.
+#[test]
+fn hook_mode_folds_an_old_binarys_refusal_into_success() {
+    let tmp = tempfile::tempdir().unwrap();
+    let shuttle = {
+        let bin = tmp.path().join("plugin").join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let s = bin.join("oculpm-mcp");
+        std::fs::copy(claude_plugin().join("bin/oculpm-mcp"), &s).unwrap();
+        s
+    };
+    let old = tmp.path().join("old-oculpm-mcp");
+    std::fs::write(
+        &old,
+        "#!/bin/sh\necho \"oculpm-mcp: unknown argument '$1'\" >&2\nexit 2\n",
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let run = |quiet: bool| {
+        let mut cmd = Command::new(hook_shell());
+        cmd.arg(&shuttle)
+            .args(["hook", "pre-tool-use"])
+            .env("OCULPM_MCP_BIN", &old);
+        if quiet {
+            cmd.env("OCULPM_HOOK_QUIET", "1");
+        } else {
+            cmd.env_remove("OCULPM_HOOK_QUIET");
+        }
+        spawn_with_stdin(cmd, "{}")
+    };
+    let out = run(true);
+    assert_eq!(out.status.code(), Some(0), "{}", describe(&out));
+    assert!(
+        out.stdout.is_empty() && out.stderr.is_empty(),
+        "{}",
+        describe(&out)
+    );
+    // MCP 등록 경로(훅 모드 아님)는 예전처럼 바이너리의 종료 코드를 그대로 낸다.
+    assert_eq!(run(false).status.code(), Some(2));
+}
+
+/// PreToolUse 훅 명령을 이 OS 의 훅 셸로 그대로 돌린다 — 셔틀 → `oculpm-mcp hook pre-tool-use`
+/// 가 stdin JSON 에서 파일을 읽어 최근 버그 일지를 짚는다 (옛 refix-warn.sh 의 자리).
+#[test]
+fn the_pre_tool_use_hook_warns_through_the_shuttle() {
+    let project = tracked_project();
+    let root = project.path();
+    let day = chrono::Local::now().format("%Y%m%d").to_string();
+    let bugs = root.join(".oculpm/journal").join(&day).join("Bugs");
+    std::fs::create_dir_all(&bugs).unwrap();
+    std::fs::write(
+        bugs.join("0900_bug_x.md"),
+        "---\nschema_version: 1\ntype: bug\nslug: \"x\"\nstatus: done\n\
+         created_at: \"2026-11-02T10:00:00+09:00\"\nsession_id: \"20261102-001\"\n\
+         agent:\n  id: \"claude-code\"\nlanguage: \"ko\"\nverified_by_user: false\n\
+         files_touched:\n  - path: \"src/a.ts\"\n    op: update\n---\n\
+         [x] 윗줄: 이름이 겹쳤다\n\n## 검증\n- `pnpm test`: 993 passed\n",
+    )
+    .unwrap();
+    let hooks = read_json(&claude_plugin().join("hooks/hooks.json"));
+    let command = hooks["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        .as_str()
+        .unwrap()
+        .replace("${CLAUDE_PLUGIN_ROOT}", &claude_plugin().to_string_lossy());
+    let input = json!({
+        "session_id": "pre-1",
+        "hook_event_name": "PreToolUse",
+        "cwd": root.to_string_lossy(),
+        "tool_name": "Edit",
+        "tool_input": { "file_path": root.join("src").join("a.ts").to_string_lossy() },
+    })
+    .to_string();
+    let run = || {
+        let mut cmd = Command::new(hook_shell());
+        cmd.arg("-c");
+        push_arg_like_node(&mut cmd, &command);
+        cmd.current_dir(root)
+            .env("CLAUDE_PROJECT_DIR", root)
+            .env("CLAUDE_PLUGIN_ROOT", claude_plugin())
+            .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"));
+        spawn_with_stdin(cmd, &input)
+    };
+    let out = run();
+    assert_eq!(out.status.code(), Some(0), "{}", describe(&out));
+    let v: Value = serde_json::from_slice(&out.stdout)
+        .unwrap_or_else(|e| panic!("경고 JSON 이 아니다 ({e}): {}", describe(&out)));
+    let ctx = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .unwrap();
+    assert!(
+        ctx.contains("src/a.ts") && ctx.contains("pnpm test"),
+        "{ctx}"
+    );
+    // 같은 대화 · 같은 파일은 한 번만.
+    let again = run();
+    assert_eq!(again.status.code(), Some(0));
+    assert!(again.stdout.is_empty(), "{}", describe(&again));
 }
 
 // ─── 사이드카 끝단 (#integ-sidecar) ─────────────────────────────────────────

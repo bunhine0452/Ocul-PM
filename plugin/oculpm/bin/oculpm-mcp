@@ -18,8 +18,19 @@
 # Git Bash 는 Windows 변수 이름의 대소문자를 그대로 두기도, 대문자로 바꾸기도
 # 해서 두 표기를 다 본다.
 # stdout 은 MCP 프로토콜 전용 — 안내는 전부 stderr 로.
+#
+# 훅도 이 셔틀로 바이너리를 부른다 (매 편집 · 매 턴). Windows 의 Git Bash 는
+# 프로세스 하나 띄우는 데 수십 ms 가 들어서, 여기서는 `$(...)` · dirname 같은
+# 자식 프로세스를 하나도 띄우지 않는다 — 플러그인 루트도 매개변수 확장으로만
+# 얻는다 (개발 빌드 후보에만 쓰여 정규화가 필요 없다).
+# OCULPM_HOOK_QUIET=1 (훅 전용): 못 찾으면 stdin 만 비우고 조용히 exit 0 —
+# 훅의 「모든 실패는 무해」 계약. MCP 등록(.mcp.json)은 이 변수를 주지 않아
+# 예전처럼 stderr 로 말하고 exit 1.
 set -u
-plugin_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+case $0 in
+  */*) plugin_root=${0%/*}/.. ;;
+  *) plugin_root=.. ;;
+esac
 data_home=${XDG_DATA_HOME:-${HOME:+$HOME/.local/share}}
 program_files=${PROGRAMFILES:-${ProgramFiles:-}}
 program_w6432=${PROGRAMW6432:-${ProgramW6432:-}}
@@ -38,9 +49,20 @@ for cand in \
   "$plugin_root/../../src-tauri/target/release/oculpm-mcp"
 do
   if [ -n "$cand" ] && [ -x "$cand" ]; then
+    if [ -n "${OCULPM_HOOK_QUIET:-}" ]; then
+      # 훅 모드는 exec 하지 않고 종료 코드를 0 으로 접는다. 앱이 아직 옛 판이면 그 바이너리는
+      # `hook` 을 몰라 exit 2 를 내는데, PreToolUse 에서 2 는 「막기」다 — 플러그인만 먼저
+      # 올라간 사용자의 편집이 통째로 막힌다. 훅의 실패는 언제나 무해해야 한다.
+      "$cand" "$@" 2>/dev/null
+      exit 0
+    fi
     exec "$cand" "$@"
   fi
 done
+if [ -n "${OCULPM_HOOK_QUIET:-}" ]; then
+  cat > /dev/null 2>&1
+  exit 0
+fi
 echo "oculpm-mcp: 실행 파일을 찾지 못했습니다 — ocul-pm 앱을 설치하거나 (https://oculpm.com)" >&2
 echo "OCULPM_MCP_BIN 환경변수로 바이너리 경로를 지정하세요. (macOS · Linux · Windows 지원 — Windows 는 Git Bash 가 이 셔틀을 돌린다)" >&2
 exit 1

@@ -15,6 +15,22 @@
 # 계약: stdin 즉시 소비 · 네트워크 없음 · 모든 실패는 무해(exit 0) ·
 # stop_hook_active 가드(공식 무한 차단 방지) · 대화당 1회 플래그.
 payload=$(cat 2>/dev/null || true)
+# payload 의 문자열 값 하나를 `_v` 에 — 프로세스를 띄우지 않는다 (plan-context.sh 와 같은 함수).
+# Windows 의 Git Bash 는 `sed | head` 파이프라인 하나에 프로세스 셋, 하나에 수십 ms 다 (11-11).
+# 옛 `sed -n 's/.*"<키>"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1` 과 같은 값 —
+# 키의 마지막 등장, 값에 `"` 가 없을 때만.
+json_str() {
+  _v=
+  case $payload in *"\"$1\""*) ;; *) return 0 ;; esac
+  _r=${payload##*"\"$1\""}
+  _r=${_r#"${_r%%[![:space:]]*}"}
+  case $_r in :*) ;; *) return 0 ;; esac
+  _r=${_r#:}
+  _r=${_r#"${_r%%[![:space:]]*}"}
+  case $_r in \"*) ;; *) return 0 ;; esac
+  _r=${_r#\"}
+  case $_r in *\"*) _v=${_r%%\"*} ;; esac
+}
 # 프로젝트 루트: CLAUDE_PROJECT_DIR → payload 의 cwd → 현재 디렉터리.
 # payload 폴백이 필요한 이유는 실측이다 (2026-09-03): **Codex 0.153 이 이 훅들을
 # 그대로 실행한다.** 플러그인 루트의 hooks/hooks.json 을 관례로 찾아 읽고
@@ -38,9 +54,11 @@ done
 case "$payload" in
   *'"stop_hook_active":true'* | *'"stop_hook_active": true'*) exit 0 ;;
 esac
-sid=$(printf '%s' "$payload" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9._-]*\)".*/\1/p' | head -1)
+json_str session_id
+sid=$_v
+case $sid in *[!A-Za-z0-9._-]*) sid= ;; esac
 [ -n "$sid" ] || exit 0
-mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null || exit 0
+[ -d "$ROOT/.oculpm/hooks" ] || mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null || exit 0
 
 # 생존 흔적 — **매 턴** 다시 찍는다. 옆 대화가 "지금 살아 있다"를 판정하는
 # 유일한 근거다 (마커는 크래시 뒤 7일을 버텨서 생사를 말하지 못한다).
@@ -64,7 +82,17 @@ bin="$plugin_root/bin/oculpm-mcp"
 # ({#gate-positive-attribution}). 여기에 이 대화가 부른 Edit/Write 가 들어 있어,
 # 옆 대화가 살아 있어도 우리 몫만 골라 붙잡을 수 있다. 못 뽑아도 무해하다
 # (예전처럼 옆 대화가 있으면 판정 불가).
-tp=$(printf '%s' "$payload" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1 | sed 's/\\\\/\\/g')
+# Windows 경로는 JSON 안에서 `\\` 로 온다 — 한 번 푼다 (옛 `sed 's/\\\\/\\/g'` 와 같다, 프로세스 없이).
+json_str transcript_path
+_r=$_v
+tp=
+while :; do
+  case $_r in
+    *'\\'*) tp=$tp${_r%%'\\'*}'\'; _r=${_r#*'\\'} ;;
+    *) break ;;
+  esac
+done
+tp=$tp$_r
 msg=$("$bin" verdict --root "$ROOT" --conversation "$sid" --transcript "$tp" 2>/dev/null)
 rc=$?
 # 10 = 이의. 0(이의 없음) · 11(판정 불가) · 그 밖(오류)은 전부 침묵.

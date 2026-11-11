@@ -3,7 +3,7 @@
 //!
 //! 버그 일지의 47% 가 7일 안에 같은 파일을 다시 고쳤다(10-27 실측, `docs/PROMISE.md`). 같은 자리를
 //! 다시 깨뜨리는 가장 흔한 길은 지난번에 무엇이 깨졌고 무엇으로 확인했는지를 모르는 것이다.
-//! 플러그인 PreToolUse 훅(`hooks/refix-warn.sh`)이 `oculpm-mcp refix` 를 부르고, 이 모듈이
+//! 플러그인 PreToolUse 훅이 `oculpm-mcp hook pre-tool-use` (`mcp::hook`)로 이 모듈을 부르고,
 //! `.oculpm/journal/` 을 **디스크에서** 읽어 답한다 — 앱이 꺼져 있어도 · LLM 0 · 네트워크 0.
 //! 막지 않는다: 짚기만 한다(`additionalContext`). 한 대화에서 같은 파일은 한 번만.
 //!
@@ -225,18 +225,24 @@ pub fn run(args: &[String]) -> i32 {
     let (Some(root), Some(file)) = (root, file) else {
         return 0;
     };
-    if !root.join(".oculpm").is_dir() {
-        return 0;
+    if let Some(json) = warning(&root, &file, &conversation, days) {
+        println!("{json}");
     }
-    let Some(rel) = project_rel(&root, &file) else {
-        return 0;
-    };
-    let hits = find(&root, &rel, Local::now().date_naive(), days);
-    if hits.is_empty() || !first_time(&root, conversation.trim(), &rel) {
-        return 0;
-    }
-    println!("{}", hook_json(&message(&rel, &hits)));
     0
+}
+
+/// 판단 한 자리 — `refix` 서브커맨드와 PreToolUse 훅(`oculpm-mcp hook pre-tool-use`,
+/// `mcp::hook`)이 같이 부른다. 경고할 것이 있으면 훅 JSON, 없으면 `None`.
+pub fn warning(root: &Path, file: &str, conversation: &str, days: i64) -> Option<String> {
+    if !root.join(".oculpm").is_dir() {
+        return None;
+    }
+    let rel = project_rel(root, file)?;
+    let hits = find(root, &rel, Local::now().date_naive(), days);
+    if hits.is_empty() || !first_time(root, conversation.trim(), &rel) {
+        return None;
+    }
+    Some(hook_json(&message(&rel, &hits)))
 }
 
 #[cfg(test)]
