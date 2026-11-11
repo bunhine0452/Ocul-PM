@@ -31,7 +31,7 @@ owner: claude-code
 - [ ] Codex 플러그인에 MCP 를 직접 싣기 — codex 0.162.1 실측: `.mcp.json` 은 읽지만 절대 경로일 때만 기동. Codex 가 플러그인 상대 경로를 풀게 되면 다시 본다 (← bug-opt-round-20261018 #carry-codex-plugin-mcp) {#codex-plugin-mcp}
 
 ## Windows 입력 · 측정 {#win-followups}
-- [ ] Windows 한글 입력이 부하 중 음절마다 두 번 찍힘 — 2026-11-11 병렬 빌드(CPU 100%) 중 앱 터미널의 Claude 에 「갑갑자자기기」. 다음 재현 때 ⌃⌥⇧I 덤프를 받아 원인부터. 11-10 덤프: Windows IME 는 Backspace 에 줄 전체를 다시 조합해 브리지가 DEL×N + 재전송한다 {#ime-double-windows}
+- [~] Windows 한글 입력이 부하 중 음절마다 두 번 찍힘 — 2026-11-11 병렬 빌드(CPU 100%) 중 앱 터미널의 Claude 에 「갑갑자자기기」. 다음 재현 때 ⌃⌥⇧I 덤프를 받아 원인부터. 11-10 덤프: Windows IME 는 Backspace 에 줄 전체를 다시 조합해 브리지가 DEL×N + 재전송한다 {#ime-double-windows}
 - [ ] git 띄우기 수가 macOS · Linux 에서 캡처마다 하나 더 — 윈도우에서는 상한(따로 6파일 10 · 한 커밋 5)에 맞는데 CI 의 유닉스에서 11 · 6. 캐시 열쇠(`path_form::cache_key` 가 유닉스에서 경로를 펴지 않음)나 첫 `config --list` 를 의심 (← 2026-11-11 Windows 성능 라운드) {#spawn-count-unix}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -41,4 +41,5 @@ owner: claude-code
 | 2026-11-01T15:49:44+09:00 | #history-purge | claude-code | ☐→! | .oculpm/journal/20261101/Refactors/1549_refactor_optimize-dead-code-sweep.md | 쓰는 쪽(history.rs)을 걷어 더는 안 쌓인다. 남은 .oculpm/index/history/ (이 저장소 328MB) 를 앱이 지울지는 사용자 결정 |
 | 2026-11-01T15:49:50+09:00 | #fastembed7 | claude-code | ☐→- |  | 근거 소멸 — fastembed·ort 는 4.0 에서 의존성째 걷었다 |
 | 2026-11-01T16:17:33+09:00 | #history-purge | claude-code | !→x | .oculpm/journal/20261101/Chores/1617_chore_purge-local-history-folders.md | 판정 ✓ 추적 프로젝트 12곳 .oculpm/index/history 삭제 (약 1.5GB), 쓰는 코드는 a7b576da 에서 걷음 |
+| 2026-11-12T03:28:00+09:00 | #ime-double-windows | claude-code | ☐→~ | .oculpm/journal/20261112/Bugs/0326_bug_ime-double-after-alt-v.md | 판정 ✓ pnpm test Tests 1098 passed (1098). 조건은 부하가 아니라 Alt+V(사용자 11-12) — 한글 keypress 를 xterm 에 넘기지 않는다. 설치본 확인 전이라 ~ |
 <!-- oculpm:plan-log end -->

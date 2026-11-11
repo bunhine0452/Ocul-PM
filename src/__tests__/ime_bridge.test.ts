@@ -534,4 +534,47 @@ describe("imeBridge", () => {
     expect(applyDel(h.stream)).toBe("\ucce8");
     expect(h.sent[h.sent.length - 1]).toBe(`${DEL}\ucce8`); // DEL 하나로 교체 — 두 번 지우지 않는다
   });
+
+  // ── 2026-11-12: Windows, Alt+V 뒤 — 조합 이벤트 없이 음절째 확정 ─────────
+  // 설치본 덤프(11-11 22:58) 그대로: 229 keydown 몇 번 → insertText "디" (조합
+  // 이벤트 0건). 이 모드의 확정은 keypress 로도 온다 — xterm 이 그걸 보내면
+  // 브리지의 input 전송과 합쳐 「디디」 가 된다.
+  const typeDiSpace = (order: "keypress-first" | "input-first") => {
+    expect(fireKeydown(h, { key: "Process", keyCode: 229 })).toBe(false);
+    expect(fireKeydown(h, { key: "Process", keyCode: 229 })).toBe(false);
+    if (order === "keypress-first") {
+      expect(fireKeypressThroughXterm(h, { key: "\ub514", charCode: 0xb514 })).toBe(false);
+      fireInput(h, "\ub514");
+    } else {
+      fireInput(h, "\ub514");
+      expect(fireKeypressThroughXterm(h, { key: "\ub514", charCode: 0xb514 })).toBe(false);
+    }
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, `\ub514${NBSP}`);
+  };
+
+  test("조합 이벤트 없는 확정: keypress 가 먼저 와도 음절은 한 번만 나간다", () => {
+    typeDiSpace("keypress-first");
+    expect(applyDel(h.stream)).toBe("\ub514 ");
+  });
+
+  test("조합 이벤트 없는 확정: input 이 먼저 와도 음절은 한 번만 나간다", () => {
+    typeDiSpace("input-first");
+    expect(applyDel(h.stream)).toBe("\ub514 ");
+  });
+
+  test("영문 keypress 는 종전대로 xterm 몫이다 (Shift+A 는 keypress 에서 나간다)", () => {
+    expect(fireKeypressThroughXterm(h, { key: "A", charCode: 65, shiftKey: true })).toBe(true);
+    expect(h.stream).toEqual(["A"]);
+  });
 });
+
+/**
+ * keypress 를 흘리되, 브리지가 넘긴(true) 글자는 xterm `_keyPress` 가 PTY 로 보낸다는
+ * 사실까지 스트림에 반영한다.
+ */
+function fireKeypressThroughXterm(h: Harness, init: KeyboardEventInit): boolean {
+  const pass = h.handler(new KeyboardEvent("keypress", { bubbles: true, cancelable: true, ...init }));
+  if (pass && (init.key ?? "").length === 1) h.stream.push(init.key ?? "");
+  return pass;
+}

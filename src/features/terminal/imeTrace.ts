@@ -49,9 +49,10 @@ function drain(): Entry[] {
 /**
  * 링을 로그 파일로 비운다 (`<app_data>/logs/oculpm.log.*`).
  *
- * 한 건에 한 줄씩 IPC 를 태우면 덤프 자체가 수백 번의 왕복이 된다 — 한 덩어리로
- * 묶어 **한 번** 보낸다. 사람이 부르는 순간이라 그 비용은 상관없지만, 그 사이
- * 사용자가 계속 타이핑하고 있을 수 있어서 굳이 위험을 만들지 않는다.
+ * 한 건에 한 줄씩 IPC 를 태우면 덤프 자체가 수백 번의 왕복이 된다 — 묶어서
+ * 보낸다. 다만 로그 한 줄의 상한(8KB) 안으로 — 400건이면 대여섯 조각이다 (`flush`).
+ * 사람이 부르는 순간이라 그 비용은 상관없지만, 그 사이 사용자가 계속 타이핑하고
+ * 있을 수 있어서 굳이 위험을 만들지 않는다.
  */
 export function dumpImeTrace(reason: string): number {
   const entries = drain();
@@ -100,6 +101,16 @@ export function resetImeTraceBudget(): void {
   autoSuppressed = 0;
 }
 
+/**
+ * 덤프 한 조각의 바이트 상한 — 백엔드 `oculpm_log` 이 메시지를 8KB 에서 자른다
+ * (`commands/oculpm.rs` LOG_MESSAGE_CAP, 2026-08-30). 400건 덤프는 30~45KB 라
+ * 한 덩어리로 보내면 **뒤쪽, 곧 덤프를 부른 재현 순간이** 잘려 나갔다 (2026-11-11
+ * 설치본의 자동 덤프 일곱 개가 모두 「… (+3만 bytes)」 로 끝났다). 머리 줄 몫을 남기고
+ * 줄 단위로 나눈다.
+ */
+const PART_BYTES = 7_600;
+const utf8 = new TextEncoder();
+
 function flush(reason: string, entries: Entry[]): number {
   const base = entries[0].at;
   const lines = entries.map((entry) => {
@@ -112,7 +123,29 @@ function flush(reason: string, entries: Entry[]): number {
     }
     return `${offset}ms ${entry.event} ${detail}`;
   });
-  oculpmLog.info("ime", `[IME-DUMP ${reason}] ${entries.length} events\n${lines.join("\n")}`);
+  const parts: string[][] = [];
+  let part: string[] = [];
+  let size = 0;
+  for (const line of lines) {
+    const bytes = utf8.encode(line).length + 1;
+    if (part.length && size + bytes > PART_BYTES) {
+      parts.push(part);
+      part = [];
+      size = 0;
+    }
+    part.push(line);
+    size += bytes;
+  }
+  parts.push(part);
+  // 첫 조각만 `[IME-DUMP` 로 연다 — 덤프 수를 세는 쪽(로그 grep · 테스트)이 조각을
+  // 덤프로 세지 않게. 이어지는 조각은 같은 사유를 달아 이어 붙일 수 있게 한다.
+  parts.forEach((chunk, index) => {
+    const head =
+      index === 0
+        ? `[IME-DUMP ${reason}] ${entries.length} events${parts.length > 1 ? ` (1/${parts.length})` : ""}`
+        : `[ime-dump ${reason}] (${index + 1}/${parts.length})`;
+    oculpmLog.info("ime", `${head}\n${chunk.join("\n")}`);
+  });
   cursor = 0;
   ring.fill(undefined);
   return entries.length;

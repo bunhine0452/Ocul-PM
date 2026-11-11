@@ -170,6 +170,28 @@ const SESSION_END_KEYS = new Set([
 // 오면 그 값과 echoed 를 비교하므로 되살아난 글자는 무접촉으로 지나가고, 삽입
 // 없이 compositionend 가 오면(조합 취소) 그때 지운다.
 
+// ── 2026-11-12: Windows — Alt+V 뒤로 그 터미널에서만 한글이 두 번 찍힌다 ──
+// 사용자가 짚은 조건: 모든 칸이 아니라 **Alt+V 를 누른 그 칸**에서만, claude 가
+// 아니라 셸에서도. 설치본 자동 덤프(11-11 22:46 · 22:58)가 그 앞뒤를 보여 준다:
+//
+//   Alt+V 전   compositionstart/update/end + insertCompositionText   (표준 조합 모델)
+//   keydown Alt (18)                         ← 'v' 의 keydown 은 DOM 에 오지 않는다
+//   Alt+V 뒤   keydown Process(229) × n → input insertText "디"      (조합 이벤트 0건)
+//
+// 입력기가 그 textarea 에서 인라인 조합을 놓고 **완성 음절을 통째로 확정**하는
+// 모드로 떨어진다. 덤프에서 브리지는 「디」 를 한 번만 보냈는데 화면엔 두 번 —
+// PTY 로 가는 길 중 남은 것은 xterm 의 keypress 하나다(229 keydown 은 막고, input 은
+// 브리지가 가로챈다). keypress 는 트레이스에 적지 않았으니 덤프에 안 보였을 뿐이다.
+// xterm 의 `_inputEvent` 가 `_keyPressHandled` 면 input 을 버리는 가드가 바로 이
+// 「keypress 와 input 이 같은 글자를 둘 다 싣는」 경로 몫인데, 브리지가 input 을
+// 가로채면서 그 가드는 함께 오지 않았다 → keypress 로 xterm 한 번, input 으로 브리지
+// 한 번 = 「방방금금」. (직접 본 것은 아니다 — 이제 keypress 도 적으니 다음 덤프가
+// 확인한다.)
+//
+// 한글은 **브리지만 보낸다**: 한글 keypress 는 xterm 에 넘기지 않는다. 막을 때
+// preventDefault 를 하지 않으므로(커스텀 핸들러가 false 면 xterm 은 cancel 전에
+// 돌아간다) 글자는 textarea 에 들어가 input 으로 브리지에 온다 — 잃지 않는다.
+
 /** 잔여 조합이 확정한 공백까지 끌고 올 때 떼어내는 꼬리 (NBSP 포함). */
 const TRAILING_SPACE = /\s+$/;
 
@@ -465,12 +487,16 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     }
 
     if (imeKey) return false;
+    if (event.type !== "keypress") return true;
+    trace("keypress", { key: event.key, charCode: event.charCode });
     // keydown 에서 preventDefault 를 하지 않았으므로 keypress 가 뒤따른다 —
     // 여기서 넘기면 xterm 이 같은 글자를 또 보낸다.
-    if (event.type === "keypress" && ownedKeydown === event.key) {
+    if (ownedKeydown === event.key) {
       ownedKeydown = null;
       return false;
     }
+    // 한글은 브리지(input)만 보낸다 — 위 2026-11-12 주석.
+    if (event.key.length === 1 && isComposable(event.key)) return false;
     return true;
   });
 

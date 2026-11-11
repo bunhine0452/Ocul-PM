@@ -52,7 +52,26 @@ describe("imeTrace", () => {
     for (let at = 0; at < 900; at += 1) pushImeTrace("input", { seq: at });
     const count = dumpImeTrace("manual");
     expect(count).toBe(400);
-    expect(String(info.mock.calls[0][1])).toContain('"seq":899');
+    const all = info.mock.calls.map((c) => String(c[1])).join("\n");
+    expect(all).toContain('"seq":899');
+  });
+
+  // 2026-11-11 — 백엔드가 로그 한 줄을 8KB 에서 자른다. 한 덩어리로 보내면 뒤쪽
+  // (= 덤프를 부른 재현 순간)이 잘려 설치본 덤프가 모두 쓸모없었다.
+  test("큰 덤프는 8KB 아래 조각으로 나뉘고, 가장 최근 이벤트까지 실린다", () => {
+    for (let n = 0; n < 400; n += 1) {
+      pushImeTrace("input", { inputType: "insertCompositionText", value: "그레이드 업그레이드", n });
+    }
+    dumpImeTrace("manual");
+
+    const messages = info.mock.calls.map((c) => String(c[1]));
+    expect(messages.length).toBeGreaterThan(1);
+    for (const message of messages) {
+      expect(new TextEncoder().encode(message).length).toBeLessThan(8 * 1024);
+    }
+    // 덤프 수를 세는 쪽이 조각을 덤프로 세지 않게 — `[IME-DUMP` 는 첫 조각만.
+    expect(messages.filter((m) => m.startsWith("[IME-DUMP")).length).toBe(1);
+    expect(messages.join("\n")).toContain('"n":399');
   });
 
   // 2026-09-12 — 자동 덤프 예산. 판정이 정상 타이핑에서 분당 1회꼴로 걸려
