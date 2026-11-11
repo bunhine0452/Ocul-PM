@@ -70,11 +70,10 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
 
-## 🚀 v4.9.2 — Lighter on Windows: terminal · git · plugin hooks
+## 🚀 v4.9.3 — Windows: Korean typed twice in the terminal, SessionEnd hook cut off
 
-- **The terminal keeps up while builds run** — work inside the terminal (Claude, builds) runs one priority step lower and output is sent in batches, so your typing and the screen come first. Resizing windows and terminals and switching tabs got lighter too.
-- **Far fewer git launches** — saving files, the Diff screen and Today now usually start git 0–1 times instead of several. Plugin hooks: session start 20s+ → under 2s, each edit 0.8 → 0.2s.
-- **Install and launch** — the installer no longer bundles the Visual C++ Redistributable, launch no longer flashes white, and prompt icons (Nerd Font) no longer show as □ in the terminal.
+- **Korean typed twice after Alt+V** — in the in-app terminal, the pane where you pressed Alt+V entered every Korean syllable twice. Fixed, and the ⌃⌥⇧I input record now keeps its last part too.
+- **"SessionEnd hook … failed: Hook cancelled"** — on Windows the plugin hook ran past the 1.5s Claude Code gives session-end hooks and was cut off. The hook now ends in 0.24s and the verdict and record finish after it (ships with the plugin update).
 
 ## 🚀 v4.9 — Queue messages while Claude works
 
@@ -86,6 +85,7 @@ What it doesn't give is written down too. Ambition itself is the human's job —
 
 The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
 
+- **Lighter on Windows: terminal · git · plugin hooks** (4.9.2) — a terminal that keeps up during builds, git usually started 0–1 times, the plugin's session-start hook from 20s+ to under 2s, and an installer without the Visual C++ Redistributable.
 - **Windows: one title bar with the app, PowerShell 7 in the terminal** (4.9.1) — minimize · maximize · close in the top bar's corner, PowerShell 7 when `pwsh` is installed, a running terminal asks before it closes, and records that failed with "Access is denied".
 - **Arrange 2–6 windows, pick your app icon** (4.8) — layout buttons in the ⌘O list arrange your 2–6 most recent windows (⌥⌘T does six), nine app icons (macOS), the start window as a table whose columns line up, previews for terminal image paths that wrap, and a narrow-window top bar that measures and folds one step at a time.
 - **Switch windows with ⌥Tab, each window in its own colour** (4.7) — the ⌥Tab window switcher (a tap goes to the previous window), the whole top bar in the project colour, and a fix for uncoloured projects' dots following the current window's colour.
