@@ -102,6 +102,7 @@ owner: claude-code
 - [x] 어두운 테마인데 Windows 창의 1px 위 테두리(#F3F3F3)와 시작 창 스크롤바가 밝다 — 창 테마 연동 · 시작 창 color-scheme {#win-chrome-theme}
 - [x] `pnpm tauri:log` 가 셸 문법이라 Windows(cmd.exe)에서 깨진다 — Node 스크립트로 {#win-tauri-log}
 - [x] portability 「Rust — windows-latest」 가 4.8 부터 붉다 — 잠금 파일 「삭제 대기」 의 접근 거부(os 5)를 기다리지 않고 오류로 끝내던 결함 · editor_choice 기댓값의 `/` {#win-lock-access-denied}
+- [x] SessionEnd 훅이 Windows 에서 1.5초 예산에 잘린다(「Hook cancelled」) — Git Bash 에서는 판정을 떼어 내고 곧장 끝난다 (11-12 사용자 보고) {#win-sessionend-budget}
 
 ## W3 — 패키징 · E2E (W2 합류 뒤, 병렬 2) {#w3}
 - [x] tauri.windows.conf.json·tauri.linux.conf.json 분리 — tauri.conf.json(macOS) 불변 (D3) {#w3-conf}
@@ -189,4 +190,5 @@ owner: claude-code
 | 2026-11-10T19:21:00+09:00 | #win-tauri-log | claude-code | →x | .oculpm/journal/20261110/Chores/1920_chore_tauri-log-node-script.md | 판정 ✓ pnpm tauri:log --help exit 0, %TEMP% 로그에 쌓임. macOS 미실행 |
 | 2026-11-10T19:58:00+09:00 | #win-lock-access-denied | claude-code | →x | .oculpm/journal/20261110/Bugs/1948_bug_windows-rust-ci-red-tests.md | 판정 ✓ cargo test --no-fail-fast (Windows 11) 35 binaries · 1115 passed · 0 failed |
 <!-- oculpm:plan-log archived: 62 rows → cross-platform-port.log.md -->
+| 2026-11-12T03:28:00+09:00 | #win-sessionend-budget | claude-code | →x | .oculpm/journal/20261112/Bugs/0327_bug_sessionend-hook-cancelled-windows.md | 판정 ✓ cargo test session_verdict 6 passed · plugin_xplat 14 passed · plugin_manifest 10 passed. 실측 훅 236ms(옛 1.28s), 뒤쪽 작업 896ms |
 <!-- oculpm:plan-log end -->

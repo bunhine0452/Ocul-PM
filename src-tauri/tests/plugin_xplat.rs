@@ -280,7 +280,9 @@ fn claude_hooks_run_under_the_platform_hook_shell() {
         cmd.current_dir(root)
             .env("CLAUDE_PROJECT_DIR", root)
             .env("CLAUDE_PLUGIN_ROOT", claude_plugin())
-            .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"));
+            .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"))
+            // SessionEnd 는 Git Bash 에서 판정을 뒤로 떼어 낸다(1.5초 예산) — 끝난 직후의 결과를 본다.
+            .env("OCULPM_HOOK_SYNC", "1");
         spawn_with_stdin(cmd, stdin)
     });
 }
@@ -419,7 +421,8 @@ fn run_like_codex_on_windows(command: &str, root: &Path, stdin: &str) -> Output 
         .env_remove("CLAUDE_PROJECT_DIR")
         .env("CLAUDE_PLUGIN_ROOT", codex_plugin())
         .env("PLUGIN_ROOT", codex_plugin())
-        .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"));
+        .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"))
+        .env("OCULPM_HOOK_SYNC", "1");
     spawn_with_stdin(cmd, stdin)
 }
 

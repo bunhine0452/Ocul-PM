@@ -32,6 +32,8 @@ fn run_hook(name: &str, root: &Path, payload: &str) -> Output {
         .arg(repo_root().join("plugin/oculpm/hooks").join(name))
         .env("CLAUDE_PROJECT_DIR", root)
         .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"))
+        // SessionEnd 는 Git Bash 에서 판정을 뒤로 떼어 낸다(1.5초 예산) — 끝난 직후의 결과를 본다.
+        .env("OCULPM_HOOK_SYNC", "1")
         .env_remove("CLAUDE_PLUGIN_ROOT")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -184,6 +186,7 @@ fn without_the_verdict_binary_the_hooks_stay_silent() {
             .env("CLAUDE_PROJECT_DIR", dir.path())
             .env("CLAUDE_PLUGIN_ROOT", empty_plugin.path())
             .env_remove("OCULPM_MCP_BIN")
+            .env("OCULPM_HOOK_SYNC", "1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -243,6 +246,7 @@ fn the_hooks_find_the_project_without_a_claude_project_dir() {
         .env_remove("CLAUDE_PROJECT_DIR")
         .env_remove("CLAUDE_PLUGIN_ROOT")
         .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"))
+        .env("OCULPM_HOOK_SYNC", "1")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -263,4 +267,57 @@ fn the_hooks_find_the_project_without_a_claude_project_dir() {
     assert_eq!(journal_missing_signals(root, 7).len(), 1);
     // 엉뚱한 자리에 파일을 흘리지 않는다.
     assert!(!elsewhere.path().join(".oculpm").exists());
+}
+
+/// **Git Bash 에서는 판정을 기다리지 않는다** (2026-11-12). Claude Code 는 SessionEnd
+/// 훅 전체에 1.5초만 주고, 플러그인 훅은 그 예산을 늘릴 수 없다. Windows 에서 판정
+/// 바이너리 한 번이 0.8초를 넘어(설치본 실측) 훅이 통째로 잘렸다(「Hook cancelled」).
+/// 훅은 곧장 끝나고, 원장 · 인박스 · 마커 청소는 떼어 낸 뒤쪽 작업이 마친다.
+#[cfg(windows)]
+#[test]
+fn on_git_bash_the_hook_returns_before_the_verdict_and_the_verdict_still_lands() {
+    use std::io::Write;
+    let dir = repo_with_session("bg1");
+    std::fs::write(dir.path().join("src.rs"), "changed\n").unwrap();
+
+    let mut child = Command::new(hook_sh::sh())
+        .arg(repo_root().join("plugin/oculpm/hooks/session-end.sh"))
+        .env("CLAUDE_PROJECT_DIR", dir.path())
+        .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"))
+        .env_remove("CLAUDE_PLUGIN_ROOT")
+        .env_remove("OCULPM_HOOK_SYNC")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("훅을 띄우지 못했다");
+    child
+        .stdin
+        .as_mut()
+        .expect("stdin")
+        .write_all(end_payload("bg1").as_bytes())
+        .expect("payload 쓰기");
+    // 뒤쪽 작업이 stdout/stderr 를 쥐고 있으면 이 대기가 판정이 끝날 때까지 걸린다 —
+    // Claude Code 가 훅을 기다리는 방식과 같다.
+    let out = child.wait_with_output().expect("훅 종료 대기");
+    assert_eq!(out.status.code(), Some(0), "SessionEnd 는 언제나 무해하다");
+    assert!(
+        out.stderr.is_empty(),
+        "뒤쪽 작업의 출력이 훅에 붙어 나왔다 — 파이프를 쥔 채 떼어 냈다: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let hooks = dir.path().join(".oculpm/hooks");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while !hooks.join("claude-events.jsonl").exists() && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    // 인박스 줄은 원장 뒤에 적힌다 — 인박스가 보이면 원장도 이미 있다.
+    let inbox = std::fs::read_to_string(hooks.join("claude-events.jsonl"))
+        .expect("뒤쪽 작업이 인박스 줄을 남기지 않았다");
+    assert_eq!(inbox, format!("{}\n", end_payload("bg1")));
+    let ledger = std::fs::read_to_string(hooks.join("journal-missing.jsonl")).unwrap();
+    assert!(ledger.contains(r#""verdict":"missing""#), "{ledger}");
+    assert!(!hooks.join(".session-start-bg1").exists());
+    assert!(!hooks.join(".session-live-bg1").exists());
 }
