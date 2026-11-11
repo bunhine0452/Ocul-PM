@@ -30,9 +30,25 @@ import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 
 // 한글은 번들 'D2Coding Term'(App.css)이 unicode-range 로 두 셀을 정확히 채운다 — 라틴 격자를
 // 정하는 글꼴이 스택의 맨 앞이어야 한다 (3.x terminalPlatform.ts 의 실측 그대로).
-const MAC_FONT = 'Menlo, "D2Coding Term", "SF Mono", ui-monospace, monospace';
-const OTHER_FONT =
-  '"Cascadia Mono", Consolas, "DejaVu Sans Mono", "D2Coding Term", "Noto Sans Mono", "Liberation Mono", monospace';
+// 프롬프트 아이콘(starship · oh-my-posh 의 git 가지 · 언어 표시)은 Nerd Font 의 사용자 영역(PUA)
+// 글자라 시스템 대체 글꼴이 찾지 못하고 □ 로 나왔다 — 설치돼 있으면 쓰도록 흔한 Nerd Font 이름을
+// 대체 자리에 둔다. 칸 폭은 맨 앞 글꼴이 정하니 한 칸짜리(Mono · NFM)를 먼저 둔다.
+const NERD_FONTS = [
+  '"Symbols Nerd Font Mono"',
+  '"JetBrainsMono NFM"',
+  '"JetBrainsMono Nerd Font Mono"',
+  '"CaskaydiaMono NFM"',
+  '"CaskaydiaCove NFM"',
+  '"CaskaydiaCove Nerd Font Mono"',
+  '"MesloLGS NF"',
+  '"MesloLGM Nerd Font Mono"',
+  '"Hack Nerd Font Mono"',
+  '"FiraCode Nerd Font Mono"',
+  '"JetBrainsMono Nerd Font"',
+  '"Symbols Nerd Font"',
+].join(", ");
+const MAC_FONT = `Menlo, "D2Coding Term", ${NERD_FONTS}, "SF Mono", ui-monospace, monospace`;
+const OTHER_FONT = `"Cascadia Mono", Consolas, "DejaVu Sans Mono", "D2Coding Term", ${NERD_FONTS}, "Noto Sans Mono", "Liberation Mono", monospace`;
 const SCROLLBACK = 5000;
 
 interface Entry {
