@@ -20,7 +20,9 @@ default-run = "ocul-pm"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "ocul_pm_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# rlib 만 — staticlib · cdylib 는 Tauri 모바일 템플릿의 몫인데 모바일 타깃이 없다(gen/ 없음).
+# 둘을 함께 구우면 바이너리 둘과 별개로 lib 를 두 번 더 링크했다 (debug staticlib 394MB).
+crate-type = ["rlib"]
 
 # PR-CI2 (docs/claude-integration D3) — stdio MCP 서버. 앱과 같은 lib 를 링크해
 # `.oculpm/` 규격 구현을 공유한다. 디스크 SSOT — 앱 프로세스와 IPC 없음.
