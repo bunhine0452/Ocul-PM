@@ -54,7 +54,7 @@ pub fn std_cmd(program: impl AsRef<OsStr>) -> std::process::Command {
     {
         use std::os::windows::process::CommandExt;
         let program = program.as_ref();
-        let resolved = resolve::batch_on_path(
+        let resolved = resolve::batch_on_path_cached(
             program,
             std::env::var_os("PATH").as_deref(),
             std::env::var_os("PATHEXT").as_deref(),
@@ -98,7 +98,28 @@ mod resolve {
     /// 맨 이름(`claude`)이 PATH 에서 배치 파일로 먼저 잡히면 그 전체 경로.
     /// 그 밖(경로·확장자가 있는 이름·exe 가 먼저 잡힘·못 찾음)은 `None` —
     /// 호출부는 원래 이름을 그대로 std 에 넘긴다.
+    #[cfg_attr(windows, allow(dead_code))] // 테스트가 순수 판정을 직접 부른다.
     pub(super) fn batch_on_path(
+        program: &OsStr,
+        path_var: Option<&OsStr>,
+        pathext: Option<&OsStr>,
+    ) -> Option<PathBuf> {
+        first_hit(program, path_var, pathext).and_then(as_batch)
+    }
+
+    /// 첫 적중이 배치 파일이면 그 경로 — 그 밖(exe 가 먼저)은 `None`.
+    fn as_batch(hit: PathBuf) -> Option<PathBuf> {
+        let ext = hit
+            .extension()
+            .and_then(OsStr::to_str)
+            .map(|e| format!(".{}", e.to_ascii_lowercase()));
+        ext.is_some_and(|e| BATCH.contains(&e.as_str()))
+            .then_some(hit)
+    }
+
+    /// PATH × PATHEXT 에서 맨 이름의 **첫 적중**(확장자 무관). 해석하지 않는 이름·못
+    /// 찾음은 `None`.
+    fn first_hit(
         program: &OsStr,
         path_var: Option<&OsStr>,
         pathext: Option<&OsStr>,
@@ -122,11 +143,50 @@ mod resolve {
             for ext in &exts {
                 let candidate = dir.join(format!("{name}{ext}"));
                 if candidate.is_file() {
-                    return BATCH.contains(&ext.as_str()).then_some(candidate);
+                    return Some(candidate);
                 }
             }
         }
         None
+    }
+
+    /// [`batch_on_path`] 와 같은 답을 기억해 둔다 (Windows 성능 라운드 2026-11-11).
+    ///
+    /// git 하나 띄울 때마다 PATH 의 폴더 수 × 확장자 넷만큼 `is_file()` 을 했다 — PATH 가
+    /// 서른 줄이면 첫 적중까지 수십 번의 stat 이다. 열쇠는 (이름, PATH, PATHEXT) 라 환경이
+    /// 바뀌면 다시 뒤진다. 기억한 첫 적중이 사라졌거나 60초가 지나면 다시 뒤진다 — 앞
+    /// 폴더에 같은 이름이 새로 깔려도 1분 안에 따라간다. 못 찾은 이름은 기억하지 않는다
+    /// (다음에 다시 뒤진다). 판정 자체(배치만 전체 경로로)는 그대로다.
+    pub(super) fn batch_on_path_cached(
+        program: &OsStr,
+        path_var: Option<&OsStr>,
+        pathext: Option<&OsStr>,
+    ) -> Option<PathBuf> {
+        use std::collections::HashMap;
+        use std::ffi::OsString;
+        use std::sync::{LazyLock, Mutex};
+        use std::time::{Duration, Instant};
+        type Key = (OsString, Option<OsString>, Option<OsString>);
+        const TTL: Duration = Duration::from_secs(60);
+        static CACHE: LazyLock<Mutex<HashMap<Key, (Instant, PathBuf)>>> =
+            LazyLock::new(Default::default);
+        let key: Key = (
+            program.to_os_string(),
+            path_var.map(OsStr::to_os_string),
+            pathext.map(OsStr::to_os_string),
+        );
+        let now = Instant::now();
+        let cached = CACHE.lock().ok().and_then(|c| c.get(&key).cloned());
+        if let Some((at, hit)) = cached {
+            if now.duration_since(at) < TTL && hit.is_file() {
+                return as_batch(hit);
+            }
+        }
+        let hit = first_hit(program, path_var, pathext)?;
+        if let Ok(mut c) = CACHE.lock() {
+            c.insert(key, (now, hit.clone()));
+        }
+        as_batch(hit)
     }
 
     /// 디렉터리 구분자도 드라이브 표기(`C:`)도 없는 이름.
@@ -263,6 +323,34 @@ mod resolve {
             let path = std::env::join_paths(["relative-dir"]).unwrap();
             assert_eq!(batch_on_path(OsStr::new("claude"), Some(&path), None), None);
             assert_eq!(batch_on_path(OsStr::new("claude"), None, None), None);
+        }
+
+        /// 기억한 답은 순수 판정과 같고, 기억한 파일이 사라지면 다시 뒤진다 — 배치 →
+        /// exe 로 바뀐 자리에서 전체 경로를 계속 넘기지 않는다.
+        #[test]
+        fn cached_answer_matches_and_resweeps_when_the_hit_vanishes() {
+            let a = tempfile::tempdir().unwrap();
+            let b = tempfile::tempdir().unwrap();
+            let shim = touch(a.path(), "cachetool.cmd");
+            touch(b.path(), "cachetool.exe");
+            let path = path_of(&[a.path(), b.path()]);
+            let name = OsStr::new("cachetool");
+            for _ in 0..2 {
+                assert_eq!(
+                    batch_on_path_cached(name, Some(&path), None),
+                    batch_on_path(name, Some(&path), None)
+                );
+            }
+            assert_eq!(
+                batch_on_path_cached(name, Some(&path), None),
+                Some(shim.clone())
+            );
+            std::fs::remove_file(&shim).unwrap();
+            assert_eq!(batch_on_path_cached(name, Some(&path), None), None);
+            assert_eq!(
+                batch_on_path_cached(OsStr::new("nope-x"), Some(&path), None),
+                None
+            );
         }
 
         /// 못 찾으면 None — 호출부는 원래 이름을 넘기고 std 가 예전과 같은 에러를 낸다.

@@ -47,11 +47,16 @@ pub enum RepoNesting {
 /// `ls-tree -r HEAD` **한 번**으로 HEAD 의 경로 집합을 받아 두고 멤버십만 본다.
 /// 중첩 저장소는 파일이 속한 저장소를 `repo_root_for`(디렉터리별 캐시) 로 찾아
 /// 그 저장소의 집합을 쓴다. 저장소 밖이거나 HEAD 가 없으면(unborn) `false`.
+///
+/// 집합은 [`super::head::head_tree`] 의 HEAD 커밋 열쇠 캐시를 같이 쓴다 — 기동 정리와
+/// 저장마다의 기준선 동기가 같은 `ls-tree` 한 번을 나눠 갖는다 (11-11).
 #[derive(Default)]
 pub struct HeadIndex {
     /// 저장소 루트 → HEAD 트리의 (저장소 상대) 경로 집합. `None` = unborn HEAD.
-    repos: std::collections::HashMap<PathBuf, Option<std::collections::HashSet<String>>>,
+    repos: std::collections::HashMap<PathBuf, HeadSet>,
 }
+
+type HeadSet = std::sync::Arc<Option<std::collections::HashSet<String>>>;
 
 impl HeadIndex {
     /// `root/file_path` 가 자기 저장소의 HEAD 커밋에 있는가.
@@ -63,16 +68,16 @@ impl HeadIndex {
         let Some(rel) = super::repo_relative(&repo, &abs) else {
             return false;
         };
-        let set = self
-            .repos
-            .entry(repo.clone())
-            .or_insert_with(|| head_tree_paths(&repo));
-        set.as_ref().is_some_and(|s| s.contains(&rel))
+        let set = self.repos.entry(repo.clone()).or_insert_with(|| {
+            super::head::head_tree(&repo)
+                .unwrap_or_else(|| std::sync::Arc::new(head_tree_paths(&repo)))
+        });
+        set.as_ref().as_ref().is_some_and(|s| s.contains(&rel))
     }
 }
 
 /// `git ls-tree -r --name-only -z HEAD` — 저장소 상대 경로 집합. unborn HEAD 면 `None`.
-fn head_tree_paths(repo: &Path) -> Option<std::collections::HashSet<String>> {
+pub(super) fn head_tree_paths(repo: &Path) -> Option<std::collections::HashSet<String>> {
     let out = super::safe::output(&mut super::safe::cmd(
         repo,
         &["ls-tree", "-r", "--name-only", "-z", "HEAD"],

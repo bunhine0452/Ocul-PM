@@ -38,7 +38,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 
 use super::QUOTEPATH_OFF;
 
@@ -89,60 +89,96 @@ pub fn cmd(dir: &Path, args: &[&str]) -> Command {
 
 /// `cmd.output()` 과 같되 [`TIMEOUT`] 을 넘기면 죽이고 `TimedOut` 오류를 돌려준다.
 ///
-/// 표준 출력·오류는 각자 스레드가 끝까지 읽는다 — 한쪽 파이프가 차서 자식이
-/// 멈추는 교착을 피하려는 것이다 (`Command::output` 이 안에서 하는 일과 같다).
+/// 표준 출력은 **부르는 스레드**가 끝까지 읽고, 표준 오류는 도우미 스레드 하나가
+/// 비운다 — 한쪽 파이프가 차서 자식이 멈추는 교착을 피하려는 것이다 (`Command::output`
+/// 이 안에서 하는 일과 같다). 시간 제한은 감시 스레드가 지킨다: 기한까지 「끝났다」
+/// 소식이 없으면 자식을 죽인다. 예전엔 읽기 스레드 둘에 5 ms 마다 `try_wait` 를 돌렸다 —
+/// git 이 1 ms 에 끝나도 최소 한 번은 5 ms 를 잤다 (Windows 성능 라운드 2026-11-11).
 pub fn output(cmd: &mut Command) -> std::io::Result<Output> {
     output_within(cmd, TIMEOUT)
 }
 
 fn output_within(cmd: &mut Command, timeout: Duration) -> std::io::Result<Output> {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{mpsc, Arc};
+
     let mut child = cmd
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
-    let drain = |pipe: Option<Box<dyn Read + Send>>| {
+    #[cfg(test)]
+    SPAWNS.with(|c| c.set(c.get() + 1));
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let err = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        if let Some(mut p) = stderr {
+            let _ = p.read_to_end(&mut buf);
+        }
+        buf
+    });
+
+    let child = Arc::new(Mutex::new(child));
+    let timed_out = Arc::new(AtomicBool::new(false));
+    let (done_tx, done_rx) = mpsc::channel::<()>();
+    let watchdog = {
+        let (child, timed_out) = (child.clone(), timed_out.clone());
         std::thread::spawn(move || {
-            let mut buf = Vec::new();
-            if let Some(mut p) = pipe {
-                let _ = p.read_to_end(&mut buf);
+            // 소식이 오거나(끝남) 송신측이 사라지면(오류로 빠짐) 그냥 돌아간다.
+            if let Err(mpsc::RecvTimeoutError::Timeout) = done_rx.recv_timeout(timeout) {
+                timed_out.store(true, Ordering::SeqCst);
+                if let Ok(mut c) = child.lock() {
+                    let _ = c.kill();
+                }
             }
-            buf
         })
     };
-    let out = drain(
-        child
-            .stdout
-            .take()
-            .map(|p| Box::new(p) as Box<dyn Read + Send>),
-    );
-    let err = drain(
-        child
-            .stderr
-            .take()
-            .map(|p| Box::new(p) as Box<dyn Read + Send>),
-    );
 
-    let deadline = Instant::now() + timeout;
+    let mut out = Vec::new();
+    if let Some(mut p) = stdout {
+        let _ = p.read_to_end(&mut out);
+    }
+    // 표준 출력이 닫혔다 = 자식이 (거의) 끝났다. 잠금을 쥔 채 `wait` 하면 감시 스레드가
+    // 죽이지 못하므로, 짧게 물러서며 `try_wait` 한다 — 보통 첫 번째나 두 번째에 끝난다.
+    let mut nap = Duration::from_micros(50);
     let status = loop {
-        if let Some(status) = child.try_wait()? {
+        let polled = child
+            .lock()
+            .map_err(|_| std::io::Error::other("child lock poisoned"))?
+            .try_wait()?;
+        if let Some(status) = polled {
             break status;
         }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::TimedOut,
-                format!("git did not finish within {}s", timeout.as_secs()),
-            ));
-        }
-        std::thread::sleep(Duration::from_millis(5));
+        std::thread::sleep(nap);
+        nap = (nap * 2).min(Duration::from_millis(5));
     };
+    let _ = done_tx.send(());
+    let _ = watchdog.join();
+    let stderr = err.join().unwrap_or_default();
+    if timed_out.load(Ordering::SeqCst) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            format!("git did not finish within {}s", timeout.as_secs()),
+        ));
+    }
     Ok(Output {
         status,
-        stdout: out.join().unwrap_or_default(),
-        stderr: err.join().unwrap_or_default(),
+        stdout: out,
+        stderr,
     })
+}
+
+// 테스트 전용 — 이 스레드가 지금까지 띄운 git 수. 캐시·묶음의 효과를 숫자로 잠근다
+// (`spawn_count_tests`). 스레드마다 따로라 나란히 도는 다른 테스트가 섞이지 않는다.
+#[cfg(test)]
+thread_local! {
+    static SPAWNS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn spawn_count() -> usize {
+    SPAWNS.with(|c| c.get())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -153,12 +189,17 @@ fn output_within(cmd: &mut Command, timeout: Duration) -> std::io::Result<Output
 ///
 /// `git config --list` 는 값을 읽기만 하고 아무것도 실행하지 않는다. 설정이 안
 /// 바뀌었으면 다시 묻지 않는다 — `status` 한 번에 git 을 두 번 띄우지 않으려고.
+///
+/// 캐시 열쇠는 `-C` 폴더가 아니라 **그 폴더가 속한 `.git`** 이다 (Windows 성능 라운드
+/// 2026-11-11). 폴더로 열쇠를 잡던 동안 `repo_root_for` 가 하위 폴더마다 `-C <그 폴더>`
+/// 로 git 을 부를 때마다 같은 저장소의 설정을 처음부터 다시 물었다. 같은 `.git` 을
+/// 만나는 두 폴더는 git 에게도 같은 저장소라 저장소 범위 설정도 같다.
 fn neutralizers(dir: &Path) -> Vec<String> {
-    let stamp = config_stamp(dir);
+    let found = super::head::dot_git_for(dir).and_then(|g| config_stamp(&g).map(|s| (g, s)));
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    if let Some(stamp) = stamp {
-        if let Some((seen, args)) = cache.lock().ok().and_then(|c| c.get(dir).cloned()) {
-            if seen == stamp {
+    if let Some((key, stamp)) = &found {
+        if let Some((seen, args)) = cache.lock().ok().and_then(|c| c.get(key).cloned()) {
+            if seen == *stamp {
                 return args;
             }
         }
@@ -166,29 +207,25 @@ fn neutralizers(dir: &Path) -> Vec<String> {
     let args = read_local_config(dir)
         .map(|raw| neutralizers_from(&raw))
         .unwrap_or_default();
-    if let (Some(stamp), Ok(mut c)) = (stamp, cache.lock()) {
-        c.insert(dir.to_path_buf(), (stamp, args.clone()));
+    if let (Some((key, stamp)), Ok(mut c)) = (found, cache.lock()) {
+        c.insert(key, (stamp, args.clone()));
     }
     args
 }
 
-type Cache = Mutex<HashMap<PathBuf, (SystemTime, Vec<String>)>>;
+type Stamp = (Option<SystemTime>, Option<SystemTime>);
+type Cache = Mutex<HashMap<PathBuf, (Stamp, Vec<String>)>>;
 static CACHE: OnceLock<Cache> = OnceLock::new();
 
-/// 캐시를 믿어도 되는가의 표식 — 가장 가까운 `.git/config` 의 수정 시각.
-/// `.git` 이 파일(워크트리·서브모듈)이면 설정 자리를 따라가지 않고 `None` (매번 묻는다).
-fn config_stamp(dir: &Path) -> Option<SystemTime> {
-    let dot_git = dir
-        .ancestors()
-        .map(|a| a.join(".git"))
-        .find(|g| g.exists())?;
-    if !dot_git.is_dir() {
-        return None;
-    }
-    std::fs::metadata(dot_git.join("config"))
-        .ok()?
-        .modified()
-        .ok()
+/// 캐시를 믿어도 되는가의 표식 — 저장소 설정(`<공용 폴더>/config`)과 워크트리 설정
+/// (`<git 폴더>/config.worktree`)의 수정 시각. `.git` 이 파일(워크트리·서브모듈)이면
+/// `gitdir:` 를 따라간다 — 예전엔 그때 `None`(매번 묻기)이었는데, 경주 레인이 바로
+/// 워크트리다. 저장소 설정을 못 읽으면 `None` (매번 묻는다).
+fn config_stamp(dot_git: &Path) -> Option<Stamp> {
+    let dirs = super::head::git_dirs(dot_git)?;
+    let mtime = |p: PathBuf| std::fs::metadata(p).ok()?.modified().ok();
+    let local = mtime(dirs.common_dir.join("config"))?;
+    Some((Some(local), mtime(dirs.git_dir.join("config.worktree"))))
 }
 
 fn read_local_config(dir: &Path) -> Option<String> {
@@ -444,7 +481,7 @@ mod tests {
         } else {
             slow.arg("30");
         }
-        let started = Instant::now();
+        let started = std::time::Instant::now();
         let err = output_within(&mut slow, Duration::from_millis(200)).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::TimedOut);
         assert!(started.elapsed() < Duration::from_secs(10));

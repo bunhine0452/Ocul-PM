@@ -59,6 +59,27 @@ pub fn plain(p: &Path) -> PathBuf {
     }
 }
 
+/// 캐시 열쇠용 모양 — [`plain`] 으로 `\\?\` 를 걷고, 윈도우에서는 `/` 를 `\` 로,
+/// 대소문자를 소문자로 편다 (윈도우 파일시스템은 대소문자를 가리지 않는다). 같은 폴더가
+/// `rev-parse` 의 `C:/a/b` 와 `canonicalize` 의 `\\?\C:\a\b` 로 따로 들어와도 한 칸이다.
+/// 다른 OS 에서는 그대로다.
+pub(crate) fn cache_key(p: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        PathBuf::from(
+            plain(p)
+                .to_string_lossy()
+                .replace('/', "\\")
+                .trim_end_matches('\\')
+                .to_lowercase(),
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        p.to_path_buf()
+    }
+}
+
 /// `path` 를 `base` 기준 상대 경로(저장 모양)로. 둘 다 [`plain`] 으로 편 뒤 비교하므로
 /// 한쪽만 `canonicalize` 된 윈도우 경로(`\\?\C:\…` 대 `C:\…`)도 맞는다. `base` 밖이면 `None`.
 pub fn relative_to(base: &Path, path: &Path) -> Option<String> {

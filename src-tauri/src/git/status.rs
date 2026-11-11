@@ -34,10 +34,17 @@ pub fn status(root: &Path) -> GitRepoStatus {
         };
     };
     let root = repo.as_path();
-    let head_branch = run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"])
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty() && s != "HEAD");
+    // 가지 이름은 `.git/HEAD` 에서 바로 읽는다 — 떨어진 HEAD 면 없음(`rev-parse
+    // --abbrev-ref` 의 `HEAD` 와 같은 뜻). 파일로 못 읽는 저장소(reftable 등)만 git 에
+    // 묻는다 (Windows 성능 라운드 2026-11-11).
+    let head_branch = match super::head::head_of(root) {
+        Some(super::head::Head::Branch { name, .. }) => Some(name),
+        Some(super::head::Head::Detached(_)) => None,
+        None => run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"])
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && s != "HEAD"),
+    };
     let remotes = remotes(root).unwrap_or_default();
     GitRepoStatus {
         is_git_repo: true,
@@ -50,7 +57,7 @@ pub fn remotes(root: &Path) -> Result<Vec<GitRemote>, String> {
     let Some(repo) = primary_repo(root) else {
         return Ok(Vec::new());
     };
-    let text = run_git(&repo, &["remote", "-v"])?;
+    let text = remote_listing(&repo)?;
 
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
@@ -76,6 +83,35 @@ pub fn remotes(root: &Path) -> Result<Vec<GitRemote>, String> {
         });
     }
     Ok(out)
+}
+
+/// `git remote -v` — 저장소 설정(`config`)의 수정 시각이 그대로면 지난 답을 쓴다.
+/// 리모트는 설정 파일에만 산다 (Windows 성능 라운드 2026-11-11). 설정 자리를 못 찾으면
+/// 매번 묻는다.
+fn remote_listing(repo: &Path) -> Result<String, String> {
+    use std::collections::HashMap;
+    use std::sync::{LazyLock, Mutex};
+    use std::time::SystemTime;
+    type Memo = HashMap<std::path::PathBuf, (SystemTime, String)>;
+    static MEMO: LazyLock<Mutex<Memo>> = LazyLock::new(Default::default);
+    let stamp = super::head::git_dirs(&repo.join(".git")).and_then(|d| {
+        std::fs::metadata(d.common_dir.join("config"))
+            .ok()?
+            .modified()
+            .ok()
+    });
+    if let Some(stamp) = stamp {
+        if let Some((seen, text)) = MEMO.lock().ok().and_then(|m| m.get(repo).cloned()) {
+            if seen == stamp {
+                return Ok(text);
+            }
+        }
+    }
+    let text = run_git(repo, &["remote", "-v"])?;
+    if let (Some(stamp), Ok(mut m)) = (stamp, MEMO.lock()) {
+        m.insert(repo.to_path_buf(), (stamp, text.clone()));
+    }
+    Ok(text)
 }
 
 /// Parse `https://github.com/owner/repo.git`, `git@github.com:owner/repo.git`,

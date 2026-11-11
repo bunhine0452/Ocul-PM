@@ -1,6 +1,6 @@
 //! 저장소 해석과 git 프로세스 실행 — 나머지 모듈이 전부 딛고 서는 바닥.
 //! `primary_repo`/`repo_root_for` 는 `.oculpm/` 루트가 저장소 위·아래 어디에
-//! 있든 실제 작업 트리를 찾고(30초 캐시), `run_git` 은 그 트리에서 git 을 띄운다.
+//! 있든 실제 작업 트리를 찾고(`.git` 열쇠 캐시), `run_git` 은 그 트리에서 git 을 띄운다.
 //! 어디서 git 을 부르는지 한 자리에 모아 두는 것이 이 모듈이 따로인 이유다.
 
 use std::path::{Path, PathBuf};
@@ -117,17 +117,28 @@ pub fn repo_root_for(path: &Path) -> Option<PathBuf> {
         anchor = anchor.parent()?;
     };
 
-    // 디렉터리 → 저장소 루트를 짧게 기억한다 (완성도 라운드 Phase 3). 일지 하나의
-    // diff 캡처가 파일마다 `rev-parse --show-toplevel` 을 새로 띄웠다 — 같은
-    // 디렉터리에 같은 답을 파일 수만큼. `primary_repo` 와 같은 30초 TTL:
-    // 나중에 `git init` 한 폴더가 영원히 "저장소 아님" 으로 남지 않게.
-    const TTL: Duration = Duration::from_secs(30);
+    // 저장소 루트를 기억한다 (완성도 라운드 Phase 3 → Windows 성능 라운드 2026-11-11).
+    // 일지 하나의 diff 캡처가 파일마다 `rev-parse --show-toplevel` 을 새로 띄웠다.
+    //
+    // 열쇠는 디렉터리가 아니라 **그 디렉터리에서 위로 처음 만나는 `.git`** 이다 — git 의
+    // 저장소 찾기가 바로 그 걸음이라, 같은 `.git` 을 만나는 두 폴더는 답이 같다. 폴더
+    // 열쇠일 때는 에이전트가 새 폴더의 파일을 저장할 때마다 `rev-parse` 가 다시 떴다.
+    // 찾은 `.git` 은 매번 stat 으로 다시 확인하므로(지우거나 옮기면 열쇠가 바뀐다)
+    // 길게(10분) 믿는다. `.git` 이 없으면 폴더 열쇠로 30초만 — 나중에 `git init` 한
+    // 폴더가 영원히 "저장소 아님" 으로 남지 않게.
+    const TTL_FOUND: Duration = Duration::from_secs(600);
+    const TTL_NONE: Duration = Duration::from_secs(30);
     static CACHE: LazyLock<Mutex<HashMap<PathBuf, (Instant, Option<PathBuf>)>>> =
         LazyLock::new(Default::default);
+    let dot_git = super::head::dot_git_for(dir);
+    let (key, ttl) = match &dot_git {
+        Some(g) => (g.clone(), TTL_FOUND),
+        None => (dir.to_path_buf(), TTL_NONE),
+    };
     let now = Instant::now();
     if let Ok(cache) = CACHE.lock() {
-        if let Some((at, repo)) = cache.get(dir) {
-            if now.duration_since(*at) < TTL {
+        if let Some((at, repo)) = cache.get(&key) {
+            if now.duration_since(*at) < ttl {
                 return repo.clone();
             }
         }
@@ -138,7 +149,7 @@ pub fn repo_root_for(path: &Path) -> Option<PathBuf> {
         .filter(|top| !top.is_empty())
         .map(PathBuf::from);
     if let Ok(mut cache) = CACHE.lock() {
-        cache.insert(dir.to_path_buf(), (now, repo.clone()));
+        cache.insert(key, (now, repo.clone()));
     }
     repo
 }
@@ -155,7 +166,7 @@ pub fn repo_root_for(path: &Path) -> Option<PathBuf> {
 /// pathspec 이라 늘 `/` 구분이다 — `HEAD:<rel>` 은 `\` 를 받지 않는다.
 pub(super) fn repo_relative(repo: &Path, abs: &Path) -> Option<String> {
     #[cfg(windows)]
-    let repo = &std::fs::canonicalize(repo).unwrap_or_else(|_| repo.to_path_buf());
+    let repo = &canonical_repo(repo);
     if let Ok(real) = std::fs::canonicalize(abs) {
         if let Some(rel) = super::relative_to(repo, &real) {
             return Some(rel);
@@ -169,6 +180,33 @@ pub(super) fn repo_relative(repo: &Path, abs: &Path) -> Option<String> {
         }
     }
     super::relative_to(repo, abs)
+}
+
+/// 저장소 루트의 실경로 — 윈도우에서 `repo_relative` 가 부를 때마다 `canonicalize`
+/// (드라이브까지 경로 성분마다 열기)를 하던 것을 기억한다 (Windows 성능 라운드 2026-11-11).
+/// 열쇠는 [`super::path_form::cache_key`] 로 편다 — 같은 저장소가 `rev-parse` 의
+/// `C:/a/b` 로도, `canonicalize` 의 `\\?\C:\a\b` 로도 들어온다. 저장소를 옮기면
+/// 10분 안에 다시 편다.
+#[cfg(windows)]
+fn canonical_repo(repo: &Path) -> PathBuf {
+    use std::collections::HashMap;
+    use std::sync::{LazyLock, Mutex};
+    use std::time::{Duration, Instant};
+    const TTL: Duration = Duration::from_secs(600);
+    static CACHE: LazyLock<Mutex<HashMap<PathBuf, (Instant, PathBuf)>>> =
+        LazyLock::new(Default::default);
+    let key = super::path_form::cache_key(repo);
+    let now = Instant::now();
+    if let Some((at, real)) = CACHE.lock().ok().and_then(|c| c.get(&key).cloned()) {
+        if now.duration_since(at) < TTL {
+            return real;
+        }
+    }
+    let real = std::fs::canonicalize(repo).unwrap_or_else(|_| repo.to_path_buf());
+    if let Ok(mut c) = CACHE.lock() {
+        c.insert(key, (now, real.clone()));
+    }
+    real
 }
 
 /// Find the git work-tree root(s) relevant to a project at `root`. The common

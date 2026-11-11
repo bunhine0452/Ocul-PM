@@ -60,8 +60,13 @@ pub fn path_in_head(root: &Path, file_path: &str) -> Option<bool> {
     let abs = in_root(root, file_path)?;
     let repo = repo_root_for(&abs)?;
     let rel = repo_relative(&repo, &abs).unwrap_or_else(|| file_path.to_string());
-    // `cat-file -e HEAD:<rel>` exits 0 iff the blob exists in HEAD; any failure
-    // (missing path, or unborn HEAD in a fresh repo) means "not in HEAD".
+    // HEAD 커밋이 그대로면 그 트리의 경로 집합으로 답한다 — 저장마다 git 을 띄우지
+    // 않는다 (`head::in_head`, Windows 성능 라운드 2026-11-11). HEAD 를 파일로 못
+    // 읽으면(reftable 등) 예전처럼 묻는다: `cat-file -e HEAD:<rel>` exits 0 iff the
+    // blob exists in HEAD; any failure (missing path, unborn HEAD) means "not in HEAD".
+    if let Some(hit) = super::head::in_head(&repo, &rel) {
+        return Some(hit);
+    }
     Some(run_git(&repo, &["cat-file", "-e", &format!("HEAD:{rel}")]).is_ok())
 }
 

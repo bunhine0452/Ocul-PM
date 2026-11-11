@@ -233,6 +233,145 @@ pub fn diff_at_nearest_commit(
     Ok(String::new())
 }
 
+/// [`diff_at_nearest_commit`] 를 **여러 파일 한 번에** — 일지 하나의 diff 캡처가 1단계
+/// (작업 트리)를 빗나간 파일마다 `log` 한 번 + `show` 최대 다섯 번을 띄우던 것을
+/// (Windows 성능 라운드 2026-11-11) 저장소당 `log` 한 번, 고른 커밋당 `show` 한 번으로.
+///
+/// 파일마다의 답은 한 파일씩 물을 때와 같다: 후보는 그 파일을 건드린 커밋(최신 200개)을
+/// 일지 시각과의 거리로 줄 세운 것이고, 앞에서부터 다섯 개 중 처음으로 패치가 비지 않은
+/// 커밋을 쓴다. 차례(round) k 마다 아직 못 정한 파일의 k 번째 후보를 커밋별로 묶어
+/// `show <커밋> -- 파일들` 한 번으로 묻는다. `--no-renames` 는 한 파일 pathspec 에서
+/// 이름 바꾸기 짝이 생길 수 없던 것과 같은 출력을 여러 파일에서도 내게 한다.
+///
+/// 다른 점 하나: 합류 커밋은 후보가 아니다 (`log --name-only` 가 합류에 파일을 싣지
+/// 않는다). 한 파일씩일 때도 합류의 `show` 는 대개 빈 결합 diff 라 건너뛰어졌다.
+pub fn diffs_at_nearest_commits(
+    root: &Path,
+    file_paths: &[String],
+    around_unix: Option<i64>,
+    max_bytes: usize,
+) -> std::collections::HashMap<String, String> {
+    use std::collections::HashMap;
+    const MAX_CANDIDATES: usize = 200; // `--max-count=200` 의 파일별 몫
+    const MAX_TRIES: usize = 5;
+    let mut out: HashMap<String, String> = HashMap::new();
+    let mut by_repo: HashMap<PathBuf, Vec<(String, String)>> = HashMap::new();
+    for file_path in file_paths {
+        let abs = root.join(file_path);
+        let Some(repo) = repo_root_for(&abs) else {
+            continue;
+        };
+        let rel = repo_relative(&repo, &abs).unwrap_or_else(|| file_path.clone());
+        by_repo
+            .entry(repo)
+            .or_default()
+            .push((rel, file_path.clone()));
+    }
+    for (repo, files) in by_repo {
+        let mut args: Vec<&str> = vec![
+            "log",
+            "--no-renames",
+            "-z",
+            "--format=%x1e%H %at",
+            "--name-only",
+            "--",
+        ];
+        args.extend(files.iter().map(|(rel, _)| rel.as_str()));
+        let Ok(listing) = run_git(&repo, &args) else {
+            continue;
+        };
+        let touched = parse_name_log(&listing);
+        // 파일별 후보 — 로그 차례(최신 먼저)를 지키고, 시각이 있으면 거리로 (안정) 정렬.
+        let mut pending: Vec<(&str, &str, Vec<String>)> = files
+            .iter()
+            .filter_map(|(rel, orig)| {
+                let mut c: Vec<(String, i64)> = touched
+                    .iter()
+                    .filter(|(_, _, names)| names.iter().any(|n| n == rel))
+                    .take(MAX_CANDIDATES)
+                    .map(|(h, t, _)| (h.clone(), *t))
+                    .collect();
+                if c.is_empty() {
+                    return None;
+                }
+                if let Some(t) = around_unix {
+                    c.sort_by_key(|(_, ts)| (ts - t).abs());
+                }
+                Some((
+                    rel.as_str(),
+                    orig.as_str(),
+                    c.into_iter().take(MAX_TRIES).map(|(h, _)| h).collect(),
+                ))
+            })
+            .collect();
+        for round in 0..MAX_TRIES {
+            let mut by_hash: HashMap<&str, Vec<usize>> = HashMap::new();
+            for (i, (_, _, cands)) in pending.iter().enumerate() {
+                if let Some(h) = cands.get(round) {
+                    by_hash.entry(h.as_str()).or_default().push(i);
+                }
+            }
+            if by_hash.is_empty() {
+                break;
+            }
+            let mut resolved: Vec<usize> = Vec::new();
+            for (hash, idxs) in by_hash {
+                let mut args: Vec<&str> = vec![
+                    "show",
+                    "--no-renames",
+                    "--format=",
+                    "--unified=3",
+                    hash,
+                    "--",
+                ];
+                args.extend(idxs.iter().map(|&i| pending[i].0));
+                let text = run_git(&repo, &args).unwrap_or_default();
+                let patches: HashMap<String, String> =
+                    split_multi_diff(&text).into_iter().collect();
+                for i in idxs {
+                    let (rel, orig, _) = &pending[i];
+                    if let Some(p) = patches.get(*rel).filter(|p| !p.trim().is_empty()) {
+                        out.insert((*orig).to_string(), truncate_patch(p.clone(), max_bytes));
+                        resolved.push(i);
+                    }
+                }
+            }
+            resolved.sort_unstable();
+            for i in resolved.into_iter().rev() {
+                pending.swap_remove(i);
+            }
+        }
+    }
+    out
+}
+
+/// `log -z --format=%x1e%H %at --name-only` → (커밋, 작성 시각, 파일들) 의 로그 차례 목록.
+/// 머리글 토큰은 `\x1e` 로 시작하고, 그 뒤 첫 파일 이름 앞에만 `\n` 이 하나 붙는다.
+fn parse_name_log(listing: &str) -> Vec<(String, i64, Vec<String>)> {
+    let mut out: Vec<(String, i64, Vec<String>)> = Vec::new();
+    let mut after_header = false;
+    for token in listing.split('\0') {
+        let token = if after_header {
+            token.strip_prefix('\n').unwrap_or(token)
+        } else {
+            token
+        };
+        after_header = false;
+        if let Some(head) = token.strip_prefix('\x1e') {
+            let Some((h, t)) = head.split_once(' ') else {
+                continue;
+            };
+            out.push((h.to_string(), t.trim().parse().unwrap_or(0), Vec::new()));
+            after_header = true;
+        } else if !token.is_empty() {
+            if let Some(last) = out.last_mut() {
+                last.2.push(token.to_string());
+            }
+        }
+    }
+    out
+}
+
 /// Cap a unified-diff blob at `max_bytes`, appending a truncation marker. Keeps
 /// a runaway generated file from bloating callers (sidecars, IPC payloads).
 fn truncate_patch(text: String, max_bytes: usize) -> String {

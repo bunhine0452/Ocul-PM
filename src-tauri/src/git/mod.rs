@@ -17,12 +17,14 @@
 //! | `blob` | `<rev>:<path>` 객체 접근 — 크기·바이트·HEAD 존재 여부 |
 //! | `nesting` | 프로젝트 루트와 저장소 루트의 상하 관계·경로 되맞춤 |
 //! | `path_form` | 경로의 저장 모양 — `/` 구분 상대 경로 · 윈도우 `\\?\` 접두 걷기 |
+//! | `head` | `.git/HEAD` 를 파일로 읽기 — HEAD 커밋이 그대로면 HEAD 트리·직전 커밋을 다시 묻지 않는다 |
 //! | `safe` | git 프로세스 생성 — 저장소 설정이 고른 명령(fsmonitor·훅·필터·외부 diff) 끄기 · 시간 제한 |
 
 pub mod authors; // 동료의 일지 — 그날 일지를 더한 커밋의 작성자 (11-02)
 mod blob;
 mod changes;
 mod diff;
+pub(crate) mod head; // HEAD 를 git 없이 읽는다 — 커밋 oid 를 열쇠로 한 캐시들 (11-11)
 mod history;
 pub mod nesting; // 루트 관계와 경로 되맞춤 ({#rebase-other-direction})
 mod path_form;
@@ -37,11 +39,16 @@ mod tests;
 // 영수증 재료 사례표 — VS Code 확장과 같은 표 (`receipt_cases.json`).
 #[cfg(test)]
 mod receipt_cases_tests;
+// git 을 몇 번 띄우는가 — 변경 화면 · 기준선 동기 · 일지 diff 캡처 (Windows 성능 라운드).
+#[cfg(test)]
+mod spawn_count_tests;
 
 pub use blob::{blob_size, path_in_head, show_file_bytes};
 pub use changes::{last_commit_changes, uncommitted_changes, GitChange, LastCommitChanges};
 pub(crate) use diff::truncate_at_char_boundary;
-pub use diff::{diff_at_nearest_commit, diff_patch, diff_patches, render_unified_diff};
+pub use diff::{
+    diff_at_nearest_commit, diff_patch, diff_patches, diffs_at_nearest_commits, render_unified_diff,
+};
 pub use history::{commits_for_backfill, log, BackfillCommit, BackfillFileChange, GitCommit};
 pub use path_form::{plain, relative_to, slash, touched_path};
 pub(crate) use repo::EMPTY_TREE;

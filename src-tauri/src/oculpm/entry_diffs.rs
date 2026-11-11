@@ -154,21 +154,41 @@ pub fn capture_entry_diffs(
         .filter(|f| crate::path_guard::secure_join_entry(root, &f.path).is_ok())
         .collect();
     // Tier 1 (working-tree `git diff HEAD`) is one git call for every touched
-    // file (Phase 3 — was two processes per file). Misses fall through to the
-    // per-file tiers below exactly as before.
+    // file (Phase 3 — was two processes per file). Tier 2 (snapshot) is disk-only.
     let touched_paths: Vec<String> = touched.iter().map(|f| f.path.clone()).collect();
     let mut tier1 = git::diff_patches(root, &touched_paths, MAX_PATCH_BYTES);
-    for f in touched {
-        // Resolve the raw patch through the 4-tier fallback (see module docs).
-        // Tier 1 = working-tree `git diff HEAD`. Empty/error → tier 2 snapshot,
-        // tier 3 git-history (runs even when `entry_time` is None — newest
-        // commit), tier 4 created-file.
-        let patch = match tier1.remove(&f.path) {
+    let mut patches: Vec<Option<String>> = touched
+        .iter()
+        .map(|f| match tier1.remove(&f.path) {
             Some(p) if !p.trim().is_empty() => Some(p),
-            _ => snapshot_patch(root, &f.path, snapshots)
-                .or_else(|| history_patch(root, &f.path, entry_time))
-                .or_else(|| new_file_patch(root, &f.path, f.op)),
-        };
+            _ => snapshot_patch(root, &f.path, snapshots),
+        })
+        .collect();
+    // Tier 3 (git history) for every miss **at once** — one `log` per repo and one
+    // `show` per chosen commit (Windows 성능 라운드 2026-11-11; was `log` + up to five
+    // `show` per file). Runs even when `entry_time` is None (newest commit). Tier 4
+    // (created file) answers "in HEAD?" from the cached HEAD tree, not `cat-file`.
+    let misses: Vec<String> = touched
+        .iter()
+        .zip(&patches)
+        .filter(|(_, p)| p.is_none())
+        .map(|(f, _)| f.path.clone())
+        .collect();
+    let tier3 = if misses.is_empty() {
+        HashMap::new()
+    } else {
+        git::diffs_at_nearest_commits(root, &misses, entry_time, MAX_PATCH_BYTES)
+    };
+    for (f, slot) in touched.iter().zip(patches.iter_mut()) {
+        if slot.is_none() {
+            *slot = tier3
+                .get(&f.path)
+                .filter(|p| !p.trim().is_empty())
+                .cloned()
+                .or_else(|| new_file_patch(root, &f.path, f.op));
+        }
+    }
+    for (f, patch) in touched.into_iter().zip(patches) {
         let Some(patch) = patch else { continue };
         // Mask secrets in the diff hunk content before the sidecar is written.
         let (patch, hits) = redact_text(&patch, redact);
@@ -181,16 +201,6 @@ pub fn capture_entry_diffs(
 
     persist(&out, entry_rel, files)?;
     Ok(redacted_spans)
-}
-
-/// Git-history fallback (tier 3) for a single file: the diff of the commit that
-/// touched `rel_path` nearest the entry's timestamp (or the newest commit when
-/// `around_unix` is `None`). `None` on no history / non-git / empty patch.
-fn history_patch(root: &Path, rel_path: &str, around_unix: Option<i64>) -> Option<String> {
-    match crate::git::diff_at_nearest_commit(root, rel_path, around_unix, MAX_PATCH_BYTES) {
-        Ok(p) if !p.trim().is_empty() => Some(p),
-        _ => None,
-    }
 }
 
 /// Derive an entry's wall-clock timestamp (local unix seconds) from its
