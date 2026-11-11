@@ -840,6 +840,52 @@ fn the_shuttle_stays_silent_in_hook_mode_when_nothing_is_found() {
     );
 }
 
+/// 플러그인만 먼저 올라가고 앱은 옛 판인 사용자 — 옛 바이너리는 `hook` 을 몰라 exit 2 를 낸다.
+/// PreToolUse 에서 2 는 「막기」라 편집이 통째로 막힌다. 셔틀의 훅 모드는 그것을 0 으로 접는다.
+#[test]
+fn hook_mode_folds_an_old_binarys_refusal_into_success() {
+    let tmp = tempfile::tempdir().unwrap();
+    let shuttle = {
+        let bin = tmp.path().join("plugin").join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let s = bin.join("oculpm-mcp");
+        std::fs::copy(claude_plugin().join("bin/oculpm-mcp"), &s).unwrap();
+        s
+    };
+    let old = tmp.path().join("old-oculpm-mcp");
+    std::fs::write(
+        &old,
+        "#!/bin/sh\necho \"oculpm-mcp: unknown argument '$1'\" >&2\nexit 2\n",
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let run = |quiet: bool| {
+        let mut cmd = Command::new(hook_shell());
+        cmd.arg(&shuttle)
+            .args(["hook", "pre-tool-use"])
+            .env("OCULPM_MCP_BIN", &old);
+        if quiet {
+            cmd.env("OCULPM_HOOK_QUIET", "1");
+        } else {
+            cmd.env_remove("OCULPM_HOOK_QUIET");
+        }
+        spawn_with_stdin(cmd, "{}")
+    };
+    let out = run(true);
+    assert_eq!(out.status.code(), Some(0), "{}", describe(&out));
+    assert!(
+        out.stdout.is_empty() && out.stderr.is_empty(),
+        "{}",
+        describe(&out)
+    );
+    // MCP 등록 경로(훅 모드 아님)는 예전처럼 바이너리의 종료 코드를 그대로 낸다.
+    assert_eq!(run(false).status.code(), Some(2));
+}
+
 /// PreToolUse 훅 명령을 이 OS 의 훅 셸로 그대로 돌린다 — 셔틀 → `oculpm-mcp hook pre-tool-use`
 /// 가 stdin JSON 에서 파일을 읽어 최근 버그 일지를 짚는다 (옛 refix-warn.sh 의 자리).
 #[test]

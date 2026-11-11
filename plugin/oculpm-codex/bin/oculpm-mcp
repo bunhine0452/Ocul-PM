@@ -49,6 +49,13 @@ for cand in \
   "$plugin_root/../../src-tauri/target/release/oculpm-mcp"
 do
   if [ -n "$cand" ] && [ -x "$cand" ]; then
+    if [ -n "${OCULPM_HOOK_QUIET:-}" ]; then
+      # 훅 모드는 exec 하지 않고 종료 코드를 0 으로 접는다. 앱이 아직 옛 판이면 그 바이너리는
+      # `hook` 을 몰라 exit 2 를 내는데, PreToolUse 에서 2 는 「막기」다 — 플러그인만 먼저
+      # 올라간 사용자의 편집이 통째로 막힌다. 훅의 실패는 언제나 무해해야 한다.
+      "$cand" "$@" 2>/dev/null
+      exit 0
+    fi
     exec "$cand" "$@"
   fi
 done
