@@ -21,7 +21,8 @@
 # 적는다 — SubagentStart 는 같은 대화의 갈래라 세면 중복이다.
 #
 # 계약: 절대 블록 금지(stdin 은 EOF 까지 즉시 소비), 네트워크·외부 실행 없음
-# (우리 바이너리도 부르지 않는 순수 sh), .oculpm 없으면 침묵, 모든 실패는
+# (우리 바이너리도 부르지 않는 순수 sh — 앱이 없어도 돈다). 프로세스는 아껴 띄운다:
+# Windows 의 Git Bash 는 하나에 수십 ms 라, 플랜마다 도는 일은 awk 한 번에 모은다 (11-11), .oculpm 없으면 침묵, 모든 실패는
 # 빈 출력/무해로 낙하. 플랜 절 상한: 24줄 · 1,600자 (줄 경계, 절단 시 표식). 플랜마다 완료 조건 ·
 # 확인 명령 · 마지막 판정(있으면 — 그때 항목은 7개) · 미완 항목 순.
 # 일지 절은 최대 3줄이라 별도 상한이 필요 없다. 플랜·일지 텍스트는 비신뢰
@@ -51,107 +52,178 @@ for _link in .oculpm .oculpm/hooks .oculpm/hooks/claude-events.jsonl \
   if [ -L "$ROOT/$_link" ]; then exit 0; fi
 done
 
-event=$(printf '%s' "$payload" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-[ -n "$event" ] || event="SessionStart"
+# payload 의 문자열 값 하나를 `_v` 에 — **프로세스를 띄우지 않는다** (매개변수 확장만). Windows 의
+# Git Bash 는 `sed | head` 파이프라인 하나에 프로세스 셋, 하나에 수십 ms 다 (11-11 실측). 옛
+# `sed -n 's/.*"<키>"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1` 과 같은 값을 낸다 —
+# 키의 마지막 등장, 값에 `"` 가 없을 때만.
+json_str() {
+  _v=
+  case $payload in *"\"$1\""*) ;; *) return 0 ;; esac
+  _r=${payload##*"\"$1\""}
+  _r=${_r#"${_r%%[![:space:]]*}"}
+  case $_r in :*) ;; *) return 0 ;; esac
+  _r=${_r#:}
+  _r=${_r#"${_r%%[![:space:]]*}"}
+  case $_r in \"*) ;; *) return 0 ;; esac
+  _r=${_r#\"}
+  case $_r in *\"*) _v=${_r%%\"*} ;; esac
+}
 
+json_str hook_event_name
+event=$_v
+[ -n "$event" ] || event="SessionStart"
+tab='	' # 탭 한 글자 — `$(printf '\t')` 도 프로세스 하나라 글자로 둔다.
+
+# 플랜 블록 — 플랜 파일마다 **awk 한 번에** 이름 · 완료 조건 · 확인 명령 · 마지막 판정 · 미완 항목을
+# 낸다 (예전엔 플랜마다 grep·awk·basename 을 열 번 남짓 띄웠다). mode=open 은 머리 + 항목,
+# mode=closed 는 「항목 전부 닫힘」 한 줄. 줄 하나를 N 바이트 언저리에서 자르되 UTF-8 글자 중간에서는
+# 끊지 않는다 — 예전의 바이트 자르기(GNU 의 cut 은 -c 도 바이트 단위다)는 완료 조건의 한글(3바이트)을
+# 가운데서 잘라 깨진 UTF-8 을 실었고, 그러면 additionalContext JSON 이 깨져 컨텍스트가 통째로 사라진다.
+#
 # 마지막 판정 — 플랜의 plan-log 에서 메모가 `판정 ✓`/`판정 ✗` (en `verdict ✓`/`verdict ✗`) 로 시작하는
 # **가장 최근 행** 하나 (시각 열 최대값, 같으면 뒤 행). 에이전트에게 「어디까지 왔나」가 아니라 「심판이
-# 뭐라 했나」를 준다. 이 접두는 템플릿 v20 §5 · journal-spec · plan_update 안내와 앱의 계획 화면이
-# **공유하는 형식**이다 — 한쪽만 바꾸면 판정이 적혀도 아무도 못 읽는다. 셀 안 `|` 는 `\|` 로 온다.
-# LC_ALL=C 로 바이트를 세고(세 OS 의 awk 가 같은 수를 낸다) UTF-8 글자 중간에서는 끊지 않는다.
-last_verdict() {
-  LC_ALL=C awk '
+# 뭐라 했나」를 준다. 이 접두는 템플릿 v20 §5 · journal-spec · plan_update 안내와 앱의 계획 화면
+# (`planner/judge.rs` 의 `^(판정|verdict) (✓|✗)`)이 **공유하는 형식**이다 — 한쪽만 바꾸면 판정이 적혀도
+# 아무도 못 읽는다. 셀 안 `|` 는 `\|` 로 온다. LC_ALL=C 로 바이트를 세고(세 OS 의 awk 가 같은 수를
+# 낸다) UTF-8 글자 중간에서는 끊지 않는다.
+plan_blocks() {
+  _mode=$1
+  shift
+  [ $# -gt 0 ] || return 0
+  LC_ALL=C awk -v mode="$_mode" '
+    function clip(s, max,   p) {
+      if (length(s) > max) {
+        p = max
+        while (p > 0 && substr(s, p + 1, 1) >= "\200" && substr(s, p + 1, 1) < "\300") p--
+        s = substr(s, 1, p) "…"
+      }
+      return s
+    }
+    function verdict_line(   s, w) {
+      if (v == "") return ""
+      s = v; gsub(/\001/, "|", s)
+      s = clip(s, 160)
+      w = ""
+      if (ts ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]/) w = " · " substr(ts, 6, 5) " " substr(ts, 12, 5)
+      return "마지막 판정: " s w
+    }
+    function emit(   name, i, nmax, vl, line) {
+      if (f == "") return
+      name = f; sub(/.*\//, "", name); if (name != ".md") sub(/\.md$/, "", name)
+      vl = verdict_line()
+      if (mode == "closed") {
+        line = "[plan: " name "] 항목 전부 닫힘 — 완료 조건이 참인지 판정 후 닫기"
+        if (goal != "") line = line ": " clip(goal, 200)
+        if (vl != "") line = line " · " vl
+        print line
+        return
+      }
+      if (ni == 0) return
+      # 판정 줄을 실으면 항목을 하나 덜 싣는다 — 플랜당 줄 수(예산)는 그대로.
+      nmax = (vl != "") ? 7 : 8
+      print "[plan: " name "]"
+      if (goal != "") print clip(goal, 240)
+      if (check != "") print clip(check, 240)
+      if (vl != "") print vl
+      for (i = 1; i <= ni && i <= nmax; i++) print items[i]
+    }
+    FNR == 1 { emit(); f = FILENAME; inlog = 0; v = ""; ts = ""; goal = ""; check = ""; ni = 0 }
     /<!-- oculpm:plan-log begin/ { inlog = 1; next }
     /<!-- oculpm:plan-log end/ { inlog = 0; next }
     inlog && /^\|/ {
       s = $0; gsub(/\\\|/, "\001", s)
-      n = split(s, c, "|"); if (n < 4) next
-      m = c[n - 1]; sub(/^[ \t]+/, "", m); sub(/[ \t]+$/, "", m)
-      if (m !~ /^(판정|verdict) (✓|✗)/) next
-      t = c[2]; gsub(/[ \t]/, "", t)
-      if (v != "" && t < ts) next
-      sub(/^(판정|verdict) /, "", m); v = m; ts = t
-    }
-    END {
-      if (v == "") exit
-      gsub(/\001/, "|", v)
-      if (length(v) > 160) {
-        p = 160
-        while (p > 0 && substr(v, p + 1, 1) >= "\200" && substr(v, p + 1, 1) < "\300") p--
-        v = substr(v, 1, p) "…"
+      n = split(s, c, "|")
+      if (n >= 4) {
+        m = c[n - 1]; sub(/^[ \t]+/, "", m); sub(/[ \t]+$/, "", m)
+        if (m ~ /^(판정|verdict) (✓|✗)/) {
+          t = c[2]; gsub(/[ \t]/, "", t)
+          if (v == "" || t >= ts) { sub(/^(판정|verdict) /, "", m); v = m; ts = t }
+        }
       }
-      w = ""
-      if (ts ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]/) w = " · " substr(ts, 6, 5) " " substr(ts, 12, 5)
-      print "마지막 판정: " v w
     }
-  ' "$1" 2>/dev/null
+    # 작업 너머의 목표 — 플랜 본문의 「**완료 조건:**」 한 줄 (고도: 할 일 목록만 받은 에이전트는
+    # 왜 하는지를 모른다). 확인 명령 — 완료 조건을 통과/실패로 판정하는 명령 (깊이: 통과/실패를
+    # 내는 것이 없는 에이전트는 「됐다」는 주장으로 끝낸다). 둘 다 첫 줄만.
+    goal == "" && /^\*\*(완료 조건|Done when):\*\*/ { goal = $0 }
+    check == "" && /^\*\*(확인 명령|Check):\*\*/ { check = $0 }
+    /^[[:space:]]*- \[[ ~!]\]/ { if (ni < 8) items[++ni] = $0 }
+    END { emit() }
+  ' "$@" 2>/dev/null
 }
 
-# 한 줄을 N 바이트 언저리에서 자르되 UTF-8 글자 중간에서는 끊지 않는다 — 예전의 바이트 자르기
-# (GNU 의 cut 은 -c 도 바이트 단위다)는 완료 조건의 한글(3바이트)을 가운데서 잘라 깨진 UTF-8 을
-# 실었고, 그러면 additionalContext JSON 이 깨져 컨텍스트가 통째로 사라진다(위 last_verdict 와 같은 규칙).
-clip_line() {
-  LC_ALL=C awk -v max="$1" '{
-    v = $0
-    if (length(v) > max) {
-      p = max
-      while (p > 0 && substr(v, p + 1, 1) >= "\200" && substr(v, p + 1, 1) < "\300") p--
-      v = substr(v, 1, p) "…"
-    }
-    print v
-  }'
-}
+# 플래너 훑기 — **awk 한 번**으로 모든 플랜의 활성 여부 · 미완/완료 항목 수 · 확인 명령 줄 유무 ·
+# `updated:` 를 뽑는다. 예전엔 플랜마다 sed·grep 파이프라인을 서너 번 띄웠다 — 플랜 94개인 이
+# 저장소에서 프로세스 수백 개, Windows Git Bash 에서는 SessionStart 마다 수십 초였다 (11-11 실측).
+# 규칙은 그대로다: frontmatter 는 2행부터 다음 `---` 까지(옛 `sed -n '2,/^---$/p'`), 그 안의
+# `status: active` · 첫 `updated:` 값(따옴표·작은따옴표·공백 제거, 없으면 0000-00-00).
+set --
+for f in "$ROOT/.oculpm/planner"/*.md; do
+  [ -f "$f" ] && set -- "$@" "$f"
+done
+scan=""
+[ $# -gt 0 ] && scan=$(LC_ALL=C awk '
+  function flush() { if (f != "") print (act ? "a" : "-") "\t" op "\t" cl "\t" ck "\t" (up == "" ? "0000-00-00" : up) "\t" f }
+  FNR == 1 { flush(); f = FILENAME; act = 0; op = 0; cl = 0; ck = 0; up = ""; seen = 0; fm = 0 }
+  FNR == 2 { fm = 1 }
+  fm {
+    if ($0 ~ /^status: active/) act = 1
+    if (!seen && $0 ~ /^updated:/) { seen = 1; u = $0; sub(/^updated:[[:space:]]*/, "", u); gsub(/["'"'"' ]/, "", u); up = u }
+    if (FNR > 2 && $0 ~ /^---$/) fm = 0
+  }
+  /^[[:space:]]*- \[[ ~!]\]/ { op++ }
+  /^[[:space:]]*- \[[xX]\]/ { cl++ }
+  /^\*\*(확인 명령|Check):\*\*/ { ck = 1 }
+  END { flush() }
+' "$@" 2>/dev/null)
+# 미완 항목이 있는 활성 플랜(→ 최근 갱신순 후보) · 항목이 전부 닫힌 활성 플랜 · 확인 명령 없는 활성 플랜.
+cand=""
+closed=""
+total=0
+no_check=0
+while IFS="$tab" read -r a op cl ck up f; do
+  [ "$a" = a ] || continue
+  if [ "$op" -gt 0 ]; then
+    cand="$cand$up$tab$f
+"
+    total=$((total + 1))
+    [ "$ck" = 1 ] || no_check=1
+  elif [ "$cl" -gt 0 ]; then
+    closed="$closed$f
+"
+  fi
+done <<EOF
+$scan
+EOF
 
 body=$(
   {
     # 활성 플랜이 많으면(이 저장소는 17개까지 갔다) 24줄 상한이 앞 플랜 둘셋에서 끝나 뒤는 영영
     # 안 실린다 — 그래서 **최근 갱신 상위 3개**만 싣는다 (frontmatter `updated:` 내림차순, 같은 날이면
     # 파일명). 어느 플랜이 빠졋는지는 마지막 줄이 말한다 (2026-10-28, simplify-round {#hook-top3}).
-    top=$(
-      for f in "$ROOT/.oculpm/planner"/*.md; do
-        [ -f "$f" ] || continue
-        sed -n '2,/^---$/p' "$f" 2>/dev/null | grep -q '^status: active' || continue
-        grep -qE '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null || continue
-        u=$(sed -n '2,/^---$/p' "$f" 2>/dev/null | sed -n 's/^updated:[[:space:]]*//p' | head -1 | tr -d '"'"'"' ')
-        printf '%s\t%s\n' "${u:-0000-00-00}" "$f"
-      done | LC_ALL=C sort -t "$(printf '\t')" -k1,1r -k2,2 | cut -f2
-    )
-    total=$(printf '%s\n' "$top" | grep -c . 2>/dev/null | tr -d '[:space:]')
-    [ -n "$total" ] || total=0
-    printf '%s\n' "$top" | head -3 | while IFS= read -r f; do
-      [ -n "$f" ] || continue
-      # 판정 줄을 실으면 항목을 하나 덜 싣는다 — 플랜당 줄 수(예산)는 그대로.
-      verdict=$(last_verdict "$f")
-      nmax=8
-      [ -n "$verdict" ] && nmax=7
-      items=$(grep -E '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null | head -n "$nmax")
-      [ -n "$items" ] || continue
-      echo "[plan: $(basename "$f" .md)]"
-      # 작업 너머의 목표 — 플랜 본문의 「**완료 조건:**」 한 줄 (고도: 할 일 목록만
-      # 받은 에이전트는 왜 하는지를 모른다). 없으면 그 플랜은 항목만 싣는다.
-      goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | clip_line 240)
-      [ -n "$goal" ] && printf '%s\n' "$goal"
-      # 확인 명령 — 완료 조건을 통과/실패로 판정하는 명령 (깊이: 통과/실패를 내는 것이
-      # 없는 에이전트는 「됐다」는 주장으로 끝낸다). 완료 조건 바로 다음 줄.
-      check=$(grep -m1 -E '^\*\*(확인 명령|Check):\*\*' "$f" 2>/dev/null | clip_line 240)
-      [ -n "$check" ] && printf '%s\n' "$check"
-      [ -n "$verdict" ] && printf '%s\n' "$verdict"
-      printf '%s\n' "$items"
-    done
+    set --
+    if [ -n "$cand" ]; then
+      top=$(printf '%s' "$cand" | LC_ALL=C sort -t "$tab" -k1,1r -k2,2)
+      while IFS="$tab" read -r up f; do
+        [ -n "$f" ] || continue
+        [ $# -lt 3 ] && set -- "$@" "$f"
+      done <<EOF
+$top
+EOF
+    fi
+    plan_blocks open "$@"
     if [ "$total" -gt 3 ]; then
       echo "(활성 플랜 ${total}개 중 최근 갱신 3개만 실었다 — 나머지는 plan_status 로)"
     fi
     # 항목은 전부 닫혔는데 아직 active 인 플랜 — 항목 완료 ≠ 목표 달성. 완료 조건이 참인지
     # 판정하고 닫는 결정이 남아 있다는 사실만 한 줄로 싣는다 (최대 3개).
-    for f in "$ROOT/.oculpm/planner"/*.md; do
-      [ -f "$f" ] || continue
-      sed -n '2,/^---$/p' "$f" 2>/dev/null | grep -q '^status: active' || continue
-      grep -qE '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null && continue
-      grep -qE '^[[:space:]]*- \[[xX]\]' "$f" 2>/dev/null || continue
-      goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | clip_line 200)
-      verdict=$(last_verdict "$f")
-      echo "[plan: $(basename "$f" .md)] 항목 전부 닫힘 — 완료 조건이 참인지 판정 후 닫기${goal:+: }${goal}${verdict:+ · }${verdict}"
-    done | head -3
+    set --
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      [ $# -lt 3 ] && set -- "$@" "$f"
+    done <<EOF
+$closed
+EOF
+    plan_blocks closed "$@"
   } 2>/dev/null | head -n 24 | awk '{ n += length($0) + 1; if (n > 1600) { print "…(생략 — 전체는 plan_status 도구)"; exit } print }'
 )
 
@@ -163,26 +235,42 @@ rels=$(
   find . -mindepth 3 -maxdepth 3 -type f -name '*.md' ! -name '_*' ! -name '.*' 2>/dev/null |
     sed 's|^\./||' | LC_ALL=C sort -r | head -3
 )
-jrn=$(
-  printf '%s\n' "$rels" | while IFS= read -r rel; do
-    [ -n "$rel" ] || continue
-    title=$(awk '
-      NR == 1 && $0 == "---" { fm = 1; next }
-      fm == 1 { if ($0 == "---") fm = 0; next }
-      {
-        t = $0
-        sub(/^[ \t]+/, "", t); sub(/[ \t\r]+$/, "", t)
-        if (t == "") next
-        # 체크박스 표식과 머리글 우물정은 제목이 아니라 장식이다.
-        if (t ~ /^\[[xX ]\] /) { sub(/^\[[xX ]\] /, "", t) } else { sub(/^#+[ \t]*/, "", t) }
-        sub(/^[ \t]+/, "", t); sub(/[ \t\r]+$/, "", t)
-        print t; exit
+# 제목은 세 파일을 **awk 한 번**으로 — 파일 이름은 일지 폴더 기준 상대경로로 넘긴다 (Windows 의
+# `C:\…` 루트를 `awk -v` 로 넘기면 역슬래시가 이스케이프로 먹힌다).
+jcount=0
+set --
+while IFS= read -r rel; do
+  [ -n "$rel" ] || continue
+  jcount=$((jcount + 1))
+  set -- "$@" "$rel"
+done <<EOF
+$rels
+EOF
+jrn=""
+[ $# -gt 0 ] && jrn=$(
+  CDPATH= cd -- "$JDIR" 2>/dev/null || exit 0
+  awk '
+    FNR == 1 { fm = 0; got = 0; if ($0 == "---") { fm = 1; next } }
+    got { next }
+    fm == 1 { if ($0 == "---") fm = 0; next }
+    {
+      t = $0
+      sub(/^[ \t]+/, "", t); sub(/[ \t\r]+$/, "", t)
+      if (t == "") next
+      # 체크박스 표식과 머리글 우물정은 제목이 아니라 장식이다.
+      if (t ~ /^\[[xX ]\] /) { sub(/^\[[xX ]\] /, "", t) } else { sub(/^#+[ \t]*/, "", t) }
+      sub(/^[ \t]+/, "", t); sub(/[ \t\r]+$/, "", t)
+      title[FILENAME] = t; got = 1
+    }
+    END {
+      # 자르지 않는다 — 바이트 컷은 한글을 중간에서 깨뜨린다. 3줄뿐이라 안전하다.
+      for (i = 1; i < ARGC; i++) {
+        t = title[ARGV[i]]
+        if (t == "") t = "(제목 없음)"
+        print "- " ARGV[i] " · " t
       }
-    ' "$JDIR/$rel" 2>/dev/null)
-    # 자르지 않는다 — 바이트 컷은 한글을 중간에서 깨뜨린다. 3줄뿐이라 안전하다.
-    [ -n "$title" ] || title="(제목 없음)"
-    printf '%s\n' "- $rel · $title"
-  done
+    }
+  ' "$@" 2>/dev/null
 )
 
 # ── 플랜이 없어도 말한다 (어떤 프로젝트여도, 2026-10-28) ────────────────────
@@ -194,22 +282,20 @@ jrn=$(
 # Makefile test:)은 Rust 쪽 `oculpm/check_infer.rs`(plan_create 의 기본값)와
 # **공유하는 계약**이다 — 한쪽만 고치면 훅이 보인 후보와 플랜에 적힌 기본값이 갈린다.
 # 루트 한 단계만 · 네트워크 0 · 실행 0.
-open_items=$(printf '%s\n' "$body" | grep -c '^[[:space:]]*- \[' 2>/dev/null | tr -d '[:space:]')
-[ -n "$open_items" ] || open_items=0
-jcount=$(printf '%s\n' "$rels" | grep -c . 2>/dev/null | tr -d '[:space:]')
-[ -n "$jcount" ] || jcount=0
+# 실린 미완 항목 수 (`^[[:space:]]*- \[` 줄) — 셸 내장만으로 센다.
+open_items=0
+while IFS= read -r l; do
+  l=${l#"${l%%[![:space:]]*}"}
+  case $l in "- ["*) open_items=$((open_items + 1)) ;; esac
+done <<EOF
+$body
+EOF
 need_check=0
 if [ "$open_items" -eq 0 ]; then
   need_check=1
 else
-  for f in "$ROOT/.oculpm/planner"/*.md; do
-    [ -f "$f" ] || continue
-    sed -n '2,/^---$/p' "$f" 2>/dev/null | grep -q '^status: active' || continue
-    grep -qE '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null || continue
-    grep -qE '^\*\*(확인 명령|Check):\*\*' "$f" 2>/dev/null && continue
-    need_check=1
-    break
-  done
+  # 미완 항목이 있는데 **확인 명령:** 줄이 없는 활성 플랜 — 위 플래너 훑기가 이미 셌다.
+  need_check=$no_check
 fi
 cands=""
 add_cand() { cands="${cands:+$cands · }$1"; }
@@ -263,12 +349,14 @@ printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n
 # 앱(Today 「이어하기」)이 "이 대화의 시작 컨텍스트에 포함됨" 을 정직하게
 # 표시할 수 있는 유일한 근거다. 그 이상은 주장하지 않는다.
 if [ "$event" = "SessionStart" ] && { [ -n "$body" ] || [ -n "$rels" ]; }; then
-  sid=$(printf '%s' "$payload" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9._-]*\)".*/\1/p' | head -1)
+  json_str session_id
+  sid=$_v
+  case $sid in *[!A-Za-z0-9._-]*) sid= ;; esac
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)
-  if [ -n "$sid" ] && [ -n "$ts" ] && mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null; then
+  if [ -n "$sid" ] && [ -n "$ts" ] && { [ -d "$ROOT/.oculpm/hooks" ] || mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null; }; then
     ledger="$ROOT/.oculpm/hooks/resume-delivered.jsonl"
-    plan_items=$(printf '%s\n' "$body" | grep -c '^[[:space:]]*- \[' 2>/dev/null | tr -d '[:space:]')
-    [ -n "$plan_items" ] || plan_items=0
+    # 위에서 센 실린 미완 항목 수와 같은 값이다 (같은 본문 · 같은 패턴).
+    plan_items=$open_items
     jarr=$(printf '%s\n' "$rels" | awk 'BEGIN{ORS=""; printf "["} { if ($0 == "") next; gsub(/\\/,"\\\\"); gsub(/"/,"\\\""); if (n++) printf ","; printf "\"%s\"", $0 } END{printf "]"}')
     [ -n "$jarr" ] || jarr="[]"
     # printf 로 쓴다 — `cat >>` 로 줄이 붙어 원장이 깨진 전례가 있다.

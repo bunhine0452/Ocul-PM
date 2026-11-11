@@ -8,6 +8,22 @@
 # 생존 파일은 대화의 최근 활동을 나타낸다 (용어: oculpm/verdict/mod.rs).
 # 계약: stdin 즉시 소비·네트워크 없음·모든 실패는 무해.
 payload=$(cat 2>/dev/null || true)
+# payload 의 문자열 값 하나를 `_v` 에 — 프로세스를 띄우지 않는다 (plan-context.sh 와 같은 함수).
+# Windows 의 Git Bash 는 `sed | head` 파이프라인 하나에 프로세스 셋, 하나에 수십 ms 다 (11-11).
+# 옛 `sed -n 's/.*"<키>"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1` 과 같은 값 —
+# 키의 마지막 등장, 값에 `"` 가 없을 때만.
+json_str() {
+  _v=
+  case $payload in *"\"$1\""*) ;; *) return 0 ;; esac
+  _r=${payload##*"\"$1\""}
+  _r=${_r#"${_r%%[![:space:]]*}"}
+  case $_r in :*) ;; *) return 0 ;; esac
+  _r=${_r#:}
+  _r=${_r#"${_r%%[![:space:]]*}"}
+  case $_r in \"*) ;; *) return 0 ;; esac
+  _r=${_r#\"}
+  case $_r in *\"*) _v=${_r%%\"*} ;; esac
+}
 # 프로젝트 루트: CLAUDE_PROJECT_DIR → payload 의 cwd → 현재 디렉터리.
 # payload 폴백이 필요한 이유는 실측이다 (2026-09-03): **Codex 0.153 이 이 훅들을
 # 그대로 실행한다.** 플러그인 루트의 hooks/hooks.json 을 관례로 찾아 읽고
@@ -26,9 +42,11 @@ for _link in .oculpm .oculpm/hooks .oculpm/hooks/claude-events.jsonl \
   .oculpm/hooks/.statusline-nudged; do
   if [ -L "$ROOT/$_link" ]; then exit 0; fi
 done
-sid=$(printf '%s' "$payload" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9._-]*\)".*/\1/p' | head -1)
+json_str session_id
+sid=$_v
+case $sid in *[!A-Za-z0-9._-]*) sid= ;; esac
 [ -n "$sid" ] || exit 0
-mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null || exit 0
+[ -d "$ROOT/.oculpm/hooks" ] || mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null || exit 0
 # 생존 흔적 — 이 대화가 **지금** 살아 있다. 마커와 달리 매번 다시 찍는다
 # (Stop 훅도 매 턴 찍는다). 첫 턴이 끝나기 전에도 옆 대화가 우리를 용의자로
 # 볼 수 있어야, 그쪽이 우리 편집을 자기 것으로 오인하지 않는다.
