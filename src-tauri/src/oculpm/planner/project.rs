@@ -352,6 +352,7 @@ pub(super) fn detail_dto(loaded: &LoadedPlan) -> PlanDetail {
 // Owned row data for the SQLite write (moved into the connection closure)
 // ─────────────────────────────────────────────────────────────────────────────
 
+#[derive(Debug)]
 struct PlanRow {
     plan_id: String,
     title: String,
@@ -361,6 +362,7 @@ struct PlanRow {
     file_path: String,
     updated_at: String,
 }
+#[derive(Debug)]
 struct ItemRow {
     plan_id: String,
     item_id: String,
@@ -373,6 +375,7 @@ struct ItemRow {
     last_agent: Option<String>,
     last_update: Option<String>,
 }
+#[derive(Debug)]
 struct UpdateRow {
     plan_id: String,
     item_id: String,
@@ -383,6 +386,7 @@ struct UpdateRow {
     journal_ref: Option<String>,
     note: Option<String>,
 }
+#[derive(Debug)]
 struct DecisionRow {
     plan_id: String,
     decision_id: String,
@@ -392,7 +396,7 @@ struct DecisionRow {
     agent_id: Option<String>,
     affects: String, // CSV
 }
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct ProjectionRows {
     plans: Vec<PlanRow>,
     items: Vec<ItemRow>,
@@ -467,6 +471,31 @@ pub struct PlanCache<'a> {
     db: &'a Db,
 }
 
+/// (DB 주소, 프로젝트) → 마지막으로 쓴 투영 행의 지문 (`reproject_all`).
+static PROJECTED: std::sync::LazyLock<std::sync::Mutex<HashMap<(usize, u32), String>>> =
+    std::sync::LazyLock::new(Default::default);
+
+/// 이 프로젝트의 투영 표 넷의 행 수 — 계획 · 항목 · 이력 · 결정 차례.
+fn projected_counts(c: &rusqlite::Connection, pid: i64) -> rusqlite::Result<[i64; 4]> {
+    let mut out = [0i64; 4];
+    for (i, table) in [
+        "oculpm_plans",
+        "oculpm_plan_items",
+        "oculpm_plan_item_updates",
+        "oculpm_plan_decisions",
+    ]
+    .iter()
+    .enumerate()
+    {
+        out[i] = c.query_row(
+            &format!("SELECT COUNT(*) FROM {table} WHERE project_id = ?1"),
+            params![pid],
+            |r| r.get(0),
+        )?;
+    }
+    Ok(out)
+}
+
 impl<'a> PlanCache<'a> {
     pub fn new(db: &'a Db) -> Self {
         Self { db }
@@ -482,10 +511,33 @@ impl<'a> PlanCache<'a> {
         let loaded = load_all_plans(planner_root);
         let pid = project_id as i64;
         let rows = build_rows(&loaded);
+        // 같은 행을 지웠다 다시 넣지 않는다 (Windows 성능 라운드 2026-11-11) — Today 가 다시
+        // 읽을 때마다 전 계획의 행 수백 개를 DELETE+INSERT 했다. 지난번에 쓴 행의 지문이
+        // 같고 표의 행 수도 그대로면 건너뛴다. 행 수 확인은 지문 기억이 이 DB 의 것이
+        // 아닐 때(테스트의 새 DB · 지워진 프로젝트)를 잡는다.
+        let fingerprint = blake3::hash(format!("{rows:?}").as_bytes())
+            .to_hex()
+            .to_string();
+        let counts = [
+            rows.plans.len() as i64,
+            rows.items.len() as i64,
+            rows.updates.len() as i64,
+            rows.decisions.len() as i64,
+        ];
+        let memo_key = (std::ptr::from_ref(self.db) as usize, project_id);
+        let seen = PROJECTED
+            .lock()
+            .ok()
+            .and_then(|m| m.get(&memo_key).cloned())
+            .is_some_and(|f| f == fingerprint);
 
-        self.db
+        let wrote = self
+            .db
             .conn()
-            .call(move |c| -> Result<(), tokio_rusqlite::Error> {
+            .call(move |c| -> Result<bool, tokio_rusqlite::Error> {
+                if seen && projected_counts(c, pid)? == counts {
+                    return Ok(false);
+                }
                 let tx = c.transaction()?;
                 tx.execute("DELETE FROM oculpm_plans WHERE project_id = ?1", params![pid])?;
                 tx.execute(
@@ -548,10 +600,15 @@ impl<'a> PlanCache<'a> {
                     )?;
                 }
                 tx.commit()?;
-                Ok(())
+                Ok(true)
             })
             .await
             .map_err(|e| e.to_string())?;
+        if wrote {
+            if let Ok(mut m) = PROJECTED.lock() {
+                m.insert(memo_key, fingerprint);
+            }
+        }
 
         Ok(loaded)
     }
