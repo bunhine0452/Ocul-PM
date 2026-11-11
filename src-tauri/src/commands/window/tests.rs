@@ -416,3 +416,24 @@ fn caption_permissions_are_windows_only() {
         );
     }
 }
+
+/// 창 바탕은 테마 설정을 따르고 「시스템」(과 알 수 없는 옛 값)만 OS 를 본다 — 첫 페인트의
+/// 바탕(`public/boot.css`) · 설정 파일의 `backgroundColor` 와 같은 두 색이다.
+#[test]
+fn window_background_follows_the_theme_setting() {
+    let light = tauri::window::Color(0xf1, 0xee, 0xe6, 0xff);
+    let dark = tauri::window::Color(0x12, 0x15, 0x14, 0xff);
+    assert_eq!(background_for(Some("dark"), false), dark);
+    assert_eq!(background_for(Some("light"), true), light);
+    assert_eq!(background_for(Some("system"), true), dark);
+    assert_eq!(background_for(Some("nord"), false), light);
+    assert_eq!(background_for(None, false), light);
+
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let boot = std::fs::read_to_string(root.join("../public/boot.css")).unwrap();
+    assert!(boot.contains("#f1eee6") && boot.contains("#121514"));
+    for conf in ["tauri.conf.json", "tauri.windows.conf.json"] {
+        let raw = std::fs::read_to_string(root.join(conf)).unwrap();
+        assert!(raw.contains("\"backgroundColor\": \"#f1eee6\""), "{conf}");
+    }
+}

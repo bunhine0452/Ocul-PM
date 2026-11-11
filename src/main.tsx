@@ -11,6 +11,7 @@ import { getPlatform, isMac } from "./lib/platform";
 import { bootI18n } from "./i18n";
 import { commands } from "./lib/bindings";
 import { watchCspViolations } from "./lib/oculpmLog";
+import pretendardUrl from "./assets/fonts/Pretendard-subset.woff2?url";
 
 // 웹뷰 CSP 위반을 맨 먼저 듣는다 — 막힌 것은 화면이 조용히 비는 것으로만 보인다
 // (oculpmLog.ts `watchCspViolations`). 첫 화면의 위반까지 잡으려면 다른 무엇보다 앞이다.
@@ -66,6 +67,20 @@ const isWebview = typeof window !== "undefined" && "__TAURI_INTERNALS__" in wind
 // 대화상자는 건드리지 않는다.
 if (isWebview) installNativeDialogGuard();
 
+// UI 본문 서체(1.7MB)를 지금 받기 시작한다 — @font-face 는 지연 청크(App.css)에 있어
+// 그 CSS 가 온 뒤에야 받기 시작했다. CSS 의 url() 과 같은 파일이라 Vite 가 같은 URL 을 준다.
+const fontPreload = document.createElement("link");
+fontPreload.rel = "preload";
+fontPreload.as = "font";
+fontPreload.type = "font/woff2";
+fontPreload.crossOrigin = "anonymous";
+fontPreload.href = pretendardUrl;
+document.head.appendChild(fontPreload);
+
+// 앱 창 청크는 언어 사전 · 설정 조회와 **나란히** 받는다 — 예전엔 사전이 온 뒤에야 받기
+// 시작해 첫 화면이 두 왕복을 줄 서서 기다렸다.
+const appWindowChunk = import("./windows/AppWindow");
+
 // 언어 사전은 동적 청크다 (완성도 라운드 Phase 3) — 설정의 언어를 읽어 그 사전
 // 하나를 받은 뒤 그린다. 웹뷰 밖에선 설정 IPC 가 없으니 OS 로케일.
 void bootI18n(async () => {
@@ -79,7 +94,7 @@ function renderApp() {
   // 앱 창 — 시작 창이거나 프로젝트 하나의 셸이다 (창 하나 = 프로젝트 하나, 4.0).
   // 어느 쪽인지는 창이 마운트 직후 백엔드에 묻는다 — 시작 창이 프로젝트를 고르면
   // 런타임에 바뀌므로 URL 에 싣지 않는다.
-  const AppWindow = React.lazy(() => import("./windows/AppWindow"));
+  const AppWindow = React.lazy(() => appWindowChunk);
   root.render(
     <React.StrictMode>
       <SettingsProvider>

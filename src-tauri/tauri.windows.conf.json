@@ -8,7 +8,8 @@
         "minWidth": 480,
         "minHeight": 520,
         "decorations": false,
-        "transparent": false
+        "transparent": false,
+        "backgroundColor": "#f1eee6"
       }
     ]
   },
