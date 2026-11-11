@@ -90,10 +90,10 @@ fn baseline_save_spawns() {
     let (third, c) = measure(|| path_in_head(&root, "src/deep/new.rs"));
     assert_eq!((a, b, c), (Some(true), Some(true), Some(false)));
     eprintln!("[spawns] baseline save: first {first} · other dir {second} · new file {third}");
-    assert!(
-        second + third <= SAVE_WARM_MAX,
-        "저장 두 번에 git {}",
-        second + third
+    assert_eq!(
+        second + third,
+        SAVE_WARM_SPAWNS,
+        "HEAD 가 그대로인 저장 두 번은 git 을 띄우지 않는다"
     );
 }
 
@@ -185,6 +185,6 @@ fn capture_spawns_for_files_committed_together() {
 // 상한 — 지금 값에 맞춰 잠근다 (늘면 붉어진다). 이 라운드 전: 변경 화면 다시 읽기 6 ·
 // 저장 두 번 4 · 따로 올린 6 파일 캡처 18.
 const DIFF_WARM_MAX: usize = 1;
-const SAVE_WARM_MAX: usize = 0;
+const SAVE_WARM_SPAWNS: usize = 0;
 const CAPTURE_MAX: usize = 10;
 const CAPTURE_TOGETHER_MAX: usize = 5;
