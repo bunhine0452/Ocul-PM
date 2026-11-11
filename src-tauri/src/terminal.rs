@@ -322,6 +322,28 @@ fn has_child_process(parent: u32) -> Option<bool> {
     parents_with_children().map(|p| p.contains(&parent))
 }
 
+/// Windows — 터미널 셸을 「보통 이하」 우선순위로 내린다. 그 안에서 뜨는 claude · 병렬 세션 · cargo 는
+/// 이 등급을 물려받는다(CreateProcess 는 Idle · BelowNormal 부모의 등급을 자식에게 넘긴다). 앱 · 웹뷰 ·
+/// ConPTY 중계(conhost)는 보통이라, CPU 가 꽉 차도 키 입력과 화면이 먼저 돈다 — macOS 가 보고 있는
+/// 앱을 먼저 돌려 주는 것을 흉내 낸 것이다(2026-11-11, rustc 30개에 한글이 밀리고 화면이 끊겼다).
+/// 한가할 때는 차이가 없다. 실패해도 세션은 그대로 연다.
+#[cfg(windows)]
+fn yield_to_ui(pid: u32) {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS, PROCESS_SET_INFORMATION,
+    };
+    // SAFETY: 방금 띄운 자식의 pid 로 연 핸들을 쓰고 바로 닫는다.
+    unsafe {
+        let handle = OpenProcess(PROCESS_SET_INFORMATION, 0, pid);
+        if handle.is_null() {
+            return;
+        }
+        SetPriorityClass(handle, BELOW_NORMAL_PRIORITY_CLASS);
+        CloseHandle(handle);
+    }
+}
+
 /// 업데이트 전 대화를 잇는 한 줄 — 그 폴더의 가장 최근 대화.
 const RESUME_LINE: &str = "claude --continue\r";
 
@@ -384,6 +406,10 @@ impl TermSessions {
             .slave
             .spawn_command(cmd)
             .map_err(|e| format!("spawn: {e}"))?;
+        #[cfg(windows)]
+        if let Some(pid) = child.process_id() {
+            yield_to_ui(pid);
+        }
         drop(pair.slave);
         let mut reader = pair
             .master

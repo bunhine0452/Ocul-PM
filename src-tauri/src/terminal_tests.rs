@@ -553,3 +553,31 @@ fn windows_one_process_snapshot_serves_every_session_and_call() {
     );
     sessions.close_all();
 }
+
+/// Windows — 터미널 셸은 「보통 이하」 로 내려가, 안에서 뜨는 빌드가 앱의 입력 · 화면을 밀지 못한다.
+#[cfg(windows)]
+#[test]
+fn windows_terminal_shell_yields_to_ui() {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        GetPriorityClass, OpenProcess, BELOW_NORMAL_PRIORITY_CLASS,
+        PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    let mut ping = crate::proc::std_cmd("ping")
+        .args(["-n", "6", "127.0.0.1"])
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    yield_to_ui(ping.id());
+    // SAFETY: 방금 띄운 자식의 핸들을 열어 읽고 닫는다.
+    let class = unsafe {
+        let h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, ping.id());
+        assert!(!h.is_null());
+        let c = GetPriorityClass(h);
+        CloseHandle(h);
+        c
+    };
+    let _ = ping.kill();
+    let _ = ping.wait();
+    assert_eq!(class, BELOW_NORMAL_PRIORITY_CLASS);
+}
