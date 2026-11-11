@@ -168,27 +168,62 @@ pub async fn sync_one(
     root: &Path,
     rel: &str,
 ) -> Result<bool, SkipReason> {
+    sync_one_known(db, project_id, root, rel, None).await
+}
+
+/// [`sync_one`] + 워처가 방금 잰 내용 해시(`blake3:<hex>`). 저장된 스냅샷과 같으면 파일을
+/// 다시 읽지 않는다 (Windows 성능 라운드 2026-11-11 — 저장 한 번에 워처와 여기서 같은
+/// 파일을 두 번 읽고 해시했다). 경로 판정과 읽기·해시는 런타임 워커 밖에서 돈다.
+pub async fn sync_one_known(
+    db: &Db,
+    project_id: u32,
+    root: &Path,
+    rel: &str,
+    known_hash: Option<&str>,
+) -> Result<bool, SkipReason> {
     let abs = crate::path_guard::secure_join(root, rel)
         .map_err(|error| SkipReason::ReadFailed { error })?;
-    if !abs.exists() {
-        return Err(SkipReason::NotFound);
-    }
-    if !is_baseline_path(root, Path::new(rel)) {
-        return Err(SkipReason::OutOfScope);
-    }
-    let content = std::fs::read_to_string(&abs).map_err(|e| SkipReason::ReadFailed {
+    let (root_owned, rel_owned) = (root.to_path_buf(), rel.to_string());
+    let in_scope = tokio::task::spawn_blocking(move || {
+        if !abs.exists() {
+            return Err(SkipReason::NotFound);
+        }
+        if !is_baseline_path(&root_owned, Path::new(&rel_owned)) {
+            return Err(SkipReason::OutOfScope);
+        }
+        Ok(abs)
+    })
+    .await
+    .map_err(|e| SkipReason::ReadFailed {
         error: e.to_string(),
     })?;
-    if !is_text_content(&content) {
-        return Err(SkipReason::Generated);
-    }
-    let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
+    let abs = in_scope?;
     let stored = db
         .snapshot_hash(project_id, rel.to_string())
         .await
         .map_err(|e| SkipReason::WriteFailed {
             error: e.to_string(),
         })?;
+    if let (Some(known), Some(stored)) = (known_hash, stored.as_deref()) {
+        if known.strip_prefix("blake3:") == Some(stored) {
+            return Ok(false);
+        }
+    }
+    let read = tokio::task::spawn_blocking(move || {
+        let content = std::fs::read_to_string(&abs).map_err(|e| SkipReason::ReadFailed {
+            error: e.to_string(),
+        })?;
+        if !is_text_content(&content) {
+            return Err(SkipReason::Generated);
+        }
+        let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
+        Ok((content, hash))
+    })
+    .await
+    .map_err(|e| SkipReason::ReadFailed {
+        error: e.to_string(),
+    })?;
+    let (content, hash) = read?;
     if stored.as_deref() == Some(hash.as_str()) {
         return Ok(false);
     }

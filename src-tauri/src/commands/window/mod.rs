@@ -94,3 +94,12 @@ impl WindowProjects {
         self.0.lock().unwrap_or_else(|p| p.into_inner())
     }
 }
+
+/// 이 프로젝트를 담은 창의 라벨 — 워처가 파일 변경 묶음을 그 창에만 보낸다 (Windows 성능
+/// 라운드 2026-11-11). 바깥 `None` = 레지스트리가 없다(테스트 앱 — 호출부는 모두에게 보낸다),
+/// 안쪽 `None` = 그 프로젝트를 연 창이 없다.
+pub fn project_window_label(app: &AppHandle, project_id: u32) -> Option<Option<String>> {
+    let reg = app.try_state::<WindowProjects>()?;
+    let label = reg.lock().locate_project(project_id);
+    Some(label)
+}

@@ -143,6 +143,8 @@ impl ProjectWatcher {
             user_ignore.clone(),
             project_gitignore.clone(),
         );
+        // 디바운서의 파일 id 캐시도 같은 판정으로 거른다 (`file_id_cache` 의 `keep`).
+        let fid_cache = OrderedFileIdCache::with_filter(prefilter.clone());
         // Forbidden-path matcher delegated to `oculpm::redact` (W4-PR3) so the
         // watcher and `manager::create_manual_journal_entry` see the same
         // glob semantics — see `oculpm::redact::is_forbidden_path`.
@@ -175,6 +177,8 @@ impl ProjectWatcher {
             stats: stats.clone(),
             root_gone_logged: std::sync::atomic::AtomicBool::new(false),
             repeats: repeat::RepeatFilter::default(),
+            pending_changes: std::sync::Mutex::new(Vec::new()),
+            hash_memo: Arc::default(),
         };
 
         // PR-CI0 — 앱이 꺼진 동안 큐잉된 훅 이벤트를 즉시 소비한다. 인박스는
@@ -215,7 +219,7 @@ impl ProjectWatcher {
                 }
             },
             // `FileIdMap` 과 같은 답, Remove 가 캐시 전체를 훑지 않는다 (`file_id_cache`).
-            OrderedFileIdCache::new(),
+            fid_cache,
             notify::Config::default(),
         )
         .map_err(|e| OculpmError::Io {

@@ -707,10 +707,12 @@ pub struct OculpmSessionEnded {
     pub session: Session,
 }
 
+/// 워처가 정착할 때마다 한 번 — 그사이 바뀐 파일 전부 (Windows 성능 라운드 2026-11-11).
+/// 예전엔 파일 하나마다 한 번씩 모든 창에 보냈다. 지금은 그 프로젝트를 연 창에만 보낸다.
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
 pub struct OculpmFileChanged {
     pub project_id: u32,
-    pub event: FileChangeEvent,
+    pub events: Vec<FileChangeEvent>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
