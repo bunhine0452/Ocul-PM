@@ -18,6 +18,8 @@ owner: claude-code
 - [-] fastembed 5.17 → 7.5 (+ ort·hf-hub 짝) — 메이저 둘, 변경 내용·메모리 실측부터 (← optimize-round-20261024 #next-fastembed7) {#fastembed7}
 - [ ] 보류 유지(근거): TypeScript 7 — typescript-eslint 8.72 의 peer 가 `<6.1.0` · notify 9 rc · specta rc.27 · keyring 4 기존 키 호환 불명. 근거가 바뀔 때만 다시 본다 (← optimize-round-20261024 #next-hold) {#deps-hold}
 
+- [ ] rusqlite 0.41(번들 SQLite 3.54) — tokio-rusqlite 가 받으면 올리고 deny.toml 의 RUSTSEC-2026-0459 ignore 를 지운다 {#rusqlite-041}
+
 ## 메모리·디스크 (측정 먼저) {#footprint}
 - [ ] 라이브 풋프린트 Malloc Small 511MB 귀속 — 설치본이 꺼진 때 심볼 빌드 + MallocStackLogging 으로 상위 할당 지점(3.12.0 실측: UI footprint 604MB · peak 949MB · 할당 835MB/144만 개). 보류 등급 제거(10-28) 뒤 재측정이 먼저 (← optimize-round #carry-malloc-small, improvement-round-2026-09-14 #footprint-attribution) {#malloc-small}
 - [x] 이미 쌓인 worktree 사본 로컬 히스토리 236MB — 디스크에 없는 경로의 판 정리 (← optimize-round-20261024 #carry-history-purge) {#history-purge}
