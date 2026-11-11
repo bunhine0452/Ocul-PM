@@ -30,6 +30,10 @@ owner: claude-code
 - [ ] 스킬 카탈로그 2차 가운데 살아 있는 것만 — 훅 Windows 검증·일지 스키마 2(실패 원장·ADR)·플래너 승인 게이트·스킬 출처. 스킬 12→5 로 줄인 뒤라 카탈로그 3차·비용 텔레메트리는 뺐다 (← improvement-round-2026-09-14 #skill-catalog-b) {#skill-catalog-b}
 - [ ] Codex 플러그인에 MCP 를 직접 싣기 — codex 0.162.1 실측: `.mcp.json` 은 읽지만 절대 경로일 때만 기동. Codex 가 플러그인 상대 경로를 풀게 되면 다시 본다 (← bug-opt-round-20261018 #carry-codex-plugin-mcp) {#codex-plugin-mcp}
 
+## Windows 입력 · 측정 {#win-followups}
+- [ ] Windows 한글 입력이 부하 중 음절마다 두 번 찍힘 — 2026-11-11 병렬 빌드(CPU 100%) 중 앱 터미널의 Claude 에 「갑갑자자기기」. 다음 재현 때 ⌃⌥⇧I 덤프를 받아 원인부터. 11-10 덤프: Windows IME 는 Backspace 에 줄 전체를 다시 조합해 브리지가 DEL×N + 재전송한다 {#ime-double-windows}
+- [ ] git 띄우기 수가 macOS · Linux 에서 캡처마다 하나 더 — 윈도우에서는 상한(따로 6파일 10 · 한 커밋 5)에 맞는데 CI 의 유닉스에서 11 · 6. 캐시 열쇠(`path_form::cache_key` 가 유닉스에서 경로를 펴지 않음)나 첫 `config --list` 를 의심 (← 2026-11-11 Windows 성능 라운드) {#spawn-count-unix}
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
