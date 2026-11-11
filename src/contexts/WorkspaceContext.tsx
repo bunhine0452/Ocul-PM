@@ -760,26 +760,21 @@ export function WorkspaceProvider({
     // Lite-W6 PR8 Part 1: feed the change-highlight buffer.
     // v2 U3: 컨텍스트 setState 가 아니라 전용 스토어로 push — 파일 이벤트가
     // 전 화면 리렌더 + localStorage 직렬화를 일으키던 경로를 제거.
+    // 워처는 **정착한 묶음마다** 한 번 보낸다 (Windows 성능 라운드 2026-11-11).
     bag.add(events.oculpmFileChanged.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
-      const op = mapFileOpToChangeOp(evt.payload.event.op);
-      const path = evt.payload.event.path;
-      // Dogfooding (2026-06-07) — forbidden-path matches arrive pre-masked as
-      // `**redacted/sensitive**:<hash>`. They can't be opened (computeDiff has
-      // no real path) and are pure noise in the 변경 diff list, so drop them
-      // here. The ndjson/journal masking on the backend is untouched.
-      if (path.startsWith("**redacted/sensitive**")) return;
-      // 버킷은 **이벤트가 말한 프로젝트**다 — 이 프로바이더의 것과 같음은 위
-      // 가드가 이미 보장한다. 한 창에 탭이 여럿이면 이 모듈은 하나뿐이라,
-      // 버킷 없이 밀면 옆 탭의 「미기록 변경」에 그대로 샌다.
-      recentChangesStore.push(evt.payload.project_id, {
-        path,
-        op,
-        ts: Date.now(),
+      const ts = Date.now();
+      const batch = evt.payload.events
+        // Dogfooding (2026-06-07) — forbidden-path matches arrive pre-masked as
+        // `**redacted/sensitive**:<hash>`. They can't be opened (computeDiff has
+        // no real path) and are pure noise in the 변경 diff list, so drop them
+        // here. The ndjson/journal masking on the backend is untouched.
+        .filter((change) => !change.path.startsWith("**redacted/sensitive**"))
         // Lite-W6 PR6.5: every fresh watcher event starts unread so the
         // diff view can surface "new since you last looked".
-        read: false,
-      });
+        .map((change) => ({ path: change.path, op: mapFileOpToChangeOp(change.op), ts, read: false }));
+      // 버킷은 **이벤트가 말한 프로젝트**다 — 위 가드가 이 프로바이더의 것임을 보장한다.
+      recentChangesStore.pushAll(evt.payload.project_id, batch);
     }));
 
     // 「새 일지」 토스트 — 문지기·열기 동선은 lib/journalAddedToast (2026-09-22).

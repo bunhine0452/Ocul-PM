@@ -6,7 +6,11 @@ use chrono::Utc;
 
 use crate::db::Db;
 use crate::oculpm::cache::{JournalCache, UpsertOutcome};
-use crate::oculpm::spec::{FileOp, OculpmJournalAdded, OculpmJournalUpdated};
+use crate::oculpm::spec::{
+    FileOp, IntegrityWarning, OculpmIntegrityWarning, OculpmJournalAdded, OculpmJournalPathChanged,
+    OculpmJournalUpdated,
+};
+use crate::oculpm::watcher_tasks::Lane;
 
 use super::classify::{is_journal_entry_path, resolve_path_change_kind};
 use super::handle::WatcherInner;
@@ -93,9 +97,9 @@ impl WatcherInner {
                 // Persist per-file diffs for a brand-new entry so the 작업 일지
                 // can re-open "그 시점의 변경" at any later time, even after the
                 // file is committed (see oculpm::entry_diffs). Capture only on
-                // first insert; best-effort, never blocks the cache path.
+                // first insert; best-effort, off the drain loop (곁일).
                 if inserted {
-                    self.capture_entry_diffs(&cache, entry_rel).await;
+                    self.spawn_entry_capture(entry_rel);
                 }
             }
             Err(e) => {
@@ -112,126 +116,25 @@ impl WatcherInner {
         }
     }
 
-    /// Capture + persist per-file diffs for a freshly-inserted entry. Loads the
-    /// entry's `files_touched` from the cache, then offloads the (blocking) git
-    /// diff + sidecar write to a blocking thread. Best-effort: any failure is
-    /// logged, never propagated — a missing diff just renders as "기록된 변경
-    /// 없음" in the UI. See `oculpm::entry_diffs`.
-    async fn capture_entry_diffs(&self, cache: &JournalCache<'_>, entry_rel: &str) {
-        let touched = match cache.get_entry(self.project_id, entry_rel).await {
-            Ok(Some(entry)) => entry.frontmatter.files_touched,
-            Ok(None) => return,
-            Err(e) => {
-                tracing::warn!(
-                    target: "oculpm::watcher",
-                    project_id = self.project_id,
-                    path = %entry_rel,
-                    error = %e,
-                    "entry-diff capture: get_entry failed"
-                );
-                return;
-            }
-        };
-        if touched.is_empty() {
+    /// 새 일지의 diff 캡처를 **소비 루프 밖**(곁일 `Lane::Capture`)으로 넘긴다.
+    ///
+    /// 예전엔 소비 루프가 캡처를 `await` 했다 — 1단계(작업 트리)를 빗나간 파일마다 git 이
+    /// 여럿 떠서(윈도우에서 하나에 10~30 ms) 일지 하나가 뒤의 이벤트를 수백 ms 붙잡았다
+    /// (Windows 성능 라운드 2026-11-11). 캡처는 「그 시점의 변경」 을 남기는 일이라 조금
+    /// 늦어도 결과가 같다. 끝나면 일지 경로 신호를 한 번 더 내 Today 의 라인 수가 따라온다.
+    fn spawn_entry_capture(&self, entry_rel: &str) {
+        let Some(handle) = self.app_handle.clone() else {
             return;
-        }
-        // PR-R3 snapshot fallback: pre-fetch last-indexed baselines so the
-        // blocking capture can diff snapshot↔disk when `git diff` is empty
-        // (committed / non-git). `app_handle: None` (unit tests) → no Db, empty
-        // map → git-only behaviour (unchanged).
-        let mut snapshots: std::collections::HashMap<String, Vec<u8>> =
-            std::collections::HashMap::new();
-        if let Some(handle) = &self.app_handle {
-            use tauri::Manager;
-            let db: tauri::State<'_, Db> = handle.state::<Db>();
-            for f in &touched {
-                if let Ok(Some(snap)) = db.get_file_snapshot(self.project_id, f.path.clone()).await
-                {
-                    snapshots.insert(f.path.clone(), snap.content);
-                }
-            }
-        }
-        let root = self.root.clone();
-        let entry_rel_owned = entry_rel.to_string();
-        let redact = self.redact_patterns.clone();
-        let res = tokio::task::spawn_blocking(move || {
-            crate::oculpm::entry_diffs::capture_entry_diffs(
-                &root,
-                &entry_rel_owned,
-                &touched,
-                &snapshots,
-                &redact,
-            )
-        })
-        .await;
-        match res {
-            Ok(Ok(redacted_spans)) => {
-                // R1 — masked a secret in the captured diff hunk(s); warn so the
-                // user can scrub the source before committing.
-                if redacted_spans > 0 {
-                    self.emit_integrity_warning(
-                        "secret_redacted",
-                        entry_rel,
-                        &format!("변경 diff에서 비밀로 보이는 값 {redacted_spans}건을 가렸습니다."),
-                    );
-                }
-                // Count the captured patch into the cache so Today's 「라인 변화」
-                // ring reflects this entry immediately — without waiting for the
-                // next project-open backfill sweep.
-                self.store_line_counts(cache, entry_rel).await;
-            }
-            Ok(Err(e)) => tracing::warn!(
-                target: "oculpm::watcher",
-                project_id = self.project_id,
-                path = %entry_rel,
-                error = %e,
-                "entry-diff capture: sidecar write failed"
-            ),
-            Err(e) => tracing::warn!(
-                target: "oculpm::watcher",
-                project_id = self.project_id,
-                path = %entry_rel,
-                error = %e,
-                "entry-diff capture: blocking task panicked"
-            ),
-        }
-    }
-
-    /// Derive per-file line churn from the entry's freshly-written diff sidecar
-    /// and store it in the cache. Best-effort — a missing sidecar just leaves
-    /// the columns NULL for the backfill sweep to retry.
-    async fn store_line_counts(&self, cache: &JournalCache<'_>, entry_rel: &str) {
-        let root = self.root.clone();
-        let rel = entry_rel.to_string();
-        let counts = match tokio::task::spawn_blocking(move || {
-            crate::oculpm::entry_diffs::line_counts(&root, &rel)
-        })
-        .await
-        {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::warn!(
-                    target: "oculpm::watcher",
-                    project_id = self.project_id,
-                    path = %entry_rel,
-                    error = %e,
-                    "line-count capture: blocking read panicked"
-                );
-                return;
-            }
         };
-        if let Err(e) = cache
-            .set_line_counts(self.project_id, entry_rel, counts)
-            .await
-        {
-            tracing::warn!(
-                target: "oculpm::watcher",
-                project_id = self.project_id,
-                path = %entry_rel,
-                error = %e,
-                "line-count capture: cache update failed"
-            );
-        }
+        let job = CaptureJob {
+            handle,
+            project_id: self.project_id,
+            root: self.root.clone(),
+            redact: self.redact_patterns.clone(),
+            tz: self.tz,
+            entry_rel: entry_rel.to_string(),
+        };
+        self.tasks.spawn(Lane::Capture, job.run());
     }
 
     /// Map a cache outcome to the matching high-level Tauri event. Inserted
@@ -335,6 +238,158 @@ impl WatcherInner {
             .emit(handle);
         }
         false
+    }
+}
+
+/// 새 일지 하나의 diff 캡처 — 곁일로 도는 몫 (`WatcherInner::spawn_entry_capture`).
+/// 워처 본체를 빌리지 않도록 필요한 것만 들고 간다.
+struct CaptureJob {
+    handle: tauri::AppHandle,
+    project_id: u32,
+    root: std::path::PathBuf,
+    redact: Vec<regex::Regex>,
+    tz: chrono_tz::Tz,
+    entry_rel: String,
+}
+
+impl CaptureJob {
+    /// Capture + persist per-file diffs for a freshly-inserted entry. Loads the
+    /// entry's `files_touched` from the cache, then offloads the (blocking) git
+    /// diff + sidecar write to a blocking thread. Best-effort: any failure is
+    /// logged, never propagated — a missing diff just renders as "기록된 변경
+    /// 없음" in the UI. See `oculpm::entry_diffs`.
+    async fn run(self) {
+        use tauri::Manager;
+        let Some(db) = self.handle.try_state::<Db>() else {
+            return;
+        };
+        let cache = JournalCache::with_redaction(&db, self.redact.clone()).with_tz(self.tz);
+        let entry_rel = self.entry_rel.as_str();
+        let touched = match cache.get_entry(self.project_id, entry_rel).await {
+            Ok(Some(entry)) => entry.frontmatter.files_touched,
+            Ok(None) => return,
+            Err(e) => {
+                tracing::warn!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %entry_rel,
+                    error = %e,
+                    "entry-diff capture: get_entry failed"
+                );
+                return;
+            }
+        };
+        if touched.is_empty() {
+            return;
+        }
+        // PR-R3 snapshot fallback: pre-fetch last-indexed baselines so the
+        // blocking capture can diff snapshot↔disk when `git diff` is empty
+        // (committed / non-git).
+        let mut snapshots: std::collections::HashMap<String, Vec<u8>> =
+            std::collections::HashMap::new();
+        for f in &touched {
+            if let Ok(Some(snap)) = db.get_file_snapshot(self.project_id, f.path.clone()).await {
+                snapshots.insert(f.path.clone(), snap.content);
+            }
+        }
+        let root = self.root.clone();
+        let entry_rel_owned = entry_rel.to_string();
+        let redact = self.redact.clone();
+        let res = tokio::task::spawn_blocking(move || {
+            crate::oculpm::entry_diffs::capture_entry_diffs(
+                &root,
+                &entry_rel_owned,
+                &touched,
+                &snapshots,
+                &redact,
+            )
+        })
+        .await;
+        match res {
+            Ok(Ok(redacted_spans)) => {
+                // R1 — masked a secret in the captured diff hunk(s); warn so the
+                // user can scrub the source before committing.
+                if redacted_spans > 0 {
+                    use tauri_specta::Event;
+                    let _ = OculpmIntegrityWarning {
+                        project_id: self.project_id,
+                        warning: IntegrityWarning {
+                            kind: "secret_redacted".to_string(),
+                            path: entry_rel.to_string(),
+                            message: format!(
+                                "변경 diff에서 비밀로 보이는 값 {redacted_spans}건을 가렸습니다."
+                            ),
+                        },
+                    }
+                    .emit(&self.handle);
+                }
+                // Count the captured patch into the cache so Today's 「라인 변화」
+                // ring reflects this entry immediately — without waiting for the
+                // next project-open backfill sweep.
+                self.store_line_counts(&cache).await;
+                // 캡처가 소비 루프 밖으로 나가 일지 신호보다 늦게 끝난다 — 라인 수를
+                // 다시 읽게 한 번 더 알린다.
+                use tauri_specta::Event;
+                let _ = OculpmJournalPathChanged {
+                    project_id: self.project_id,
+                    relative_path: format!(".oculpm/journal/{entry_rel}"),
+                    op: FileOp::Update,
+                }
+                .emit(&self.handle);
+            }
+            Ok(Err(e)) => tracing::warn!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                error = %e,
+                "entry-diff capture: sidecar write failed"
+            ),
+            Err(e) => tracing::warn!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                error = %e,
+                "entry-diff capture: blocking task panicked"
+            ),
+        }
+    }
+
+    /// Derive per-file line churn from the entry's freshly-written diff sidecar
+    /// and store it in the cache. Best-effort — a missing sidecar just leaves
+    /// the columns NULL for the backfill sweep to retry.
+    async fn store_line_counts(&self, cache: &JournalCache<'_>) {
+        let entry_rel = self.entry_rel.as_str();
+        let root = self.root.clone();
+        let rel = entry_rel.to_string();
+        let counts = match tokio::task::spawn_blocking(move || {
+            crate::oculpm::entry_diffs::line_counts(&root, &rel)
+        })
+        .await
+        {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    path = %entry_rel,
+                    error = %e,
+                    "line-count capture: blocking read panicked"
+                );
+                return;
+            }
+        };
+        if let Err(e) = cache
+            .set_line_counts(self.project_id, entry_rel, counts)
+            .await
+        {
+            tracing::warn!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                error = %e,
+                "line-count capture: cache update failed"
+            );
+        }
     }
 }
 

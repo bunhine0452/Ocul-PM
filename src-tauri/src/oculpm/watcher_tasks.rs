@@ -31,17 +31,25 @@ use crate::oculpm::spec::FileOp;
 /// 줄을 세우지 않는다. (예전 코드 색인 시절 임베딩 직렬화 때문에 정한 값이다.)
 pub const BASELINE_PERMITS: usize = 2;
 
-/// 곁일의 갈래 — 갈래마다 상한이 따로다. 지금은 기준선 하나뿐이다 (로컬 히스토리
-/// 갈래는 읽는 화면이 3.x 코드 편집기와 함께 사라져 2026-11-01 에 걷었다).
+/// 새 일지의 diff 캡처(`entry_diffs`) 동시 상한. 일지 하나가 git 몇 번 · 사이드카 쓰기
+/// 한 번이고, 같은 저장소를 두드리므로 하나씩 돈다 (Windows 성능 라운드 2026-11-11 —
+/// 그 전엔 소비 루프 안에서 `await` 했다).
+pub const CAPTURE_PERMITS: usize = 1;
+
+/// 곁일의 갈래 — 갈래마다 상한이 따로다 (로컬 히스토리 갈래는 읽는 화면이 3.x 코드
+/// 편집기와 함께 사라져 2026-11-01 에 걷었다).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Lane {
     Baseline,
+    /// 새 일지의 diff 사이드카 캡처 + 라인 수.
+    Capture,
 }
 
 /// 워처가 소유하는 곁일 게이트. `WatcherInner` 가 들고 다닌다 (`Clone`).
 #[derive(Clone)]
 pub struct WatcherTasks {
     baseline: Arc<Semaphore>,
+    capture: Arc<Semaphore>,
     cancel: watch::Receiver<bool>,
     /// 경로별 직렬화 — 같은 `(프로젝트, 경로)` 의 곁일은 한 번에 하나만 돈다.
     ///
@@ -56,6 +64,7 @@ pub struct WatcherTasks {
 pub struct WatcherTasksShutdown {
     tx: watch::Sender<bool>,
     baseline: Arc<Semaphore>,
+    capture: Arc<Semaphore>,
 }
 
 impl WatcherTasksShutdown {
@@ -70,6 +79,7 @@ impl WatcherTasksShutdown {
     /// 남지 않는다.
     pub fn shutdown(&self) {
         self.baseline.close();
+        self.capture.close();
         // `send` 는 수신자가 없으면 실패한다 — 그 경우에도 값은 남아야 한다.
         self.tx.send_replace(true);
     }
@@ -85,13 +95,19 @@ impl Drop for WatcherTasksShutdown {
 pub fn gate() -> (WatcherTasks, WatcherTasksShutdown) {
     let (tx, cancel) = watch::channel(false);
     let baseline = Arc::new(Semaphore::new(BASELINE_PERMITS));
+    let capture = Arc::new(Semaphore::new(CAPTURE_PERMITS));
     (
         WatcherTasks {
             baseline: baseline.clone(),
+            capture: capture.clone(),
             cancel,
             keys: Arc::new(Mutex::new(HashMap::new())),
         },
-        WatcherTasksShutdown { tx, baseline },
+        WatcherTasksShutdown {
+            tx,
+            baseline,
+            capture,
+        },
     )
 }
 
@@ -115,6 +131,7 @@ impl WatcherTasks {
         }
         let sem = match lane {
             Lane::Baseline => self.baseline.clone(),
+            Lane::Capture => self.capture.clone(),
         };
         let mut cancel = self.cancel.clone();
         let keys = self.keys.clone();
@@ -184,7 +201,20 @@ impl WatcherTasks {
 /// 반환값은 `(bytes, hash_after)`. 파일을 읽지 못했거나 상한을 넘으면 해시는
 /// `None` — 소비자는 `bytes > cap && hash.is_none()` 으로 "큰 파일이라 해시를
 /// 건너뜀" 을 읽는다.
+///
+/// `memo` 는 (길이, 수정 시각)이 그대로인 파일의 지난 해시다 (Windows 성능 라운드
+/// 2026-11-11). 윈도우는 새 파일 하나를 Create + Modify 로 두 번 알려서, 같은 내용을
+/// 두 번 읽고 해시한 뒤에야 `repeat` 가 둘째를 걸렀다 — 8 MB 파일이면 두 번 8 MB 다.
 pub async fn stat_and_hash(abs_path: PathBuf, hash_byte_cap: u64) -> (u32, Option<String>) {
+    stat_and_hash_with(abs_path, hash_byte_cap, Arc::default()).await
+}
+
+/// [`stat_and_hash`] 에 기억(`memo`)을 더한 것 — 워처가 쓰는 쪽.
+pub async fn stat_and_hash_with(
+    abs_path: PathBuf,
+    hash_byte_cap: u64,
+    memo: Arc<HashMemo>,
+) -> (u32, Option<String>) {
     tokio::task::spawn_blocking(move || {
         let Ok(meta) = std::fs::metadata(&abs_path) else {
             return (0u32, None);
@@ -194,13 +224,43 @@ pub async fn stat_and_hash(abs_path: PathBuf, hash_byte_cap: u64) -> (u32, Optio
         if len > hash_byte_cap {
             return (bytes, None);
         }
+        let mtime = meta.modified().ok();
+        if let Some(hit) = mtime.and_then(|m| memo.get(&abs_path, len, m)) {
+            return (bytes, Some(hit));
+        }
         let hash = std::fs::read(&abs_path)
             .ok()
             .map(|b| format!("blake3:{}", blake3::hash(&b).to_hex()));
+        if let (Some(m), Some(h)) = (mtime, &hash) {
+            memo.put(abs_path, len, m, h.clone());
+        }
         (bytes, hash)
     })
     .await
     .unwrap_or((0, None))
+}
+
+/// [`stat_and_hash`] 의 기억 — 경로 → (길이, 수정 시각, 해시). 이만큼 차면 비운다.
+#[derive(Default)]
+pub struct HashMemo(Mutex<HashMap<PathBuf, (u64, std::time::SystemTime, String)>>);
+
+const HASH_MEMO_MAX: usize = 4096;
+
+impl HashMemo {
+    fn get(&self, path: &Path, len: u64, mtime: std::time::SystemTime) -> Option<String> {
+        let m = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        m.get(path)
+            .filter(|(l, t, _)| *l == len && *t == mtime)
+            .map(|(_, _, h)| h.clone())
+    }
+
+    fn put(&self, path: PathBuf, len: u64, mtime: std::time::SystemTime, hash: String) {
+        let mut m = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        if m.len() >= HASH_MEMO_MAX {
+            m.clear();
+        }
+        m.insert(path, (len, mtime, hash));
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -220,6 +280,7 @@ pub fn schedule_baseline_sync(
     root: &Path,
     rel_path: String,
     op: FileOp,
+    known_hash: Option<String>,
 ) {
     if !matches!(op, FileOp::Delete) && !crate::baseline::in_scope(root, Path::new(&rel_path)) {
         return;
@@ -239,7 +300,15 @@ pub fn schedule_baseline_sync(
             }
             return;
         }
-        match crate::baseline::sync_one(&db, project_id, &root, &rel_path).await {
+        match crate::baseline::sync_one_known(
+            &db,
+            project_id,
+            &root,
+            &rel_path,
+            known_hash.as_deref(),
+        )
+        .await
+        {
             // 읽기와 저장 사이에 파일이 사라졌으면 방금 쓴 행이 유령이다. Delete 이벤트는
             // 이 곁일보다 먼저 지나갔을 수 있다(경로 직렬화는 **겹침**을 막지, **순서**를
             // 되돌리지는 않는다).
@@ -343,6 +412,30 @@ mod tests {
         assert_eq!(max_seen.load(Ordering::SeqCst), 2, "다른 경로는 나란히");
         wait_keys_reaped(&tasks).await;
         assert_eq!(tasks.open_keys(), 0);
+    }
+
+    /// 길이·수정 시각이 그대로면 다시 읽지 않는다 — 내용이 바뀌면(시각이 바뀌면) 다시 읽는다.
+    #[tokio::test]
+    async fn unchanged_file_is_hashed_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let f = dir.path().join("a.txt");
+        std::fs::write(&f, b"one").unwrap();
+        let memo = Arc::new(super::HashMemo::default());
+        let (_, h1) = super::stat_and_hash_with(f.clone(), 1024, memo.clone()).await;
+        assert_eq!(memo.0.lock().unwrap().len(), 1);
+        let (_, h2) = super::stat_and_hash_with(f.clone(), 1024, memo.clone()).await;
+        assert_eq!(h1, h2);
+        // 같은 길이의 다른 내용 + 다른 시각 → 새 해시.
+        std::fs::write(&f, b"two").unwrap();
+        let later = std::time::SystemTime::now() + std::time::Duration::from_secs(5);
+        std::fs::File::options()
+            .write(true)
+            .open(&f)
+            .unwrap()
+            .set_modified(later)
+            .unwrap();
+        let (_, h3) = super::stat_and_hash_with(f, 1024, memo).await;
+        assert_ne!(h1, h3);
     }
 
     /// 끝난 열쇠가 표에서 빠질 때까지 최대 1초 — 거두기는 본문 완료 뒤의 별도 단계다.

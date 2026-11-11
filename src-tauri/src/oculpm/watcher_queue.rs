@@ -90,6 +90,7 @@ pub const DEFAULT_CAPACITY: usize = 4096;
 /// - 어댑터 마커(`.cursor/rules/ocul-pm.mdc` 등) — 소비자 4.5 단계. 주석이
 ///   명시하듯 "`.cursor/` 를 gitignore 한 사용자도 드리프트 알림은 받는다".
 /// - 규칙 파일(`.claude/rules/**` · 루트 `CLAUDE.md`) — 소비자 4.7 단계.
+#[derive(Clone)]
 pub struct PreFilter {
     root: PathBuf,
     user_ignore: Gitignore,
@@ -500,6 +501,12 @@ pub trait WatcherSink: Send + Sync + 'static {
 
     /// 버림이 있었던 창(window)을 만회한다. 큐가 **빈 첫 순간**에 불린다.
     fn resync_after_drops(&self, dropped: u64) -> impl std::future::Future<Output = ()> + Send;
+
+    /// 큐가 비었다(정착) — 묶어 둔 화면 신호를 내보낼 때다. 다음 이벤트를 기다리기 직전과
+    /// 루프가 끝날 때 불린다.
+    fn settled(&self) -> impl std::future::Future<Output = ()> + Send {
+        async {}
+    }
 }
 
 /// 소비 루프. 송신측이 사라질 때까지 돈다.
@@ -517,6 +524,7 @@ pub async fn drain_loop<S: WatcherSink>(project_id: u32, rx: QueueReceiver, sink
             if let Some(dropped) = rx.take_resync() {
                 sink.resync_after_drops(dropped).await;
             }
+            sink.settled().await;
         }
         let Some(ev) = rx.recv().await else { break };
         let path = ev.event.paths.first().cloned();
@@ -540,6 +548,7 @@ pub async fn drain_loop<S: WatcherSink>(project_id: u32, rx: QueueReceiver, sink
     if let Some(dropped) = rx.take_resync() {
         sink.resync_after_drops(dropped).await;
     }
+    sink.settled().await;
     // 여기 도달 = 송신측(debouncer)이 사라졌다. 정상 종료(`stop()`)일 수도,
     // 워커 스레드가 죽은 것일 수도 있다 — 예전 문구는 전자라고 단정해 후자를
     // 은폐했다. 감독관(`supervisor`)이 재무장한다.

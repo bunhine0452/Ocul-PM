@@ -89,6 +89,14 @@ export const recentChangesStore = {
     byProject.set(projectId, pushRecentChange(recentChangesStore.get(projectId), next));
     emit();
   },
+  /** 묶음 하나를 넣고 구독자는 **한 번만** 깨운다 — 워처의 묶음 이벤트(2026-11-11)용. */
+  pushAll(projectId: number, nexts: readonly RecentChange[]): void {
+    if (nexts.length === 0) return;
+    let buf = recentChangesStore.get(projectId);
+    for (const next of nexts) buf = pushRecentChange(buf, next);
+    byProject.set(projectId, buf);
+    emit();
+  },
   /**
    * Flip one entry's `read` flag to true (diff 본문 열람 시). No-op when the
    * path isn't buffered or already read, so body re-renders don't churn.

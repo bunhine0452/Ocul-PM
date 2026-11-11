@@ -73,6 +73,10 @@ pub(super) struct WatcherInner {
     /// 윈도우가 같은 쓰기를 두 번 알리는 것(Create + `Modify(Any)`)을 걷는 기억.
     /// 켜는 것은 윈도우뿐이다 (`repeat::ENABLED`).
     pub(super) repeats: super::repeat::RepeatFilter,
+    /// 아직 안 보낸 파일 변경 — 정착할 때 한 번에 보낸다 (`emit::flush_file_changes`).
+    pub(super) pending_changes: std::sync::Mutex<Vec<FileChangeEvent>>,
+    /// (길이, 수정 시각)이 그대로인 파일의 지난 해시 (`watcher_tasks::HashMemo`).
+    pub(super) hash_memo: Arc<watcher_tasks::HashMemo>,
 }
 
 /// 큐가 넘쳐 이벤트를 버렸을 때, 소비자가 정착한 뒤 만회하는 쪽.
@@ -83,6 +87,10 @@ impl WatcherSink for WatcherInner {
 
     async fn resync_after_drops(&self, dropped: u64) {
         WatcherInner::resync_after_drops(self, dropped).await
+    }
+
+    async fn settled(&self) {
+        self.flush_file_changes();
     }
 }
 
@@ -379,7 +387,7 @@ impl WatcherInner {
             // 온다는 보장은 없다 (휴지통 이동·FSEvents 접기, `delete_file_snapshots_under`).
             // 일지·ndjson 에는 여전히 아무것도 남기지 않는다.
             if !path.exists() && !self.is_forbidden(path) {
-                self.schedule_baseline_sync(rel_str.to_string(), FileOp::Delete);
+                self.schedule_baseline_sync(rel_str.to_string(), FileOp::Delete, None);
             }
             self.bump_ignored();
             return;
@@ -419,7 +427,7 @@ impl WatcherInner {
         // work is fire-and-forget so it never stalls the watcher loop. Uses the
         // real relative path before step-8 masking.
         if !self.is_forbidden(path) {
-            self.schedule_baseline_sync(change.path.clone(), change.op);
+            self.schedule_baseline_sync(change.path.clone(), change.op, change.hash_after.clone());
         }
 
         // 8. Forbidden-path masking.
@@ -485,7 +493,12 @@ impl WatcherInner {
         // 소비자는 `bytes > HASH_BYTE_CAP && hash_after.is_none()` 으로
         // "큰 파일이라 해시를 건너뜀" 을 읽는다.
         let (bytes_u, hash_after) = if exists && !matches!(op, FileOp::Delete) {
-            watcher_tasks::stat_and_hash(abs_path.to_path_buf(), HASH_BYTE_CAP).await
+            watcher_tasks::stat_and_hash_with(
+                abs_path.to_path_buf(),
+                HASH_BYTE_CAP,
+                self.hash_memo.clone(),
+            )
+            .await
         } else {
             (0, None)
         };
@@ -523,7 +536,7 @@ impl WatcherInner {
 
     /// 바뀐 파일 하나의 diff 기준선 동기 (fire-and-forget). 본체는 `watcher_tasks`;
     /// 가드레일과 근거 주석도 그쪽에 있다.
-    fn schedule_baseline_sync(&self, rel_path: String, op: FileOp) {
+    fn schedule_baseline_sync(&self, rel_path: String, op: FileOp, known_hash: Option<String>) {
         if let Some(handle) = &self.app_handle {
             watcher_tasks::schedule_baseline_sync(
                 &self.tasks,
@@ -532,6 +545,7 @@ impl WatcherInner {
                 &self.root,
                 rel_path,
                 op,
+                known_hash,
             );
         }
     }

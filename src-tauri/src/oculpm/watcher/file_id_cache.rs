@@ -27,14 +27,34 @@ use notify_debouncer_full::file_id::{get_file_id, FileId};
 use notify_debouncer_full::FileIdCache;
 use walkdir::WalkDir;
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub(crate) struct OrderedFileIdCache {
     paths: BTreeMap<PathBuf, FileId>,
+    /// 채널 앞 판정과 같은 매처 — 그 판정이 어차피 버릴 경로(`target/`·`node_modules/`·
+    /// `.git/`)는 파일 id 를 얻지 않는다 (Windows 성능 라운드 2026-11-11). 윈도우에서
+    /// `get_file_id` 는 파일마다 핸들을 열고 닫는다 — `cargo build` 한 번이 산출물 수천
+    /// 개를 만들 때 그 전부가 디바운서 뮤텍스를 쥔 채 열렸다. 이름 바꾸기 짝짓기는 남는
+    /// 경로에서 그대로다 (버린 쪽에서 남는 쪽으로 옮긴 파일은 짝 대신 생성으로 들어온다 —
+    /// 소비자가 디스크를 보고 생성으로 가르는 것과 같은 결과).
+    keep: Option<crate::oculpm::watcher_queue::PreFilter>,
 }
 
 impl OrderedFileIdCache {
+    #[cfg(test)]
     pub(crate) fn new() -> Self {
         Self::default()
+    }
+
+    /// 사전 필터와 같은 판정으로 넣을 경로를 거르는 캐시.
+    pub(crate) fn with_filter(keep: crate::oculpm::watcher_queue::PreFilter) -> Self {
+        Self {
+            paths: BTreeMap::new(),
+            keep: Some(keep),
+        }
+    }
+
+    fn keeps(&self, path: &Path) -> bool {
+        self.keep.as_ref().is_none_or(|f| f.keeps(path))
     }
 
     #[cfg(test)]
@@ -49,16 +69,24 @@ impl FileIdCache for OrderedFileIdCache {
     }
 
     fn add_path(&mut self, path: &Path) {
+        // 사전 필터가 버릴 경로는 열지도 걷지도 않는다 (위 `keep`).
+        if !self.keeps(path) {
+            return;
+        }
         // `FileIdMap::add_path` 와 같다 — 등록된 루트가 없으면 비재귀(깊이 1).
-        let entries = WalkDir::new(path)
+        let entries: Vec<(PathBuf, FileId)> = WalkDir::new(path)
             .follow_links(true)
             .max_depth(1)
             .into_iter()
             .filter_map(|entry| {
                 let path = entry.ok()?.into_path();
+                if !self.keeps(&path) {
+                    return None;
+                }
                 let file_id = get_file_id(&path).ok()?;
                 Some((path, file_id))
-            });
+            })
+            .collect();
         self.paths.extend(entries);
     }
 
@@ -156,6 +184,42 @@ mod tests {
             .cached_file_id(&tmp.path().join("wt/c10/src/f0.ts"))
             .is_some());
         assert!(ours.cached_file_id(&sibling).is_none());
+    }
+
+    /// 사전 필터가 버릴 경로(`target/` 아래)는 캐시에 들지 않고, 남는 경로는 그대로 든다.
+    #[test]
+    fn paths_the_prefilter_drops_get_no_file_id() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().to_path_buf();
+        std::fs::create_dir_all(root.join("target/debug")).unwrap();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        let junk = root.join("target/debug/a.o");
+        let kept = root.join("src/a.rs");
+        std::fs::write(&junk, b"x").unwrap();
+        std::fs::write(&kept, b"x").unwrap();
+        let ignore = crate::oculpm::watcher_queue::build_gitignore_from_lines(
+            &root,
+            &["target/".to_string()],
+        );
+        let filter = crate::oculpm::watcher_queue::PreFilter::new(
+            root.clone(),
+            ignore,
+            crate::oculpm::watcher_queue::ProjectGitignore::none(),
+        );
+        let mut c = OrderedFileIdCache::with_filter(filter);
+        c.add_path(&junk);
+        c.add_path(&root.join("target"));
+        c.add_path(&kept);
+        assert!(c.cached_file_id(&junk).is_none());
+        assert!(c.cached_file_id(&root.join("target/debug")).is_none());
+        assert!(c.cached_file_id(&kept).is_some());
+        // 남는 폴더를 깊이 1 로 넣으면 자식이 들고, 버릴 폴더의 자식은 들지 않는다.
+        // (`target/` 같은 폴더 전용 규칙은 폴더 자신을 파일로 보면 안 맞는다 — 사전 필터와
+        // 같은 판정이라 그 한 칸은 든다.)
+        c.add_path(&root.join("src"));
+        assert!(c.cached_file_id(&root.join("src")).is_some());
+        c.add_path(&root.join("target/debug"));
+        assert!(c.cached_file_id(&junk).is_none());
     }
 
     /// `{#fileid-remove-scan}` 측정 — 캐시에 파일 `N` 개가 든 채 그중 한 폴더
