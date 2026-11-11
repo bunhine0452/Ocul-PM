@@ -50,6 +50,19 @@ const NERD_FONTS = [
 const MAC_FONT = `Menlo, "D2Coding Term", ${NERD_FONTS}, "SF Mono", ui-monospace, monospace`;
 const OTHER_FONT = `"Cascadia Mono", Consolas, "DejaVu Sans Mono", "D2Coding Term", ${NERD_FONTS}, "Noto Sans Mono", "Liberation Mono", monospace`;
 const SCROLLBACK = 5000;
+/**
+ * PTY 크기 바꾸기는 칸이 잠잠해진 뒤 한 번 — 창 끌기 · 칸 나누기 동안 ResizeObserver 가 프레임마다
+ * 불러, 그때마다 ConPTY 가 화면을 다시 흘리고(conhost reflow) 셸 · claude 가 프롬프트를 다시 그렸다
+ * (2026-11-11). 잠잠하던 칸의 첫 바꾸기는 곧장 보낸다(처음 맞춘 크기가 늦지 않게).
+ */
+export const PTY_RESIZE_DEBOUNCE_MS = 80;
+/**
+ * 내려간 세션의 WebGL 렌더러를 이만큼 쥐고 있다가 반납한다 — 탭을 오갈 때마다 문맥(ANGLE/D3D11)과
+ * 글리프 아틀라스를 새로 짓지 않게. 오래 내려가 있으면 반납해 브라우저 상한(약 16)을 넘지 않는다.
+ */
+export const WEBGL_IDLE_MS = 30_000;
+/** 동시에 쥐는 WebGL 렌더러의 상한 — 넘으면 내려간 세션의 것부터 곧장 반납한다. */
+export const MAX_WEBGL = 8;
 
 interface Entry {
   info: TermInfo;
@@ -59,6 +72,18 @@ interface Entry {
   host: HTMLDivElement;
   opened: boolean;
   disposeIme: (() => void) | null;
+  /** 지금 이 세션을 보여 주는 칸 수 — 0 이면 내려가 있다. */
+  mounts: number;
+  webgl: WebglAddon | null;
+  /** 내려간 뒤 WebGL 을 반납할 타이머. */
+  webglIdle: ReturnType<typeof setTimeout> | null;
+  /** 문맥을 잃고 한 번 다시 지었다 — 또 잃으면 DOM 렌더러로 둔다. */
+  webglRetried: boolean;
+  /** 다음 프레임에 칸 맞추기가 잡혀 있다. */
+  fitFrame: number | null;
+  /** PTY 로 보낼 크기 — 잠잠해지면 보낸다. */
+  resizeTimer: ReturnType<typeof setTimeout> | null;
+  pendingSize: { cols: number; rows: number } | null;
 }
 
 const entries = new Map<number, Entry>();
@@ -210,11 +235,27 @@ export async function openTerm(
     throw e;
   }
   if (earlyExit) info = { ...info, alive: false, exit_code: (earlyExit as { code: number | null }).code };
-  entry = { info, term, fit, search, host, opened: false, disposeIme: null };
+  entry = {
+    info,
+    term,
+    fit,
+    search,
+    host,
+    opened: false,
+    disposeIme: null,
+    mounts: 0,
+    webgl: null,
+    webglIdle: null,
+    webglRetried: false,
+    fitFrame: null,
+    resizeTimer: null,
+    pendingSize: null,
+  };
   entries.set(info.id, entry);
   const id = info.id;
+  const e = entry;
   term.onData((data) => void terminalApi.write(id, data).catch(() => {}));
-  term.onResize(({ cols, rows }) => void terminalApi.resize(id, cols, rows).catch(() => {}));
+  term.onResize((size) => queuePtyResize(id, e, size));
   notify();
   return id;
 }
@@ -233,32 +274,122 @@ export function mountTerm(id: number, container: HTMLElement, focus = true): () 
     e.disposeIme = () => ime.dispose();
     e.opened = true;
   }
-  // WebGL 렌더러 — 박스 그림 문자(Claude Code 배너 · 표)를 xterm 이 직접 이어 그린다(DOM 렌더러는
-  // 글꼴 글리프라 점선처럼 끊겼다). **보이는 세션에만** 붙이고 내려가면 반납한다 — 세션마다 문맥을
-  // 쥐면 브라우저 상한(약 16)과 GPU 메모리를 먹었다(3.x 「WebGL 반납」). 못 쓰면 DOM 그대로.
-  let webgl: WebglAddon | null = null;
-  try {
-    webgl = new WebglAddon();
-    webgl.onContextLoss(() => {
-      webgl?.dispose();
-      webgl = null;
-    });
-    e.term.loadAddon(webgl);
-  } catch {
-    webgl = null;
+  e.mounts += 1;
+  if (e.webglIdle) {
+    clearTimeout(e.webglIdle);
+    e.webglIdle = null;
   }
-  const refit = () => {
-    if (e.host.clientWidth > 0 && e.host.clientHeight > 0) e.fit.fit();
-  };
-  refit();
-  const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(refit);
+  attachWebgl(e);
+  // 다시 붙은 화면 — 크기가 같으면 fit 이 아무것도 안 하니, 내려가 있던 동안의 것을 한 번 다시 그린다.
+  if (e.webgl) e.term.refresh(0, e.term.rows - 1);
+  // 처음 맞추기는 곧장(붙자마자 칸에 맞는다), 그 뒤 ResizeObserver 는 한 프레임에 한 번.
+  refitNow(e);
+  const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => scheduleFit(e));
   ro?.observe(container);
   if (focus) e.term.focus();
   return () => {
     ro?.disconnect();
-    webgl?.dispose();
+    e.mounts = Math.max(0, e.mounts - 1);
+    if (e.mounts === 0) {
+      if (e.fitFrame !== null) {
+        cancelFrame(e.fitFrame);
+        e.fitFrame = null;
+      }
+      if (e.webgl && !e.webglIdle) {
+        e.webglIdle = setTimeout(() => {
+          e.webglIdle = null;
+          if (e.mounts === 0) releaseWebgl(e);
+        }, WEBGL_IDLE_MS);
+      }
+    }
     if (e.host.parentElement === container) container.removeChild(e.host);
   };
+}
+
+/**
+ * WebGL 렌더러 — 박스 그림 문자(Claude Code 배너 · 표)를 xterm 이 직접 이어 그린다(DOM 렌더러는
+ * 글꼴 글리프라 점선처럼 끊겼다). 보이는 세션에 붙이고, 내려가면 `WEBGL_IDLE_MS` 뒤에 반납한다 — 세션마다
+ * 문맥을 쥐면 브라우저 상한(약 16)과 GPU 메모리를 먹었다(3.x 「WebGL 반납」). 예전엔 내려가는 즉시 반납해
+ * 탭을 오갈 때마다 문맥 · 글리프 아틀라스를 새로 지었다(2026-11-11). 문맥을 잃으면 한 번만 다시 짓고,
+ * 또 잃거나 못 쓰면 DOM 그대로.
+ */
+function attachWebgl(e: Entry) {
+  if (e.webgl) return;
+  const live = [...entries.values()].filter((x) => x.webgl);
+  if (live.length >= MAX_WEBGL) {
+    for (const x of live) if (x.mounts === 0) releaseWebgl(x);
+  }
+  let addon: WebglAddon;
+  try {
+    addon = new WebglAddon();
+    addon.onContextLoss(() => {
+      if (e.webgl !== addon) return;
+      releaseWebgl(e);
+      if (!e.webglRetried && e.mounts > 0) {
+        e.webglRetried = true;
+        attachWebgl(e);
+      }
+    });
+    e.term.loadAddon(addon);
+  } catch {
+    return;
+  }
+  e.webgl = addon;
+}
+
+function releaseWebgl(e: Entry) {
+  if (e.webglIdle) {
+    clearTimeout(e.webglIdle);
+    e.webglIdle = null;
+  }
+  const addon = e.webgl;
+  e.webgl = null;
+  try {
+    addon?.dispose();
+  } catch {
+    /* 이미 잃은 문맥 — 버릴 것도 없다 */
+  }
+}
+
+function refitNow(e: Entry) {
+  if (e.host.clientWidth > 0 && e.host.clientHeight > 0) e.fit.fit();
+}
+
+const nextFrame: (cb: () => void) => number =
+  typeof requestAnimationFrame === "function"
+    ? (cb) => requestAnimationFrame(cb)
+    : (cb) => setTimeout(cb, 16) as unknown as number;
+const cancelFrame: (id: number) => void =
+  typeof cancelAnimationFrame === "function" ? (id) => cancelAnimationFrame(id) : (id) => clearTimeout(id);
+
+/** 칸 맞추기를 다음 프레임으로 — 한 프레임에 ResizeObserver 가 몇 번 불러도 fit 은 한 번. */
+function scheduleFit(e: Entry) {
+  if (e.fitFrame !== null) return;
+  e.fitFrame = nextFrame(() => {
+    e.fitFrame = null;
+    refitNow(e);
+  });
+}
+
+/**
+ * xterm 크기가 바뀌었다 → PTY 로. 잠잠하던 칸이면 곧장 보내고, 이어지는 바꾸기는 마지막 것만
+ * `PTY_RESIZE_DEBOUNCE_MS` 잠잠한 뒤에 보낸다.
+ */
+function queuePtyResize(id: number, e: Entry, size: { cols: number; rows: number }) {
+  const send = (s: { cols: number; rows: number }) => void terminalApi.resize(id, s.cols, s.rows).catch(() => {});
+  if (e.resizeTimer === null) {
+    send(size);
+    e.pendingSize = null;
+  } else {
+    clearTimeout(e.resizeTimer);
+    e.pendingSize = size;
+  }
+  e.resizeTimer = setTimeout(() => {
+    e.resizeTimer = null;
+    const last = e.pendingSize;
+    e.pendingSize = null;
+    if (last && entries.get(id) === e) send(last);
+  }, PTY_RESIZE_DEBOUNCE_MS);
 }
 
 /** 모든 세션의 글자 크기를 바꾸고 보이는 칸은 다시 맞춘다 (⌘= / ⌘- / ⌘0). */
@@ -362,6 +493,10 @@ export function closeTerm(id: number) {
   void terminalApi.close(id).catch(() => {});
   if (!e) return;
   e.disposeIme?.();
+  if (e.fitFrame !== null) cancelFrame(e.fitFrame);
+  if (e.resizeTimer) clearTimeout(e.resizeTimer);
+  e.resizeTimer = null;
+  releaseWebgl(e);
   e.term.dispose();
   e.host.remove();
   entries.delete(id);

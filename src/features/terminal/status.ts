@@ -88,7 +88,33 @@ export function countByProject(infos: TermInfo[]): Map<number, ProjectTerms> {
   return out;
 }
 
-/** 이 창의 세션 — 처음 한 번 읽고, 어느 창에서든 세션 · 상태가 바뀌면 다시 읽는다. */
+/**
+ * `TermSessionsChanged` 가 몰려 와도(상태 신호 · 열고 닫기 · 여러 창의 세션) 다시 읽기는 이 간격에 한 번.
+ * 목록을 읽을 때마다 백엔드가 「도는 중」 을 재는데(Windows 는 프로세스 스냅숏), 사건마다 읽으면 창 셋 ·
+ * 훅 둘이 같은 순간에 줄지어 물었다(2026-11-11). 첫 사건에서 시계를 걸고, 그 안의 사건은 그 한 번에 담긴다
+ * — 계속 와도 읽기가 밀리지 않는다.
+ */
+export const REFETCH_COALESCE_MS = 150;
+
+/** `fn` 을 `ms` 뒤 한 번 — 그 사이 다시 불러도 그 한 번에 담긴다. `cancel` 은 걸린 것을 버린다. */
+export function coalesce(fn: () => void, ms = REFETCH_COALESCE_MS): { call: () => void; cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return {
+    call: () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        fn();
+      }, ms);
+    },
+    cancel: () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+    },
+  };
+}
+
+/** 이 창의 세션 — 처음 한 번 읽고, 어느 창에서든 세션 · 상태가 바뀌면 다시 읽는다(`REFETCH_COALESCE_MS`). */
 export function useWindowTerms(enabled = true): TermInfo[] {
   const [list, setList] = useState<TermInfo[]>([]);
   useEffect(() => {
@@ -100,9 +126,11 @@ export function useWindowTerms(enabled = true): TermInfo[] {
         .then((infos) => alive && setList(asList(infos)))
         .catch(() => {});
     load();
-    const off = terminalApi.onSessionsChanged(load);
+    const later = coalesce(load);
+    const off = terminalApi.onSessionsChanged(later.call);
     return () => {
       alive = false;
+      later.cancel();
       void off.then((fn) => fn());
     };
   }, [enabled]);
@@ -123,9 +151,11 @@ export function useTermOverview(refresh?: unknown): Map<number, ProjectTerms> {
         .then((infos) => alive && setCounts(countByProject(asList(infos))))
         .catch(() => {});
     load();
-    const off = terminalApi.onSessionsChanged(load);
+    const later = coalesce(load);
+    const off = terminalApi.onSessionsChanged(later.call);
     return () => {
       alive = false;
+      later.cancel();
       void off.then((fn) => fn());
     };
   }, [refresh]);

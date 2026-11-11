@@ -115,11 +115,7 @@ pub fn term_resize(
 #[tauri::command]
 #[specta::specta]
 pub fn term_close(app: tauri::AppHandle, sessions: State<'_, TermSessions>, id: u32) {
-    let project = sessions
-        .overview()
-        .into_iter()
-        .find(|i| i.id == id)
-        .map(|i| i.project_id);
+    let project = sessions.project_of(id);
     sessions.close(id);
     if let Some(project_id) = project {
         let _ = TermSessionsChanged { project_id }.emit(&app);

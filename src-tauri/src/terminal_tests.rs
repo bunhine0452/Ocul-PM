@@ -1,5 +1,6 @@
 //! 앱 안 터미널의 테스트 — `terminal.rs` 가 800줄을 넘지 않게 떼어 냈다.
 
+use super::output::{pump_output, FLUSH_BYTES};
 use super::*;
 
 #[test]
@@ -406,5 +407,149 @@ fn windows_busy_counts_running_programs_not_idle_shells() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
     assert_eq!(sessions.busy_all(), TermBusy { busy: 2, claude: 1 });
+    sessions.close_all();
+}
+
+/// 출력 묶기 — 잘게 쏟아지는 조각(ConPTY · 전체 화면 다시 그리기)이 웹뷰 송신 몇 번으로 줄고, 글자는
+/// 하나도 빠지거나 뒤섞이지 않으며, 반쪽 한글도 이어 붙는다. 채널이 끊기면(EOF) 남은 것을 보낸다.
+#[test]
+fn output_bursts_are_coalesced_into_few_sends_without_losing_bytes() {
+    use std::sync::mpsc;
+    let table: Arc<Mutex<Inner>> = Arc::default();
+    let (tx, rx) = mpsc::sync_channel::<Vec<u8>>(32);
+    let producer = std::thread::spawn(move || {
+        let mut sent = String::new();
+        for i in 0..6000 {
+            let piece = format!("줄 {i} — 가나다\r\n");
+            let bytes = piece.as_bytes();
+            // 한가운데서 잘라 두 조각으로 — 반쪽 글자가 다음 조각으로 넘어갈 수 있다.
+            let cut = bytes.len() / 2;
+            tx.send(bytes[..cut].to_vec()).unwrap();
+            tx.send(bytes[cut..].to_vec()).unwrap();
+            sent.push_str(&piece);
+        }
+        sent
+    });
+    let sends = std::cell::RefCell::new(Vec::<String>::new());
+    pump_output(&rx, &table, 1, &|ev| {
+        if let TermEvent::Output { data } = ev {
+            sends.borrow_mut().push(data);
+        }
+    });
+    let want = producer.join().unwrap();
+    let sends = sends.into_inner();
+    assert_eq!(sends.concat(), want, "묶어도 글자는 그대로");
+    let chunks = 6000 * 2;
+    eprintln!(
+        "출력 묶기: 조각 {chunks}개({} bytes) → 송신 {}번",
+        want.len(),
+        sends.len()
+    );
+    assert!(
+        sends.len() * 20 < chunks,
+        "조각 {chunks}개가 송신 {}번 — 묶이지 않았다",
+        sends.len()
+    );
+    assert!(
+        sends.iter().all(|s| s.len() <= FLUSH_BYTES + 8192),
+        "한 번에 너무 많이 보냈다"
+    );
+}
+
+/// 상태 신호가 섞인 출력 — 상태 사건은 그 앞의 출력 뒤 · 그 조각의 출력 앞에 간다(예전 순서 그대로).
+#[test]
+fn status_events_keep_their_place_between_coalesced_output() {
+    use std::sync::mpsc;
+    let sessions = TermSessions::default();
+    // 표에 세션이 있어야 상태가 반영된다 — 짧은 명령 하나를 띄워 자리를 만든다.
+    #[cfg(unix)]
+    let cmd = {
+        let mut c = CommandBuilder::new("/bin/sh");
+        c.args(["-c", "sleep 2"]);
+        c
+    };
+    #[cfg(windows)]
+    let cmd = {
+        let mut c = CommandBuilder::new("cmd.exe");
+        c.args(["/d", "/q", "/c", "ping -n 3 127.0.0.1 >nul"]);
+        c
+    };
+    let spec = OpenSpec {
+        window: "w".into(),
+        project_id: 1,
+        cwd: std::env::temp_dir(),
+        cols: 80,
+        rows: 24,
+        prompt: None,
+        lane: None,
+        resume: false,
+    };
+    let info = sessions.start(spec, cmd, "sh".into(), |_| {}).unwrap();
+    let (tx, rx) = mpsc::sync_channel::<Vec<u8>>(32);
+    tx.send(b"before-".to_vec()).unwrap();
+    tx.send(b"more-\x1b]7501;state=working\x1b\\after".to_vec())
+        .unwrap();
+    tx.send(b"-tail".to_vec()).unwrap();
+    drop(tx);
+    let events = std::cell::RefCell::new(Vec::<String>::new());
+    pump_output(&rx, &sessions.inner, info.id, &|ev| {
+        let line = match ev {
+            TermEvent::Output { data } => format!("out:{}", data.replace('\x1b', "^")),
+            TermEvent::Status { status } => {
+                format!("status:{}", status.map(|s| s.state).unwrap_or_default())
+            }
+            TermEvent::Exit { .. } => "exit".to_string(),
+        };
+        events.borrow_mut().push(line);
+    });
+    let events = events.into_inner();
+    assert_eq!(events.len(), 3, "{events:?}");
+    assert_eq!(events[0], "out:before-");
+    assert_eq!(events[1], "status:working");
+    assert!(
+        events[2].starts_with("out:more-") && events[2].ends_with("after-tail"),
+        "{events:?}"
+    );
+    sessions.close_all();
+}
+
+/// Windows — 세션이 여럿이어도 목록 · 개요 · 「도는 중」 을 한꺼번에 물으면 스냅숏은 한 번이다
+/// (예전: 세션마다 한 번, `busy_all` 은 세션마다 두 번).
+#[cfg(windows)]
+#[test]
+fn windows_one_process_snapshot_serves_every_session_and_call() {
+    use std::sync::atomic::Ordering;
+    let sessions = TermSessions::default();
+    for _ in 0..3 {
+        let mut cmd = CommandBuilder::new("cmd.exe");
+        cmd.args(["/d", "/q"]);
+        let spec = OpenSpec {
+            window: "main".into(),
+            project_id: 4,
+            cwd: std::env::temp_dir(),
+            cols: 80,
+            rows: 24,
+            prompt: None,
+            lane: None,
+            resume: false,
+        };
+        sessions.start(spec, cmd, "cmd".into(), |_| {}).unwrap();
+    }
+    std::thread::sleep(PARENTS_TTL);
+    let before = sessions.snapshots.load(Ordering::SeqCst);
+    let _ = sessions.list("main");
+    let _ = sessions.overview();
+    let _ = sessions.busy_all();
+    let _ = sessions.resumable();
+    let taken = sessions.snapshots.load(Ordering::SeqCst) - before;
+    eprintln!("세션 3개 · 호출 4번 → 스냅숏 {taken}번 (예전 셈: 3+3+6+3 = 15번)");
+    assert_eq!(taken, 1);
+    std::thread::sleep(PARENTS_TTL);
+    let _ = sessions.list("main");
+    assert_eq!(
+        sessions.snapshots.load(Ordering::SeqCst) - before,
+        2,
+        "TTL 이 지나면 새로 뜬다"
+    );
     sessions.close_all();
 }

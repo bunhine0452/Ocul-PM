@@ -13,7 +13,7 @@
 //! 창 스냅숏에 적어 두었다가, 다시 뜬 창이 같은 폴더에서 `claude --continue` 로 대화를 잇는다
 //! (`TermResume` · 10-31 사용자 결정).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -21,7 +21,10 @@ use std::sync::{Arc, Mutex};
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
 
-use crate::program_status;
+#[path = "terminal_output.rs"]
+mod output;
+use output::pump_output;
+pub use output::take_utf8;
 
 /// 프롬프트를 셸에 넘기는 환경 변수.
 pub const PROMPT_ENV: &str = "OCULPM_PROMPT";
@@ -114,38 +117,66 @@ struct Session {
 }
 
 impl Session {
+    /// 잠금 안에서 이 세션을 한 줄로 베낀다 — 「도는 중」 은 잠금을 놓은 뒤 가른다(`Row::busy`).
+    /// unix 의 포그라운드 그룹은 ioctl 하나라 여기서 잰다. Windows 의 프로세스 스냅숏은 무거워(시스템
+    /// 전체 프로세스 목록) 잠금 밖에서 한 번만 뜬다 — 예전에는 세션마다 잠금 안에서 떠, 그동안 입력 ·
+    /// 크기 바꾸기 · 출력 스레드의 상태 반영이 모두 그 잠금을 기다렸다(2026-11-11).
+    fn row(&self) -> Row {
+        #[cfg(unix)]
+        let fg_busy = if self.info.alive {
+            match (self.master.process_group_leader(), self.child.process_id()) {
+                (Some(fg), Some(shell)) => Some(fg as u32 != shell),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        #[cfg(not(unix))]
+        let fg_busy = None;
+        Row {
+            window: self.window.clone(),
+            lane: self.lane.clone(),
+            info: self.info.clone(),
+            fg_busy,
+            shell_pid: self.child.process_id(),
+        }
+    }
+}
+
+/// 세션 한 줄의 베낌 — `Session::row`.
+struct Row {
+    window: String,
+    lane: Option<String>,
+    info: TermInfo,
+    /// unix — 포그라운드 프로세스 그룹이 셸이 아니다. 물을 수 없으면 `None`.
+    fg_busy: Option<bool>,
+    /// 셸의 pid — Windows 가 스냅숏에서 자식을 찾는다.
+    shell_pid: Option<u32>,
+}
+
+impl Row {
     /// 셸 위에서 무언가가 도는가 — 터미널의 포그라운드 프로세스 그룹이 셸이 아니면 그렇다(macOS
     /// 터미널이 닫기 전에 묻는 기준). 빈 셸까지 세면 터미널 탭을 한 번 연 창은 닫을 때마다 물었다.
     /// Windows 에는 프로세스 그룹이 없다 — 셸에게 자식 프로세스가 있으면 도는 것이다(2026-11-10. 그전엔
     /// 상태 신호를 보낸 claude 만 세어, `npm run dev` 가 도는 창도 묻지 않고 닫혔다). 그것도 물을 수 없으면
     /// 상태 신호를 보낸 프로그램(claude)이 있을 때만.
-    fn busy(&self) -> bool {
+    /// `parents` 는 자식을 둔 pid 들(Windows 스냅숏 한 번, `TermSessions::parents`).
+    fn busy(&self, parents: Option<&HashSet<u32>>) -> bool {
         if !self.info.alive {
             return false;
         }
-        #[cfg(unix)]
-        if let (Some(fg), Some(shell)) =
-            (self.master.process_group_leader(), self.child.process_id())
-        {
-            return fg as u32 != shell;
+        if let Some(busy) = self.fg_busy {
+            return busy;
         }
-        #[cfg(windows)]
-        if let Some(running) = self.child.process_id().and_then(has_child_process) {
-            return running;
+        if let (Some(parents), Some(pid)) = (parents, self.shell_pid) {
+            return parents.contains(&pid);
         }
         self.info.status.is_some()
     }
 
     /// claude 가 돈다 — 무언가 돌고, 그것이 상태 신호를 보냈거나(OSC 7501) claude 로 연 세션이다.
-    fn runs_claude(&self) -> bool {
-        self.busy() && (self.info.status.is_some() || self.info.label == "claude")
-    }
-
-    fn snapshot(&self) -> TermInfo {
-        TermInfo {
-            busy: self.busy(),
-            ..self.info.clone()
-        }
+    fn runs_claude(&self, parents: Option<&HashSet<u32>>) -> bool {
+        self.busy(parents) && (self.info.status.is_some() || self.info.label == "claude")
     }
 }
 
@@ -165,7 +196,18 @@ pub struct TermSessions {
     quit_asked: Arc<Mutex<Option<std::time::Instant>>>,
     /// 업데이트 재시작 뒤 창 라벨마다 이을 claude 세션 — 창 복원이 채우고 그 창이 한 번 가져간다.
     pending_resume: Arc<Mutex<HashMap<String, Vec<TermResume>>>>,
+    /// Windows — 마지막 프로세스 스냅숏(뜬 때와 자식을 둔 pid 들). `PARENTS_TTL` 동안 다시 쓴다:
+    /// 프로젝트 목록 · 시작 창 · 이 창이 `TermSessionsChanged` 마다 한꺼번에 목록을 읽는다.
+    #[cfg(windows)]
+    parents_cache: Arc<Mutex<Option<(std::time::Instant, Arc<HashSet<u32>>)>>>,
+    /// 테스트가 스냅숏을 몇 번 떴는지 센다.
+    #[cfg(all(windows, test))]
+    snapshots: Arc<std::sync::atomic::AtomicUsize>,
 }
+
+/// Windows 프로세스 스냅숏을 다시 쓰는 시간 — 「도는 중」 표시가 이만큼 늦을 수 있다.
+#[cfg(windows)]
+const PARENTS_TTL: std::time::Duration = std::time::Duration::from_millis(500);
 
 /// 끄기를 물은 뒤 이 안에 한 번 더 끄면(⌘Q 두 번) 그대로 끈다 — 묻는 창이 응답하지 못해도
 /// 앱을 끌 길이 남는다.
@@ -184,13 +226,17 @@ fn size(cols: u16, rows: u16) -> PtySize {
 fn shell_command() -> (CommandBuilder, String) {
     #[cfg(windows)]
     {
-        match find_pwsh(std::env::var_os("PATH").as_deref()) {
+        let (mut cmd, name) = match find_pwsh(std::env::var_os("PATH").as_deref()) {
             Some(pwsh) => (CommandBuilder::new(pwsh), "pwsh".to_string()),
             None => (
                 CommandBuilder::new("powershell.exe"),
                 "powershell".to_string(),
             ),
-        }
+        };
+        // 시작 배너(저작권 · 버전 안내)만 끈다 — 프로필은 그대로 읽는다. 배너는 세션을 열 때마다 몇 줄을
+        // 차지하고 ConPTY 가 그만큼 더 그렸다(2026-11-11).
+        cmd.arg("-NoLogo");
+        (cmd, name)
     }
     #[cfg(not(windows))]
     {
@@ -231,13 +277,13 @@ fn find_pwsh(path_var: Option<&std::ffi::OsStr>) -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
-/// Windows — 이 pid 를 부모로 둔 프로세스가 있나. 스냅숏을 못 뜨면 `None`.
+/// Windows — 자식 프로세스를 둔 pid 들. 스냅숏 한 번으로 모든 세션을 가른다. 못 뜨면 `None`.
 ///
 /// 콘솔 호스트(`conhost.exe` · `OpenConsole.exe`)는 세지 않는다 — 자기 콘솔을 만든 콘솔 프로그램은 그것을
 /// 자식으로 둔다. PTY 의 셸은 앱이 띄운 의사 콘솔에 붙어 있어 보통 없지만, 하나라도 끼면 빈 셸이 늘
 /// 「도는 중」 이 되어 닫을 때마다 묻는다. pid 재사용은 보지 않는다 — 셸이 살아 있으니 그 pid 는 셸 것이다.
 #[cfg(windows)]
-fn has_child_process(parent: u32) -> Option<bool> {
+fn parents_with_children() -> Option<HashSet<u32>> {
     use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
     use windows_sys::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
@@ -252,22 +298,28 @@ fn has_child_process(parent: u32) -> Option<bool> {
         }
         let mut entry: PROCESSENTRY32W = std::mem::zeroed();
         entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
-        let mut found = false;
+        let mut parents = HashSet::new();
         let mut more = Process32FirstW(snap, &mut entry) != 0;
         while more {
-            if entry.th32ParentProcessID == parent && entry.th32ProcessID != parent {
+            let parent = entry.th32ParentProcessID;
+            if entry.th32ProcessID != parent && !parents.contains(&parent) {
                 let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(0);
                 let name = String::from_utf16_lossy(&entry.szExeFile[..len]).to_ascii_lowercase();
                 if !HOSTS.contains(&name.as_str()) {
-                    found = true;
-                    break;
+                    parents.insert(parent);
                 }
             }
             more = Process32NextW(snap, &mut entry) != 0;
         }
         CloseHandle(snap);
-        Some(found)
+        Some(parents)
     }
+}
+
+/// Windows — 이 pid 를 부모로 둔 프로세스가 있나 (테스트용 한 줄 탐침).
+#[cfg(all(windows, test))]
+fn has_child_process(parent: u32) -> Option<bool> {
+    parents_with_children().map(|p| p.contains(&parent))
 }
 
 /// 업데이트 전 대화를 잇는 한 줄 — 그 폴더의 가장 최근 대화.
@@ -283,67 +335,6 @@ fn run_line(prompt: &str) -> String {
         format!("claude $env:{PROMPT_ENV}\r")
     } else {
         format!("claude \"${PROMPT_ENV}\"\r")
-    }
-}
-
-/// 읽은 바이트에서 **완성된 UTF-8 만** 꺼낸다 — 한글 한 글자(3바이트)가 두 번의 읽기에
-/// 걸쳐 오면 앞 조각을 다음 읽기까지 남긴다. 잘못된 바이트는 대체 문자로.
-pub fn take_utf8(carry: &mut Vec<u8>) -> String {
-    match std::str::from_utf8(carry) {
-        Ok(s) => {
-            let out = s.to_owned();
-            carry.clear();
-            out
-        }
-        Err(e) if e.error_len().is_none() => {
-            let valid = e.valid_up_to();
-            let out = String::from_utf8_lossy(&carry[..valid]).into_owned();
-            carry.drain(..valid);
-            out
-        }
-        Err(_) => {
-            let out = String::from_utf8_lossy(carry).into_owned();
-            carry.clear();
-            out
-        }
-    }
-}
-
-/// 상태 신호 하나를 세션 표에 반영한다. 탐침이면 그 PTY 에 답을 쓰고, 루트 보고가 상태를
-/// 바꾸면 웹뷰로 보낼 사건을 돌려준다. 하위 기록(`id=…`)은 지금 보지 않는다.
-fn apply_program_status(
-    table: &Arc<Mutex<Inner>>,
-    id: u32,
-    msg: program_status::Message,
-) -> Option<TermEvent> {
-    let mut t = table.lock().ok()?;
-    let s = t.map.get_mut(&id)?;
-    match msg {
-        program_status::Message::Query => {
-            let _ = s.writer.write_all(program_status::QUERY_REPLY);
-            let _ = s.writer.flush();
-            None
-        }
-        program_status::Message::Report(r) if r.id.is_none() => {
-            let next = r.state.map(|state| TermStatus {
-                state: state.as_str().to_string(),
-                kind: r.kind.map(|k| k.as_str().to_string()),
-                msg: r.msg.clone(),
-                since: s
-                    .info
-                    .status
-                    .as_ref()
-                    .filter(|prev| prev.state == state.as_str())
-                    .map(|prev| prev.since.clone())
-                    .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            });
-            if s.info.status == next {
-                return None;
-            }
-            s.info.status = next.clone();
-            Some(TermEvent::Status { status: next })
-        }
-        program_status::Message::Report(_) => None,
     }
 }
 
@@ -440,32 +431,31 @@ impl TermSessions {
         );
         drop(inner);
 
-        let table = self.inner.clone();
+        // 읽기와 보내기를 두 스레드로 나눈다 — 막히는 `read` 는 스스로 시간을 재지 못해, 읽은 조각을
+        // 받아 모으는 쪽이 `recv_timeout` 으로 잠잠해진 때를 잰다(`pump_output`). 채널은 묶어 둔다
+        // (조각 32개, 최대 ~256KB) — 웹뷰가 밀리면 읽기도 멈춰 예전처럼 PTY 가 받쳐 준다.
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(32);
         std::thread::Builder::new()
-            .name(format!("term-{id}"))
+            .name(format!("term-{id}-read"))
             .spawn(move || {
                 let mut buf = [0u8; 8192];
-                let mut carry: Vec<u8> = Vec::new();
-                let mut scanner = program_status::Scanner::default();
                 loop {
                     match reader.read(&mut buf) {
                         Ok(0) | Err(_) => break,
                         Ok(n) => {
-                            // 상태 신호를 **화면으로 넘기기 전에** — 탐침의 답이 xterm 의 DA1
-                            // 응답보다 먼저 가야 claude 가 이 터미널이 신호를 받는다고 본다.
-                            for msg in scanner.feed(&buf[..n]) {
-                                if let Some(ev) = apply_program_status(&table, id, msg) {
-                                    emit(ev);
-                                }
-                            }
-                            carry.extend_from_slice(&buf[..n]);
-                            let text = take_utf8(&mut carry);
-                            if !text.is_empty() {
-                                emit(TermEvent::Output { data: text });
+                            if tx.send(buf[..n].to_vec()).is_err() {
+                                break;
                             }
                         }
                     }
                 }
+            })
+            .map_err(|e| format!("thread: {e}"))?;
+        let table = self.inner.clone();
+        std::thread::Builder::new()
+            .name(format!("term-{id}"))
+            .spawn(move || {
+                pump_output(&rx, &table, id, &emit);
                 // 표를 잠근 채 기다리지 않는다(try_wait) — 막히면 다른 세션 조작이 다 선다.
                 // 출력이 끝나도(EOF) 자식이 아직 안 거둬졌을 수 있어 잠깐씩 다시 본다(최대 ~1초) —
                 // 바로 한 번만 보면 부하가 있을 때 종료 코드를 「모름」 으로 적었다. 닫기로 끝난
@@ -520,34 +510,76 @@ impl TermSessions {
         }
     }
 
-    /// 그 창의 세션 목록 (연 순서).
-    pub fn list(&self, window: &str) -> Vec<TermInfo> {
+    /// 세션 표를 잠근 동안 베낀 줄들(연 순서) — `window` 가 있으면 그 창의 것만. 잠금은 여기서 놓는다.
+    fn rows(&self, window: Option<&str>) -> Vec<Row> {
         let Ok(inner) = self.inner.lock() else {
             return Vec::new();
         };
-        let mut out: Vec<TermInfo> = inner
+        let mut rows: Vec<Row> = inner
             .map
             .values()
-            .filter(|s| s.window == window)
-            .map(|s| self.with_unseen(s.snapshot(), &s.window))
+            .filter(|s| window.is_none_or(|w| s.window == w))
+            .map(Session::row)
             .collect();
-        out.sort_by_key(|i| i.id);
-        out
+        drop(inner);
+        rows.sort_by_key(|r| r.info.id);
+        rows
     }
 
-    /// 창이 닫힐 때 — 그 창의 세션 전부.
+    /// 자식을 둔 pid 들 — Windows 만, 셸 pid 로 가를 살아 있는 세션이 있을 때만 뜬다. 잠금 밖에서
+    /// 부른다. 스냅숏은 `PARENTS_TTL` 동안 다시 쓴다(목록 · 개요 · 「도는 중」 이 한꺼번에 물어도 한 번).
+    fn parents(&self, rows: &[Row]) -> Option<Arc<HashSet<u32>>> {
+        if !rows.iter().any(|r| r.info.alive && r.fg_busy.is_none()) {
+            return None;
+        }
+        #[cfg(windows)]
+        {
+            let now = std::time::Instant::now();
+            let mut cache = self.parents_cache.lock().ok()?;
+            if let Some((at, parents)) = cache.as_ref() {
+                if now.duration_since(*at) < PARENTS_TTL {
+                    return Some(parents.clone());
+                }
+            }
+            #[cfg(test)]
+            self.snapshots
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let parents = Arc::new(parents_with_children()?);
+            *cache = Some((now, parents.clone()));
+            Some(parents)
+        }
+        #[cfg(not(windows))]
+        None
+    }
+
+    /// 줄들을 목록으로 — 「도는 중」 을 재고 읽지 않음을 단다.
+    fn infos(&self, rows: Vec<Row>) -> Vec<TermInfo> {
+        let parents = self.parents(&rows);
+        rows.into_iter()
+            .map(|r| {
+                let busy = r.busy(parents.as_deref());
+                let info = TermInfo { busy, ..r.info };
+                self.with_unseen(info, &r.window)
+            })
+            .collect()
+    }
+
+    /// 그 창의 세션 목록 (연 순서).
+    pub fn list(&self, window: &str) -> Vec<TermInfo> {
+        let rows = self.rows(Some(window));
+        self.infos(rows)
+    }
+
     /// 모든 창의 세션 — 프로젝트 목록 · 시작 창이 「어디서 무엇이 도는지」를 센다.
     pub fn overview(&self) -> Vec<TermInfo> {
-        let Ok(inner) = self.inner.lock() else {
-            return Vec::new();
-        };
-        let mut out: Vec<TermInfo> = inner
-            .map
-            .values()
-            .map(|s| self.with_unseen(s.snapshot(), &s.window))
-            .collect();
-        out.sort_by_key(|i| i.id);
-        out
+        let rows = self.rows(None);
+        self.infos(rows)
+    }
+
+    /// 그 세션의 프로젝트 — 닫기가 알릴 곳. 「도는 중」 을 재지 않는다.
+    pub fn project_of(&self, id: u32) -> Option<u32> {
+        let inner = self.inner.lock().ok()?;
+        inner.map.get(&id).map(|s| s.info.project_id)
     }
 
     /// 앱을 끄려 한다 — 무언가 도는 세션이 있으면 물을 창(첫 세션의 창)과 그 수를 돌려주고 물은
@@ -558,9 +590,9 @@ impl TermSessions {
         if asked.is_some_and(|at| now.duration_since(at) < QUIT_AGAIN_WINDOW) {
             return None;
         }
-        let inner = self.inner.lock().ok()?;
-        let mut busy: Vec<&Session> = inner.map.values().filter(|s| s.busy()).collect();
-        busy.sort_by_key(|s| s.info.id);
+        let rows = self.rows(None);
+        let parents = self.parents(&rows);
+        let busy: Vec<&Row> = rows.iter().filter(|r| r.busy(parents.as_deref())).collect();
         let first = busy.first()?;
         *asked = Some(now);
         Some((first.window.clone(), busy.len() as u32))
@@ -568,26 +600,26 @@ impl TermSessions {
 
     /// 앱 전체에서 도는 세션과 그 가운데 claude — 업데이트가 재시작 전에 묻는다.
     pub fn busy_all(&self) -> TermBusy {
-        let Ok(inner) = self.inner.lock() else {
-            return TermBusy::default();
-        };
-        let busy = inner.map.values().filter(|s| s.busy()).count() as u32;
-        let claude = inner.map.values().filter(|s| s.runs_claude()).count() as u32;
+        let rows = self.rows(None);
+        let parents = self.parents(&rows);
+        let parents = parents.as_deref();
+        let busy = rows.iter().filter(|r| r.busy(parents)).count() as u32;
+        let claude = rows.iter().filter(|r| r.runs_claude(parents)).count() as u32;
         TermBusy { busy, claude }
     }
 
     /// 업데이트 재시작 직전 — 창 라벨마다 claude 가 돌던 세션(창 스냅숏에 싣는다).
     pub fn resumable(&self) -> HashMap<String, Vec<TermResume>> {
         let mut out: HashMap<String, Vec<TermResume>> = HashMap::new();
-        let Ok(inner) = self.inner.lock() else {
-            return out;
-        };
-        let mut sessions: Vec<&Session> = inner.map.values().filter(|s| s.runs_claude()).collect();
-        sessions.sort_by_key(|s| s.info.id);
-        for s in sessions {
-            out.entry(s.window.clone()).or_default().push(TermResume {
-                project_id: s.info.project_id,
-                lane: s.lane.clone(),
+        let rows = self.rows(None);
+        let parents = self.parents(&rows);
+        for r in rows
+            .into_iter()
+            .filter(|r| r.runs_claude(parents.as_deref()))
+        {
+            out.entry(r.window).or_default().push(TermResume {
+                project_id: r.info.project_id,
+                lane: r.lane,
             });
         }
         out

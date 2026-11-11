@@ -19,6 +19,9 @@ import { windowApi } from "@/api/window";
 import { useT } from "@/i18n";
 import { drawsCaptionButtons } from "@/lib/platform";
 
+/** 창 끌기 동안 크기 변경이 줄지어 와도 최대화 여부는 잠잠해진 뒤 한 번 묻는다 (2026-11-11). */
+export const MAXIMIZED_SYNC_DEBOUNCE_MS = 100;
+
 export function CaptionButtons() {
   if (!drawsCaptionButtons()) return null;
   return <CaptionButtonRow />;
@@ -29,8 +32,10 @@ function CaptionButtonRow() {
   const [maximized, setMaximized] = useState(false);
 
   // 최대화 · 복원 · 스냅 · 두 번 눌러 확대 — 전부 크기 변경으로 온다. 단추가 그 결과를 따라간다.
+  // 창을 끄는 동안 크기 변경은 프레임마다 오므로 IPC 는 마지막 것 뒤 한 번만(`MAXIMIZED_SYNC_DEBOUNCE_MS`).
   useEffect(() => {
     let alive = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const sync = () => {
       windowApi
         .isMaximized()
@@ -39,10 +44,18 @@ function CaptionButtonRow() {
         })
         .catch(() => {});
     };
+    const later = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        sync();
+      }, MAXIMIZED_SYNC_DEBOUNCE_MS);
+    };
     sync();
-    const off = windowApi.onResized(sync);
+    const off = windowApi.onResized(later);
     return () => {
       alive = false;
+      if (timer) clearTimeout(timer);
       void off.then((unlisten) => unlisten()).catch(() => {});
     };
   }, []);
