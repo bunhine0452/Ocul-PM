@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul (최신 v4.9.1)</title>
-<meta name="description" content="Ocul 의 전체 릴리스 노트 145개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul (최신 v4.9.2)</title>
+<meta name="description" content="Ocul 의 전체 릴리스 노트 146개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul (최신 v4.9.1)" />
-<meta property="og:description" content="Ocul 의 전체 릴리스 노트 145개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul (최신 v4.9.2)" />
+<meta property="og:description" content="Ocul 의 전체 릴리스 노트 146개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
-    <span class="nav-ver" data-version>v4.9.1</span>
+    <span class="nav-ver" data-version>v4.9.2</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>145개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>146개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v4-9-2">v4.9.2</a>
       <a href="#v4-9-1">v4.9.1</a>
       <a href="#v4-9-0">v4.9.0</a>
       <a href="#v4-8-0">v4.8.0</a>
@@ -60,10 +61,22 @@
       <a href="#v4-3-2">v4.3.2</a>
       <a href="#v4-3-1">v4.3.1</a>
       <a href="#v4-3-0">v4.3.0</a>
-      <a href="#v4-2-0">v4.2.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v4-9-2"><a href="#v4-9-2">v4.9.2</a></h2>
+      <div class="cl-body">
+<p><b>Windows 성능을 고친 패치입니다 — 사용자 결정(2026-11-11, 「모두 고치고 배포까지 진행해」).</b> 확인 날 기록이 없고 눈 확인이 남아 있습니다. Windows 11 에서 프런트 테스트 1,094건 · Rust 전체(이 PC 에 없는 <code>sleep</code> 이 필요한 시험 하나 빼고) · typecheck · lint · build · clippy 를 통과했고 macOS · Linux 는 CI 가 봤지만, 설치본에서 직접 써 보지는 못했습니다.</p>
+<p><b>빌드가 돌아도 앱 터미널이 밀리지 않습니다.</b> 병렬 세션이 빌드를 돌려 CPU 가 꽉 차면 앱 터미널의 입력과 화면이 크게 끊겼습니다. 이제 Windows 에서는 터미널 안에서 도는 작업(Claude · 빌드 …)이 한 단계 낮은 우선순위로 돌아, 키 입력과 화면이 먼저 처리됩니다. 한가할 때는 차이가 없습니다. Claude 의 전체 화면 다시 그리기를 조각마다 따로 보내던 것을 묶어 보내고(실측: 1만2천 조각 → 3번), 세션 목록을 세는 동안 키 입력이 기다리던 것도 고쳤습니다.</p>
+<p><b>창 · 터미널 크기를 바꾸거나 탭을 오갈 때 버벅이지 않습니다.</b> 끄는 동안 매 순간 크기를 다시 재고 셸에 알리던 것을 한 프레임에 한 번, 멈춘 뒤 한 번으로 줄였고, 터미널 탭에 돌아올 때마다 그리기 엔진을 새로 만들던 것도 그만둡니다.</p>
+<p><b>변경 감시 · 변경 화면 · 오늘 화면이 git 을 훨씬 덜 띄웁니다.</b> Windows 는 프로그램 하나를 띄우는 데 시간이 듭니다. 에이전트가 파일을 저장할 때마다 git 을 몇 번씩, 변경 화면을 다시 볼 때마다 6번 띄우던 것을 대개 0번 · 1번으로 줄였고, 일지의 변경 내용을 모으는 동안 다른 파일 변경이 기다리던 것도 따로 돌립니다.</p>
+<p><b>Claude Code 플러그인 훅이 Windows 에서 빨라집니다.</b> 세션을 시작할 때 활성 계획을 읽는 훅이 큰 프로젝트에서 20초 넘게 걸리던 것을 2초 안쪽으로, 파일을 고칠 때마다 도는 훅을 0.8초에서 0.2초로 줄였습니다. 앱이 아직 옛 판이어도 편집을 막지 않습니다.</p>
+<p><b>앱을 켤 때 흰 화면이 번쩍이지 않습니다.</b> 창과 웹뷰 바탕을 테마 색으로 먼저 칠합니다.</p>
+<p><b>Windows 설치 파일이 Visual C++ 재배포를 싣지 않습니다.</b> 앱이 Windows 에 기본으로 있는 런타임만 쓰므로 따로 깔 것이 없습니다 — 설치 중 그 확인 창도 뜨지 않습니다.</p>
+<p><b>앱 터미널에서 프롬프트 아이콘이 □ 로 나오던 것.</b> starship · oh-my-posh 의 아이콘(Nerd Font 글자)을 PC 에 깔린 Nerd Font 로 그립니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v4-9-1"><a href="#v4-9-1">v4.9.1</a></h2>
       <div class="cl-body">

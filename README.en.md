@@ -70,11 +70,11 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
 
-## 🚀 v4.9.1 — Windows: one title bar with the app, PowerShell 7 in the terminal
+## 🚀 v4.9.2 — Lighter on Windows: terminal · git · plugin hooks
 
-- **The app's top bar is the title bar** — no more OS title bar stacked on top (and left white in dark mode). Minimize · maximize · close sit in the top-right corner, Windows 11 style; drag the empty space to move or snap, double-click to maximize.
-- **PowerShell 7 in the terminal** — if `pwsh` is installed it is what opens, so your PowerShell 7 profile loads (5.1 otherwise).
-- **Asks before closing a running terminal** — a session running something other than Claude (`npm run dev`) now asks before the session, window or app closes, as on macOS. Records that sometimes failed with "Access is denied" now wait instead.
+- **The terminal keeps up while builds run** — work inside the terminal (Claude, builds) runs one priority step lower and output is sent in batches, so your typing and the screen come first. Resizing windows and terminals and switching tabs got lighter too.
+- **Far fewer git launches** — saving files, the Diff screen and Today now usually start git 0–1 times instead of several. Plugin hooks: session start 20s+ → under 2s, each edit 0.8 → 0.2s.
+- **Install and launch** — the installer no longer bundles the Visual C++ Redistributable, launch no longer flashes white, and prompt icons (Nerd Font) no longer show as □ in the terminal.
 
 ## 🚀 v4.9 — Queue messages while Claude works
 
@@ -86,6 +86,7 @@ What it doesn't give is written down too. Ambition itself is the human's job —
 
 The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
 
+- **Windows: one title bar with the app, PowerShell 7 in the terminal** (4.9.1) — minimize · maximize · close in the top bar's corner, PowerShell 7 when `pwsh` is installed, a running terminal asks before it closes, and records that failed with "Access is denied".
 - **Arrange 2–6 windows, pick your app icon** (4.8) — layout buttons in the ⌘O list arrange your 2–6 most recent windows (⌥⌘T does six), nine app icons (macOS), the start window as a table whose columns line up, previews for terminal image paths that wrap, and a narrow-window top bar that measures and folds one step at a time.
 - **Switch windows with ⌥Tab, each window in its own colour** (4.7) — the ⌥Tab window switcher (a tap goes to the previous window), the whole top bar in the project colour, and a fix for uncoloured projects' dots following the current window's colour.
 - **Windows side by side, screens like a receipt** (4.6) — ⌥⌘T tiles project windows at the same width, VS Code opens per project, the project colour tints the whole window, colour only for exceptions (the "receipt" rule, DESIGN.md), and a fix for background windows showing blank.
@@ -193,7 +194,7 @@ Grab the file for your OS from the [latest release](https://github.com/bunhine04
 
 **macOS** — open the `.dmg` and drag the app into `Applications`. It's signed with an Apple Developer ID and notarized, so it opens straight from the download — no `xattr` quarantine workaround needed.
 
-**Windows (beta)** — the installer puts the app in your user folder without admin rights. The beta isn't code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click **More info → Run anyway**. If the Visual C++ runtime is missing, the installer installs it first (that's the only time a confirmation prompt appears). On Windows older than 10 2004 the installer explains why and stops.
+**Windows (beta)** — the installer puts the app in your user folder without admin rights. The beta isn't code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click **More info → Run anyway**. On Windows older than 10 2004 the installer explains why and stops.
 
 - The Claude Code plugin's hooks run on Windows, but **its MCP server does not start** — the agent then writes into `.oculpm/` directly, following the recording-spec skill.
 

@@ -48,7 +48,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og-en.png",
-  "softwareVersion": "4.9.1",
+  "softwareVersion": "4.9.2",
   "inLanguage": "en",
   "description": "Not “all done” — a receipt. Every time a coding agent (Claude Code, Codex, Cursor, Gemini CLI) finishes, what it changed and the command that checked it are kept in your project folder as a Markdown receipt. Ocul unfolds only what isn't proven — failed check commands, entries without command evidence, changes no entry mentions. Start with two lines of the Claude Code plugin, and add the desktop app if you want to see it on screen. The app calls no LLM, and there is no account, server or telemetry.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -218,7 +218,7 @@
     {
       "@type": "Question",
       "name": "Does it run on Windows or Linux?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes, as a beta. Windows gets an x64 installer (.exe) for Windows 10 2004 (build 19041) or later and Windows 11; Linux gets an x64 AppImage and a deb. Linux needs glibc 2.35 or later (Ubuntu 22.04 · Debian 12 onward) plus libEGL and libGLESv2, and the AppImage needs FUSE 2. The Windows build is not code-signed, so on first launch SmartScreen shows \"Windows protected your PC\" — click \"More info → Run anyway\". If the Visual C++ runtime is missing, the installer installs it first. The Windows install and the AppImage auto-update in-app; the deb updates with the next .deb. Each release only ships the OS builds that passed an install test and a real-app E2E run on CI runners — a version that did not pass has no file for that OS. The beta label comes off once reports from real PCs accumulate." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, as a beta. Windows gets an x64 installer (.exe) for Windows 10 2004 (build 19041) or later and Windows 11; Linux gets an x64 AppImage and a deb. Linux needs glibc 2.35 or later (Ubuntu 22.04 · Debian 12 onward) plus libEGL and libGLESv2, and the AppImage needs FUSE 2. The Windows build is not code-signed, so on first launch SmartScreen shows \"Windows protected your PC\" — click \"More info → Run anyway\". The Windows install and the AppImage auto-update in-app; the deb updates with the next .deb. Each release only ships the OS builds that passed an install test and a real-app E2E run on CI runners — a version that did not pass has no file for that OS. The beta label comes off once reports from real PCs accumulate." }
     },
     {
       "@type": "Question",
@@ -235,7 +235,7 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="/en"><img src="/icon.svg" alt="" width="24" height="24" />Ocul</a>
-    <span class="nav-ver" data-version>v4.9.1</span>
+    <span class="nav-ver" data-version>v4.9.2</span>
     <nav class="nav-links" aria-label="Site">
       <a href="#screens">Screens</a>
       <a href="/wiki/en">Wiki</a>
@@ -258,7 +258,7 @@
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.9.1</span><span class="sub">macOS · free</span>
+        <span class="lg">Get v4.9.2</span><span class="sub">macOS · free</span>
       </a>
     </div>
     <div class="subrow">
@@ -267,7 +267,7 @@
         <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
         <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
       </p>
-      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.9.1 — Windows: one title bar with the app, PowerShell 7 in the terminal</a>
+      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.9.2 — Lighter on Windows: terminal · git · plugin hooks</a>
     </div>
 
     <div class="stage" id="screens" data-app>
@@ -425,10 +425,10 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
     <h2 id="updates-h">This app is built with this app.</h2>
     <p class="intro">This repository's <b>932 entries, 89 plans and 134 releases</b> were recorded with Ocul. The history below comes from those entries.</p>
     <ul class="releases">
+      <li class="rel"><span class="ver">v4.9.2</span><div><h3>Lighter on Windows: terminal · git · plugin hooks</h3><p>Builds no longer drag the in-app terminal: work inside it runs one priority step lower and output is sent in batches, so typing and the screen come first. Saving files and the Diff screen start far fewer git processes, and the plugin's session-start hook drops from 20s+ to under 2s. The installer no longer bundles the Visual C++ Redistributable.</p></div></li>
       <li class="rel"><span class="ver">v4.9.1</span><div><h3>Windows: one title bar with the app, PowerShell 7 in the terminal</h3><p>On Windows the OS title bar no longer stacks on top of the app's top bar — minimize · maximize · close sit in its top-right corner, Windows 11 style. The terminal opens PowerShell 7 when it is installed, so your profile loads, and a terminal running something asks before it closes.</p></div></li>
       <li class="rel"><span class="ver">v4.9.0</span><div><h3>Queue messages while Claude works</h3><p>Press "Send to Claude" while Claude is working and the message waits instead of cutting into the turn, then goes in the moment Claude is free. A message sent while Claude was asking for permission could press one of the choices — that can no longer happen. The app also follows the <code>.gitignore</code> of repositories nested inside a project, and checks for updates once for the whole app.</p></div></li>
       <li class="rel"><span class="ver">v4.8.0</span><div><h3>Arrange 2–6 windows, pick your app icon</h3><p>Arrange your 2–6 most recent windows from the ⌘O list, and pick the app icon from nine. The start window was redrawn, wrapped image paths in the terminal preview too, and narrow windows no longer cut off the top bar's buttons.</p></div></li>
-      <li class="rel"><span class="ver">v4.7.0</span><div><h3>Switch windows with ⌥Tab, each window in its own colour</h3><p>Hold ⌥Tab and your open project windows line up in recent order; a quick tap goes to the previous one. The whole top bar takes the project colour, with the name on a pill of it.</p></div></li>
     </ul>
     <p class="more"><a href="/changelog">Full changelog</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub releases</a></p>
   </div>
@@ -444,7 +444,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
     <details><summary>What is the "last verdict"?</summary><p>The result of <b>actually running</b> a plan's check command. When the agent logs it as one line in a plan-log note — <code>verdict ✓ 418 passed</code> or <code>verdict ✗ 2 failed</code> (<code>판정</code> in Korean) — the plugin's start hook and the app's Plan screen read it by <b>the same rule</b> (<code>^(판정|verdict) (✓|✗)</code>). The Plan screen puts done condition · check command · last verdict right under the title, and a failed verdict goes to the top of Today's "To check". <b>All items closed is not done until the verdict passes</b> — "done" is decided by the last line of output, not by the agent's word.</p></details>
     <details><summary>What leaves my machine?</summary><p><b>Two</b> things. ① <b>The update check</b> — one GitHub release file on launch and when you check manually; the destination is fixed in the app's configuration and the signature is verified. ② <b>Links you click</b> — the app doesn't send them; your OS default browser opens them. The 4.0 app <b>calls no LLM</b> (it doesn't even take an API key), its screens (the webview) <b>reach no outside host</b>, and it downloads no embedding model. Never leaves: journals · plans · everything under <code>.oculpm/</code> · your source code. <b>No usage statistics, no crash reporting</b> — there is no analytics SDK in the app. A test in the repository keeps this list honest in the build; the full list, and how to count it yourself, is on the <a href="/privacy">privacy page</a>.</p></details>
     <details><summary>Can I use it without the app, just the Claude Code plugin?</summary><p>Yes. In Claude Code, run <code>/plugin marketplace add bunhine0452/Ocul-PM</code> and then <code>/plugin install oculpm@oculpm</code> — two lines that set up the hook bridge, 8 MCP tools and 5 skills across all your projects. Journals and plans accumulate as markdown under .oculpm/, and if you install the app later it reads those records exactly as they are.</p></details>
-    <details><summary>Does it run on Windows or Linux?</summary><p>Yes, as a beta. Windows gets an x64 installer (<code>.exe</code>) for Windows 10 2004 (build 19041) or later and Windows 11; Linux gets an x64 AppImage and a deb. Linux needs glibc 2.35 or later (Ubuntu 22.04 · Debian 12 onward) plus libEGL and libGLESv2, and the AppImage needs FUSE 2. The Windows build is not code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click "More info → Run anyway". If the Visual C++ runtime is missing, the installer installs it first. The Windows install and the AppImage auto-update in-app; the deb updates with the next <code>.deb</code>. Each release only ships the OS builds that passed an install test and a real-app E2E run on CI runners — a version that did not pass has no file for that OS. The beta label comes off once reports from real PCs accumulate.</p></details>
+    <details><summary>Does it run on Windows or Linux?</summary><p>Yes, as a beta. Windows gets an x64 installer (<code>.exe</code>) for Windows 10 2004 (build 19041) or later and Windows 11; Linux gets an x64 AppImage and a deb. Linux needs glibc 2.35 or later (Ubuntu 22.04 · Debian 12 onward) plus libEGL and libGLESv2, and the AppImage needs FUSE 2. The Windows build is not code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click "More info → Run anyway". The Windows install and the AppImage auto-update in-app; the deb updates with the next <code>.deb</code>. Each release only ships the OS builds that passed an install test and a real-app E2E run on CI runners — a version that did not pass has no file for that OS. The beta label comes off once reports from real PCs accumulate.</p></details>
     <details><summary>Are Ocul-PM and Ocul the same app?</summary><p>Yes. Since 4.1 the name you see in the app is <b>Ocul</b>. The installed app (<code>Ocul-PM.app</code>), the download files, the data folder, the <code>oculpm</code> plugin and your projects' <code>.oculpm/</code> keep their names, so updates land in the same place and your records carry on.</p></details>
     <details class="faq-more"><summary>17 more questions</summary>
     <details><summary>With 60 entries a day, doesn't Today overflow?</summary><p>No. The 4.0 principle is <b>"show only the exceptions"</b>. Today unfolds only what a person must see — failed verdicts · entries without command evidence · changes no entry mentions · blocked items · decisions that are yours · a new plugin version — and <b>folds work whose evidence is complete into one line</b> per plan. Someone with 3 entries a day and someone with 60 use the same screen, with no modes; that is why the 3.x simple/pro density toggle is gone.</p></details>
@@ -478,7 +478,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.9.1</span><span class="sub">free · auto-updates</span>
+        <span class="lg">Get v4.9.2</span><span class="sub">free · auto-updates</span>
       </a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Teams &amp; partnerships</a>
     </div>
@@ -487,7 +487,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
       <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
       <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
     </p>
-    <p class="cta-ver">v4.9.1 — macOS · Windows · Linux (beta)</p>
+    <p class="cta-ver">v4.9.2 — macOS · Windows · Linux (beta)</p>
   </div>
 </section>
 </main>
