@@ -26,6 +26,11 @@ fn main() {
     if argv.first().map(String::as_str) == Some("refix") {
         std::process::exit(ocul_pm_lib::oculpm::refix::run(&argv[1..]));
     }
+    // 플러그인 훅(`hook <event>`) — 셸이 payload 를 뜯지 않고 stdin JSON 을 그대로 넘긴다
+    // (`oculpm::mcp::hook`, Windows Git Bash 의 프로세스 비용 때문).
+    if argv.first().map(String::as_str) == Some("hook") {
+        std::process::exit(ocul_pm_lib::oculpm::mcp::hook::run(&argv[1..]));
+    }
     let mut root: Option<std::path::PathBuf> = None;
     let mut args = argv.into_iter();
     while let Some(a) = args.next() {

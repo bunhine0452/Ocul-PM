@@ -5,6 +5,7 @@
 //! 테스트된다.
 
 pub mod codex;
+pub mod hook;
 pub mod protocol;
 pub mod register;
 pub mod tools;
