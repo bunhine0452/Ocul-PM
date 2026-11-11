@@ -177,8 +177,8 @@ function Get-AppLog {
     return $null
 }
 
-# OS 하한 · VC++ 런타임 검사 (함수와 상수 — 같은 스코프로 싣는다).
-. (Join-Path $PSScriptRoot 'install-smoke-windows-vcrt.ps1')
+# OS 하한 · C 런타임 검사 (함수와 상수 — 같은 스코프로 싣는다).
+. (Join-Path $PSScriptRoot 'install-smoke-windows-os.ps1')
 
 # 기본값은 cargo 패키지 이름(tauri-cli 가 mainBinaryName 없을 때 쓰는 것) — 설치 뒤
 # 레지스트리의 MainBinaryName 으로 덮는다. 앞 단계가 실패해도 뒤 단계가 null 로
@@ -206,9 +206,6 @@ Test-Observe 'WebView2 런타임 (러너에 이미 있는 것)' {
     if (-not $pv) { throw '레지스트리에 WebView2 pv 가 없다 — 설치 파일이 부트스트래퍼를 돌렸을 것' }
     "pv=$pv"
 }
-
-$script:VcrtBefore = Format-VcrtState (Get-VcrtState)
-Test-Observe 'VC++ 런타임 — 설치 전 러너 상태' { $script:VcrtBefore }
 
 # 첫 설치 전에 OS 하한부터(막히면 아무것도 깔리지 않아야 한다).
 Invoke-OsFloorProbes
@@ -266,7 +263,7 @@ Test-Gate '사이드카 oculpm-mcp.exe --version' {
     $out
 }
 
-Test-VcrtAfterFirstInstall
+Test-OsFloorPassed
 
 # ── 2. 실행 파일 검사 (D11 b — Common Controls v6 매니페스트) ────────────────
 Test-Gate '매니페스트 — 메인 exe 에 Common-Controls 6.0 의존 (mt.exe)' {
@@ -287,27 +284,10 @@ Test-Observe '가져오기 — 메인 exe 가 COMCTL32!TaskDialogIndirect 를 �
     Set-Content -LiteralPath (Join-Path $OutDir 'main-exe.imports.txt') -Value $imports
     $hasComctl = $imports -match '(?im)^\s*COMCTL32\.dll\s*$'
     $hasTask = $imports -match 'TaskDialogIndirect'
-    # ort(pyke 사전 빌드)는 Windows 에서 늘 DirectML 로 빌드돼 DirectML.dll 을 정적으로 가져온다.
-    # DMLCreateDevice1 은 DirectML 1.1.0 부터 — OS 내장은 Windows 10 2004(19041)부터다.
-    $dml = $imports -match 'DMLCreateDevice1'
-    "COMCTL32.dll=$hasComctl TaskDialogIndirect=$hasTask · DirectML.dll!DMLCreateDevice1=$dml · 이 러너 OS 빌드 $([Environment]::OSVersion.Version)"
+    "COMCTL32.dll=$hasComctl TaskDialogIndirect=$hasTask · 이 러너 OS 빌드 $([Environment]::OSVersion.Version)"
 }
 
-$script:DllNames = [System.Collections.Generic.SortedSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-Test-Observe 'DLL 의존 — VC++ 런타임(VCRUNTIME140.dll · MSVCP140.dll) 필요 여부 (dumpbin /dependents)' {
-    $dumpbin = Find-Dumpbin
-    $rows = foreach ($exe in @($script:MainExe, $script:Mcp)) {
-        $deps = & $dumpbin /nologo /dependents $exe 2>&1 | Out-String
-        Set-Content -LiteralPath (Join-Path $OutDir ("{0}.dependents.txt" -f (Split-Path -Leaf $exe))) -Value $deps
-        $names = [regex]::Matches($deps, '(?im)^\s+(\S+\.dll)\s*$') | ForEach-Object { $_.Groups[1].Value }
-        foreach ($n in $names) { [void]$script:DllNames.Add($n) }
-        $vc = @($names | Where-Object { $_ -match '^(vcruntime|msvcp)\d+' })
-        '{0}: VC 런타임={1} (DLL {2}개: {3})' -f (Split-Path -Leaf $exe), ($(if ($vc.Count) { $vc -join '+' } else { '없음(정적)' })), $names.Count, ($names -join ' ')
-    }
-    $rows
-}
-
-Test-VcrtMinCoversToolset
+Test-NoVcRuntimeImports
 # ── 3. 실행 ────────────────────────────────────────────────────────────────
 Test-Gate '앱 실행 — 프로세스 기동' {
     if (-not $script:MainExe) { throw '메인 exe 를 모른다' }
@@ -411,7 +391,6 @@ Test-Gate '재설치 (/S) — 실행 중인 앱이 있어도 종료 코드 0' {
     Start-Sleep -Seconds 2
     'exit 0'
 }
-Test-VcrtSkippedOnReinstall
 
 Test-Gate '재설치 — 실행 중이던 설치본(GUI)이 끝났다' {
     if (Test-Running $script:App) { throw "재설치 뒤에도 pid=$($script:App.Id) 가 살아 있다" }
@@ -519,8 +498,6 @@ Test-Gate '정상 재설치 (/S) — 잠금 프로브 뒤: 사이드카가 설�
     "exit 0 · $out · 해시 원래대로 · 비켜 둔 파일 0"
 }
 
-# ── 5b. VC++ 재배포가 없는 PC — 설치 파일이 되살리는가 (install-smoke-windows-vcrt.ps1) ──
-Invoke-NoRedistProbes
 # ── 6. 제거 ────────────────────────────────────────────────────────────────
 Get-AppProcesses (Split-Path -Leaf $script:MainExe) | ForEach-Object { Stop-Tree $_.ProcessId }
 
@@ -566,8 +543,6 @@ Test-Observe '제거 뒤 남은 프로세스' {
 } catch {
     Add-Row 'gate' '스크립트 자체 오류 (여기서 멈춤)' $false ("$($_.Exception.Message) @ $($_.InvocationInfo.PositionMessage)")
 } finally {
-    # 숨긴 VC++ DLL 이 남아 있으면 되돌린다(5b 가 중간에 터졌을 때).
-    if (Get-Command Restore-VcRuntime -ErrorAction SilentlyContinue) { Restore-VcRuntime }
     # 남은 프로세스 정리 — 다음 단계(아티팩트 업로드)가 잠긴 파일에 걸리지 않게.
     foreach ($name in @('ocul-pm.exe', 'oculpm-mcp.exe')) {
         Get-AppProcesses $name | ForEach-Object { Stop-Tree $_.ProcessId }

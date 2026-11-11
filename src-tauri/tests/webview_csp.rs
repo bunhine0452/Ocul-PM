@@ -144,6 +144,17 @@ fn the_policy_still_matches_what_the_frontend_actually_does() {
     }
     assert!(uses_blob.is_empty(), "createObjectURL 이 돌아왔다 — img-src/frame-src 에 blob: 을 되살리고 머리말에 적어라: {uses_blob:?}");
     assert!(uses_wasm.is_empty(), "wasm 이 돌아왔다 — script-src 에 'wasm-unsafe-eval' 을 되살리고 머리말에 적어라: {uses_wasm:?}");
+    // style-src 의 'unsafe-inline' 은 index.html 에 <style>·인라인 <script> 가 없다는 전제 위에
+    // 선다 (머리말 표) — 있으면 Tauri 가 nonce 를 붙여 인라인 style 속성이 전부 막힌다.
+    let html = std::fs::read_to_string(src.join("../index.html")).unwrap_or_default();
+    assert!(
+        !html.contains("<style"),
+        "index.html 에 <style> 이 생겼다 — 첫 페인트 바탕은 public/boot.css 로"
+    );
+    assert!(
+        !html.contains("<script>") && !html.contains("<script type=\"module\">"),
+        "index.html 에 인라인 <script> 가 생겼다"
+    );
     assert!(
         read("main.tsx").contains("watchCspViolations"),
         "CSP 위반 감시가 빠지면 막힌 것이 조용히 사라진다 — e2e 도 그것을 읽는다"

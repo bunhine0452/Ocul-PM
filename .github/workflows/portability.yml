@@ -385,9 +385,11 @@ jobs:
   #     여전히 인터넷이 필요하다: 완전 오프라인은 offlineInstaller +127MB) · 설치 언어
   #     English·Korean(OS 언어를 따르고, 목록에 없는 언어면 첫 항목 English 로) ·
   #     installerHooks src-tauri/windows/installer-hooks.nsh — ① Windows 10 2004(19041) 미만은
-  #     막고 안내(DirectML!DMLCreateDevice1) ② VC++ 재배포를 없거나 낡았을 때만 설치(실패면
-  #     멈추고 안내) ③ Claude Code·Codex 가 띄워 둔 oculpm-mcp.exe 가 파일을 잠가 재설치·
+  #     막고 안내 ② Claude Code·Codex 가 띄워 둔 oculpm-mcp.exe 가 파일을 잠가 재설치·
   #     업데이트가 옛 사이드카를 남기거나(/S) 대화상자에 멈추던(/P) 것을 먼저 비켜 두어 푼다.
+  #     VC++ 재배포는 싣지 않는다(2026-11-11) — tauri-build 가 VC 런타임을 정적으로 링크하고
+  #     (static_vcruntime, UCRT 는 OS 내장) MSVCP140 을 부르던 ONNX Runtime 은 4.0 에서 걷혔다.
+  #     설치 스모크가 dumpbin 으로 단언한다.
   #   tauri.linux.conf.json — AppImage + deb (D10, rpm 은 보류). deb Depends 의
   #     libwebkit2gtk-4.1-0 · libgtk-3-0 은 tauri-cli 가 스스로
   #     넣는다. 여기 또 적으면 두 번 들어간다 (트레이를 걷은 2026-10 부터 tray-icon 기능이 없어
@@ -453,7 +455,7 @@ jobs:
           else
             changed=$(git diff --name-only "$BEFORE" "$AFTER")
             # 업데이터가 굽는 판을 바꾸는 파일(L-UPD)도 번들을 다시 굽는다 — N·N+1 둘 다 그 코드다.
-            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|src-tauri/windows/|\.github/scripts/fetch-vcredist\.|\.github/workflows/portability\.yml|src/lib/updater(Route)?\.ts|src/components/UpdateBanner\.tsx|src-tauri/src/commands/install_kind\.rs)' <<<"$changed" || true)
+            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|src-tauri/windows/|\.github/workflows/portability\.yml|src/lib/updater(Route)?\.ts|src/components/UpdateBanner\.tsx|src-tauri/src/commands/install_kind\.rs)' <<<"$changed" || true)
             smoke_hit=$(grep -E '^\.github/scripts/install-smoke-' <<<"$changed" || true)
             updater_hit=$(grep -E '^\.github/scripts/updater-smoke-' <<<"$changed" || true)
             if [ -n "$hit" ]; then
@@ -540,15 +542,6 @@ jobs:
       # 만들어 설정(tauri.conf.json)을 한 글자도 덮지 않고 릴리스와 같은 경로로 굽는다.
       # 그 덕에 NSIS·AppImage 옆에 업데이터 .sig 가 실제로 생기는지도 본다(W4 전제).
       # 이 키로 서명한 .sig 는 앱에 박힌 공개 키와 안 맞으므로 올리지 않는다.
-      # Windows 설치 파일은 Microsoft VC++ 재배포(x64)를 싣는다 — 앱과 사이드카가 MSVCP140 을
-      # 가져오는데(사전 빌드 ONNX Runtime) 재배포가 없는 PC 에서는 아예 안 뜬다. 훅
-      # (src-tauri/windows/installer-hooks.nsh)이 없거나 낡았을 때만 설치한다. 판 고정 URL ·
-      # SHA-256 · Authenticode 를 확인하고 훅이 include 할 정의를 쓴다. release.yml 도 같은 스크립트.
-      - name: VC++ 재배포 받기 (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./.github/scripts/fetch-vcredist.ps1
-
       - name: 업데이터 서명 키 — 이 잡 전용 일회용
         run: |
           pnpm tauri signer generate --ci -w "$RUNNER_TEMP/ci-updater.key" >/dev/null

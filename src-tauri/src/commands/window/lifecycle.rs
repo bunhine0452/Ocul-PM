@@ -102,9 +102,18 @@ pub(super) async fn spawn_window(
     nav: Option<&WindowNavigate>,
     title: String,
 ) -> Result<(), String> {
+    // 바탕색을 먼저 칠해 둔다 — 웹뷰의 기본 바탕(흰색)이 첫 페인트 전에 번쩍이지 않게.
+    // 「시스템」 이면 이미 떠 있는 창의 테마(= OS)를 따른다.
+    let os_dark = app
+        .webview_windows()
+        .values()
+        .find_map(|w| w.theme().ok())
+        .is_some_and(|t| t == tauri::Theme::Dark);
+    let background = background_for(theme_setting(app).await.as_deref(), os_dark);
     let builder =
         WebviewWindowBuilder::new(app, label, WebviewUrl::App(window_url(label, nav).into()))
-            .title(title);
+            .title(title)
+            .background_color(background);
     // 제목 숨김은 macOS 전용 빌더 메서드다 (오버레이 타이틀바와 짝). Linux 는 OS 의
     // 네이티브 제목줄 그대로 — 제목(프로젝트 이름)이 보인다. 신호등은 셸의 윗줄(44px)
     // 가운데에 — 첫 창은 tauri.conf.json 의 `trafficLightPosition` 이 같은 값을 준다.
@@ -154,7 +163,33 @@ pub fn adopt_first_window(app: &AppHandle) {
     app.state::<WindowProjects>()
         .lock()
         .register(FIRST_WINDOW, None);
+    // 설정 파일의 바탕(밝게)을 저장된 테마로 고친다 — 셋업은 이벤트 루프가 첫 페인트를 하기
+    // 전이라 여기서 바꾸면 어두운 테마에서도 밝은 판이 번쩍이지 않는다. DB 는 이미 열려 있다.
+    let os_dark = window.theme().is_ok_and(|t| t == tauri::Theme::Dark);
+    let setting = tauri::async_runtime::block_on(theme_setting(app));
+    let _ = window.set_background_color(Some(background_for(setting.as_deref(), os_dark)));
     attach_window_hooks(app, &window, FIRST_WINDOW.to_string());
+}
+
+/// 창 바탕 — tokens.css 의 `--bg-sidebar`(body 바탕). `public/boot.css` · `tauri.conf.json` 의
+/// `backgroundColor` 와 같은 값이다.
+const BG_LIGHT: tauri::window::Color = tauri::window::Color(0xf1, 0xee, 0xe6, 0xff);
+const BG_DARK: tauri::window::Color = tauri::window::Color(0x12, 0x15, 0x14, 0xff);
+
+/// 테마 설정(`theme`: light | dark | 그 밖 = 시스템)과 OS 의 다크 여부로 창 바탕을 고른다.
+/// 프런트의 `resolveThemeAttrs`(features/theme/apply.ts)와 같은 규칙이다.
+pub(super) fn background_for(setting: Option<&str>, os_dark: bool) -> tauri::window::Color {
+    match setting {
+        Some("dark") => BG_DARK,
+        Some("light") => BG_LIGHT,
+        _ if os_dark => BG_DARK,
+        _ => BG_LIGHT,
+    }
+}
+
+async fn theme_setting(app: &AppHandle) -> Option<String> {
+    let db = app.try_state::<crate::db::Db>()?;
+    db.settings_get("theme".to_string()).await.ok().flatten()
 }
 
 /// 창 이벤트 훅 — 포커스 추적 + 닫을 때 레지스트리 정리.

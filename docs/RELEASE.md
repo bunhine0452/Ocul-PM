@@ -194,7 +194,7 @@ meta ─ gate ─┬─ macos ────────────────�
      남지 않았는지), `signature` 가 base64 한 덩어리인지, macOS 키(`darwin-aarch64` ·
      `darwin-aarch64-app`)가 다 있는지 — 규칙은 `.github/scripts/release/latest-json.mjs verify` 한 곳
 4. `bundle` — (**비-mac 공개 스위치가 켜졌을 때만**, §5-1) **같은 태그 커밋에서** Windows(`windows-latest`, NSIS) · Linux(`ubuntu-22.04`, AppImage + deb)
-   번들. Windows 는 `tauri build` 전에 VC++ 재배포를 받아 검증합니다(`.github/scripts/fetch-vcredist.ps1`).
+   번들.
    업데이터 서명은 macOS 와 같은 `TAURI_PRIVATE_KEY`. 산출물은 **워크플로 아티팩트로만** 넘깁니다 — 아직
    릴리스 자산이 아닙니다. 파일 이름·`.sig`·플랫폼 설정 병합(msi·rpm 없음)과, AppImage 실행 파일에
    번들러가 굽는 설치 형식 표식(`__TAURI_BUNDLE_TYPE_VAR_APP` — 업데이터가 이것으로 latest.json 키를
@@ -438,9 +438,12 @@ gh secret list                                  # 6개가 다 있는지
   설정을 주고, 산출물 단계에 `signtool verify /pa` 단언을 더합니다.
 - **Linux** — AppImage 는 업데이터 서명(`.sig`)만, deb 는 서명이 없습니다(apt 저장소가 아니라 직접
   받는 파일).
-- **VC++ 재배포** — Windows 설치 파일은 Microsoft VC++ 재배포(x64)를 싣고, PC 에 없거나 낡았을 때만
-  설치합니다. `bundle` 잡이 `tauri build` 전에 `.github/scripts/fetch-vcredist.ps1` 로 판 고정 URL ·
-  SHA-256 · Authenticode 를 확인하며 받습니다. 판을 올리는 법은 그 스크립트 머리 주석에 있습니다.
+- **VC++ 재배포 없음** (2026-11-11 부터) — Windows 설치 파일은 Microsoft VC++ 재배포를 싣지 않습니다.
+  `ocul-pm.exe` · `oculpm-mcp.exe` 는 VCRUNTIME140 · MSVCP140 을 가져오지 않습니다 — tauri-build 가
+  VC 런타임을 정적으로 링크하고(`static_vcruntime`: libcmt + libvcruntime, UCRT 는 Windows 10 부터 OS
+  내장), MSVCP140 을 부르던 사전 빌드 ONNX Runtime 은 4.0 에서 걷혔습니다. 설치 스모크(`install-smoke-windows-os.ps1`
+  `Test-NoVcRuntimeImports`)가 `dumpbin /dependents` 로 단언합니다. 붉어지면 재배포를 되살리기 전에
+  무엇이 C++ 런타임을 끌어왔는지부터 봅니다.
 
 ## 8. 드라이런 — 태그 없이 release.yml 전체를 (workflow_dispatch)
 

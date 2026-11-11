@@ -37,7 +37,11 @@ impl Db {
             std::fs::create_dir_all(parent)?;
         }
 
-        Self::register_sqlite_vec();
+        // sqlite-vec 는 vec0 가상 표를 만드는(002 …) · 지우는(043) 마이그레이션만 쓴다. 043 까지
+        // 올라간 DB 에는 vec0 가 없으니 기동마다 걸 이유가 없다 — 아직 043 전인 DB(새 설치 포함)만.
+        if needs_sqlite_vec(&path) {
+            Self::register_sqlite_vec();
+        }
 
         let conn = Connection::open(path.clone()).await?;
         conn.call(|c| {
@@ -419,3 +423,19 @@ fn is_destructive(sql: &str) -> bool {
 
 #[cfg(test)]
 mod tests;
+
+/// vec0 를 마지막으로 만지는 마이그레이션 — 043 이 vec0 표를 지운다 (`043_drop_code_index.sql`).
+const LAST_VEC0_MIGRATION: i64 = 43;
+
+/// 이 DB 를 여는 데 sqlite-vec 가 필요한가 — `user_version` 이 043 전이면(새 파일 포함) 그렇다.
+/// 못 읽으면 예전처럼 건다: 거는 것은 안전하고, 빠뜨리면 043 의 vec0 DROP 이 실패한다.
+fn needs_sqlite_vec(path: &std::path::Path) -> bool {
+    if !path.exists() {
+        return true;
+    }
+    let flags =
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    rusqlite::Connection::open_with_flags(path, flags)
+        .and_then(|c| c.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0)))
+        .map_or(true, |v| v < LAST_VEC0_MIGRATION)
+}

@@ -1,0 +1,8 @@
+/* 첫 페인트의 바탕 — 앱 CSS(지연 청크)가 오기 전 흰 화면이 번쩍이지 않게 (index.html 이 링크).
+   값은 tokens.css 의 --bg-sidebar(body 바탕) 밝게/어둡게이고, 창의 backgroundColor 와 같다
+   (tauri.conf.json · commands/window/lifecycle.rs). data-theme 이 붙으면 그것을 따른다.
+   index.html 안의 <style> 로 두지 않는다: Tauri 가 거기 nonce 를 붙이면 style-src 의
+   'unsafe-inline' 이 꺼져 인라인 style 속성이 전부 막힌다 (src-tauri/tests/webview_csp.rs). */
+html { background: #f1eee6; }
+@media (prefers-color-scheme: dark) { html:not([data-theme]) { background: #121514; } }
+html[data-theme="dark"] { background: #121514; }
