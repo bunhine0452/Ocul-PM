@@ -241,6 +241,24 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
         &[("windows_child_probe_sees_children_but_not_console_hosts", "std_cmd(\"ping\")")],
     ),
     (
+        "terminal_tests.rs",
+        "묶어 보내기 속 상태 순서 — /bin/sh(Windows 는 cmd.exe)가 출력 · 상태 보고 · 출력을 찍고, 웹뷰로 가는 순서가 그대로인지 본다. 기기 밖에 닿지 않는다.",
+        &[
+            ("status_events_keep_their_place_between_coalesced_output", "CommandBuilder::new(\"/bin/sh\")"),
+            ("status_events_keep_their_place_between_coalesced_output", "CommandBuilder::new(\"cmd.exe\")"),
+        ],
+    ),
+    (
+        "terminal_tests.rs",
+        "Windows 스냅숏 한 번 — ConPTY 의 cmd 세션들에 목록 · 개요 · 세기를 물어도 프로세스 스냅숏이 한 번만 찍히는지 본다. 기기 밖에 닿지 않는다.",
+        &[("windows_one_process_snapshot_serves_every_session_and_call", "CommandBuilder::new(\"cmd.exe\")")],
+    ),
+    (
+        "terminal_tests.rs",
+        "Windows 우선순위 양보 — `ping -n 6 127.0.0.1` 을 띄워 「보통 이하」 로 내린 뒤 GetPriorityClass 로 확인한다. 루프백만 — 기기 밖에 닿지 않는다.",
+        &[("windows_terminal_shell_yields_to_ui", "std_cmd(\"ping\")")],
+    ),
+    (
         "git/safe.rs",
         "임시 저장소에서 로컬 git — 저장소 설정이 명령을 못 돌리는지, 기한을 넘긴 자식을 죽이는지(ping·sleep). 부분 클론 시험의 원격은 같은 임시 폴더의 다른 저장소다(대조군만 거기에 닿는다).",
         &[
