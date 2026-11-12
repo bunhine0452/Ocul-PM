@@ -70,21 +70,21 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
 
-## 🚀 v4.9.3 — Windows: Korean typed twice in the terminal, SessionEnd hook cut off
+## 🚀 v4.10 — Working across a Mac and a Windows PC
 
-- **Korean typed twice after Alt+V** — in the in-app terminal, the pane where you pressed Alt+V entered every Korean syllable twice. Fixed, and the ⌃⌥⇧I input record now keeps its last part too.
-- **"SessionEnd hook … failed: Hook cancelled"** — on Windows the plugin hook ran past the 1.5s Claude Code gives session-end hooks and was cut off. The hook now ends in 0.24s and the verdict and record finish after it (ships with the plugin update).
+Four things that got in the way when Ocul is installed on a Mac and a Windows (or Linux) machine and you move between them on one repository.
 
-## 🚀 v4.9 — Queue messages while Claude works
-
-- **Queued messages** — press "Send to Claude" · "Ask Claude" while Claude is working or asking, and the message waits, then goes in all at once the moment Claude is free. It never presses a choice in a prompt; "Send now" (⇧⌘↩) when you must, and "Cancel" on the notice takes it back.
-- **Nested repositories' `.gitignore`** — a repository inside a project now has its rules followed, so caches and build output aren't watched, and copies already stored are cleared at launch.
-- **One update check for the whole app** — with many windows open, one window asks and the rest share the answer. Three DB indexes that did nothing were dropped too.
+- **A pass from the other machine is "Not checked here"** — the check command's result line now ends with the OS it ran on (`· mac` · `· windows` · `· linux`). When the latest ✓ came from another OS, Today says "Not checked here" instead of "Changed after pass", and "Check again" has the command run on this machine. The plugin's start hook says the same.
+- **One "Only on this machine" line** — under "Your turn" on Today: uncommitted changes (and how many are records) · unpushed commits. Before you switch seats you can see what still lives only here. The app never fetches.
+- **Project colour follows the repository** — the colour you pick is also written to `.oculpm/config.toml`, so the other machine takes it when it opens the project or right after a pull.
+- **An older app no longer writes the journaling-spec file back** — when the app-managed `journal-spec.md` is newer than the app, the app leaves it alone and tells you. Two machines on different app versions no longer keep the working tree dirty (from this version on, on both machines).
 
 ## Earlier releases at a glance
 
 The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
 
+- **Windows: Korean typed twice in the terminal, SessionEnd hook cut off** (4.9.3) — the pane where you pressed Alt+V entered every Korean syllable twice, and the plugin hook cut off with "Hook cancelled" when Claude Code exits (it now ends in 0.24s and finishes the verdict and record after).
+- **Queue messages while Claude works** (4.9) — "Send to Claude" waits while Claude is working or asking, then goes in ("Send now" ⇧⌘↩), nested repositories' `.gitignore` are followed, and one update check for the whole app.
 - **Lighter on Windows: terminal · git · plugin hooks** (4.9.2) — a terminal that keeps up during builds, git usually started 0–1 times, the plugin's session-start hook from 20s+ to under 2s, and an installer without the Visual C++ Redistributable.
 - **Windows: one title bar with the app, PowerShell 7 in the terminal** (4.9.1) — minimize · maximize · close in the top bar's corner, PowerShell 7 when `pwsh` is installed, a running terminal asks before it closes, and records that failed with "Access is denied".
 - **Arrange 2–6 windows, pick your app icon** (4.8) — layout buttons in the ⌘O list arrange your 2–6 most recent windows (⌥⌘T does six), nine app icons (macOS), the start window as a table whose columns line up, previews for terminal image paths that wrap, and a narrow-window top bar that measures and folds one step at a time.
@@ -113,7 +113,7 @@ The app is five screens (Today · Journal · Plan · Diff · Terminal) plus Sett
 <img src="landing/shots/v4/en/diff.webp" alt="Diff: files with no journal first, Ask Claude, line-by-line diff" width="49%" />
 </p>
 
-- **Today** (⌘1) — **"Look first"** on top: Claude is waiting · Claude asks (answer it right there) · failed verdicts · changed after pass · changes with no journal · blocked items · a new plugin version. When it's empty, one calm paragraph. Below it, "Finished without verification" (Read · Mark all read), the next item with [Run in terminal], one "your turn" line counting human-owned items, who is working now, and "Done today" grouped by plan (a group whose evidence is complete folds to one line). `j`/`k` move · `v` read · `r` run next.
+- **Today** (⌘1) — **"Look first"** on top: Claude is waiting · Claude asks (answer it right there) · failed verdicts · changed after pass · not checked here (a ✓ from another OS) · changes with no journal · blocked items · a new plugin version. When it's empty, one calm paragraph. Below it, "Finished without verification" (Read · Mark all read), the next item with [Run in terminal], one "your turn" line counting human-owned items, one "Only on this machine" line counting uncommitted changes · unpushed commits, who is working now, and "Done today" grouped by plan (a group whose evidence is complete folds to one line). `j`/`k` move · `v` read · `r` run next.
 - **Journal** (⌘2) — a list on the left (by date · type · evidence) and the detail on the right, body first — the verification box (the command that ran and its last result line, or "a claim" when there's none), an inline diff per recorded file, related entries. The "Plan … #item" in the header jumps to that plan item. Journal search (`/`) lives here — titles · files · tags · body.
 - **Plan** (⌘3) — `.oculpm/planner/*.md` is the source. Right under the title: done condition · check command · **last verdict** ("Not run yet" when there is none), the next item with [Run in terminal] · [To the end (/goal)], and items by phase. Click an item's box to change its status; every item has "Send to Claude". Creating and editing plans is the agent's job (`plan_create` · `plan_update`).
 - **Diff** (⌘4) — uncommitted / last-commit diffs, offline, line by line. **"No journal"** (files no entry mentions) comes first, the rest grouped by entry. "Copy receipt" in the top bar copies this branch's work and check results as Markdown for a PR description. A file with no journal gets [Ask Claude] (asks the in-app terminal's claude to record it) and [Record it myself]. One line per file (M · A · D), unified / split. Hover a line for "+" to leave a note, send the notes to Claude in one go, and each sent note shows on its own whether its line changed (Fixed · Open).

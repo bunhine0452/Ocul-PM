@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul (최신 v4.9.3)</title>
-<meta name="description" content="Ocul 의 전체 릴리스 노트 147개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul (최신 v4.10.0)</title>
+<meta name="description" content="Ocul 의 전체 릴리스 노트 148개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul (최신 v4.9.3)" />
-<meta property="og:description" content="Ocul 의 전체 릴리스 노트 147개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul (최신 v4.10.0)" />
+<meta property="og:description" content="Ocul 의 전체 릴리스 노트 148개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
-    <span class="nav-ver" data-version>v4.9.3</span>
+    <span class="nav-ver" data-version>v4.10.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>147개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>148개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v4-10-0">v4.10.0</a>
       <a href="#v4-9-3">v4.9.3</a>
       <a href="#v4-9-2">v4.9.2</a>
       <a href="#v4-9-1">v4.9.1</a>
@@ -60,10 +61,20 @@
       <a href="#v4-5-0">v4.5.0</a>
       <a href="#v4-4-0">v4.4.0</a>
       <a href="#v4-3-2">v4.3.2</a>
-      <a href="#v4-3-1">v4.3.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v4-10-0"><a href="#v4-10-0">v4.10.0</a></h2>
+      <div class="cl-body">
+<p><b>v4.9.0 여드레 뒤에 내는 마이너라 「마이너는 2주에 한 번」 을 건너뜁니다 — 사용자 결정(2026-11-13, 「릴리즈해줘」).</b> 확인 날 기록이 없고 눈 확인 26건이 남았으며, 마지막 외부 리뷰(v3.11.0) 뒤로 판이 많이 지났다는 경고가 떴습니다. 코드 게이트는 PR CI 에서 통과했고(프런트 테스트 1,105건 · Rust 1,150건) Windows · Linux 의 실제 앱 E2E 도 통과했지만, 설치본과 Windows 실기기에서 눌러 보지는 못했습니다.</p>
+<p>맥과 윈도우(또는 리눅스)에 Ocul 을 깔고 같은 저장소를 번갈아 쓸 때 걸리던 넷을 고쳤습니다.</p>
+<p><b>다른 기기에서 받은 ✓ 를 「여기선 아직」 이라고 말합니다.</b> 맥에서 확인 명령이 통과한 계획을 윈도우에서 받아 오면, 오늘 화면이 「통과 뒤 바뀜」 이라고 잘못 짚었습니다. 받아 온 파일이 방금 저장된 것처럼 보였기 때문입니다. 게다가 맥에서 통과했다고 윈도우에서도 통과하는 것은 아닙니다. 이제 확인 명령의 결과 줄 끝에 돌린 OS(<code>· mac</code> · <code>· windows</code> · <code>· linux</code>)가 남고, 가장 최근 ✓ 가 다른 OS 것이면 오늘 화면에 「여기선 아직」 한 행이 섭니다. 「다시 확인」 을 누르면 이 기기에서 확인 명령을 돌리도록 Claude 에게 넘깁니다. 이 기기에서 이미 통과했고 그 뒤 바뀐 파일이 없으면 조용합니다. Claude Code · Codex 세션이 시작할 때 읽는 계획 상태에도 같은 말이 붙습니다(플러그인 업데이트로 실림). 예전에 남긴 결과 줄에는 OS 표시가 없어 이 기기 것으로 보고, 같은 OS 의 기기 둘은 서로 가리지 못합니다.</p>
+<p><b>오늘 화면에 「이 기기에만」 한 줄이 섭니다.</b> 커밋하지 않았거나 올리지 않은 채 자리를 옮기면 다른 기기에서는 그 일이 보이지 않습니다. 이제 「내 차례」 아래에 <code>이 기기에만 · 커밋 안 한 변경 5 (그중 기록 2) · 안 올린 커밋 3</code> 이 서고, 「변경 보기」 가 변경 화면으로 갑니다. 남은 것이 없으면 보이지 않습니다. 앱이 리모트에서 받아 오지는 않습니다 — 마지막으로 받아 온 상태와 견준 수입니다.</p>
+<p><b>프로젝트 색이 저장소를 따라갑니다.</b> 색을 기기마다 따로 골라야 했습니다. 이제 고른 색이 <code>.oculpm/config.toml</code> 에도 적혀, 다른 기기는 프로젝트를 열 때나 받아 온 직후 같은 색이 됩니다. 이미 골라 둔 색은 한 번 다시 고르면 넘어갑니다. <code>config.toml</code> 은 커밋되는 파일이라, 여럿이 쓰는 저장소에서는 동료의 창 색도 같이 바뀝니다.</p>
+<p><b>옛 판의 앱이 기록 규칙 파일을 되돌려 쓰지 않습니다.</b> 두 기기의 앱 판이 다르면, 앱이 관리하는 <code>.oculpm/agents/journal-spec.md</code> 를 서로 자기 판으로 덮어써서 작업 트리가 늘 바뀐 채였고 받아 오기가 막혔습니다. 이제 그 파일이 앱보다 새 판이면 건드리지 않고 「이 프로젝트의 기록 규칙이 이 앱 버전보다 새로워요」 로 알립니다. 이 판부터 지키는 규칙이라, 두 기기 모두 이 판으로 올려야 멎습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v4-9-3"><a href="#v4-9-3">v4.9.3</a></h2>
       <div class="cl-body">
