@@ -47,6 +47,7 @@ const fx = vi.hoisted(() => ({
   dispatchCalls: [] as Array<[string, string]>,
   teammates: [] as Array<{ path: string; author: string }>,
   localOnly: null as unknown,
+  arrived: null as unknown,
 }));
 
 // 「다음」 은 앱 안 터미널에서 실행된다 — 터미널(xterm)은 띄우지 않고 넘긴 프롬프트만 본다.
@@ -81,6 +82,8 @@ vi.mock("@/lib/bindings", () => {
               return () => ok(fx.teammates);
             case "todayLocalOnly":
               return () => ok(fx.localOnly);
+            case "todayArrived":
+              return () => ok(fx.arrived);
             case "oculpmCompareWorkday":
               return () =>
                 fx.compareFails
@@ -247,6 +250,7 @@ beforeEach(() => {
   fx.dispatchCalls = [];
   fx.teammates = [];
   fx.localOnly = null;
+  fx.arrived = null;
   Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true });
 });
 afterEach(() => cleanup());
@@ -280,6 +284,20 @@ describe("확인할 것 — 종류와 순서", () => {
     expect(within(checkCard()).queryAllByRole("listitem")).toHaveLength(0);
     fireEvent.click(open);
     expect(onNavigate).toHaveBeenCalledWith("diff");
+    // 올리기는 앱이 하지 않는다 — 앱 안 터미널의 Claude 에게 넘긴다.
+    runs.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: t("today.local.handoff") }));
+    await waitFor(() => expect(runs).toEqual([t("today.local.handoffPrompt")]));
+  });
+
+  it("오늘 받아 온 일지는 한 줄 — 누르면 가장 최근 것을 일지 화면에서 연다 (11-13)", async () => {
+    fx.arrived = { journals: ["20261112/Bugs/0327_bug_b.md", "20261111/Chores/2200_chore_a.md"], synced_at: 1 };
+    const { onOpenEntry, container } = renderToday();
+    const open = await screen.findByRole("button", { name: t("today.arrived.open") });
+    expect(container.textContent).toContain(t("today.arrived.line", { n: 2 }));
+    expect(within(checkCard()).queryAllByRole("listitem")).toHaveLength(0);
+    fireEvent.click(open);
+    expect(onOpenEntry).toHaveBeenCalledWith({ relative_path: "20261112/Bugs/0327_bug_b.md" });
   });
 
   it("동료가 git 으로 올린 일지는 그 사람 이름을 단다 — 내 에이전트의 일이 아니다", async () => {

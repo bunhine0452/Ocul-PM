@@ -81,7 +81,7 @@ impl Head {
     }
 }
 
-fn is_oid(s: &str) -> bool {
+pub(crate) fn is_oid(s: &str) -> bool {
     matches!(s.len(), 40 | 64) && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 

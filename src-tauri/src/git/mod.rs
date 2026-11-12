@@ -20,6 +20,7 @@
 //! | `head` | `.git/HEAD` 를 파일로 읽기 — HEAD 커밋이 그대로면 HEAD 트리·직전 커밋을 다시 묻지 않는다 |
 //! | `safe` | git 프로세스 생성 — 저장소 설정이 고른 명령(fsmonitor·훅·필터·외부 diff) 끄기 · 시간 제한 |
 
+pub mod arrived; // 받아 온 것 — 받아 온 커밋이 더한 일지 · 리모트와 주고받은 때 (11-13)
 pub mod authors; // 동료의 일지 — 그날 일지를 더한 커밋의 작성자 (11-02)
 mod blob;
 mod changes;

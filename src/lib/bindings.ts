@@ -107,6 +107,22 @@ export const commands = {
 	/**  활성 플랜의 판정·다음 리프·사람 몫·막힘과 일지 → 계획 연결. LLM 0 · 네트워크 0. */
 	todayDigest: (projectId: number) => typedError<TodayDigest, string>(__TAURI_INVOKE("today_digest", { projectId })),
 	/**
+	 *  받아 온 것 — `since`(epoch 초) 뒤에 받아 온 커밋이 더한 일지와, 리모트와 마지막으로 주고받은 때
+	 *  (`git::arrived`). 받아 오지 않는다 — git 이 남긴 기록을 읽는다. 가지 위가 아니면 `None`.
+	 */
+	todayArrived: (projectId: number, since: number) => typedError<{
+	/**
+	 *  `since` 뒤에 받아 온 커밋이 더한 일지 — 지금 작업 트리에 있는 것만. 일지 루트 기준
+	 *  (`20261113/Bugs/…md`), 최신 경로가 먼저.
+	 */
+	journals: string[],
+	/**
+	 *  리모트와 마지막으로 주고받은 때(받아 오기 · 올리기), epoch 초. 다른 곳에서 쓴 일지를 받은
+	 *  흔적이 없는 저장소면 `None` — 혼자 한 기기에서 쓰는 저장소에 「주고받은 지 N일」 을 말하지 않는다.
+	 */
+	synced_at: number | null,
+} | null, string>(__TAURI_INVOKE("today_arrived", { projectId, since })),
+	/**
 	 *  이 기기에만 있는 것 — 커밋 안 한 변경(그중 기록) · 어느 리모트에도 없는 커밋 (`git::local_only`).
 	 *  git 저장소가 아니거나 리모트가 없으면 `None`. git 은 읽기만 · 네트워크 0.
 	 */
@@ -861,6 +877,19 @@ export type AppInfo = {
 	db_path: string,
 	app_data_dir: string,
 	version: string,
+};
+
+export type Arrived = {
+	/**
+	 *  `since` 뒤에 받아 온 커밋이 더한 일지 — 지금 작업 트리에 있는 것만. 일지 루트 기준
+	 *  (`20261113/Bugs/…md`), 최신 경로가 먼저.
+	 */
+	journals: string[],
+	/**
+	 *  리모트와 마지막으로 주고받은 때(받아 오기 · 올리기), epoch 초. 다른 곳에서 쓴 일지를 받은
+	 *  흔적이 없는 저장소면 `None` — 혼자 한 기기에서 쓰는 저장소에 「주고받은 지 N일」 을 말하지 않는다.
+	 */
+	synced_at: number | null,
 };
 
 /**
