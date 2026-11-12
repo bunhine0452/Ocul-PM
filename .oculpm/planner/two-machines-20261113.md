@@ -32,6 +32,7 @@ owner: claude-code
 
 ## 이월 {#carry}
 - [x] 도착 줄 — 다른 기기에서 한 일 N건 {#arrival}
+- [ ] v4.11.0 릴리스 — 2026-11-14 이후(사용자 지시 11-13 「내일 4.11 내도록 해」). CHANGELOG 의 Unreleased 절: 올리기 맡기기 · 오늘 받아 온 일지 · 주고받은 지 N일 {#release-411}
 - [ ] [사용자] 윈도우·맥 설치본에서 눈 확인 {#eyes}
 
 <!-- oculpm:plan-log begin v1 -->
