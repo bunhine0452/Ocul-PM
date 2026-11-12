@@ -687,3 +687,62 @@ async fn sync_never_writes_through_a_planted_link() {
         "링크를 일반 파일로 바꿔치기하지 않는다"
     );
 }
+
+/// 두 기기 (2026-11-13) — 다른 기기의 더 새 앱이 쓴 규격을 이 앱이 자기 판으로 되돌려 쓰면
+/// 저장소의 작업 트리가 두 기기 사이에서 늘 더럽다. 더 새 판은 두고, 그 사실을 말한다.
+#[tokio::test]
+async fn a_newer_journal_spec_is_left_alone_and_reported() {
+    let dir = setup();
+    let root = dir.path();
+    let cfg = config_with(&["agents-md"]);
+    sync_active(root, &cfg).await.unwrap();
+    assert!(master_ahead_of_app(root).is_none(), "갓 시드한 프로젝트");
+
+    let jspec = root.join(".oculpm/agents/journal-spec.md");
+    let ahead = embedded_journal_spec_version() + 1;
+    let newer = format!("<!-- template_version: {ahead} -->\n# 더 새 앱이 쓴 규격\n");
+    std::fs::write(&jspec, &newer).unwrap();
+    sync_active(root, &cfg).await.unwrap();
+    assert_eq!(read(&jspec), newer, "더 새 판은 내려쓰지 않는다");
+    let seen = master_ahead_of_app(root).expect("규격이 앞서면 말한다");
+    assert_eq!(
+        (seen.from_version, seen.to_version),
+        (ahead, embedded_journal_spec_version())
+    );
+
+    // 같은 판인데 내용이 다르면(손상 · 옛 앱의 같은 번호) 여전히 수렴한다.
+    let same = format!(
+        "<!-- template_version: {} -->\n다른 내용\n",
+        embedded_journal_spec_version()
+    );
+    std::fs::write(&jspec, same).unwrap();
+    sync_active(root, &cfg).await.unwrap();
+    assert_eq!(read(&jspec), JOURNAL_SPEC_KO);
+}
+
+/// 내려쓰기 방지는 **판 번호**만 본다 — 내용을 고치고 번호를 안 올리면 옛 앱과 새 앱이 같은 번호로
+/// 서로 덮어쓴다(4.9 까지 실제로 그랬다: 제목 규칙이 v2 그대로 들어갔다). 내용이 바뀌면 이 핀이
+/// 깨진다. 고치는 법: 두 `.tpl` 첫 줄의 `template_version` 을 **올리고** 아래 셋을 새 값으로.
+#[test]
+fn journal_spec_pins() {
+    const PIN: (u32, &str, &str) = (
+        3,
+        "fc372dc190e35240235bc8b81baf8a4a027d6a7ea3eb977c26f28520be47f1f9",
+        "53f3a0f55127d484ec96a931cfb9a0d37d46d5312fe5afb8f1c2b0f7df22cec1",
+    );
+    let hash = |t: &str| blake3::hash(t.as_bytes()).to_hex().to_string();
+    assert_eq!(
+        template_version(JOURNAL_SPEC_KO),
+        template_version(JOURNAL_SPEC_EN),
+        "ko/en 규격의 판은 함께 올린다"
+    );
+    assert_eq!(
+        (
+            embedded_journal_spec_version(),
+            hash(JOURNAL_SPEC_KO).as_str(),
+            hash(JOURNAL_SPEC_EN).as_str()
+        ),
+        PIN,
+        "journal-spec 내용이 바뀌었다 — template_version 을 올리고 이 핀을 갱신할 것"
+    );
+}

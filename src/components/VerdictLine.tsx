@@ -12,9 +12,10 @@ import type { ReactNode } from "react";
 import { useT } from "@/i18n";
 import "./verdictLine.css";
 
-export type VerdictState = "pass" | "fail" | "stale";
+/** `away` — ✓ 가 다른 OS 에서 돌았고 이 기기에서는 아직이다 (11-13). 모양은 `stale` 과 같다(호박 ✓). */
+export type VerdictState = "pass" | "fail" | "stale" | "away";
 
-const WORD = { pass: "verdict.pass", fail: "verdict.fail", stale: "verdict.stale" } as const;
+const WORD = { pass: "verdict.pass", fail: "verdict.fail", stale: "verdict.stale", away: "verdict.away" } as const;
 
 export function VerdictLine({
   state,

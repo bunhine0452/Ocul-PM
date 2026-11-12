@@ -44,6 +44,14 @@ pub struct DigestPlan {
     /// 판정이 ✓ 인데 그 뒤에 다시 저장된, 이 계획이 다룬 파일 (`stale::changed_after`). 비었으면 판정이 지금도 산다.
     /// `build` 는 비워 두고 명령(`today_digest`)이 디스크를 보고 채운다.
     pub stale_files: Vec<String>,
+    /// 가장 최근 ✓ 가 **다른 OS** 에서 돌았고 이 기기에서는 그 뒤로 확인된 적이 없다 — 그 OS
+    /// (`mac`·`windows`·`linux`, `judge::ran_on`). 이때 `stale_files` 는 비운다: 「통과 뒤 바뀜」이 아니라
+    /// 「여기선 아직」이다 (2026-11-13). 선택 필드(TS `?:`).
+    #[serde(default)]
+    pub verdict_from: Option<String>,
+    /// 이 OS 에서 마지막으로 통과한 시각 — [`DigestPlan::settle`] 의 재료. 화면으로는 안 나간다.
+    #[serde(skip)]
+    pub passed_here_at: Option<String>,
     /// 다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫은 건너뛴다. `[~]` 는 다른 세션이
     /// 잡은 것으로 본다 (`/oculpm:next` 와 같은 규칙).
     pub next: Option<DigestItem>,
@@ -67,6 +75,33 @@ pub struct TodayDigest {
     /// 막힌(`[!]`) 리프.
     pub blocked: Vec<DigestItem>,
     pub journal_plan: Vec<JournalPlanLink>,
+}
+
+impl DigestPlan {
+    /// 「그 뒤 바뀐 파일」을 물을 기준 시각. 보통은 마지막 ✓ 의 시각이고, 그 ✓ 가 다른 OS 것이면 이
+    /// 기기에서 마지막으로 통과한 시각이다. ✓ 가 없거나 이 기기에서 통과한 적이 없으면 `None` — 물을 것이 없다.
+    pub fn stale_baseline(&self) -> Option<&str> {
+        let last = self.last_verdict.as_ref().filter(|v| v.passed)?;
+        match &self.verdict_from {
+            None => Some(&last.ts),
+            Some(_) => self.passed_here_at.as_deref(),
+        }
+    }
+
+    /// 기준 시각 뒤에 바뀐 파일을 받아 판정의 지금 모습을 정한다.
+    ///
+    /// 두 기기를 오갈 때의 규칙: 다른 OS 가 ✓ 를 새로 찍었어도, 이 기기에서 통과한 뒤 바뀐 파일이
+    /// 없으면 여기서도 확인된 것이다(조용). 바뀌었으면 「여기선 아직」 하나만 말한다 — 같은 계획에
+    /// 「통과 뒤 바뀜」을 겹쳐 세우지 않는다. pull 은 받은 파일의 수정 시각을 지금으로 바꾸므로,
+    /// 다른 기기에서 고친 파일은 여기서 「바뀐 것」으로 잡힌다.
+    pub fn settle(&mut self, changed: Vec<String>) {
+        if self.verdict_from.is_none() {
+            self.stale_files = changed;
+        } else if changed.is_empty() && self.passed_here_at.is_some() {
+            // 이 기기에서 통과한 적이 없으면 바뀐 것이 없어도 확인된 것이 아니다.
+            self.verdict_from = None;
+        }
+    }
 }
 
 /// 항목 문구가 사람 몫인가. 템플릿·플래너가 쓰는 대괄호 머리표만 본다.
@@ -116,6 +151,7 @@ pub fn build(mut details: Vec<PlanDetail>) -> TodayDigest {
             .iter()
             .find(|i| i.status == "todo" && !is_user_item(&i.title))
             .map(|i| item(d, i));
+        let last_pass = d.plan.last_verdict.as_ref().filter(|v| v.passed);
         out.plans.push(DigestPlan {
             plan_id: d.plan.plan_id.clone(),
             title: d.plan.title.clone(),
@@ -127,6 +163,11 @@ pub fn build(mut details: Vec<PlanDetail>) -> TodayDigest {
             check: d.check.clone(),
             last_verdict: d.plan.last_verdict.clone(),
             stale_files: Vec::new(),
+            verdict_from: last_pass
+                .and_then(|v| super::judge::ran_on(&v.summary))
+                .filter(|os| *os != super::judge::HERE)
+                .map(str::to_string),
+            passed_here_at: last_pass.and_then(|v| v.passed_here_at.clone()),
             next,
         });
         for i in &leaves {
@@ -189,6 +230,7 @@ mod tests {
                     ts: "2026-10-28T14:12:00+09:00".into(),
                     agent_id: "claude-code".into(),
                     item_id: "x".into(),
+                    passed_here_at: None,
                 }),
             },
             items,
@@ -198,6 +240,73 @@ mod tests {
             done_when: Some("끝".into()),
             check: Some("cargo test".into()),
         }
+    }
+
+    fn verdict(summary: &str, ts: &str) -> PlanVerdict {
+        PlanVerdict {
+            passed: true,
+            summary: summary.into(),
+            ts: ts.into(),
+            agent_id: "claude-code".into(),
+            item_id: "x".into(),
+            passed_here_at: None,
+        }
+    }
+
+    /// 두 기기 (2026-11-13) — 다른 OS 의 ✓ 는 「여기선 아직」이고, 이 기기에서 통과한 뒤 바뀐 것이
+    /// 없으면 조용하다. 「통과 뒤 바뀜」과 겹치지 않는다.
+    #[test]
+    fn a_pass_from_another_os_is_not_a_pass_here() {
+        use crate::oculpm::planner::judge::HERE;
+        let other = if HERE == "mac" { "windows" } else { "mac" };
+        let elsewhere = verdict(&format!("12 passed · {other}"), "2026-11-13T12:00:00+09:00");
+        let here = verdict(&format!("12 passed · {HERE}"), "2026-11-13T09:00:00+09:00");
+        let one = |last: &PlanVerdict, last_here: Option<&PlanVerdict>| {
+            let mut p = plan("a", "active", "2026-11-13", vec![]);
+            let mut last = last.clone();
+            last.passed_here_at = last_here.map(|v| v.ts.clone());
+            p.plan.last_verdict = Some(last);
+            build(vec![p]).plans.remove(0)
+        };
+
+        // 이 기기에서 돌린 적이 없다 — 물을 기준이 없고, 그대로 「여기선 아직」.
+        let mut p = one(&elsewhere, None);
+        assert_eq!(p.verdict_from.as_deref(), Some(other));
+        assert_eq!(p.stale_baseline(), None);
+        p.settle(Vec::new());
+        assert_eq!(p.verdict_from.as_deref(), Some(other));
+
+        // 이 기기에서 통과한 뒤 바뀐 것이 없다 — 다른 기기가 다시 돌렸을 뿐이다.
+        let mut p = one(&elsewhere, Some(&here));
+        assert_eq!(p.stale_baseline(), Some(here.ts.as_str()));
+        p.settle(Vec::new());
+        assert_eq!(p.verdict_from, None);
+        assert!(p.stale_files.is_empty());
+
+        // 그 뒤 파일이 바뀌었다(다른 기기의 변경을 pull) — 「여기선 아직」 하나만.
+        let mut p = one(&elsewhere, Some(&here));
+        p.settle(vec!["src/a.rs".into()]);
+        assert_eq!(p.verdict_from.as_deref(), Some(other));
+        assert!(
+            p.stale_files.is_empty(),
+            "「통과 뒤 바뀜」을 겹쳐 세우지 않는다"
+        );
+
+        // 이 기기의 ✓ 는 옛 그대로 — 기준은 그 ✓, 바뀐 파일은 「통과 뒤 바뀜」.
+        let mut p = one(&here, Some(&here));
+        assert_eq!(p.verdict_from, None);
+        assert_eq!(p.stale_baseline(), Some(here.ts.as_str()));
+        p.settle(vec!["src/a.rs".into()]);
+        assert_eq!(p.stale_files, ["src/a.rs"]);
+
+        // 실패한 판정은 어디서 돌았든 실패 줄이다.
+        let mut failed = elsewhere.clone();
+        failed.passed = false;
+        let p = one(&failed, None);
+        assert_eq!(
+            (p.verdict_from.as_deref(), p.stale_baseline()),
+            (None, None)
+        );
     }
 
     #[test]

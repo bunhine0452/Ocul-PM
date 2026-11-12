@@ -40,6 +40,7 @@ impl Default for OculpmConfig {
     fn default() -> Self {
         Self {
             schema_version: 1,
+            project_color: None,
             workday: WorkdayConfig::default(),
             session: SessionConfig::default(),
             git: GitConfig::default(),
@@ -112,6 +113,14 @@ impl Default for AgentsConfig {
 }
 
 impl OculpmConfig {
+    /// `project_color` 가 「색 없음을 골랐다」를 뜻하는 값 — 키가 없는 것(정한 적 없음)과 다르다.
+    pub const PROJECT_COLOR_NONE: &'static str = "none";
+
+    /// 디스크의 `config.toml` 에 적힌 프로젝트 색 원문. 파일이 없거나 안 읽히면 `None`.
+    pub fn disk_project_color(path: &Path) -> Option<String> {
+        Self::load(path).ok()?.project_color
+    }
+
     /// Conservative defaults for a freshly-initialised project.
     /// See `phases/README.md` §0.2 and `00-spec.md` §5.
     pub fn default_for_new_project() -> Self {
@@ -487,6 +496,36 @@ mod tests {
             900,
             "값은 확실히 바뀌어야 한다"
         );
+    }
+
+    /// 프로젝트 색 (11-13) — 이미 있는 파일에 맨 위 키로 들어가고(표 뒤에 오면 그 표의 키가 된다),
+    /// 주석은 그대로다. 모르는 색은 설정을 못 읽게 하지 않는다. 고르기 전에는 키를 쓰지 않는다.
+    #[test]
+    fn project_color_is_a_top_level_key_that_keeps_comments() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let cfg = OculpmConfig::default_for_new_project();
+        cfg.save(&path).expect("first save");
+        let annotated = std::fs::read_to_string(&path)
+            .unwrap()
+            .replace("[watcher]", "# 살아남을 주석\n[watcher]");
+        assert!(!annotated.contains("project_color"));
+        std::fs::write(&path, &annotated).unwrap();
+
+        let mut colored = cfg.clone();
+        colored.project_color = Some("teal".into());
+        colored.save(&path).expect("save with a color");
+        let after = std::fs::read_to_string(&path).unwrap();
+        assert!(after.contains("# 살아남을 주석"), "{after}");
+        assert!(
+            after.find("project_color = \"teal\"").unwrap() < after.find("[workday]").unwrap(),
+            "{after}"
+        );
+        assert_eq!(OculpmConfig::load(&path).unwrap(), colored);
+
+        let newer = after.replace("\"teal\"", "\"a-color-from-a-newer-app\"");
+        let read = OculpmConfig::from_toml_str(&newer).expect("모르는 색도 읽힌다");
+        read.validate().expect("검증에서 떨어뜨리지 않는다");
     }
 
     /// 배열 원소 사이에 낀 주석 — 실제 사고 현장의 모양 그대로.

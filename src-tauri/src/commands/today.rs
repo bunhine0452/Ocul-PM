@@ -22,7 +22,8 @@ pub async fn today_digest(db: State<'_, Db>, project_id: u32) -> Result<TodayDig
 }
 
 /// 판정 ✓ 인 계획마다 그 뒤에 다시 저장된 파일을 채운다 (`stale`). 캐시를 못 읽으면 그 계획은
-/// 비워 둔다 — 모르는 것을 낡았다고 하지 않는다.
+/// 비워 둔다 — 모르는 것을 낡았다고 하지 않는다. 기준 시각과 다른 OS 의 ✓ 를 다루는 규칙은
+/// `DigestPlan::stale_baseline` · `settle` 에 있다.
 async fn mark_stale(db: &Db, project_id: u32, out: &mut TodayDigest) {
     let Ok(project) = db.get_project(project_id).await else {
         return;
@@ -30,7 +31,7 @@ async fn mark_stale(db: &Db, project_id: u32, out: &mut TodayDigest) {
     let root = std::path::PathBuf::from(&project.root_path);
     let cache = JournalCache::new(db);
     for plan in &mut out.plans {
-        let Some(v) = plan.last_verdict.as_ref().filter(|v| v.passed) else {
+        let Some(since) = plan.stale_baseline().map(str::to_string) else {
             continue;
         };
         let refs: Vec<String> = out
@@ -42,12 +43,31 @@ async fn mark_stale(db: &Db, project_id: u32, out: &mut TodayDigest) {
         let Ok(files) = cache.files_for_entry_paths(project_id, &refs).await else {
             continue;
         };
-        let (root, ts) = (root.clone(), v.ts.clone());
-        plan.stale_files =
-            tokio::task::spawn_blocking(move || stale::changed_after(&root, &files, &ts))
+        let root = root.clone();
+        let changed =
+            tokio::task::spawn_blocking(move || stale::changed_after(&root, &files, &since))
                 .await
                 .unwrap_or_default();
+        plan.settle(changed);
     }
+}
+
+/// 이 기기에만 있는 것 — 커밋 안 한 변경(그중 기록) · 어느 리모트에도 없는 커밋 (`git::local_only`).
+/// git 저장소가 아니거나 리모트가 없으면 `None`. git 은 읽기만 · 네트워크 0.
+#[tauri::command]
+#[specta::specta]
+pub async fn today_local_only(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Option<crate::git::local_only::LocalOnly>, String> {
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let root = std::path::PathBuf::from(project.root_path);
+    tokio::task::spawn_blocking(move || crate::git::local_only::local_only(&root))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 그날 일지 중 동료가 git 으로 더한 것과 그 사람 (`git::authors`). 기록을 안 올리는 저장소면 빈 목록.

@@ -272,6 +272,7 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
     ("git/authors_tests.rs", "동료 일지 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("git/receipt_tests.rs", "PR 영수증 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("git/spawn_count_tests.rs", "git 기동 수를 재는 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
+    ("git/local_only_tests.rs", "「이 기기에만」 시험용 임시 저장소를 만드는 로컬 git 픽스처 — 리모트 가지는 올리지 않고 update-ref 로 세운다.", &[("git", "std_cmd(\"git\")")]),
     ("git/tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("oculpm/entry_diffs_tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("oculpm/index/tests.rs", "임시 저장소를 만드는 로컬 git 픽스처.", &[("git_in", "std_cmd(\"git\")")]),

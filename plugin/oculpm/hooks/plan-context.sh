@@ -86,11 +86,29 @@ tab='	' # 탭 한 글자 — `$(printf '\t')` 도 프로세스 하나라 글자�
 # (`planner/judge.rs` 의 `^(판정|verdict) (✓|✗)`)이 **공유하는 형식**이다 — 한쪽만 바꾸면 판정이 적혀도
 # 아무도 못 읽는다. 셀 안 `|` 는 `\|` 로 온다. LC_ALL=C 로 바이트를 세고(세 OS 의 awk 가 같은 수를
 # 낸다) UTF-8 글자 중간에서는 끊지 않는다.
+#
+# 판정 끝의 ` · mac|windows|linux` 는 확인 명령을 돌린 OS 다 (plan_update 가 붙인다 — 앱의 `judge::ran_on`
+# 과 같은 꼴). 같은 저장소를 두 OS 에서 번갈아 쓰면 다른 OS 의 ✓ 가 이 기기의 ✓ 처럼 읽힌다 — 표시가
+# 이 기기와 다르면 그 사실을 한마디 붙인다. 표시가 없는 옛 줄 · 모르는 OS 에서는 아무 말도 안 한다.
+# bash 면 `OSTYPE` 으로 안다(프로세스 0 — Git Bash 가 여기다). 다른 sh 에서만 uname 을 띄운다.
+case "${OSTYPE:-}" in
+  darwin*) here_os=mac ;;
+  linux*) here_os=linux ;;
+  msys* | cygwin*) here_os=windows ;;
+  *)
+    case "$(uname -s 2>/dev/null)" in
+      Darwin) here_os=mac ;;
+      Linux) here_os=linux ;;
+      MINGW* | MSYS* | CYGWIN*) here_os=windows ;;
+      *) here_os="" ;;
+    esac
+    ;;
+esac
 plan_blocks() {
   _mode=$1
   shift
   [ $# -gt 0 ] || return 0
-  LC_ALL=C awk -v mode="$_mode" '
+  LC_ALL=C awk -v mode="$_mode" -v here="$here_os" '
     function clip(s, max,   p) {
       if (length(s) > max) {
         p = max
@@ -99,13 +117,19 @@ plan_blocks() {
       }
       return s
     }
-    function verdict_line(   s, w) {
+    function verdict_line(   s, w, os, away) {
       if (v == "") return ""
       s = v; gsub(/\001/, "|", s)
+      # 자르기 전에 본다 — 표시는 끝에 있다. " · " 는 바이트로 넷(가운뎃점이 둘).
+      away = ""
+      if (here != "" && match(s, / · (mac|windows|linux)$/)) {
+        os = substr(s, RSTART + 4)
+        if (os != here) away = " (" os " 에서 돌린 것 — 이 기기에서는 아직 안 돌렸다)"
+      }
       s = clip(s, 160)
       w = ""
       if (ts ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]/) w = " · " substr(ts, 6, 5) " " substr(ts, 12, 5)
-      return "마지막 판정: " s w
+      return "마지막 판정: " s w away
     }
     function emit(   name, i, nmax, vl, line) {
       if (f == "") return

@@ -133,6 +133,8 @@ const TESTS = new Set([
   "__tests__/terminal_pane_nav.test.ts",
   // 판정 뒤 바뀜 — 한국어 테스트 이름.
   "__tests__/today_stale.test.ts",
+  // 「이 기기에만」 한 줄 — 한국어 테스트 이름과, 사전을 거쳐 그려진 문장을 그대로 문다.
+  "__tests__/today_local_only.test.tsx",
   // PR 영수증 — 한국어 테스트 이름과 일지 제목 픽스처.
   "__tests__/diff_receipt.test.ts",
   "__tests__/settings_page.test.tsx",

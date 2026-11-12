@@ -33,10 +33,10 @@ import { toast } from "@/lib/toast";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
 import { TodayExceptions } from "./TodayExceptions";
-import { LiveCard, MineLine, NextCard } from "./TodaySide";
+import { LiveCard, LocalOnlyLine, MineLine, NextCard } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
 import { Num } from "./todayFormat";
-import { firstNext, splitExceptions, type TodayException } from "./todayModel";
+import { firstNext, osLabel, splitExceptions, type TodayException } from "./todayModel";
 import { useTodayExceptions } from "./useTodayExceptions";
 import { liveSessionsOf, useLiveSessions } from "./useLiveSessions";
 import "./today.css";
@@ -174,6 +174,11 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
               files: ex.files.slice(0, 8).join(", "),
             }),
           ).catch(() => {});
+        case "elsewhere":
+          return void runPromptInTerminal(
+            projectId,
+            t("today.check.recheckHerePrompt", { plan: ex.plan.plan_id, check: ex.plan.check ?? "", os: osLabel(ex.os) }),
+          ).catch(() => {});
         case "evidence":
           return openEntry(ex.entry);
         case "unrecorded":
@@ -294,6 +299,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                   <TodayExceptions part="first" {...exceptionProps} />
                   {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onRun={() => void runNext()} /> : null}
                   {split && split.mine.length > 0 ? <MineLine mine={split.mine} onOpen={openPlan} /> : null}
+                  <LocalOnlyLine local={data.localOnly} onOpen={() => onNavigate("diff")} />
                   <LiveCard sessions={live} now={now} />
                   {/* 단축키는 늘 떠 있는 크롬이 아니라 해야 할 것 칸 끝의 한 줄이다 — 윗줄은 탭과 동작만.
                       두 칸 아래에 따로 두면 오른쪽 칸 길이만큼 떨어져 홀로 떠 있었다(11-04). */}

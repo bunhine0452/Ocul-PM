@@ -163,3 +163,40 @@ fn omitted_check_is_inferred_from_manifests_and_announced() {
         "{out}"
     );
 }
+
+/// 두 기기 (2026-11-13) — 판정 메모에는 돌린 OS 가 붙는다. 다른 메모는 그대로다.
+#[test]
+fn plan_update_marks_a_verdict_with_the_os_it_ran_on() {
+    use crate::oculpm::planner::judge::HERE;
+    let dir = TempDir::new().unwrap();
+    std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
+    let out = call_tool(
+        dir.path(),
+        "plan_create",
+        &serde_json::json!({
+            "plan_id": "marked",
+            "title": "표시 플랜",
+            "phases": [{ "title": "단계", "items": [{ "text": "하나", "id": "one" }, { "text": "둘", "id": "two" }] }]
+        }),
+    )
+    .unwrap();
+    let path = dir.path().join(out["path"].as_str().unwrap());
+    let first = call_tool(
+        dir.path(),
+        "plan_update",
+        &serde_json::json!({ "plan_id": "marked", "item_id": "one", "status": "done", "base_hash": out["hash"], "note": "판정 ✓ 12 passed" }),
+    )
+    .unwrap();
+    call_tool(
+        dir.path(),
+        "plan_update",
+        &serde_json::json!({ "plan_id": "marked", "item_id": "two", "status": "in_progress", "base_hash": first["hash"], "note": "그냥 메모" }),
+    )
+    .unwrap();
+    let md = std::fs::read_to_string(path).unwrap();
+    assert!(
+        md.contains(&format!("| 판정 ✓ 12 passed · {HERE} |")),
+        "{md}"
+    );
+    assert!(md.contains("| 그냥 메모 |"), "{md}");
+}

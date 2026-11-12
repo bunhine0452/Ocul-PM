@@ -478,14 +478,40 @@ fn ensure_master_template(root: &Path, lang: &str) -> Result<String, OculpmError
 /// `.oculpm/agents/journal-spec.md` — 마스터 §3 이 "도구가 없을 때만 읽으라" 고 가리키는 일지·플랜
 /// 파일 규격. v19(2026-10-28)에서 마스터의 일지 절을, v20 에서 플랜 수동 형식을 여기로 뺐다 — 매 세션
 /// 실리는 규칙은 짧아야 하고, 도구가 있는 세션은 이 규격을 읽을 일이 없다. `_template.md` 와 달리
-/// 사용자 편집을 보존하지 않는 **앱 관리 파일**이다 — 항상 임베디드 내용으로 수렴한다.
+/// 사용자 편집을 보존하지 않는 **앱 관리 파일**이다 — 임베디드 내용으로 수렴한다.
+///
+/// 단, **더 새 판은 내려쓰지 않는다** (2026-11-13, 플랜 `two-machines-20261113`). `.oculpm/agents/` 는
+/// 저장소에 올라가므로, 두 기기의 앱 버전이 다르면 서로 자기 판으로 되돌려 써서 작업 트리가 늘
+/// 더럽고 pull 이 「로컬 변경」에 막혔다. 디스크의 `template_version` 이 이 앱이 아는 것보다 크면
+/// 손대지 않는다 — 관리 블록의 `SkippedNewer` 와 같은 규칙이고, 알림은 [`master_ahead_of_app`] 이 한다.
+/// 그래서 **규격 내용을 고치면 반드시 버전을 올린다** (`journal_spec_pins` 테스트가 지킨다) — 같은
+/// 버전에 내용만 다르면 어느 쪽이 새것인지 알 길이 없어 옛 동작(덮어쓰기)으로 돌아간다.
 fn ensure_journal_spec(root: &Path, lang: &str) -> Result<(), OculpmError> {
-    let path = root.join(".oculpm").join("agents").join("journal-spec.md");
+    let path = journal_spec_path(root);
     let embedded = embedded_journal_spec(lang);
     match std::fs::read(&path) {
         Ok(cur) if cur == embedded.as_bytes() => Ok(()),
+        Ok(cur)
+            if template_version(&String::from_utf8_lossy(&cur))
+                > embedded_journal_spec_version() =>
+        {
+            tracing::warn!(
+                path = %path.display(),
+                "journal-spec has a newer version — write skipped (downgrade guard)"
+            );
+            Ok(())
+        }
         _ => write_atomic(&path, embedded.as_bytes()),
     }
+}
+
+fn journal_spec_path(root: &Path) -> std::path::PathBuf {
+    root.join(".oculpm").join("agents").join("journal-spec.md")
+}
+
+/// 이 앱에 든 일지·플랜 규격의 판 (ko · en 은 늘 같다 — 패리티 테스트).
+pub fn embedded_journal_spec_version() -> u32 {
+    template_version(JOURNAL_SPEC_KO)
 }
 
 // ─── master template versioning (upgrade existing projects) ──────────────────
@@ -541,15 +567,20 @@ pub fn master_upgrade_available(root: &Path) -> Option<MasterUpgrade> {
 ///
 /// 고치지는 않는다 — 앱을 업데이트하는 것 말고 할 수 있는 일이 없다. 대신
 /// 말한다.
+///
+/// 일지·플랜 규격(`journal-spec.md`)도 같은 물음이다 (2026-11-13): 다른 기기의 더 새 앱이 쓴 규격을
+/// 이 앱은 내려쓰지 않고 둔다([`ensure_journal_spec`]) — 마스터가 같아도 규격이 앞서면 그것을 말한다.
 pub fn master_ahead_of_app(root: &Path) -> Option<MasterUpgrade> {
-    let path = root.join(".oculpm").join("agents").join("_template.md");
-    let on_disk = std::fs::read_to_string(&path).ok()?;
-    let from = template_version(&on_disk);
-    let to = embedded_template_version();
-    (from > to).then_some(MasterUpgrade {
-        from_version: from,
-        to_version: to,
-    })
+    let ahead = |path: std::path::PathBuf, known: u32| {
+        let from = template_version(&std::fs::read_to_string(path).ok()?);
+        (from > known).then_some(MasterUpgrade {
+            from_version: from,
+            to_version: known,
+        })
+    };
+    let master = root.join(".oculpm").join("agents").join("_template.md");
+    ahead(master, embedded_template_version())
+        .or_else(|| ahead(journal_spec_path(root), embedded_journal_spec_version()))
 }
 
 /// Replace the on-disk master with the embedded one, backing up the previous

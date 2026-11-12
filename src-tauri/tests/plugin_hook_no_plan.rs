@@ -288,6 +288,41 @@ fn the_most_recent_verdict_row_is_shipped_in_place_of_one_item() {
     );
 }
 
+/// 두 기기 (2026-11-13) — 판정 끝의 OS 표시가 이 기기와 다르면 「여기서는 아직」을 붙인다. 같거나
+/// 표시가 없으면(옛 줄) 아무 말도 붙이지 않는다. 표시의 꼴은 앱의 `judge::ran_on` 과 같다.
+#[test]
+fn a_verdict_from_another_os_says_it_has_not_run_here() {
+    let here = if cfg!(target_os = "macos") {
+        "mac"
+    } else if cfg!(windows) {
+        "windows"
+    } else {
+        "linux"
+    };
+    let other = if here == "mac" { "windows" } else { "mac" };
+    let away = "에서 돌린 것 — 이 기기에서는 아직 안 돌렸다";
+    let shipped = |note: &str| {
+        let p = project();
+        let row = format!("| 2026-11-13T10:00:00+09:00 | #i1 | claude-code | ☐→x |  | {note} |");
+        write(p.path(), ".oculpm/planner/v.md", &plan_with_log(2, &[&row]));
+        context(p.path())
+    };
+
+    let text = shipped(&format!("판정 ✓ 12 passed · {other}"));
+    let line = format!("마지막 판정: ✓ 12 passed · {other} · 11-13 10:00 ({other} {away})");
+    assert!(text.contains(&line), "{text}");
+
+    let text = shipped(&format!("판정 ✓ 12 passed · {here}"));
+    assert!(
+        text.contains(&format!("✓ 12 passed · {here} · 11-13 10:00")),
+        "{text}"
+    );
+    assert!(!text.contains(away), "{text}");
+
+    let text = shipped("판정 ✓ 12 passed");
+    assert!(text.contains(VERDICT) && !text.contains(away), "{text}");
+}
+
 /// 항목이 전부 닫힌 플랜은 「판정 후 닫기」 줄 끝에 판정을 붙인다 — en 접두(`verdict ✗`)도 읽는다.
 #[test]
 fn a_closed_plan_line_carries_its_verdict_in_either_language() {

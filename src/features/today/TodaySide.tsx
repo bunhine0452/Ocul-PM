@@ -10,7 +10,7 @@ import { SquareTerminal } from "@/components/Icons";
 import { agentLabel } from "@/features/today/agentColor";
 import { useT } from "@/i18n";
 import { relativeTime } from "@/lib/format";
-import type { DigestItem, DigestPlan } from "@/lib/bindings";
+import type { DigestItem, DigestPlan, LocalOnly } from "@/lib/bindings";
 import type { TodaySplit } from "./todayModel";
 import type { LiveSession } from "./useLiveSessions";
 import { QUIET_MINUTES } from "./useLiveSessions";
@@ -103,6 +103,30 @@ export function MineLine({ mine, onOpen }: { mine: TodaySplit["mine"]; onOpen: (
       {t("today.mine.line", { p: mine.length, n })}
       <button type="button" className="tdy-link" onClick={() => onOpen(mine[0].planId)}>
         {t("today.mine.open")}
+      </button>
+    </p>
+  );
+}
+
+/**
+ * 이 기기에만 — 커밋 안 한 변경(그중 기록)과 안 올린 커밋을 한 줄로 (11-13, 두 기기를 오갈 때).
+ * 올리지 않은 일지는 다른 기기의 Claude 에게 없는 일이다. 일하는 중에는 늘 있는 것이라 「먼저 볼 것」의
+ * 행도 배지의 수도 아니다 — 「내 차례」처럼 수만 말하고 변경 화면으로 보낸다. 없으면 그리지 않는다.
+ */
+export function LocalOnlyLine({ local, onOpen }: { local: LocalOnly | null; onOpen: () => void }) {
+  const { t } = useT();
+  if (!local || (local.uncommitted === 0 && local.unpushed === 0)) return null;
+  const parts: string[] = [];
+  if (local.uncommitted > 0) {
+    const changes = t("today.local.uncommitted", { n: local.uncommitted });
+    parts.push(local.records > 0 ? `${changes} (${t("today.local.records", { n: local.records })})` : changes);
+  }
+  if (local.unpushed > 0) parts.push(t("today.local.unpushed", { n: local.unpushed }));
+  return (
+    <p className="tdy-mine" title={t("today.local.hint")}>
+      {t("today.local.lead")} · {parts.join(" · ")}
+      <button type="button" className="tdy-link" onClick={onOpen}>
+        {t("today.local.open")}
       </button>
     </p>
   );

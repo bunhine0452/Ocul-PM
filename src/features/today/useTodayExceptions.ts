@@ -22,7 +22,7 @@ import { useJournalEvents, useOculpmDataEvents } from "@/features/oculpm/useOcul
 import { useWindowTerms } from "@/features/terminal/status";
 import { tError } from "@/i18n/errors";
 import { safeUnlisten } from "@/lib/unlisten";
-import type { ClaudeQuestion, ClaudeWaiting, JournalEntrySummary, JournalMissingSignal, TodayDigest } from "@/lib/bindings";
+import type { ClaudeQuestion, ClaudeWaiting, JournalEntrySummary, JournalMissingSignal, LocalOnly, TodayDigest } from "@/lib/bindings";
 import { buildExceptions, splitExceptions, workdayStartMs, type TodayException } from "./todayModel";
 
 interface Loaded<T> {
@@ -76,6 +76,8 @@ export interface TodayData {
   pluginBehind: { installed: string; bundled: string } | null;
   /** 오늘 일지 중 동료가 git 으로 더한 것 — 일지 경로 → 그 사람. 못 읽으면 빈 표. */
   teammates: ReadonlyMap<string, string>;
+  /** 이 기기에만 있는 것(커밋 안 한 변경 · 안 올린 커밋). 리모트가 없거나 못 읽으면 `null`. */
+  localOnly: LocalOnly | null;
 }
 
 export interface TodayExceptionsResult {
@@ -158,6 +160,12 @@ export function useTodayExceptions(
     return new Map((rows ?? []).map((r) => [r.path, r.author]));
   });
 
+  // 이 기기에만 있는 것 (11-13) — 일지 · 계획이 바뀔 때와 창으로 돌아올 때(그 사이 커밋 · 올리기) 다시 센다.
+  const focusTick = useWindowFocusTick(enabled);
+  const local = useLoad(enabled ? `${projectId}|${journalTick}|${planTick}|${manualTick}|${focusTick}` : null, () =>
+    planApi.todayLocalOnly(projectId).catch(() => null),
+  );
+
   const plugin = useLoad(enabled ? String(projectId) : null, () => claudeInstallApi.pluginStatus(projectId));
 
   const [verifiedLocally, setVerifiedLocally] = useState<ReadonlySet<string>>(new Set());
@@ -186,6 +194,7 @@ export function useTodayExceptions(
     silent: silent.value ?? null,
     pluginBehind,
     teammates: team.value ?? NO_TEAM,
+    localOnly: local.value ?? null,
   };
 
   // 보조 재료 셋(기록 없는 파일·조용한 대화·플러그인)도 처음 한 번은 답을 기다린다 —
@@ -217,6 +226,18 @@ export function useTodayExceptions(
     refresh,
     markVerified,
   };
+}
+
+/** 창이 다시 앞에 올 때마다 하나 오른다 — 터미널에서 커밋하고 돌아온 뒤의 수를 다시 읽는 데 쓴다. */
+function useWindowFocusTick(enabled: boolean): number {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    const bump = () => setTick((n) => n + 1);
+    window.addEventListener("focus", bump);
+    return () => window.removeEventListener("focus", bump);
+  }, [enabled]);
+  return tick;
 }
 
 /** 바깥 터미널의 Claude 기다림 (플러그인 Notification 훅) — 처음 한 번, 이 프로젝트의 기다림이 바뀌면 다시. */

@@ -305,6 +305,9 @@ impl OculpmManager {
             .ok_or(OculpmError::NotInitialized(project_id))?;
 
         let config_path = entry.root.join(".oculpm").join("config.toml");
+        // 색은 이 길로 바뀌지 않는다 — 디스크의 값을 지킨다 (`project_color.rs`).
+        let mut new_config = new_config;
+        new_config.project_color = OculpmConfig::disk_project_color(&config_path);
         new_config.save(&config_path)?;
         entry.config = new_config;
         entry.resolver = new_resolver;
