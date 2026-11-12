@@ -24,12 +24,14 @@ owner: claude-code
 
 ## 오늘 화면 {#today}
 - [x] 이 기기에만 있는 것 한 줄 {#local-only}
+- [x] 「이 기기에만」 줄에서 올리기를 Claude 에게 맡긴다 {#handoff}
+- [x] 리모트와 주고받은 지 N일 — 다른 곳의 기록을 받은 적이 있는 저장소에만 {#synced}
 
 ## 프로젝트 색 {#color}
 - [x] 프로젝트 색을 config.toml 로 옮긴다 {#color-config}
 
 ## 이월 {#carry}
-- [ ] 도착 줄 — 다른 기기에서 한 일 N건 {#arrival}
+- [x] 도착 줄 — 다른 기기에서 한 일 N건 {#arrival}
 - [ ] [사용자] 윈도우·맥 설치본에서 눈 확인 {#eyes}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -43,4 +45,7 @@ owner: claude-code
 | 2026-11-13T00:58:58+09:00 | #local-only | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0058_feature_two-machines-round.md | 행이 아니라 한 줄 · 배지에 안 센다 · 받아 오지 않는다 |
 | 2026-11-13T00:59:02+09:00 | #color-config | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0058_feature_two-machines-round.md | 판정 ✓ pnpm test 1083 passed · cargo test 1127 passed 0 failed · typecheck/lint/build/clippy exit 0 · 설치본 눈 확인은 안 함 · mac |
 | 2026-11-13T01:05:29+09:00 | #color-config | claude-code | x→x | .oculpm/journal/20261113/Features_to_add/0058_feature_two-machines-round.md | 판정 ✓ v4.9.3 위로 리베이스한 뒤 pnpm test 1105 passed · cargo test 1150 passed 0 failed · typecheck/lint/build/clippy exit 0 · mac |
+| 2026-11-13T05:27:18+09:00 | #handoff | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0527_feature_two-machines-handoff-arrived.md | 「올리기 맡기기」 — 앱은 올리지 않고 앱 안 터미널의 Claude 에게 넘긴다 |
+| 2026-11-13T05:27:22+09:00 | #synced | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0527_feature_two-machines-handoff-arrived.md | 24시간 넘게 안 주고받았을 때만 · 다른 곳의 일지를 받은 적 없는 저장소는 조용 |
+| 2026-11-13T05:27:26+09:00 | #arrival | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0527_feature_two-machines-handoff-arrived.md | 판정 ✓ pnpm test 1109 passed · cargo test 1157 passed 0 failed · typecheck/lint/build/clippy exit 0 · 설치본 눈 확인은 안 함 |
 <!-- oculpm:plan-log end -->
