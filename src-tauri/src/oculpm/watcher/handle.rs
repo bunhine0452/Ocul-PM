@@ -322,6 +322,10 @@ impl WatcherInner {
                 target: "oculpm::watcher",
                 "config.toml changed — watcher restart deferred to W4"
             );
+            // 프로젝트 색은 이 파일을 따라 다른 기기에서 온다 — 창이 다시 맞추게 알린다
+            // (`sync_project_color`). 워처 설정 자체는 여전히 다음에 열 때 읽힌다.
+            let op = classify_journal_op(&ev.event.kind);
+            self.emit_data_changed(OculpmDataArea::Config, &rel_str, op);
             return;
         }
 

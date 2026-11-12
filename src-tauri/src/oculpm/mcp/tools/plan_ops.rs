@@ -402,7 +402,10 @@ pub(crate) fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
         from: Some(result.old_status),
         to: Some(new_status),
         journal_ref: arg_str(args, "journal_path").map(|s| redact_text(s, &patterns).0),
-        note: arg_str(args, "note").map(|s| redact_text(s, &patterns).0),
+        // 판정 메모에는 돌린 OS 를 붙인다 — 다른 기기의 앱이 「여기선 아직」을 가린다 (`judge::stamp`).
+        note: arg_str(args, "note")
+            .map(|s| redact_text(s, &patterns).0)
+            .map(|s| crate::oculpm::planner::judge::stamp(&s, crate::oculpm::planner::judge::HERE)),
     };
     // 로그 표가 넘쳤으면 여기서 `<plan_id>.log.md` 로 갈라진다 — 본문 해시가
     // 바뀌는 것은 정상이고, 아래 응답의 `hash` 는 갈라진 뒤 내용을 가리킨다.

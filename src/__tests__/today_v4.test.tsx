@@ -46,6 +46,7 @@ const fx = vi.hoisted(() => ({
   verifyCalls: [] as Array<[string, boolean]>,
   dispatchCalls: [] as Array<[string, string]>,
   teammates: [] as Array<{ path: string; author: string }>,
+  localOnly: null as unknown,
 }));
 
 // 「다음」 은 앱 안 터미널에서 실행된다 — 터미널(xterm)은 띄우지 않고 넘긴 프롬프트만 본다.
@@ -78,6 +79,8 @@ vi.mock("@/lib/bindings", () => {
               return () => ok(fx.digest);
             case "todayTeammates":
               return () => ok(fx.teammates);
+            case "todayLocalOnly":
+              return () => ok(fx.localOnly);
             case "oculpmCompareWorkday":
               return () =>
                 fx.compareFails
@@ -243,11 +246,42 @@ beforeEach(() => {
   fx.verifyCalls = [];
   fx.dispatchCalls = [];
   fx.teammates = [];
+  fx.localOnly = null;
   Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true });
 });
 afterEach(() => cleanup());
 
 describe("확인할 것 — 종류와 순서", () => {
+  it("다른 OS 에서 받은 ✓ 는 「여기선 아직」 — 다시 확인은 이 기기에서 돌리라고 넘긴다 (11-13)", async () => {
+    fx.digest = digest({
+      plans: [
+        plan("a", {
+          last_verdict: { passed: true, summary: "12 passed · mac", ts: "2026-11-13T10:00:00+09:00", agent_id: "claude-code", item_id: "x" },
+          verdict_from: "mac",
+        }),
+      ],
+    });
+    renderToday();
+    await waitFor(() => expect(pills()).toEqual([t("today.check.kind.elsewhere")]));
+    const row = within(checkCard()).getByRole("listitem");
+    expect(row.textContent).toContain("12 passed · mac");
+    expect(row.textContent).toContain(t("today.check.elsewhereSub", { os: "macOS" }));
+    runs.length = 0;
+    fireEvent.click(within(row).getByRole("button", { name: t("today.check.recheck") }));
+    await waitFor(() => expect(runs).toHaveLength(1));
+    expect(runs[0]).toBe(t("today.check.recheckHerePrompt", { plan: "a", check: "pnpm test", os: "macOS" }));
+  });
+
+  it("이 기기에만 있는 것은 행이 아니라 한 줄 — 배지에 안 세고, 누르면 변경 화면 (11-13)", async () => {
+    fx.localOnly = { uncommitted: 5, records: 2, unpushed: 3 };
+    const { onNavigate, container } = renderToday();
+    const open = await screen.findByRole("button", { name: t("today.local.open") });
+    expect(container.textContent).toContain(t("today.local.unpushed", { n: 3 }));
+    expect(within(checkCard()).queryAllByRole("listitem")).toHaveLength(0);
+    fireEvent.click(open);
+    expect(onNavigate).toHaveBeenCalledWith("diff");
+  });
+
   it("동료가 git 으로 올린 일지는 그 사람 이름을 단다 — 내 에이전트의 일이 아니다", async () => {
     const theirs = entry(1, { type: "bug", evidence: 0, title: "동료의 버그 수정" });
     fx.entries = [theirs, entry(2, { type: "bug", evidence: 0, title: "내 버그 수정" })];

@@ -20,7 +20,7 @@ import { stripUserTag } from "@/features/planner/planMeta";
 import { sessionWord } from "@/features/terminal/status";
 import { blocked } from "@/lib/blocked";
 import { whenLabel } from "@/lib/whenLabel";
-import type { ExceptionKind, TodayException, TodaySplit } from "./todayModel";
+import { osLabel, type ExceptionKind, type TodayException, type TodaySplit } from "./todayModel";
 
 const PILL: Record<ExceptionKind, { key: I18nKey; tone: string }> = {
   question: { key: "today.check.kind.question", tone: "warn" },
@@ -28,6 +28,7 @@ const PILL: Record<ExceptionKind, { key: I18nKey; tone: string }> = {
   hookWaiting: { key: "today.check.kind.waiting", tone: "warn" },
   verdict: { key: "today.check.kind.verdict", tone: "danger" },
   stale: { key: "today.check.kind.stale", tone: "warn" },
+  elsewhere: { key: "today.check.kind.elsewhere", tone: "warn" },
   evidence: { key: "today.check.kind.evidence", tone: "warn" },
   unrecorded: { key: "today.check.kind.unrecorded", tone: "warn" },
   silent: { key: "today.check.kind.unrecorded", tone: "warn" },
@@ -42,6 +43,7 @@ const PRIMARY: Record<ExceptionKind, I18nKey> = {
   hookWaiting: "today.check.dismissWaiting",
   verdict: "today.check.openOutput",
   stale: "today.check.recheck",
+  elsewhere: "today.check.recheck",
   evidence: "today.check.diff",
   unrecorded: "today.check.viewChanges",
   silent: "today.check.viewChanges",
@@ -93,6 +95,12 @@ function useRowText(ex: TodayException): { title: string; meta: string; mono: bo
         mono: false,
       };
     }
+    case "elsewhere":
+      return {
+        title: t("today.check.elsewhereTitle", { plan: ex.plan.title, os: osLabel(ex.os) }),
+        meta: whenLabel(ex.verdict.ts),
+        mono: false,
+      };
     case "evidence":
       return { title: ex.entry.title, meta: "", mono: false };
     case "unrecorded": {
@@ -172,17 +180,18 @@ function QuestionAnswer({ ex, onAnswer }: { ex: Extract<TodayException, { kind: 
   );
 }
 
-/** 판정 실패 · 통과 뒤 바뀜 — 끝 줄을 앞에, 명령 · 계획(· 바뀐 파일)을 아래 한 줄로. */
-function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "stale" }> }) {
+/** 판정 실패 · 통과 뒤 바뀜 · 여기선 아직 — 끝 줄을 앞에, 명령 · 계획(· 바뀐 파일 · 돌린 곳)을 아래 한 줄로. */
+function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "stale" | "elsewhere" }> }) {
   const { t } = useT();
   const sub = [ex.plan.check, t("today.check.inPlan", { plan: ex.plan.title })];
   if (ex.kind === "stale") {
     const [first, ...rest] = ex.files;
     sub.push(t("today.check.staleFiles", { files: rest.length > 0 ? t("today.check.moreFiles", { first, n: rest.length }) : first }));
   }
+  if (ex.kind === "elsewhere") sub.push(t("today.check.elsewhereSub", { os: osLabel(ex.os) }));
   return (
     <VerdictLine
-      state={ex.kind === "stale" ? "stale" : "fail"}
+      state={ex.kind === "stale" ? "stale" : ex.kind === "elsewhere" ? "away" : "fail"}
       summary={ex.verdict.summary}
       when={whenLabel(ex.verdict.ts)}
       sub={sub.filter(Boolean).join(" · ")}
@@ -215,7 +224,7 @@ function ExceptionRow({
     >
       {/* 모든 행이 같은 첫 칸(상태 칩)에서 시작한다 — 판정 줄도 칩 옆에 선다(영수증 규칙 4, 11-04). */}
       <span className={"chip sm " + pill.tone}>{t(pill.key)}</span>
-      {ex.kind === "verdict" || ex.kind === "stale" ? (
+      {ex.kind === "verdict" || ex.kind === "stale" || ex.kind === "elsewhere" ? (
         <div className="tdy-row-t">
           <VerdictRow ex={ex} />
         </div>

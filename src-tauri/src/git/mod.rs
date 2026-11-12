@@ -24,6 +24,7 @@ mod blob;
 mod changes;
 mod diff;
 mod history;
+pub mod local_only; // 이 기기에만 있는 것 — 커밋 안 한 변경 · 안 올린 커밋 (11-13)
 pub mod nesting; // 루트 관계와 경로 되맞춤 ({#rebase-other-direction})
 mod path_form;
 pub mod race; // 같은 일을 worktree 여럿에서 (Orca 벤치마킹) — 레인 = `ocul-race/` 가지

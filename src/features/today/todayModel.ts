@@ -49,6 +49,7 @@ export type TodayException =
   | { kind: "hookWaiting"; key: string; item: ClaudeWaiting }
   | { kind: "verdict"; key: string; plan: DigestPlan; verdict: PlanVerdict }
   | { kind: "stale"; key: string; plan: DigestPlan; verdict: PlanVerdict; files: string[] }
+  | { kind: "elsewhere"; key: string; plan: DigestPlan; verdict: PlanVerdict; os: string }
   | { kind: "evidence"; key: string; entry: JournalEntrySummary }
   | { kind: "unrecorded"; key: string; files: string[] }
   | { kind: "silent"; key: string; signals: JournalMissingSignal[] }
@@ -65,6 +66,7 @@ export const EXCEPTION_ORDER: readonly ExceptionKind[] = [
   "hookWaiting",
   "verdict",
   "stale",
+  "elsewhere",
   "evidence",
   "unrecorded",
   "silent",
@@ -132,6 +134,13 @@ export function buildExceptions(input: ExceptionInput): TodayException[] {
       out.push({ kind: "stale", key: `stale:${plan.plan_id}`, plan, verdict: plan.last_verdict, files: plan.stale_files });
     }
   }
+  // ✓ 가 다른 OS 에서 돌았고 이 기기에서는 그 뒤로 확인된 적이 없다 (`DigestPlan.verdict_from`) — 맥의 ✓ 는
+  // 윈도우의 ✓ 가 아니다. 백엔드가 「통과 뒤 바뀜」과 겹치지 않게 한쪽만 준다.
+  for (const plan of input.digest.plans) {
+    if (plan.last_verdict?.passed && plan.verdict_from) {
+      out.push({ kind: "elsewhere", key: `elsewhere:${plan.plan_id}`, plan, verdict: plan.last_verdict, os: plan.verdict_from });
+    }
+  }
   for (const entry of input.entries) {
     if (input.verifiedLocally?.has(entry.relative_path)) continue;
     if (evidenceOf(entry) === "missing") {
@@ -156,6 +165,13 @@ export function buildExceptions(input: ExceptionInput): TodayException[] {
     out.push({ kind: "plugin", key: "plugin", installed: input.plugin.installed, bundled: input.plugin.bundled });
   }
   return out;
+}
+
+const OS_LABEL: Record<string, string> = { mac: "macOS", windows: "Windows", linux: "Linux" };
+
+/** 판정 줄 끝의 OS 표시(`mac`·`windows`·`linux`)를 사람이 읽는 이름으로. */
+export function osLabel(os: string): string {
+  return OS_LABEL[os] ?? os;
 }
 
 type ExceptionOf<K extends ExceptionKind> = Extract<TodayException, { kind: K }>;

@@ -38,6 +38,9 @@ export const projectsApi = {
   setColor: (projectId: number, color: string | null): Promise<VscodeColorOutcome> =>
     call("set_project_color", commands.setProjectColor(projectId, color)),
 
+  /** 저장소의 `config.toml` 에 적힌 색을 이 기기에 맞춘다 — 바뀌었으면 `true` (목록을 다시 읽을 것). */
+  syncColor: (projectId: number): Promise<boolean> => call("sync_project_color", commands.syncProjectColor(projectId)),
+
   /** 프로젝트마다 오늘·최근 활동 — `days` 는 날짜별 수를 담을 창(오늘 포함). */
   brief: (days: number): Promise<HomeBrief> => call("home_brief", commands.homeBrief(days)),
 

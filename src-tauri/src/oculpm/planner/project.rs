@@ -35,6 +35,10 @@ pub struct PlanSummary {
     /// 「마지막 판정」 (`judge.rs`) — 확인 명령을 돌린 가장 최근 결과. 선택 필드(TS `?:`).
     #[serde(default)]
     pub last_verdict: Option<super::judge::PlanVerdict>,
+    /// 이 OS 에서 돌린 가장 최근 판정 (`judge::last_verdict_on`) — 가장 최근 판정이 다른 OS 것일 때
+    /// 오늘 화면이 「여기선 아직」을 가르는 재료다. 선택 필드(TS `?:`).
+    #[serde(default)]
+    pub last_verdict_here: Option<super::judge::PlanVerdict>,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -216,6 +220,7 @@ fn summary_dto(loaded: &LoadedPlan) -> PlanSummary {
         item_count,
         done_count: done,
         last_verdict: super::judge::last_verdict(&p.updates),
+        last_verdict_here: super::judge::last_verdict_on(&p.updates, super::judge::HERE),
     }
 }
 

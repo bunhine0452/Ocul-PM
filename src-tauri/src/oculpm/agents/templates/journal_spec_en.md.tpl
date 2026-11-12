@@ -1,4 +1,4 @@
-<!-- template_version: 2 -->
+<!-- template_version: 3 -->
 # Journal and plan file spec (ocul-pm)
 
 > Managed by ocul-pm (do not edit — refreshed on app upgrade).
@@ -17,7 +17,7 @@ Need an example? Read a recent entry of the same type.
 ## Plans (`.oculpm/planner/<plan_id>.md`)
 
 Update: flip the item's glyph (one character) and **append one row** to the `<!-- oculpm:plan-log begin v1 -->` table at the bottom (never edit existing rows):
-`| <ISO time+offset> | #item-id | <your agent.id verbatim> | old→new glyph (→☐ for new items) | <journal path you just wrote> | short note |` — escape `|` inside a cell as `\|`. When you ran the check command, start the note with `verdict ✓ <last result line>` or `verdict ✗ <last result line>`.
+`| <ISO time+offset> | #item-id | <your agent.id verbatim> | old→new glyph (→☐ for new items) | <journal path you just wrote> | short note |` — escape `|` inside a cell as `\|`. When you ran the check command, start the note with `verdict ✓ <last result line>` or `verdict ✗ <last result line>`, and end it with the OS you ran it on — ` · mac`, ` · windows` or ` · linux` (`plan_update` appends it for you). A ✓ from another OS is not a ✓ on this machine.
 
 Rules: preserve `{#id}` markers and managed-block boundaries · items are ONE line — keep `{#id}` at the *end*, never wrap (a wrapped `{#id}` is invisible) · give new items stable English kebab ids · nest at most one level (two-space indent `  - [ ] sub {#id}`; the parent's glyph rolls up) · reference journals via the journal column, never paste them · never touch the `archived:` marker lines · the body glyph is current truth; the log is history.
 

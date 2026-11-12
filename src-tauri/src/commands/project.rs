@@ -47,6 +47,7 @@ pub const PROJECT_COLORS: &[&str] = &[
 #[specta::specta]
 pub async fn set_project_color(
     db: State<'_, Db>,
+    manager: State<'_, crate::oculpm::manager::OculpmManager>,
     project_id: u32,
     color: Option<String>,
 ) -> Result<crate::vscode_color::VscodeColorOutcome, String> {
@@ -62,11 +63,54 @@ pub async fn set_project_color(
     db.set_project_color(project_id, color.clone())
         .await
         .map_err(|e| e.to_string())?;
+    // 저장소를 따라 다른 기기로 가게 `config.toml` 에도 적는다 (11-13). 여기가 실패해도 이 기기의
+    // 색은 이미 저장됐다 — 색 하나로 명령을 실패시키지 않는다.
+    if let Err(e) = manager
+        .set_project_color(project_id, color.as_deref())
+        .await
+    {
+        tracing::warn!(project_id, error = %e, "project color not written to config.toml");
+    }
     let outcome =
         tokio::task::spawn_blocking(move || crate::vscode_color::apply(&root, color.as_deref()))
             .await
             .map_err(|e| e.to_string())?;
     outcome.map_err(|e| format!("vscode_color: {e}"))
+}
+
+/// `config.toml` 의 색 원문 → 이 기기에 둘 색. 바깥 `None` 은 의견 없음(키 없음 · 모르는 값) — 이 기기의
+/// 색을 그대로 둔다. `Some(None)` 은 「색 없음」.
+fn color_from_config(raw: Option<&str>) -> Option<Option<String>> {
+    match raw? {
+        crate::oculpm::spec::OculpmConfig::PROJECT_COLOR_NONE => Some(None),
+        c if PROJECT_COLORS.contains(&c) => Some(Some(c.to_string())),
+        _ => None,
+    }
+}
+
+/// 저장소의 `config.toml` 에 적힌 색을 이 기기에 맞춘다 (11-13) — 프로젝트를 열 때와 그 파일이 바뀔 때
+/// (다른 기기에서 고른 색을 pull) 창이 부른다. 바뀌었으면 `true` — 창이 프로젝트 목록을 다시 읽는다.
+/// VS Code 제목 표시줄도 같은 색으로 맞추되 그쪽 실패는 조용히 지나간다.
+#[tauri::command]
+#[specta::specta]
+pub async fn sync_project_color(db: State<'_, Db>, project_id: u32) -> Result<bool, String> {
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let root = PathBuf::from(&project.root_path);
+    let raw = crate::oculpm::spec::OculpmConfig::disk_project_color(
+        &root.join(".oculpm").join("config.toml"),
+    );
+    let Some(want) = color_from_config(raw.as_deref()).filter(|w| *w != project.color) else {
+        return Ok(false);
+    };
+    db.set_project_color(project_id, want.clone())
+        .await
+        .map_err(|e| e.to_string())?;
+    let _ = tokio::task::spawn_blocking(move || crate::vscode_color::apply(&root, want.as_deref()))
+        .await;
+    Ok(true)
 }
 
 #[tauri::command]
@@ -180,4 +224,22 @@ pub async fn read_project_file(
     tokio::fs::read_to_string(&full_path)
         .await
         .map_err(|e| format!("Failed to read file: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 11-13 — 키 없음 · 모르는 값은 「의견 없음」(이 기기의 색을 둔다), `none` 은 「색 없음」.
+    #[test]
+    fn a_config_color_is_an_opinion_only_when_known() {
+        assert_eq!(color_from_config(None), None);
+        assert_eq!(color_from_config(Some("a-newer-color")), None);
+        assert_eq!(color_from_config(Some("")), None);
+        assert_eq!(color_from_config(Some("none")), Some(None));
+        assert_eq!(color_from_config(Some("teal")), Some(Some("teal".into())));
+        for c in PROJECT_COLORS {
+            assert!(color_from_config(Some(c)).is_some(), "{c}");
+        }
+    }
 }

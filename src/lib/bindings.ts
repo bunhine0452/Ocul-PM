@@ -23,6 +23,12 @@ export const commands = {
 	 */
 	setProjectColor: (projectId: number, color: string | null) => typedError<VscodeColorOutcome, string>(__TAURI_INVOKE("set_project_color", { projectId, color })),
 	/**
+	 *  저장소의 `config.toml` 에 적힌 색을 이 기기에 맞춘다 (11-13) — 프로젝트를 열 때와 그 파일이 바뀔 때
+	 *  (다른 기기에서 고른 색을 pull) 창이 부른다. 바뀌었으면 `true` — 창이 프로젝트 목록을 다시 읽는다.
+	 *  VS Code 제목 표시줄도 같은 색으로 맞추되 그쪽 실패는 조용히 지나간다.
+	 */
+	syncProjectColor: (projectId: number) => typedError<boolean, string>(__TAURI_INVOKE("sync_project_color", { projectId })),
+	/**
 	 *  최근에 쓴 창 `count` 개(없으면 보이는 창 전부, 많아야 6)를 지금 창의 화면에 칸으로 세운다.
 	 *  세운 창의 수를 돌려준다.
 	 */
@@ -100,6 +106,18 @@ export const commands = {
 	planDispatchPrompt: (projectId: number, planId: string, itemId: string) => typedError<DispatchPrompt, string>(__TAURI_INVOKE("plan_dispatch_prompt", { projectId, planId, itemId })),
 	/**  활성 플랜의 판정·다음 리프·사람 몫·막힘과 일지 → 계획 연결. LLM 0 · 네트워크 0. */
 	todayDigest: (projectId: number) => typedError<TodayDigest, string>(__TAURI_INVOKE("today_digest", { projectId })),
+	/**
+	 *  이 기기에만 있는 것 — 커밋 안 한 변경(그중 기록) · 어느 리모트에도 없는 커밋 (`git::local_only`).
+	 *  git 저장소가 아니거나 리모트가 없으면 `None`. git 은 읽기만 · 네트워크 0.
+	 */
+	todayLocalOnly: (projectId: number) => typedError<{
+	/**  커밋 안 한 변경 — 기록(`records`)을 포함한 전부. */
+	uncommitted: number,
+	/**  그중 기록 — `.oculpm/journal/` · `.oculpm/planner/` 아래. */
+	records: number,
+	/**  어느 리모트 가지에도 없는 커밋 (`rev-list HEAD --not --remotes`). */
+	unpushed: number,
+} | null, string>(__TAURI_INVOKE("today_local_only", { projectId })),
 	/**  그날 일지 중 동료가 git 으로 더한 것과 그 사람 (`git::authors`). 기록을 안 올리는 저장소면 빈 목록. */
 	todayTeammates: (projectId: number, workday: string) => typedError<TeamJournal[], string>(__TAURI_INVOKE("today_teammates", { projectId, workday })),
 	/**
@@ -278,14 +296,14 @@ export const commands = {
 	 *  Read the validated in-memory `OculpmConfig`. Errors if `oculpm_init` has
 	 *  not been called for this project.
 	 */
-	oculpmGetConfig: (projectId: number) => typedError<OculpmConfig, AppError>(__TAURI_INVOKE("oculpm_get_config", { projectId })),
+	oculpmGetConfig: (projectId: number) => typedError<OculpmConfig_Serialize, AppError>(__TAURI_INVOKE("oculpm_get_config", { projectId })),
 	/**
 	 *  Validate + persist a new `OculpmConfig` (atomic write) and refresh the
 	 *  in-memory `WorkdayResolver`. Rejects invalid tz / HH:MM without touching
 	 *  disk. (배경 자동화의 기기 동의 기록이 붙어 `automation_consent.rs` 로 갔다가,
 	 *  4.0 에서 자동화를 걷으며 돌아왔다.)
 	 */
-	oculpmSetConfig: (projectId: number, newConfig: OculpmConfig) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_set_config", { projectId, newConfig })),
+	oculpmSetConfig: (projectId: number, newConfig: OculpmConfig_Deserialize) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_set_config", { projectId, newConfig })),
 	/**  Manually start a session. Idempotent — returns existing if already active. */
 	oculpmStartSessionManual: (projectId: number) => typedError<{
 	/**  `YYYYMMDD-NNN`. */
@@ -1126,6 +1144,12 @@ export type DigestPlan = {
 	 */
 	stale_files: string[],
 	/**
+	 *  가장 최근 ✓ 가 **다른 OS** 에서 돌았고 이 기기에서는 그 뒤로 확인된 적이 없다 — 그 OS
+	 *  (`mac`·`windows`·`linux`, `judge::ran_on`). 이때 `stale_files` 는 비운다: 「통과 뒤 바뀜」이 아니라
+	 *  「여기선 아직」이다 (2026-11-13). 선택 필드(TS `?:`).
+	 */
+	verdict_from?: string | null,
+	/**
 	 *  다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫은 건너뛴다. `[~]` 는 다른 세션이
 	 *  잡은 것으로 본다 (`/oculpm:next` 와 같은 규칙).
 	 */
@@ -1595,6 +1619,15 @@ export type LastCommitChanges = {
 	changes: GitChange[],
 };
 
+export type LocalOnly = {
+	/**  커밋 안 한 변경 — 기록(`records`)을 포함한 전부. */
+	uncommitted: number,
+	/**  그중 기록 — `.oculpm/journal/` · `.oculpm/planner/` 아래. */
+	records: number,
+	/**  어느 리모트 가지에도 없는 커밋 (`rev-list HEAD --not --remotes`). */
+	unpushed: number,
+};
+
 export type LockStateView = "healthy" | "held_by_other" | "recovered" | "uninitialized";
 
 /**  닫힌(done/archived) 플랜에 남은 미완 항목 하나 — 플래너 「닫힌 플랜의 미완」 받은함. */
@@ -1668,8 +1701,41 @@ export type OculpmAgentDrift = {
 	actual_hash: string,
 };
 
-export type OculpmConfig = {
+export type OculpmConfig = OculpmConfig_Serialize | OculpmConfig_Deserialize;
+
+export type OculpmConfig_Deserialize = {
 	schema_version: number,
+	/**
+	 *  프로젝트 색 (2026-11-13, 플랜 `two-machines-20261113`) — 색 id(`commands::project::PROJECT_COLORS`)
+	 *  또는 `"none"`(색 없음을 골랐다). 키가 없으면 「정한 적 없음」이고 그 기기의 값을 그대로 둔다.
+	 * 
+	 *  색은 원래 기기의 SQLite 에만 있어서 같은 저장소를 두 기기에서 열면 창 색이 달랐다. 이 파일은
+	 *  저장소에 올라가므로 색이 저장소를 따라간다. 모르는 값(더 새 앱의 색)은 무시한다 — 검증에서
+	 *  떨어뜨리면 색 하나 때문에 설정 전체가 안 읽힌다. 쓰는 곳은 `OculpmManager::set_project_color`
+	 *  하나고, `set_config` 는 디스크의 값을 지킨다. 선택 필드(TS `?:`) — 표(`[workday]` …)보다 앞에
+	 *  있어야 TOML 로 쓸 수 있다.
+	 */
+	project_color?: string | null,
+	workday: WorkdayConfig,
+	session: SessionConfig,
+	git: GitConfig,
+	watcher: WatcherConfig,
+	agents: AgentsConfig,
+};
+
+export type OculpmConfig_Serialize = {
+	schema_version: number,
+	/**
+	 *  프로젝트 색 (2026-11-13, 플랜 `two-machines-20261113`) — 색 id(`commands::project::PROJECT_COLORS`)
+	 *  또는 `"none"`(색 없음을 골랐다). 키가 없으면 「정한 적 없음」이고 그 기기의 값을 그대로 둔다.
+	 * 
+	 *  색은 원래 기기의 SQLite 에만 있어서 같은 저장소를 두 기기에서 열면 창 색이 달랐다. 이 파일은
+	 *  저장소에 올라가므로 색이 저장소를 따라간다. 모르는 값(더 새 앱의 색)은 무시한다 — 검증에서
+	 *  떨어뜨리면 색 하나 때문에 설정 전체가 안 읽힌다. 쓰는 곳은 `OculpmManager::set_project_color`
+	 *  하나고, `set_config` 는 디스크의 값을 지킨다. 선택 필드(TS `?:`) — 표(`[workday]` …)보다 앞에
+	 *  있어야 TOML 로 쓸 수 있다.
+	 */
+	project_color?: string | null,
 	workday: WorkdayConfig,
 	session: SessionConfig,
 	git: GitConfig,
@@ -1687,6 +1753,8 @@ export type OculpmConfig = {
  *  옛 내용을 그대로 보여줬다 (도그푸딩 2026-08-21).
  */
 export type OculpmDataArea = "planner" | "discussion" | 
+/**  `.oculpm/config.toml` — pull 로 프로젝트 색이 바뀌면 창이 다시 맞춘다 (2026-11-13). */
+"config" | 
 /**
  *  `.claude/rules/**` · `.cursor/rules/**` · CLAUDE.md 슬롯 — 규칙 허브가
  *  다시 읽는다 (Phase 4). 예전엔 `.claude/**` 가 에이전트 내부 상태로 통째로
@@ -1927,6 +1995,11 @@ export type PlanSummary = {
 	done_count: number,
 	/**  「마지막 판정」 (`judge.rs`) — 확인 명령을 돌린 가장 최근 결과. 선택 필드(TS `?:`). */
 	last_verdict?: PlanVerdict | null,
+	/**
+	 *  이 OS 에서 돌린 가장 최근 판정 (`judge::last_verdict_on`) — 가장 최근 판정이 다른 OS 것일 때
+	 *  오늘 화면이 「여기선 아직」을 가르는 재료다. 선택 필드(TS `?:`).
+	 */
+	last_verdict_here?: PlanVerdict | null,
 };
 
 export type PlanVelocity = {

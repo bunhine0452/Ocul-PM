@@ -5,9 +5,11 @@
  * 지연 마운트한다. 3.x 의 탭 본문(`ProjectTab`)이었다 — 탭이 사라져 이 창에는
  * 늘 하나만 있으므로 `active` 게이트도 사라졌다.
  */
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { commands, type Project } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
+import { projectsApi } from "@/api/projects";
+import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { toAppError } from "@/api/invoke";
 
 import { CommandPalette } from "@/components/CommandPalette";
@@ -99,6 +101,19 @@ export default function ProjectWindow({
     const me = projects.find((p) => p.id === projectId);
     if (me) setProjectMeta(me.name, me.root_path);
   }, [projects, projectId, setProjectMeta]);
+
+  // 프로젝트 색은 저장소의 `config.toml` 을 따라온다 (11-13, 두 기기를 오갈 때) — 열 때 한 번, 그 파일이
+  // 바뀌면(다른 기기에서 고른 색을 pull) 다시. 이 기기의 색이 바뀌었으면 목록을 다시 읽어 윗줄이 따라온다.
+  const syncColor = useCallback(() => {
+    void projectsApi
+      .syncColor(projectId)
+      .then((changed) => {
+        if (changed) onProjectsChanged?.();
+      })
+      .catch(() => {});
+  }, [projectId, onProjectsChanged]);
+  useEffect(syncColor, [syncColor]);
+  useOculpmDataEvents("config", projectId, true, syncColor);
 
   // .oculpm/ auto-init + watcher start (W1-PR7 + F-1 fix). Idempotent
   // server-side. Non-fatal: a project stays usable even if init fails.
