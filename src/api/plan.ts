@@ -13,6 +13,7 @@ import {
   commands,
   type DispatchPrompt,
   type JournalPlanLink,
+  type LocalOnly,
   type LockedOpenItem,
   type PlanEditOp,
   type PlanSummary,
@@ -54,6 +55,10 @@ export const planApi = {
   /** 그날 일지 중 동료가 git 으로 더한 것과 그 사람 — 기록을 안 올리는 저장소면 빈 목록 (`git/authors.rs`). */
   todayTeammates: (projectId: number, workday: string): Promise<TeamJournal[]> =>
     call("today_teammates", commands.todayTeammates(projectId, workday)),
+
+  /** 이 기기에만 있는 것 — 커밋 안 한 변경 · 안 올린 커밋. git 저장소가 아니거나 리모트가 없으면 `null` (`git/local_only.rs`). */
+  todayLocalOnly: (projectId: number): Promise<LocalOnly | null> =>
+    call("today_local_only", commands.todayLocalOnly(projectId)),
 
   /** 항목 하나를 에이전트에게 넘길 프롬프트 — 붙여 넣는 것은 사용자다. */
   dispatchPrompt: (projectId: number, planId: string, itemId: string): Promise<DispatchPrompt> =>

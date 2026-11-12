@@ -479,6 +479,16 @@ fn default_template_language() -> String {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct OculpmConfig {
     pub schema_version: u32,
+    /// 프로젝트 색 (2026-11-13, 플랜 `two-machines-20261113`) — 색 id(`commands::project::PROJECT_COLORS`)
+    /// 또는 `"none"`(색 없음을 골랐다). 키가 없으면 「정한 적 없음」이고 그 기기의 값을 그대로 둔다.
+    ///
+    /// 색은 원래 기기의 SQLite 에만 있어서 같은 저장소를 두 기기에서 열면 창 색이 달랐다. 이 파일은
+    /// 저장소에 올라가므로 색이 저장소를 따라간다. 모르는 값(더 새 앱의 색)은 무시한다 — 검증에서
+    /// 떨어뜨리면 색 하나 때문에 설정 전체가 안 읽힌다. 쓰는 곳은 `OculpmManager::set_project_color`
+    /// 하나고, `set_config` 는 디스크의 값을 지킨다. 선택 필드(TS `?:`) — 표(`[workday]` …)보다 앞에
+    /// 있어야 TOML 로 쓸 수 있다.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_color: Option<String>,
     pub workday: WorkdayConfig,
     pub session: SessionConfig,
     pub git: GitConfig,
@@ -778,6 +788,8 @@ pub struct OculpmJournalPathChanged {
 pub enum OculpmDataArea {
     Planner,
     Discussion,
+    /// `.oculpm/config.toml` — pull 로 프로젝트 색이 바뀌면 창이 다시 맞춘다 (2026-11-13).
+    Config,
     /// `.claude/rules/**` · `.cursor/rules/**` · CLAUDE.md 슬롯 — 규칙 허브가
     /// 다시 읽는다 (Phase 4). 예전엔 `.claude/**` 가 에이전트 내부 상태로 통째로
     /// 버려져 어떤 신호도 나가지 않았다.

@@ -182,6 +182,7 @@ mod agents_sync;
 mod indexing;
 mod journal;
 mod lifecycle;
+mod project_color;
 mod session_ops;
 mod tags;
 mod teardown;

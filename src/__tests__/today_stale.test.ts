@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DigestPlan, PlanVerdict, TodayDigest } from "@/lib/bindings";
-import { buildExceptions, splitExceptions } from "@/features/today/todayModel";
+import { buildExceptions, osLabel, splitExceptions } from "@/features/today/todayModel";
 
 const verdict = (passed: boolean): PlanVerdict => ({
   passed,
@@ -54,3 +54,27 @@ describe("판정 뒤 바뀜", () => {
     ]);
   });
 });
+
+// 두 기기 (11-13) — ✓ 가 다른 OS 에서 돌았으면 「통과 뒤 바뀜」이 아니라 「여기선 아직」 하나.
+describe("여기선 아직", () => {
+  it("다른 OS 의 ✓ 는 통과 뒤 바뀜 자리 바로 아래에 선다", () => {
+    const away = { ...verdict(true), summary: "991 passed · mac" };
+    const list = kinds([
+      plan("a", { last_verdict: away, verdict_from: "mac" }),
+      plan("b", { last_verdict: verdict(true), stale_files: ["src/a.ts"] }),
+    ]);
+    expect(list.map((e) => e.kind)).toEqual(["stale", "elsewhere"]);
+    const row = list[1];
+    expect(row.kind === "elsewhere" && [row.os, row.plan.plan_id]).toEqual(["mac", "a"]);
+    expect(splitExceptions(list).first).toHaveLength(2);
+    expect(osLabel("mac")).toBe("macOS");
+    expect(osLabel("freebsd")).toBe("freebsd");
+  });
+
+  it("표시가 없거나(옛 줄) 이 기기의 ✓ 면 서지 않고, 실패는 어디서 돌았든 실패다", () => {
+    expect(kinds([plan("a", { last_verdict: verdict(true), verdict_from: null })])).toEqual([]);
+    expect(kinds([plan("a", { last_verdict: verdict(true) })])).toEqual([]);
+    expect(kinds([plan("a", { last_verdict: verdict(false), verdict_from: "mac" })]).map((e) => e.kind)).toEqual(["verdict"]);
+  });
+});
+

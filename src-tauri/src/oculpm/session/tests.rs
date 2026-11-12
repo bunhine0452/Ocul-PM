@@ -363,6 +363,7 @@ async fn shutdown_on_idle_is_clean_noop() {
 #[allow(dead_code)]
 fn _full_config_sample() -> OculpmConfig {
     OculpmConfig {
+        project_color: None,
         schema_version: 1,
         workday: WorkdayConfig {
             timezone: "UTC".into(),

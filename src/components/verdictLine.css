@@ -23,9 +23,9 @@
 
 /* 예외 — 표시가 색을 갖고, 끝 줄은 본문 잉크로 올라온다(읽어야 할 줄이다). */
 .vl.is-fail .vl-mark { color: var(--danger-text); }
-.vl.is-stale .vl-mark { color: var(--warn-text); }
+.vl.is-stale .vl-mark, .vl.is-away .vl-mark { color: var(--warn-text); }
 .vl.is-fail .vl-out,
-.vl.is-stale .vl-out { color: var(--text); }
+.vl.is-stale .vl-out, .vl.is-away .vl-out { color: var(--text); }
 
 /* 표시 칸 없이 — 앞에 상태 칩이 이미 선 행(오늘 「먼저 볼 것」). */
 .vl.is-bare { grid-template-columns: minmax(0, 1fr) auto; }
