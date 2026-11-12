@@ -33,7 +33,7 @@ import { toast } from "@/lib/toast";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
 import { TodayExceptions } from "./TodayExceptions";
-import { LiveCard, LocalOnlyLine, MineLine, NextCard } from "./TodaySide";
+import { ArrivedLine, LiveCard, LocalOnlyLine, MineLine, NextCard } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
 import { Num } from "./todayFormat";
 import { firstNext, osLabel, splitExceptions, type TodayException } from "./todayModel";
@@ -299,7 +299,12 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                   <TodayExceptions part="first" {...exceptionProps} />
                   {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onRun={() => void runNext()} /> : null}
                   {split && split.mine.length > 0 ? <MineLine mine={split.mine} onOpen={openPlan} /> : null}
-                  <LocalOnlyLine local={data.localOnly} onOpen={() => onNavigate("diff")} />
+                  <ArrivedLine arrived={data.arrived} now={now} onOpen={(p) => openEntry({ relative_path: p })} />
+                  <LocalOnlyLine
+                    local={data.localOnly}
+                    onOpen={() => onNavigate("diff")}
+                    onHandOff={() => void runPromptInTerminal(projectId, t("today.local.handoffPrompt")).catch(() => {})}
+                  />
                   <LiveCard sessions={live} now={now} />
                   {/* 단축키는 늘 떠 있는 크롬이 아니라 해야 할 것 칸 끝의 한 줄이다 — 윗줄은 탭과 동작만.
                       두 칸 아래에 따로 두면 오른쪽 칸 길이만큼 떨어져 홀로 떠 있었다(11-04). */}

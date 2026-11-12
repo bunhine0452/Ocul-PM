@@ -10,7 +10,7 @@ import { SquareTerminal } from "@/components/Icons";
 import { agentLabel } from "@/features/today/agentColor";
 import { useT } from "@/i18n";
 import { relativeTime } from "@/lib/format";
-import type { DigestItem, DigestPlan, LocalOnly } from "@/lib/bindings";
+import type { Arrived, DigestItem, DigestPlan, LocalOnly } from "@/lib/bindings";
 import type { TodaySplit } from "./todayModel";
 import type { LiveSession } from "./useLiveSessions";
 import { QUIET_MINUTES } from "./useLiveSessions";
@@ -112,8 +112,19 @@ export function MineLine({ mine, onOpen }: { mine: TodaySplit["mine"]; onOpen: (
  * 이 기기에만 — 커밋 안 한 변경(그중 기록)과 안 올린 커밋을 한 줄로 (11-13, 두 기기를 오갈 때).
  * 올리지 않은 일지는 다른 기기의 Claude 에게 없는 일이다. 일하는 중에는 늘 있는 것이라 「먼저 볼 것」의
  * 행도 배지의 수도 아니다 — 「내 차례」처럼 수만 말하고 변경 화면으로 보낸다. 없으면 그리지 않는다.
+ *
+ * 「올리기 맡기기」 는 앱 안 터미널의 Claude 에게 커밋하고 올려 달라고 한다 — 앱은 git 을 읽기만 하고
+ * 스스로 올리지 않는다(네트워크 0). 자리를 옮기기 전의 한 번.
  */
-export function LocalOnlyLine({ local, onOpen }: { local: LocalOnly | null; onOpen: () => void }) {
+export function LocalOnlyLine({
+  local,
+  onOpen,
+  onHandOff,
+}: {
+  local: LocalOnly | null;
+  onOpen: () => void;
+  onHandOff: () => void;
+}) {
   const { t } = useT();
   if (!local || (local.uncommitted === 0 && local.unpushed === 0)) return null;
   const parts: string[] = [];
@@ -128,6 +139,47 @@ export function LocalOnlyLine({ local, onOpen }: { local: LocalOnly | null; onOp
       <button type="button" className="tdy-link" onClick={onOpen}>
         {t("today.local.open")}
       </button>
+      <button type="button" className="tdy-link" onClick={onHandOff} title={t("today.local.handoffHint")}>
+        {t("today.local.handoff")}
+      </button>
+    </p>
+  );
+}
+
+/** 하루 — 「주고받은 지 N일」 은 이만큼 지나야 말한다. 어제 저녁에 올리고 오늘 아침에 여는 것은 조용하다. */
+const DAY_MS = 86_400_000;
+
+/**
+ * 받아 온 것 — 다른 기기(나 동료)가 쓴 일지가 오늘 들어왔으면 그 수를, 아니면 리모트와 주고받은 지
+ * 하루가 넘었을 때 그 날수를 한 줄로 (11-13, 두 기기를 오갈 때). 앱은 받아 오지 않는다 — git 이 남긴
+ * 기록을 읽는다. 다른 곳의 기록을 받은 적이 없는 저장소에는 날수를 말하지 않는다(`synced_at` 이 없다).
+ */
+export function ArrivedLine({
+  arrived,
+  now,
+  onOpen,
+}: {
+  arrived: Arrived | null;
+  now: number;
+  onOpen: (relativePath: string) => void;
+}) {
+  const { t } = useT();
+  if (!arrived) return null;
+  if (arrived.journals.length > 0) {
+    return (
+      <p className="tdy-mine" title={t("today.arrived.hint")}>
+        {t("today.arrived.line", { n: arrived.journals.length })}
+        <button type="button" className="tdy-link" onClick={() => onOpen(arrived.journals[0])}>
+          {t("today.arrived.open")}
+        </button>
+      </p>
+    );
+  }
+  const days = arrived.synced_at == null ? 0 : Math.floor((now - arrived.synced_at * 1000) / DAY_MS);
+  if (days < 1) return null;
+  return (
+    <p className="tdy-mine" title={t("today.arrived.staleHint")}>
+      {t("today.arrived.stale", { n: days })}
     </p>
   );
 }

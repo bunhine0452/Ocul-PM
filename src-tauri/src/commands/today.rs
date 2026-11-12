@@ -70,6 +70,25 @@ pub async fn today_local_only(
         .map_err(|e| e.to_string())
 }
 
+/// 받아 온 것 — `since`(epoch 초) 뒤에 받아 온 커밋이 더한 일지와, 리모트와 마지막으로 주고받은 때
+/// (`git::arrived`). 받아 오지 않는다 — git 이 남긴 기록을 읽는다. 가지 위가 아니면 `None`.
+#[tauri::command]
+#[specta::specta]
+pub async fn today_arrived(
+    db: State<'_, Db>,
+    project_id: u32,
+    since: u32,
+) -> Result<Option<crate::git::arrived::Arrived>, String> {
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let root = std::path::PathBuf::from(project.root_path);
+    tokio::task::spawn_blocking(move || crate::git::arrived::arrived(&root, since))
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// 그날 일지 중 동료가 git 으로 더한 것과 그 사람 (`git::authors`). 기록을 안 올리는 저장소면 빈 목록.
 #[tauri::command]
 #[specta::specta]

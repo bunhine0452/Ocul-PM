@@ -22,7 +22,7 @@ import { useJournalEvents, useOculpmDataEvents } from "@/features/oculpm/useOcul
 import { useWindowTerms } from "@/features/terminal/status";
 import { tError } from "@/i18n/errors";
 import { safeUnlisten } from "@/lib/unlisten";
-import type { ClaudeQuestion, ClaudeWaiting, JournalEntrySummary, JournalMissingSignal, LocalOnly, TodayDigest } from "@/lib/bindings";
+import type { Arrived, ClaudeQuestion, ClaudeWaiting, JournalEntrySummary, JournalMissingSignal, LocalOnly, TodayDigest } from "@/lib/bindings";
 import { buildExceptions, splitExceptions, workdayStartMs, type TodayException } from "./todayModel";
 
 interface Loaded<T> {
@@ -78,6 +78,8 @@ export interface TodayData {
   teammates: ReadonlyMap<string, string>;
   /** 이 기기에만 있는 것(커밋 안 한 변경 · 안 올린 커밋). 리모트가 없거나 못 읽으면 `null`. */
   localOnly: LocalOnly | null;
+  /** 오늘 받아 온 일지 · 리모트와 마지막으로 주고받은 때. 가지 위가 아니거나 못 읽으면 `null`. */
+  arrived: Arrived | null;
 }
 
 export interface TodayExceptionsResult {
@@ -166,6 +168,11 @@ export function useTodayExceptions(
     planApi.todayLocalOnly(projectId).catch(() => null),
   );
 
+  // 받아 온 것 (11-13) — 받아 오기는 터미널에서 일어난다. 창으로 돌아올 때 다시 읽는다(git 은 대개 0번).
+  const arrived = useLoad(enabled && workday ? `${projectId}|${workday}|${journalTick}|${manualTick}|${focusTick}` : null, () =>
+    planApi.todayArrived(projectId, workdayStartMs(workday!)).catch(() => null),
+  );
+
   const plugin = useLoad(enabled ? String(projectId) : null, () => claudeInstallApi.pluginStatus(projectId));
 
   const [verifiedLocally, setVerifiedLocally] = useState<ReadonlySet<string>>(new Set());
@@ -195,6 +202,7 @@ export function useTodayExceptions(
     pluginBehind,
     teammates: team.value ?? NO_TEAM,
     localOnly: local.value ?? null,
+    arrived: arrived.value ?? null,
   };
 
   // 보조 재료 셋(기록 없는 파일·조용한 대화·플러그인)도 처음 한 번은 답을 기다린다 —

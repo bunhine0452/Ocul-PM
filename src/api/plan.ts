@@ -11,6 +11,7 @@
 import { call } from "@/api/invoke";
 import {
   commands,
+  type Arrived,
   type DispatchPrompt,
   type JournalPlanLink,
   type LocalOnly,
@@ -59,6 +60,13 @@ export const planApi = {
   /** 이 기기에만 있는 것 — 커밋 안 한 변경 · 안 올린 커밋. git 저장소가 아니거나 리모트가 없으면 `null` (`git/local_only.rs`). */
   todayLocalOnly: (projectId: number): Promise<LocalOnly | null> =>
     call("today_local_only", commands.todayLocalOnly(projectId)),
+
+  /**
+   * 받아 온 것 — `sinceMs` 뒤에 받아 온 커밋 가운데 다른 곳에서 쓴 일지와, 리모트와 마지막으로 주고받은 때.
+   * 받아 오지 않는다(git 이 남긴 기록을 읽는다). 가지 위가 아니면 `null` (`git/arrived.rs`).
+   */
+  todayArrived: (projectId: number, sinceMs: number): Promise<Arrived | null> =>
+    call("today_arrived", commands.todayArrived(projectId, Math.floor(sinceMs / 1000))),
 
   /** 항목 하나를 에이전트에게 넘길 프롬프트 — 붙여 넣는 것은 사용자다. */
   dispatchPrompt: (projectId: number, planId: string, itemId: string): Promise<DispatchPrompt> =>
