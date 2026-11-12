@@ -25,8 +25,6 @@ files_touched:
     op: update
   - path: "src-tauri/src/oculpm/planner/digest.rs"
     op: update
-  - path: "src-tauri/src/oculpm/planner/project.rs"
-    op: update
   - path: "src-tauri/src/oculpm/mcp/tools/plan_ops.rs"
     op: update
   - path: "src-tauri/src/oculpm/mcp/tools/tests/plan_goal.rs"
@@ -126,8 +124,8 @@ tags:
 
 ## 검증
 
-- `pnpm typecheck && pnpm test && pnpm lint && pnpm build` → exit 0 · `Tests  1083 passed (1083)` · `Test Files  105 passed (105)`
-- `cargo test --locked` → exit 0 · 합계 1127 passed, 0 failed · `cargo clippy --all-targets --locked -- -D warnings` → exit 0
+- `pnpm typecheck && pnpm test && pnpm lint && pnpm build` → exit 0 · `Tests  1105 passed (1105)` · `Test Files  109 passed (109)` (v4.9.3 위로 리베이스한 뒤)
+- `cargo test --locked` → exit 0 · 합계 1150 passed, 0 failed · `cargo clippy --all-targets --locked -- -D warnings` → exit 0
 - 못 한 것: 설치본과 윈도우 실기기에서 눌러 보지 않았다. 훅의 OS 판별(`uname -s` 의 MINGW/MSYS)은 맥에서만 돌았다.
 
 ## 메모
