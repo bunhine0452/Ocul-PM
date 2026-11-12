@@ -42,4 +42,5 @@ owner: claude-code
 | 2026-11-13T00:58:55+09:00 | #hook-os | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0058_feature_two-machines-round.md | Claude · Codex 훅 두 벌 · uname 판별은 맥에서만 돌려 봤다 |
 | 2026-11-13T00:58:58+09:00 | #local-only | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0058_feature_two-machines-round.md | 행이 아니라 한 줄 · 배지에 안 센다 · 받아 오지 않는다 |
 | 2026-11-13T00:59:02+09:00 | #color-config | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0058_feature_two-machines-round.md | 판정 ✓ pnpm test 1083 passed · cargo test 1127 passed 0 failed · typecheck/lint/build/clippy exit 0 · 설치본 눈 확인은 안 함 · mac |
+| 2026-11-13T01:05:29+09:00 | #color-config | claude-code | x→x | .oculpm/journal/20261113/Features_to_add/0058_feature_two-machines-round.md | 판정 ✓ v4.9.3 위로 리베이스한 뒤 pnpm test 1105 passed · cargo test 1150 passed 0 failed · typecheck/lint/build/clippy exit 0 · mac |
 <!-- oculpm:plan-log end -->
