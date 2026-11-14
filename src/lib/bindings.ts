@@ -43,7 +43,10 @@ export const commands = {
 	 *  프로젝트 수와 무관하게 SQL 6문 — 자세한 근거는 `crate::home` 모듈 주석 참고.
 	 */
 	homeBrief: (days: number) => typedError<HomeBrief, string>(__TAURI_INVOKE("home_brief", { days })),
-	/**  List the project's plans (summary + progress + done counts). */
+	/**
+	 *  List the project's plans (summary + progress + done counts) — 판정의 지금 모습(「통과 뒤 바뀜」 ·
+	 *  「여기선 아직」)까지 오늘 화면과 같은 계산으로 (`digest::verdict_now`).
+	 */
 	planList: (projectId: number) => typedError<PlanSummary[], string>(__TAURI_INVOKE("plan_list", { projectId })),
 	/**
 	 *  닫힌 플랜에 갇힌 미완 항목들 ({#archived-open-items-visibility}, 2026-10-27 실측 20개
@@ -139,7 +142,10 @@ export const commands = {
 	 *  (앱 관리·gitignore 영역)에 쓰고, 터미널 프리필용 한 줄 명령을 돌려준다.
 	 */
 	planDispatchPrompt: (projectId: number, planId: string, itemId: string) => typedError<DispatchPrompt, string>(__TAURI_INVOKE("plan_dispatch_prompt", { projectId, planId, itemId })),
-	/**  활성 플랜의 판정·다음 리프·사람 몫·막힘과 일지 → 계획 연결. LLM 0 · 네트워크 0. */
+	/**
+	 *  활성 플랜의 판정·다음 리프·사람 몫·막힘과 일지 → 계획 연결. LLM 0 · 네트워크 0.
+	 *  「통과 뒤 바뀜」 · 「여기선 아직」 은 계획 화면과 같은 `digest::mark_stale` 이 채운다.
+	 */
 	todayDigest: (projectId: number) => typedError<TodayDigest, string>(__TAURI_INVOKE("today_digest", { projectId })),
 	/**
 	 *  받아 온 것 — `since`(epoch 초) 뒤에 받아 온 커밋이 더한 일지와, 리모트와 마지막으로 주고받은 때
@@ -2088,6 +2094,16 @@ export type PlanSummary = {
 	done_count: number,
 	/**  「마지막 판정」 (`judge.rs`) — 확인 명령을 돌린 가장 최근 결과. 선택 필드(TS `?:`). */
 	last_verdict?: PlanVerdict | null,
+	/**
+	 *  판정 ✓ 뒤에 다시 저장된, 이 계획이 다룬 파일 — 「통과 뒤 바뀜」. `digest::DigestPlan::stale_files`
+	 *  와 같은 계산이고(`digest::verdict_now`) 계획 명령이 채운다. 투영(`summary_dto`)은 비워 둔다. 선택 필드.
+	 */
+	stale_files?: string[],
+	/**
+	 *  가장 최근 ✓ 가 다른 OS 에서 돌았고 이 기기에서는 아직이다 — 「여기선 아직」, 그 OS.
+	 *  `digest::DigestPlan::verdict_from` 과 같은 뜻이다. 선택 필드.
+	 */
+	verdict_from?: string | null,
 };
 
 export type PlanVelocity = {

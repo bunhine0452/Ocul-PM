@@ -7,9 +7,12 @@
 
 use serde::Serialize;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::project::{detail_dto, PlanCache, PlanDetail, PlanItemDto};
+use super::stale;
+use crate::db::Db;
+use crate::oculpm::cache::JournalCache;
 
 /// 전체 재투영 한 번으로 모든 플랜의 상세를 — 플랜마다 `PlanCache::get` 을 부르면 그만큼 돈다.
 pub async fn load_details(
@@ -127,6 +130,67 @@ fn item(d: &PlanDetail, i: &PlanItemDto) -> DigestItem {
     }
 }
 
+/// 계획의 리프(하위를 가진 부모는 파생값이라 뺀다), 문서 순서.
+fn leaves_of(d: &PlanDetail) -> Vec<&PlanItemDto> {
+    let parents: std::collections::HashSet<&str> = d
+        .items
+        .iter()
+        .filter_map(|i| i.parent_item.as_deref())
+        .collect();
+    let mut leaves: Vec<&PlanItemDto> = d
+        .items
+        .iter()
+        .filter(|i| !parents.contains(i.item_id.as_str()))
+        .collect();
+    leaves.sort_by_key(|i| i.order_idx);
+    leaves
+}
+
+/// 계획 하나의 디지스트 행 — 판정 · 다음 리프 · 닫을 수 있는가. 오늘 화면(`build`)과 계획 화면
+/// (`verdict_now`)이 같은 이 함수로 판정의 모습을 정한다.
+pub fn plan_of(d: &PlanDetail) -> DigestPlan {
+    let leaves = leaves_of(d);
+    let next = leaves
+        .iter()
+        .find(|i| i.status == "todo" && !is_user_item(&i.title))
+        .map(|i| item(d, i));
+    let last_pass = d.plan.last_verdict.as_ref().filter(|v| v.passed);
+    DigestPlan {
+        plan_id: d.plan.plan_id.clone(),
+        title: d.plan.title.clone(),
+        progress: d.plan.progress,
+        done_count: d.plan.done_count,
+        item_count: d.plan.item_count,
+        closable: !leaves.is_empty()
+            && !leaves
+                .iter()
+                .any(|i| matches!(i.status.as_str(), "todo" | "in_progress" | "blocked")),
+        updated_at: d.plan.updated_at.clone(),
+        done_when: d.done_when.clone(),
+        check: d.check.clone(),
+        last_verdict: d.plan.last_verdict.clone(),
+        stale_files: Vec::new(),
+        verdict_from: last_pass
+            .and_then(|v| super::judge::ran_on(&v.summary))
+            .filter(|os| *os != super::judge::HERE)
+            .map(str::to_string),
+        passed_here_at: last_pass.and_then(|v| v.passed_here_at.clone()),
+        next,
+    }
+}
+
+/// 계획의 일지 연결 — plan-log 의 일지 열 하나에 한 줄.
+pub fn links_of(d: &PlanDetail) -> impl Iterator<Item = JournalPlanLink> + '_ {
+    d.items.iter().flat_map(move |i| {
+        i.journal_refs.iter().map(move |r| JournalPlanLink {
+            journal_ref: r.clone(),
+            plan_id: d.plan.plan_id.clone(),
+            plan_title: d.plan.title.clone(),
+            item_id: i.item_id.clone(),
+        })
+    })
+}
+
 pub fn build(mut details: Vec<PlanDetail>) -> TodayDigest {
     details.retain(|d| d.plan.status == "active");
     details.sort_by(|a, b| b.plan.updated_at.cmp(&a.plan.updated_at));
@@ -138,64 +202,65 @@ pub fn build(mut details: Vec<PlanDetail>) -> TodayDigest {
         journal_plan: Vec::new(),
     };
     for d in &details {
-        let parents: std::collections::HashSet<&str> = d
-            .items
-            .iter()
-            .filter_map(|i| i.parent_item.as_deref())
-            .collect();
-        let mut leaves: Vec<&PlanItemDto> = d
-            .items
-            .iter()
-            .filter(|i| !parents.contains(i.item_id.as_str()))
-            .collect();
-        leaves.sort_by_key(|i| i.order_idx);
-
-        let next = leaves
-            .iter()
-            .find(|i| i.status == "todo" && !is_user_item(&i.title))
-            .map(|i| item(d, i));
-        let last_pass = d.plan.last_verdict.as_ref().filter(|v| v.passed);
-        out.plans.push(DigestPlan {
-            plan_id: d.plan.plan_id.clone(),
-            title: d.plan.title.clone(),
-            progress: d.plan.progress,
-            done_count: d.plan.done_count,
-            item_count: d.plan.item_count,
-            closable: !leaves.is_empty()
-                && !leaves
-                    .iter()
-                    .any(|i| matches!(i.status.as_str(), "todo" | "in_progress" | "blocked")),
-            updated_at: d.plan.updated_at.clone(),
-            done_when: d.done_when.clone(),
-            check: d.check.clone(),
-            last_verdict: d.plan.last_verdict.clone(),
-            stale_files: Vec::new(),
-            verdict_from: last_pass
-                .and_then(|v| super::judge::ran_on(&v.summary))
-                .filter(|os| *os != super::judge::HERE)
-                .map(str::to_string),
-            passed_here_at: last_pass.and_then(|v| v.passed_here_at.clone()),
-            next,
-        });
-        for i in &leaves {
+        out.plans.push(plan_of(d));
+        for i in leaves_of(d) {
             if is_open(&i.status) && is_user_item(&i.title) {
                 out.needs_user.push(item(d, i));
             } else if i.status == "blocked" {
                 out.blocked.push(item(d, i));
             }
         }
-        for i in &d.items {
-            for r in &i.journal_refs {
-                out.journal_plan.push(JournalPlanLink {
-                    journal_ref: r.clone(),
-                    plan_id: d.plan.plan_id.clone(),
-                    plan_title: d.plan.title.clone(),
-                    item_id: i.item_id.clone(),
-                });
-            }
-        }
+        out.journal_plan.extend(links_of(d));
     }
     out
+}
+
+/// 판정 ✓ 인 계획마다 그 뒤에 다시 저장된 파일을 채운다 (`stale`). 오늘 화면(`today_digest`)과 계획
+/// 화면(`plan_list` · `plan_get`)이 이 한 함수를 지난다 — 오늘이 호박색으로 짚는 계획을 계획 화면이
+/// 회색 통과로 그리지 않게. 캐시를 못 읽으면 그 계획은 비워 둔다 — 모르는 것을 낡았다고 하지 않는다.
+/// 기준 시각과 다른 OS 의 ✓ 를 다루는 규칙은 `DigestPlan::stale_baseline` · `settle` 에 있다.
+pub async fn mark_stale(
+    db: &Db,
+    project_id: u32,
+    plans: &mut [DigestPlan],
+    links: &[JournalPlanLink],
+) {
+    let Ok(project) = db.get_project(project_id).await else {
+        return;
+    };
+    let root = PathBuf::from(&project.root_path);
+    let cache = JournalCache::new(db);
+    for plan in plans.iter_mut() {
+        let Some(since) = plan.stale_baseline().map(str::to_string) else {
+            continue;
+        };
+        let refs: Vec<String> = links
+            .iter()
+            .filter(|l| l.plan_id == plan.plan_id)
+            .map(|l| stale::journal_rel(&l.journal_ref))
+            .collect();
+        let Ok(files) = cache.files_for_entry_paths(project_id, &refs).await else {
+            continue;
+        };
+        let root = root.clone();
+        let changed =
+            tokio::task::spawn_blocking(move || stale::changed_after(&root, &files, &since))
+                .await
+                .unwrap_or_default();
+        plan.settle(changed);
+    }
+}
+
+/// 계획 화면의 판정 두 칸(`PlanSummary::stale_files` · `verdict_from`)을 오늘 화면과 같은 계산으로
+/// 채운다 — 계획 명령(`plan_list` · `plan_get` · 상태 바꾸기 · 닫기)이 내보내기 전에 부른다.
+pub async fn verdict_now(db: &Db, project_id: u32, details: &mut [PlanDetail]) {
+    let mut plans: Vec<DigestPlan> = details.iter().map(plan_of).collect();
+    let links: Vec<JournalPlanLink> = details.iter().flat_map(links_of).collect();
+    mark_stale(db, project_id, &mut plans, &links).await;
+    for (d, p) in details.iter_mut().zip(plans) {
+        d.plan.stale_files = p.stale_files;
+        d.plan.verdict_from = p.verdict_from;
+    }
 }
 
 #[cfg(test)]
@@ -239,6 +304,8 @@ mod tests {
                     item_id: "x".into(),
                     passed_here_at: None,
                 }),
+                stale_files: Vec::new(),
+                verdict_from: None,
             },
             items,
             phases: Vec::new(),
