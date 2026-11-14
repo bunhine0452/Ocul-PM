@@ -23,7 +23,7 @@ import { isMac } from "@/lib/platform";
 import { t } from "@/i18n";
 import { oculpmLog } from "@/lib/oculpmLog";
 import { toast } from "@/lib/toast";
-import { alertIfWaiting, alertOnSignal, forgetAlerts } from "./attention";
+import { alertIfWaiting, alertOnSignal, forgetAlerts, trackSession } from "./attention";
 import { createImagePathProvider, createOscLinkHandler, shouldOpenLink } from "./fileLinks";
 import { createFileRefProvider, openFileMenu } from "./fileRefs";
 import { peekEvent } from "./imagePeek";
@@ -346,6 +346,7 @@ export async function openTerm(
       return;
     }
     entry.info = { ...entry.info, alive: false, exit_code: ev.code };
+    trackSession(entry.info);
     notify();
   };
   let info: TermInfo;
@@ -488,6 +489,22 @@ function retryWebgl(e: Entry) {
   else e.webglRetry = setTimeout(attach, wait);
 }
 
+/**
+ * WebGL 렌더러의 GL 문맥 — `.xterm-screen` 의 캔버스 가운데 WebGL 것. addon-webgl 0.18 은 2D 링크 층
+ * (`xterm-link-layer`)을 WebGL 캔버스보다 먼저 붙인다(WebglRenderer 생성자). 첫 캔버스를 집던 때는 그 2D
+ * 캔버스에 `getContext("webgl2")` 를 물어 늘 null 이었고, 문맥을 한 번도 돌려주지 못했다. 2D 층(`xterm-*-layer`)은
+ * 건너뛴다 — 남는 것은 이미 WebGL 문맥을 가진 캔버스라 묻는다고 새 문맥이 생기지 않는다.
+ */
+function webglContextOf(term: Terminal): WebGL2RenderingContext | null {
+  const canvases = term.element?.querySelectorAll<HTMLCanvasElement>(".xterm-screen > canvas") ?? [];
+  for (const canvas of canvases) {
+    if (/-layer\b/.test(canvas.className)) continue;
+    const gl = canvas.getContext("webgl2");
+    if (gl) return gl;
+  }
+  return null;
+}
+
 function releaseWebgl(e: Entry) {
   if (e.webglIdle) {
     clearTimeout(e.webglIdle);
@@ -496,16 +513,20 @@ function releaseWebgl(e: Entry) {
   const addon = e.webgl;
   e.webgl = null;
   if (!addon) return;
-  // 캔버스는 버리기 전에 찾는다(버리면 화면에서 떨어진다). 문맥을 곧장 돌려준다 — 떨어진 캔버스의 GL 문맥은
+  // 문맥은 버리기 전에 잡는다(버리면 캔버스가 화면에서 떨어진다). 곧장 돌려준다 — 떨어진 캔버스의 GL 문맥은
   // 가비지 컬렉터가 거둘 때까지 브라우저 상한(약 16)과 GPU 메모리를 쥐고 있었다.
-  const canvas = e.term.element?.querySelector<HTMLCanvasElement>(".xterm-screen canvas");
+  let gl: WebGL2RenderingContext | null = null;
+  try {
+    gl = webglContextOf(e.term);
+  } catch {
+    /* 물을 수 없다 — 버리기만 한다 */
+  }
   try {
     addon.dispose();
   } catch {
     /* 이미 잃은 문맥 — 버릴 것도 없다 */
   }
   try {
-    const gl = canvas?.getContext("webgl2") as WebGL2RenderingContext | null | undefined;
     gl?.getExtension("WEBGL_lose_context")?.loseContext();
   } catch {
     /* 돌려줄 문맥이 없다 */
@@ -564,7 +585,10 @@ export function setTermFontSize(size: number) {
   fontSize = size;
   for (const e of entries.values()) {
     e.term.options.fontSize = size;
-    if (e.opened && e.host.clientWidth > 0 && e.host.clientHeight > 0) e.fit.fit();
+    // 가운데 맞춤 · 기억한 셀 크기까지 새로(`refitNow`) — fit 만 부르던 때는 옛 셀 폭으로 잰 여백이 남아 격자가
+    // 반 칸까지 스크롤바 쪽으로 밀렸고, 다음 새 세션의 첫 크기도 옛 셀로 쟀다. 칸 크기는 그대로라 ResizeObserver 도
+    // 다시 부르지 않는다.
+    if (e.opened) refitNow(e);
   }
 }
 

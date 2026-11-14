@@ -66,8 +66,8 @@ describe("알림감", () => {
     alertIfWaiting(st("working"), info(st("blocked", "permission", "approve Write: a.ts")));
     await vi.waitFor(() => expect(os.sent).toHaveLength(1));
     expect(os.sent[0]).toEqual({
-      title: "ai-pm · claude", // 「프로젝트 · 세션 이름」 — 세션 이름이 제목에 서니 본문은 그 한 줄만
-      body: "approve Write: a.ts",
+      title: "ai-pm · claude", // 「프로젝트 · 세션 이름」, 본문은 그 한 줄과 상태 말(오늘 화면의 같은 줄)
+      body: `approve Write: a.ts · ${t("terminal.state.permission")}`,
     });
     alertIfWaiting(st("idle"), info(st("blocked", "question")));
     await vi.waitFor(() => expect(os.sent).toHaveLength(2));

@@ -206,19 +206,26 @@ describe("links inside a full-screen program", () => {
     expect(onImage).not.toHaveBeenCalled();
     inTui.activate(click(true), "file:///tmp/shot.png", RANGE);
     expect(onImage).toHaveBeenLastCalledWith({ kind: "reveal", path: "/tmp/shot.png", x: 4, y: 5 });
+    // The hover says so, for the peek card to tell what a click does there; in the normal buffer it does not.
+    inTui.hover?.(click(), "file:///tmp/shot.png", RANGE);
+    expect(onImage).toHaveBeenLastCalledWith({ kind: "hover", path: "/tmp/shot.png", x: 4, y: 5, tracking: true });
+    createOscLinkHandler({ openUrl: vi.fn(), onImage, term: tracking("normal", "none") }).hover?.(click(), "file:///tmp/shot.png", RANGE);
+    expect(onImage.mock.lastCall?.[0]).not.toHaveProperty("tracking");
 
     const line = (text: string) => ({
       length: text.length,
       getCell: (x: number) => (x < text.length ? { getChars: () => text[x], getWidth: () => 1 } : undefined),
     });
     const provider = createImagePathProvider(() => line("see /tmp/a.png"), onImage, () => 80, tracking("alternate", "vt200"));
-    let links: Array<{ activate: (e: MouseEvent, text: string) => void }> = [];
+    let links: Array<{ activate: (e: MouseEvent, text: string) => void; hover: (e: MouseEvent, text: string) => void }> = [];
     provider.provideLinks(1, (found) => (links = (found ?? []) as typeof links));
     onImage.mockClear();
     links[0].activate(click(), "/tmp/a.png");
     expect(onImage).not.toHaveBeenCalled();
     links[0].activate(click(true), "/tmp/a.png");
     expect(onImage).toHaveBeenCalledWith(expect.objectContaining({ kind: "reveal", path: "/tmp/a.png" }));
+    links[0].hover(click(), "/tmp/a.png");
+    expect(onImage).toHaveBeenLastCalledWith(expect.objectContaining({ kind: "hover", tracking: true }));
   });
 
   it("the web-links addon goes through the same gate, and a refused open is swallowed", async () => {

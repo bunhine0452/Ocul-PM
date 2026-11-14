@@ -39,7 +39,7 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         func: "shell_command",
         call: "CommandBuilder::new(&shell)",
         reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 셸에 넘기는 claude 한 줄"),
-        reason: "앱 안 터미널의 셸(macOS·Linux, $SHELL -l) — portable-pty 가 앱 프로세스 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 스스로 시키는 것은 「다음」 실행의 `claude \"$OCULPM_PROMPT\"` 한 줄뿐(사용자가 누른 단추) — 2026-11-15 부터 쳐 넣지 않고 `$SHELL -l -i -c` 의 인자로 넘긴다(rc 의 질문이 먹지 않게, terminal_env.rs). 인자로 못 받는 셸(nushell 등)만 예전처럼 쳐 넣는다.",
+        reason: "앱 안 터미널의 셸(macOS·Linux, $SHELL -l) — portable-pty 가 앱 프로세스 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 스스로 시키는 것은 「다음」 실행의 `claude \"$OCULPM_PROMPT\"` 한 줄뿐(사용자가 누른 단추) — 2026-11-15 부터 쳐 넣지 않고 `$SHELL -l -i -c` 의 인자로 넘긴다(rc 의 질문이 먹지 않게, terminal_env.rs). 인자로 못 받는 셸(nushell 등)만 예전처럼 쳐 넣는다. 맞바꾼 것: rc 가 다른 프로그램을 exec 하면(tmux 자동 시작) 그 인자는 돌지 않는다 — 앱이 시키는 줄이 줄 뿐 늘지 않는다.",
     },
     Launch {
         path: "terminal.rs",

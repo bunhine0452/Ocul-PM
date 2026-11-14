@@ -39,19 +39,18 @@ pub(crate) fn wait_until(cond: impl Fn() -> bool, why: &str) {
     }
 }
 
-/// 내 손을 기다리는(OSC 7501 blocked) claude 를 흉내 내는 세션 — 상태가 표에 서면 돌아온다.
+/// 내 손을 기다리는(OSC 7501 blocked) claude 를 흉내 내는 세션 — 상태가 표에 서면 돌아온다. 대화형 셸이라
+/// 작업 제어로 `sleep` 이 앞에 선다(진짜 claude 처럼). 셸만 앞에 있는 칸의 기다림은 낡은 것이라 세지 않는다.
 #[cfg(unix)]
 pub(crate) fn start_blocked(sessions: &TermSessions, window: &str, project_id: u32) -> TermInfo {
-    let script = "printf '\\033]7501;state=blocked:kind=permission\\033\\\\'; sleep 30";
+    let mut cmd = sh("exec /bin/sh -i");
+    cmd.env("PS1", "$ ");
     let info = sessions
-        .start(
-            spec(window, project_id),
-            sh(script),
-            "claude".into(),
-            None,
-            |_| {},
-        )
+        .start(spec(window, project_id), cmd, "claude".into(), None, |_| {})
         .unwrap();
+    std::thread::sleep(Duration::from_millis(300));
+    let line = "printf '\\033]7501;state=blocked:kind=permission\\033\\\\'; sleep 30\r";
+    sessions.write(info.id, line).unwrap();
     wait_until(
         || sessions.waiting_in(project_id) == 1,
         "blocked 상태가 표에 서지 않았다",
