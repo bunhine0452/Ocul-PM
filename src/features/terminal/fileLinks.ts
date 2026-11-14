@@ -15,11 +15,35 @@
  *
  * 누르면 **그 파일을 Finder 에서 연다**(11-04 「클릭 시 경로로 이동」), ⌘ 를 누른 채 누르면 크게 본다.
  *
+ * **전체 화면 프로그램이 마우스를 쓰는 동안**(Claude Code 의 전체 화면 렌더러 — 대체 화면 + 마우스 추적)은
+ * 맨 클릭이 그 프로그램의 것이다. 예전에는 한 번 누르면 Claude 의 클릭과 브라우저 열기가 함께 일어났다
+ * (11-15). 그때는 ⌘(Ctrl)를 누른 채 눌러야 링크가 열리고, 이미지는 ⌘ 누름이 평소의 맨 클릭(Finder)이 된다.
+ *
  * 무엇을 띄울지는 `imagePeek.ts` 가 정한다 — 여기는 링크를 찾아 사건으로 바꾸기만 한다.
  */
 import type { IBufferRange, ILink, ILinkHandler, ILinkProvider } from "@xterm/xterm";
 
 import type { FileMenuAt } from "./fileRefs";
+
+/** 링크를 거르는 데 쓰는 터미널의 모양 — 지금 버퍼와 마우스 추적. 시험이 가짜를 넘긴다. */
+export interface LinkTerm {
+  buffer: { active: { type: "normal" | "alternate" } };
+  modes: { mouseTrackingMode: "none" | "x10" | "vt200" | "drag" | "any" };
+}
+
+/** 전체 화면 프로그램(대체 화면)이 마우스를 쓰는 중인가. */
+function tracksMouse(term: LinkTerm | undefined): boolean {
+  return term?.buffer.active.type === "alternate" && term.modes.mouseTrackingMode !== "none";
+}
+
+function withMod(event: MouseEvent): boolean {
+  return event.metaKey || event.ctrlKey;
+}
+
+/** 이 누름으로 링크를 열까 — 마우스를 쓰는 전체 화면 프로그램 위에서는 ⌘(Ctrl)를 누른 채일 때만. */
+export function shouldOpenLink(event: MouseEvent, term?: LinkTerm): boolean {
+  return withMod(event) || !tracksMouse(term);
+}
 
 /** 미리 보는 이미지 확장자 — 백엔드 `commands/term_image.rs` 의 `IMAGE_EXT` 와 같다. */
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|bmp|ico)$/i;
@@ -33,9 +57,13 @@ export type ImageLinkEvent =
   | { kind: "hover" | "open" | "reveal"; path: string; x: number; y: number }
   | { kind: "leave" };
 
-/** 누름의 뜻 — 그냥 누르면 Finder 에서(경로로 이동), ⌘(Ctrl) 를 누른 채면 크게. */
-function clickKind(event: MouseEvent): "open" | "reveal" {
-  return event.metaKey || event.ctrlKey ? "open" : "reveal";
+/**
+ * 누름의 뜻 — 그냥 누르면 Finder 에서(경로로 이동), ⌘(Ctrl) 를 누른 채면 크게. 마우스를 쓰는 전체 화면
+ * 프로그램 위에서는 맨 클릭을 그 프로그램에 두고(`null`) ⌘ 누름이 Finder 가 된다.
+ */
+function clickKind(event: MouseEvent, term?: LinkTerm): "open" | "reveal" | null {
+  if (tracksMouse(term)) return withMod(event) ? "reveal" : null;
+  return withMod(event) ? "open" : "reveal";
 }
 
 /** 밖으로 내보내는 스킴은 http/https 뿐 — `javascript:` 같은 나머지는 백엔드까지 가지 않는다. */
@@ -71,6 +99,10 @@ export interface LinkDeps {
   onImage: (event: ImageLinkEvent) => void;
   /** 이미지가 아닌 `file://` — 「이 파일로 할 일」 메뉴(`fileRefs.ts`). */
   onFile?: (at: FileMenuAt) => void;
+  /** 지금 버퍼 · 마우스 추적 — 전체 화면 프로그램 위의 맨 클릭을 거른다(`shouldOpenLink`). */
+  term?: LinkTerm;
+  /** 맨 클릭을 프로그램에 두고 링크를 열지 않았다 — ⌘ 로 연다는 안내를 띄울 자리. */
+  onPassedThrough?: () => void;
 }
 
 /** xterm `linkHandler` 옵션 — OSC 8 하이퍼링크. */
@@ -82,7 +114,11 @@ export function createOscLinkHandler(deps: LinkDeps): ILinkHandler {
   return {
     activate: (event, uri) => {
       const path = imageOf(uri);
-      if (path) return deps.onImage({ kind: clickKind(event), path, x: event.clientX, y: event.clientY });
+      if (path) {
+        const kind = clickKind(event, deps.term);
+        return kind ? deps.onImage({ kind, path, x: event.clientX, y: event.clientY }) : deps.onPassedThrough?.();
+      }
+      if (!shouldOpenLink(event, deps.term)) return deps.onPassedThrough?.();
       if (isOpenableUrl(uri)) return deps.openUrl(uri.trim());
       // 이미지가 아닌 `file://` 는 파일 메뉴로 — 같은 칸의 맨 글자 경로 프로바이더보다 이 링크가 먼저라
       // 여기서 넘기지 않으면 Claude Code 가 감싼 경로는 눌러도 아무 일이 없다. 그 밖의 스킴은 조용히.
@@ -219,11 +255,16 @@ export function wrappedChain(
   return { text, pieces };
 }
 
-/** 맨 글자 이미지 경로의 링크 프로바이더. `getCols` 는 터미널 폭(줄을 넘긴 경로를 알아보는 데 쓴다). */
+/**
+ * 맨 글자 이미지 경로의 링크 프로바이더. `getCols` 는 터미널 폭(줄을 넘긴 경로를 알아보는 데 쓴다), `term` 은
+ * 전체 화면 프로그램 위의 맨 클릭을 거르는 데(`clickKind`).
+ */
 export function createImagePathProvider(
   getLine: (y: number) => CellLine | undefined,
   onImage: (event: ImageLinkEvent) => void,
   getCols: () => number = () => Number.MAX_SAFE_INTEGER,
+  term?: LinkTerm,
+  onPassedThrough?: () => void,
 ): ILinkProvider {
   return {
     provideLinks(y, callback) {
@@ -245,7 +286,11 @@ export function createImagePathProvider(
           range,
           text: path,
           decorations: { underline: true, pointerCursor: true },
-          activate: (event) => onImage({ kind: clickKind(event), path, x: event.clientX, y: event.clientY }),
+          activate: (event) => {
+            const kind = clickKind(event, term);
+            if (kind) onImage({ kind, path, x: event.clientX, y: event.clientY });
+            else onPassedThrough?.();
+          },
           hover: (event) => onImage({ kind: "hover", path, x: event.clientX, y: event.clientY }),
           leave: () => onImage({ kind: "leave" }),
         });

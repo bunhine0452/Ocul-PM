@@ -13,6 +13,21 @@ fn term_err(e: String) -> AppError {
     AppError::new("terminal", e)
 }
 
+/// 쓰기 대기가 넘쳤으면 `terminal_busy` — 프런트가 「바빠요」 토스트를 띄운다(`terminal.writeBusy`).
+fn write_err(e: String) -> AppError {
+    if e == crate::terminal::WRITE_BUSY {
+        return AppError::new("terminal_busy", e);
+    }
+    term_err(e)
+}
+
+/// 그 창이 지금 앞에 있는가 — 메인 스레드를 한 번 오간다. 창을 못 찾으면 뒤.
+fn is_front(app: &tauri::AppHandle, label: &str) -> bool {
+    app.get_webview_window(label)
+        .and_then(|w| w.is_focused().ok())
+        .unwrap_or(false)
+}
+
 /// 어느 창에서든 세션이 열리거나 · 끝나거나 · 안의 프로그램 상태가 바뀌었다 — 프로젝트 목록과
 /// 시작 창이 「어디서 무엇이 도는지」를 다시 센다 (`term_overview`).
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
@@ -55,8 +70,10 @@ pub async fn term_open(
         Some(lane) => super::race::lane_cwd(root, lane).await?,
         None => root,
     };
+    let label = window.label().to_string();
+    let focus = (app.clone(), label.clone());
     let spec = OpenSpec {
-        window: window.label().to_string(),
+        window: label.clone(),
         project_id,
         cwd,
         cols,
@@ -64,24 +81,30 @@ pub async fn term_open(
         prompt,
         lane,
         resume,
+        front: Some(Box::new(move || is_front(&focus.0, &focus.1))),
     };
     let notify = app.clone();
-    let label = window.label().to_string();
     let table = sessions.inner().clone();
     let info = sessions
         .open(spec, move |ev| {
-            if let TermEvent::Status { status: Some(st) } = &ev {
-                // 그 창이 뒤에 있는 동안 기다림 · 끝냄 · 오류가 되면 읽지 않음 (Orca 의 알림 규칙).
-                let settled = matches!(st.state.as_str(), "blocked" | "done" | "error");
-                let front = notify
-                    .get_webview_window(&label)
-                    .and_then(|w| w.is_focused().ok())
-                    .unwrap_or(false);
-                if settled && !front {
-                    table.mark_unseen(&label);
+            // 그 창이 뒤에 있는 동안 기다림 · 끝냄 · 오류가 되거나 종 · 알림이 오면 읽지 않음 (Orca 의 알림 규칙).
+            let settled = match &ev {
+                TermEvent::Status { status: Some(st) } => {
+                    matches!(st.state.as_str(), "blocked" | "done" | "error")
                 }
+                TermEvent::Bell | TermEvent::Notice { .. } => true,
+                _ => false,
+            };
+            let unseen = settled && !is_front(&notify, &label);
+            if unseen {
+                table.mark_unseen(&label);
             }
-            if matches!(ev, TermEvent::Status { .. } | TermEvent::Exit { .. }) {
+            // 다른 창의 목록 · 창 제목 · Dock 배지가 다시 센다 — 제목은 탭 이름이 바뀐다.
+            let changed = matches!(
+                ev,
+                TermEvent::Status { .. } | TermEvent::Exit { .. } | TermEvent::Title { .. }
+            );
+            if changed || unseen {
                 let _ = TermSessionsChanged { project_id }.emit(&notify);
             }
             let _ = on_event.send(ev);
@@ -98,7 +121,15 @@ pub fn term_write(
     id: u32,
     data: String,
 ) -> Result<(), AppError> {
-    sessions.write(id, &data).map_err(term_err)
+    sessions.write(id, &data).map_err(write_err)
+}
+
+/// 웹뷰가 그 세션의 출력을 `bytes` 만큼 그렸다 — 출력 흐름 제어(`terminal_io::Flow`)가 그만큼 더 보낸다.
+/// 동기 명령 — 세션의 셈만 줄이고 곧장 돌아온다.
+#[tauri::command]
+#[specta::specta]
+pub fn term_ack(sessions: State<'_, TermSessions>, id: u32, bytes: u32) {
+    sessions.ack(id, bytes);
 }
 
 #[tauri::command]

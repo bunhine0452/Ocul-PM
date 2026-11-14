@@ -35,6 +35,11 @@ export const terminalApi = {
     return call("term_open", commands.termOpen(projectId, cols, rows, prompt, cwd, resume, channel));
   },
   write: (id: number, data: string) => call("term_write", commands.termWrite(id, data)),
+  /**
+   * 웹뷰가 그 세션의 출력을 `bytes` 만큼 그렸다 — 백엔드가 그만큼 더 읽는다(출력 흐름 제어,
+   * `src-tauri/src/terminal_io.rs`). 알림을 잃어도 백엔드는 2초 뒤 스스로 푼다.
+   */
+  ack: (id: number, bytes: number): Promise<void> => commands.termAck(id, bytes),
   resize: (id: number, cols: number, rows: number) => call("term_resize", commands.termResize(id, cols, rows)),
   close: (id: number): Promise<void> => commands.termClose(id),
   list: (): Promise<TermInfo[]> => commands.termList(),

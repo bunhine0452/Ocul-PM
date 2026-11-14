@@ -370,8 +370,9 @@
   --term-cursor-accent: var(--bg-content);
   --term-selection: var(--accent-ring);
   --term-chrome: var(--bg-sidebar);
-  /* 라이트 가족 ANSI — 밝은 배경에서 대비가 서는 톤 */
-  --term-black: #2f3336;         --term-bright-black: #7b8085;
+  /* 라이트 가족 ANSI — 밝은 배경에서 대비가 서는 톤. bright-black(Claude Code 의 흐린 안내 글자)은
+     바탕 위 4.5:1 — 예전 #7b8085 는 3.78:1 이었다(2026-11-15). */
+  --term-black: #2f3336;         --term-bright-black: #6f7378;
   --term-red: #c5322b;           --term-bright-red: #e0524b;
   --term-green: #1a7f4b;         --term-bright-green: #22a163;
   --term-yellow: #a16207;        --term-bright-yellow: #c2820c;
@@ -449,8 +450,9 @@
   --shadow-sheet: 0 0 0 1px rgba(255,255,255,0.045), 0 12px 36px rgba(0,0,0,0.45);
   --shadow-toolbar: 0 1px 0 rgba(0,0,0,0.4);
 
-  /* 다크 가족 ANSI — 2026-07-20 개편 때 쓰던 TERM_THEME 값 그대로 승계. */
-  --term-black: #1b201e;         --term-bright-black: #6e7670;
+  /* 다크 가족 ANSI — 2026-07-20 개편 때 쓰던 TERM_THEME 값 그대로 승계. bright-black 만 바탕 위 4.5:1 로
+     올렸다(예전 #6e7670 은 3.56:1, 2026-11-15). */
+  --term-black: #1b201e;         --term-bright-black: #858d87;
   --term-red: #f1685f;           --term-bright-red: #ff8079;
   --term-green: #34d095;         --term-bright-green: #4fdca0;
   --term-yellow: #e6c570;        --term-bright-yellow: #f2d98a;

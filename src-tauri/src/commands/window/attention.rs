@@ -7,13 +7,15 @@
 //! - **Dock 배지** — 모든 창의 기다림 합. 0 이면 지운다.
 //! - **⌘O 목록 · ⌥⌘ 번호** — 프런트가 [`project_attention`] 으로 읽어 줄마다 점을 찍고 급한 것을 위로.
 //!
-//! 「기다림」 = Claude 가 입력 · 허락을 기다리는 세션(Notification 훅) + 앱에 떠 있는 질문(`ask_user`).
-//! 「실패」 = 살아 있는 계획의 마지막 확인 명령이 ✗. 둘 다 이미 오늘 화면이 쓰는 원천을 그대로 읽는다.
-//! 새로 듣는 것도 없다 — 이미 나가는 이벤트(기다림 · 질문 · 열린 창 집합)를 Rust 쪽에서 한 번 더 듣는다.
+//! 「기다림」 = Claude 가 입력 · 허락을 기다리는 세션(Notification 훅, 또는 앱 안 터미널의 OSC 7501
+//! blocked) + 앱에 떠 있는 질문(`ask_user`). 「실패」 = 살아 있는 계획의 마지막 확인 명령이 ✗. 둘 다 이미
+//! 오늘 화면이 쓰는 원천을 그대로 읽는다. 새로 듣는 것도 없다 — 이미 나가는 이벤트(기다림 · 질문 · 열린 창
+//! 집합 · 터미널 세션)를 Rust 쪽에서 한 번 더 듣는다.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::*;
+use crate::commands::terminal::TermSessionsChanged;
 use crate::oculpm::claude_waiting::{
     pending_questions, ClaudeQuestionsChanged, ClaudeWaitingChanged, ClaudeWaitingState,
     WAITING_STALE_MINUTES,
@@ -50,7 +52,7 @@ pub fn titled(name: &str, waiting: u32, en: bool) -> String {
 }
 
 /// 30분 넘은 기다림은 세지 않는다 — `claude_waiting` 이 지우는 기준과 같다.
-fn fresh_waiting(app: &AppHandle, project_id: u32) -> u32 {
+fn fresh_waiting<R: tauri::Runtime>(app: &AppHandle<R>, project_id: u32) -> u32 {
     let Some(state) = app.try_state::<ClaudeWaitingState>() else {
         return 0;
     };
@@ -68,32 +70,51 @@ fn fresh_waiting(app: &AppHandle, project_id: u32) -> u32 {
     })
 }
 
-async fn attention_of(app: &AppHandle, project_id: u32) -> ProjectAttention {
-    let db = app.state::<crate::db::Db>();
-    let questions = match db.get_project(project_id).await {
-        Ok(p) => pending_questions(std::path::Path::new(&p.root_path)).len() as u32,
-        Err(_) => 0,
+/// 앱 안 터미널에서 내 손을 기다리는 세션(OSC 7501 blocked) — 플러그인 훅이 없거나 아직 안 알린 기다림.
+fn in_app_waiting<R: tauri::Runtime>(app: &AppHandle<R>, project_id: u32) -> u32 {
+    app.try_state::<crate::terminal::TermSessions>()
+        .map_or(0, |t| t.waiting_in(project_id))
+}
+
+async fn attention_of<R: tauri::Runtime>(app: &AppHandle<R>, project_id: u32) -> ProjectAttention {
+    let (questions, failing) = match app.try_state::<crate::db::Db>() {
+        Some(db) => (
+            questions_of(&db, project_id).await,
+            failing_of(&db, project_id).await,
+        ),
+        None => (0, false),
     };
-    let failing = match crate::commands::plan::planner_root_of(&db, project_id).await {
-        Ok(root) => {
-            use crate::oculpm::planner::{digest, project::PlanCache};
-            digest::load_details(&PlanCache::new(&db), project_id, &root)
-                .await
-                .map(|d| {
-                    digest::build(d)
-                        .plans
-                        .iter()
-                        .any(|p| p.last_verdict.as_ref().is_some_and(|v| !v.passed))
-                })
-                .unwrap_or(false)
-        }
-        Err(_) => false,
-    };
+    // 훅은 앱 안 터미널의 claude 도 적는다 — 둘을 더하면 같은 기다림을 두 번 센다. 큰 쪽을 쓴다:
+    // 훅이 없으면 앱 안 셈이, 바깥 터미널의 기다림이 있으면 훅의 셈이 선다.
+    let sessions = fresh_waiting(app, project_id).max(in_app_waiting(app, project_id));
     ProjectAttention {
         project_id,
-        waiting: fresh_waiting(app, project_id) + questions,
+        waiting: sessions + questions,
         failing,
     }
+}
+
+async fn questions_of(db: &crate::db::Db, project_id: u32) -> u32 {
+    match db.get_project(project_id).await {
+        Ok(p) => pending_questions(std::path::Path::new(&p.root_path)).len() as u32,
+        Err(_) => 0,
+    }
+}
+
+async fn failing_of(db: &crate::db::Db, project_id: u32) -> bool {
+    let Ok(root) = crate::commands::plan::planner_root_of(db, project_id).await else {
+        return false;
+    };
+    use crate::oculpm::planner::{digest, project::PlanCache};
+    digest::load_details(&PlanCache::new(db), project_id, &root)
+        .await
+        .map(|d| {
+            digest::build(d)
+                .plans
+                .iter()
+                .any(|p| p.last_verdict.as_ref().is_some_and(|v| !v.passed))
+        })
+        .unwrap_or(false)
 }
 
 /// ⌘O 목록 · ⌥⌘ 번호가 읽는다. 창이 없는 프로젝트는 기다림을 모른다(감시기가 안 돈다) — 0 이다.
@@ -137,7 +158,11 @@ pub async fn refresh_attention(app: &AppHandle) {
     let _ = ProjectAttentionChanged {}.emit(app);
 }
 
-/// 이미 나가는 이벤트 셋을 듣는다 — 내는 쪽은 고치지 않는다.
+/// 터미널 세션 사건은 상태 · 제목 · 끝마다 몰려 온다 — 다시 세기는 이 간격에 한 번(창 제목 · Dock 배지).
+const TERM_COALESCE: std::time::Duration = std::time::Duration::from_millis(250);
+static TERM_REFRESH_PENDING: AtomicBool = AtomicBool::new(false);
+
+/// 이미 나가는 이벤트 넷을 듣는다 — 내는 쪽은 고치지 않는다.
 pub fn watch_attention(app: &AppHandle) {
     let kick = |app: AppHandle| {
         move || {
@@ -151,6 +176,18 @@ pub fn watch_attention(app: &AppHandle) {
     ClaudeQuestionsChanged::listen_any(app, move |_| b());
     let c = kick(app.clone());
     ProjectWindowsChanged::listen_any(app, move |_| c());
+    let d = app.clone();
+    TermSessionsChanged::listen_any(app, move |_| {
+        if TERM_REFRESH_PENDING.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let app = d.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(TERM_COALESCE).await;
+            TERM_REFRESH_PENDING.store(false, Ordering::SeqCst);
+            refresh_attention(&app).await;
+        });
+    });
 }
 
 #[cfg(test)]
@@ -162,5 +199,23 @@ mod tests {
         assert_eq!(titled("ai-pm", 0, false), "ai-pm");
         assert_eq!(titled("ai-pm", 2, false), "ai-pm · 기다림 2");
         assert_eq!(titled("ai-pm", 1, true), "ai-pm · 1 waiting");
+    }
+
+    /// 앱 안 터미널의 claude 가 내 손을 기다리면 창 제목 · Dock 배지 · ⌘O 목록의 기다림이 하나 는다 —
+    /// 훅 셈과 겹치는 것은 두 번 세지 않는다.
+    #[cfg(unix)]
+    #[test]
+    fn a_blocked_in_app_session_counts_as_waiting() {
+        use tauri::Manager;
+        let app = tauri::test::mock_app();
+        let sessions = crate::terminal::TermSessions::default();
+        app.manage(sessions.clone());
+        let attention =
+            |pid| tauri::async_runtime::block_on(super::attention_of(app.handle(), pid)).waiting;
+        assert_eq!(attention(7), 0);
+        crate::terminal::tests::start_blocked(&sessions, "proj-7", 7);
+        assert_eq!(attention(7), 1);
+        assert_eq!(attention(8), 0, "다른 프로젝트의 기다림은 세지 않는다");
+        sessions.close_all();
     }
 }

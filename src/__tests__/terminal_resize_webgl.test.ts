@@ -82,9 +82,8 @@ vi.mock("@xterm/addon-webgl", () => ({
     onContextLoss(cb: () => void) {
       this.rec.loss = cb;
     }
-    dispose() {
-      this.rec.disposed = true;
-    }
+    onAddTextureAtlasCanvas() {}
+    dispose() { this.rec.disposed = true; }
   },
 }));
 vi.mock("@xterm/xterm/css/xterm.css", () => ({}));

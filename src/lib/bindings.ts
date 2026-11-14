@@ -180,6 +180,11 @@ export const commands = {
 	 */
 	termOpen: (projectId: number, cols: number, rows: number, prompt: string | null, cwd: string | null, resume: boolean, onEvent: Channel<TermEvent>) => typedError<TermInfo, AppError>(__TAURI_INVOKE("term_open", { projectId, cols, rows, prompt, cwd, resume, onEvent })),
 	termWrite: (id: number, data: string) => typedError<null, AppError>(__TAURI_INVOKE("term_write", { id, data })),
+	/**
+	 *  웹뷰가 그 세션의 출력을 `bytes` 만큼 그렸다 — 출력 흐름 제어(`terminal_io::Flow`)가 그만큼 더 보낸다.
+	 *  동기 명령 — 세션의 셈만 줄이고 곧장 돌아온다.
+	 */
+	termAck: (id: number, bytes: number) => __TAURI_INVOKE<void>("term_ack", { id, bytes }),
 	termResize: (id: number, cols: number, rows: number) => typedError<null, AppError>(__TAURI_INVOKE("term_resize", { id, cols, rows })),
 	termClose: (id: number) => __TAURI_INVOKE<void>("term_close", { id }),
 	/**  이 창의 세션 목록 — 웹뷰가 다시 그려져도(새로고침) 남은 세션을 안다. */
@@ -2328,8 +2333,16 @@ export type TermCloseAsked = {
 	quit: boolean,
 };
 
-/**  웹뷰로 가는 세션 사건 — 출력 조각 · 끝 · 프로그램 상태(OSC 7501). */
-export type TermEvent = { kind: "output"; data: string } | { kind: "exit"; code: number | null } | { kind: "status"; status: TermStatus | null };
+/**  웹뷰로 가는 세션 사건 — 출력 조각 · 끝 · 프로그램 상태(OSC 7501) · 제목(OSC 0 · 2) · 종 · 알림(OSC 9 · 777). */
+export type TermEvent = 
+/**  `n` 은 이 조각의 바이트 수 — 웹뷰가 그린 뒤 `term_ack` 로 돌려준다(출력 흐름 제어). */
+{ kind: "output"; data: string; n: number } | { kind: "exit"; code: number | null } | { kind: "status"; status: TermStatus | null } | 
+/**  세션 이름이 될 제목이 바뀌었다(`TermInfo.title`) — 같은 세션은 1초에 한 번까지. */
+{ kind: "title"; title: string | null } | 
+/**  무언가 도는 세션이 BEL 을 울렸다(셸만 도는 칸의 종은 오지 않는다). */
+{ kind: "bell" } | 
+/**  안의 프로그램이 띄워 달라는 알림(OSC 9 · 777). */
+{ kind: "notice"; title: string | null; body: string };
 
 export type TermImage = {
 	mime: string,
@@ -2360,6 +2373,11 @@ export type TermInfo = {
 	 *  (Orca 의 알림 규칙 — 읽지 않음은 프로젝트(= 창)마다). 창이 앞에 오면 지운다.
 	 */
 	unseen: boolean,
+	/**
+	 *  안의 프로그램이 붙인 제목(OSC 7501 의 `title=`, 없으면 OSC 0 · 2) — 정화해 60자. 탭의 이름이 된다
+	 *  (claude 셋이 모두 「claude」 이던 것을 대화 주제로). TS 는 선택 속성(`TermStatus.app` 과 같은 까닭).
+	 */
+	title?: string | null,
 };
 
 /**  업데이트 재시작을 건너 이을 claude 세션 하나 — 그 창의 프로젝트와, 레인이면 그 경로. */
@@ -2390,6 +2408,12 @@ export type TermStatus = {
 	msg: string | null,
 	/**  이 상태로 바뀐 시각 (RFC 3339) — 같은 상태가 이어지면 그대로다. */
 	since: string,
+	/**
+	 *  상태를 보낸 프로그램(`claude` · `codex` …, 소문자) — 한 번 알리면 지울 때까지 남는다. 업데이트 뒤
+	 *  잇기는 이 이름이 claude 일 때만(`Row::runs_claude`). TS 는 선택 속성 — 이 필드를 모르던 시험 · 다른
+	 *  화면의 값 모양을 깨지 않는다(serde 속성으로 하면 specta 가 타입을 보내기 · 받기 둘로 쪼갠다).
+	 */
+	app?: string | null,
 };
 
 export type TodayDigest = {
