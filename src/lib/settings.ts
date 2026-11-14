@@ -37,6 +37,8 @@ export const KEYS = {
   // 업데이트 배너를 닫은 판 (11-15, `UpdateBanner`) — 그 판에 대해서만 닫힌다. 창마다 따로 닫던 것을
   // 앱 전체(SQLite)로: 창 셋을 열어 두면 같은 배너를 세 번 닫아야 했다.
   updateDismissed: "update_dismissed",
+  // Claude Code 테마 파일을 앱 테마에 맞춘다 (11-15, `features/theme/claudeTheme.ts`) — 「off」 면 더 쓰지 않는다.
+  claudeTheme: "claude_theme",
 } as const;
 
 export type SettingKey = (typeof KEYS)[keyof typeof KEYS];
@@ -77,6 +79,9 @@ export interface Settings {
 
   /** 업데이트 배너를 닫은 판(`"4.11.0"`). 더 새 판이 오면 배너가 다시 선다. 빈 문자열은 닫은 적 없음. */
   updateDismissed: string;
+
+  /** `~/.claude/themes/ocul.json` 을 앱 테마에 맞춘다. `"off"` 면 더 쓰지 않고, 이미 있는 파일은 그대로 둔다. */
+  claudeTheme: "on" | "off";
 }
 
 export const DEFAULTS: Settings = {
@@ -91,6 +96,7 @@ export const DEFAULTS: Settings = {
   tourSeen: "",
   terminalFontSize: 13,
   updateDismissed: "",
+  claudeTheme: "on",
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -104,6 +110,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.tourSeen]: "tourSeen",
   [KEYS.terminalFontSize]: "terminalFontSize",
   [KEYS.updateDismissed]: "updateDismissed",
+  [KEYS.claudeTheme]: "claudeTheme",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(
@@ -123,6 +130,8 @@ function coerce<K extends keyof Settings>(field: K, raw: string): Settings[K] {
   // 옛 프리셋 id(`nord` …)·`custom:<id>` 가 저장돼 있으면 시스템으로 읽는다 (4.0 에서 걷었다).
   if (field === "theme") return (raw === "light" || raw === "dark" ? raw : "system") as Settings[K];
   if (field === "appIcon") return (isAppIconId(raw) ? raw : "color") as Settings[K];
+  // 모르는 값은 켜짐으로 — 끄기는 「off」 를 적었을 때만이다.
+  if (field === "claudeTheme") return (raw === "off" ? "off" : "on") as Settings[K];
   // string-typed
   return raw as Settings[K];
 }

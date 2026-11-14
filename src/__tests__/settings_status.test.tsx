@@ -28,8 +28,8 @@ vi.mock("@/lib/bindings", () => {
               fx.pluginCalls += 1;
               return fx.pluginFails ? Promise.resolve({ status: "error" as const, error: "boom" }) : ok(fx.plugin);
             };
-          if (prop === "oculpmAgentsCheckMasterUpgrade") return () => ok(null);
-          if (prop === "oculpmAgentsCheckMasterAhead") return () => ok(null);
+          if (prop === "oculpmAgentsCheckMasterUpgrade" || prop === "oculpmAgentsCheckMasterAhead") return () => ok(null);
+          if (prop === "claudeThemeWrite") return () => ok({ state: "unchanged", path: "/Users/me/.claude/themes/ocul.json" });
           if (prop === "dbHealth") return () => ok(fx.health);
           if (prop === "dbCompact") return () => ok({ db_bytes: null, wal_bytes: null, free_bytes: null });
           if (prop === "appInfo") return () => ok({ version: "4.0.0", db_path: "", app_data_dir: "", secrets_store: "" });

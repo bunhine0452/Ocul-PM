@@ -17,6 +17,7 @@ import { windowApi } from "@/api/window";
 import { drawsCaptionButtons } from "@/lib/platform";
 import { accentFor, projectAccent } from "@/features/theme/projectAccent";
 import { applyProjectTint } from "@/features/theme/projectTint";
+import { useClaudeThemeSync } from "@/features/theme/claudeTheme";
 
 interface SettingsContextValue {
   settings: Settings;
@@ -181,6 +182,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, [loaded, settings.theme, settings.colorTheme, projectColor]);
+
+  // Claude Code 테마 파일(`~/.claude/themes/ocul.json`)도 앱 테마를 따른다 (11-15) — 창과 무관한 색으로 만든다.
+  useClaudeThemeSync(settings, loaded);
 
   // Windows — 네이티브 창(제목줄 없는 창의 1px 위 테두리 · 시스템 메뉴)도 같은 테마로 (2026-11-10).
   // 「시스템」 은 `null` 이라 창이 OS 를 따르고, 웹뷰의 prefers-color-scheme 도 OS 값으로 돌아온다 —

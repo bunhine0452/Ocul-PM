@@ -10,6 +10,8 @@ pub mod app_error;
 mod app_icon;
 // diff 기준선 스냅샷 동기 — 4.0 에서 걷은 코드 색인의 남은 한 조각.
 pub mod baseline;
+// Claude Code 테마 파일 `~/.claude/themes/ocul.json` — 프로젝트 밖에 쓰는 두 번째 파일 (11-15).
+mod claude_theme;
 mod commands;
 // W5-PR8 — `db` and `oculpm` are made public so `src-tauri/tests/`
 // integration tests can drive the manager directly with a temp DB. None
@@ -151,6 +153,8 @@ use crate::commands::{
     claude_question_answer,
     // Claude 가 묻고 사람이 답한다 (MCP ask_user, #ask-user)
     claude_questions,
+    // Claude Code 테마 파일 (~/.claude/themes/ocul.json, 11-15)
+    claude_theme_write,
     // 바깥 터미널의 Claude 기다림 (Notification 훅, #notify-hook)
     claude_waiting,
     claude_waiting_dismiss,
@@ -455,6 +459,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             codex_mcp_unregister,
             codex_plugin_status,
             claude_plugin_status,
+            // Claude Code 테마 파일 — `~/.claude` 가 있을 때만, settings.json 은 안 건드린다 (11-15)
+            claude_theme_write,
             // 비-mac 「새 창」 (#os-new-window)
             new_window,
             // 베타 버그 리포트 — 「진단 정보 복사」 (#w5-report)

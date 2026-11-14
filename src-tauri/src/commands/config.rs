@@ -71,6 +71,21 @@ pub async fn settings_set_many(
     Ok(())
 }
 
+// ---------- Claude Code 테마 파일 ----------
+
+/// Claude Code 테마 파일을 앱 테마에 맞춘다 (11-15, `claude_theme`) — `~/.claude/themes/ocul.json` 하나만
+/// 쓴다. `~/.claude` 가 없으면 아무것도 만들지 않고, 내용이 같으면 쓰지 않는다. 테마는 프런트가 터미널
+/// 색에서 만든다(`features/theme/claudeTheme.ts`). 끄기(설정 `claude_theme`)는 프런트가 부르지 않는 것으로 한다.
+#[tauri::command]
+#[specta::specta]
+pub async fn claude_theme_write(
+    theme: crate::claude_theme::ClaudeTheme,
+) -> Result<crate::claude_theme::ClaudeThemeOutcome, String> {
+    let dir = crate::oculpm::paths::claude_code_home()
+        .ok_or_else(|| "Could not find the home directory".to_string())?;
+    super::blocking(move || crate::claude_theme::write_to(&dir, &theme)).await
+}
+
 // ---------- App info / maintenance ----------
 
 #[derive(Debug, Serialize, Deserialize, specta::Type)]

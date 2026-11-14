@@ -23,6 +23,7 @@ import type { ClaudePluginStatus, CodexPluginStatus, McpRegistrationStatus } fro
 import { getPlatform } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { CLAUDE_PLUGIN_INSTALL, CLAUDE_PLUGIN_UPDATE, CODEX_PLUGIN_INSTALL } from "@/lib/agentCommands";
+import { ClaudeThemeRow } from "./ClaudeThemeRow";
 import { PrefsCard, PrefsRow, useReportFix } from "./prefsUi";
 
 /** 아직 묻는 중 · 물었는데 모름 · 답. */
@@ -248,6 +249,7 @@ export function AgentsSection({ id, arrived }: { id: string; arrived?: number })
       }
     >
       <ClaudeRow tick={tick} />
+      <ClaudeThemeRow tick={tick} />
       <CodexRow tick={tick} />
       <McpRow tick={tick} />
     </PrefsCard>

@@ -76,8 +76,8 @@ export function readTerminalTheme(root: HTMLElement = document.documentElement):
   return theme;
 }
 
-/** `#rgb` · `#rrggbb` · `rgb(r, g, b)` → [0..255] 셋. 못 읽으면 `null`. */
-function parseColor(color: string): [number, number, number] | null {
+/** `#rgb` · `#rrggbb` · `rgb(r, g, b)` → [0..255] 셋. 못 읽으면 `null`. (Claude 테마 파일도 쓴다 — `claudeTheme.ts`.) */
+export function parseColor(color: string): [number, number, number] | null {
   const c = color.trim();
   const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c)?.[1];
   if (hex) {
@@ -89,7 +89,7 @@ function parseColor(color: string): [number, number, number] | null {
 }
 
 /** WCAG 상대 휘도(0 검정 ~ 1 흰색). */
-function luminance([r, g, b]: [number, number, number]): number {
+export function luminance([r, g, b]: [number, number, number]): number {
   const lin = (v: number) => {
     const s = v / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
