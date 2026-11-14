@@ -38,22 +38,22 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         path: "terminal.rs",
         func: "shell_command",
         call: "CommandBuilder::new(&shell)",
-        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 셸에 넘기는 claude 한 줄"),
-        reason: "앱 안 터미널의 셸(macOS·Linux, $SHELL -l) — portable-pty 가 앱 프로세스 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 스스로 시키는 것은 「다음」 실행의 `claude \"$OCULPM_PROMPT\"` 한 줄뿐(사용자가 누른 단추) — 2026-11-15 부터 쳐 넣지 않고 `$SHELL -l -i -c` 의 인자로 넘긴다(rc 의 질문이 먹지 않게, terminal_env.rs). 인자로 못 받는 셸(nushell 등)만 예전처럼 쳐 넣는다. 맞바꾼 것: rc 가 다른 프로그램을 exec 하면(tmux 자동 시작) 그 인자는 돌지 않는다 — 앱이 시키는 줄이 줄 뿐 늘지 않는다.",
+        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 「다음」 실행이 셸에 넘기는 claude 한 줄, 또는 사용자가 확인 창에서 전문을 보고 누른 계획의 확인 명령 한 줄"),
+        reason: "앱 안 터미널의 셸(macOS·Linux, $SHELL -l) — portable-pty 가 앱 프로세스 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 스스로 시키는 것은 사용자가 누른 단추의 두 줄뿐이다: 「다음」 실행의 `claude \"$OCULPM_PROMPT\"`, 그리고 계획의 「셸에서 돌리기」 — 확인 창에 전문(기계 글씨)과 폴더를 보이고 사용자가 「돌리기」 를 눌러야만 그 계획의 확인 명령 한 줄을 프로젝트 폴더의 새 셸 세션에서 돌린다(2026-11-15, 같은 기동 자리 · 새 자식 프로세스 자리 없음). 둘 다 쳐 넣지 않고 `$SHELL -l -i -c` 의 인자로 넘긴다(rc 의 질문이 먹지 않게, terminal_env.rs). 인자로 못 받는 셸(nushell 등)만 예전처럼 쳐 넣는다. 맞바꾼 것: rc 가 다른 프로그램을 exec 하면(tmux 자동 시작) 그 인자는 돌지 않는다 — 앱이 시키는 줄이 줄 뿐 늘지 않는다.",
     },
     Launch {
         path: "terminal.rs",
         func: "shell_command",
         call: "CommandBuilder::new(pwsh)",
-        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 셸에 넘기는 claude 한 줄"),
-        reason: "Windows — 위와 같다. PATH 에 PowerShell 7(`pwsh.exe`)이 있으면 그 전체 경로로 띄운다(사용자의 PowerShell 7 프로필이 읽히게, 2026-11-10). 앱이 시키는 것은 `-NoExit -Command` 로 넘기는 `claude $env:OCULPM_PROMPT` 한 줄뿐.",
+        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 「다음」 실행이 셸에 넘기는 claude 한 줄, 또는 사용자가 확인 창에서 전문을 보고 누른 계획의 확인 명령 한 줄"),
+        reason: "Windows — 위와 같다. PATH 에 PowerShell 7(`pwsh.exe`)이 있으면 그 전체 경로로 띄운다(사용자의 PowerShell 7 프로필이 읽히게, 2026-11-10). 앱이 시키는 것은 `-NoExit -Command` 로 넘기는 두 줄뿐 — `claude $env:OCULPM_PROMPT`, 또는 사용자가 확인 창에서 「돌리기」 를 누른 계획의 확인 명령 한 줄(2026-11-15).",
     },
     Launch {
         path: "terminal.rs",
         func: "shell_command",
         call: "CommandBuilder::new(\"powershell.exe\")",
-        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 셸에 넘기는 claude 한 줄"),
-        reason: "Windows — 위와 같다(pwsh 가 없을 때의 Windows PowerShell 5.1, `-NoExit -Command` 의 `claude $env:OCULPM_PROMPT`).",
+        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 「다음」 실행이 셸에 넘기는 claude 한 줄, 또는 사용자가 확인 창에서 전문을 보고 누른 계획의 확인 명령 한 줄"),
+        reason: "Windows — 위와 같다(pwsh 가 없을 때의 Windows PowerShell 5.1, `-NoExit -Command` 의 `claude $env:OCULPM_PROMPT` 또는 사용자가 확인 창에서 누른 계획의 확인 명령 한 줄 — 5.1 은 `&&` 를 모르니 그렇게 이은 확인 명령은 구문 오류를 보이고 셸로 남는다).",
     },
     // ── 창구 ──
     Launch {
@@ -265,10 +265,11 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
     ),
     (
         "terminal_env.rs",
-        "셸 환경 시험 — 부모 환경을 꾸미려고 명령을 만들기만 하고 띄우지 않는다(`parent`). 「다음」 실행 줄 시험은 한 글자를 묻는 .zshrc 를 둔 임시 ZDOTDIR 로 /bin/zsh 를 띄워 PATH 맨 앞의 가짜 claude(받은 인자를 임시 파일에 적는 sh 스크립트)가 프롬프트를 받는지 본다 — 진짜 claude 는 돌지 않는다. 기기 밖에 닿지 않는다.",
+        "셸 환경 시험 — 부모 환경을 꾸미려고 명령을 만들기만 하고 띄우지 않는다(`parent`). 「다음」 실행 줄 시험은 한 글자를 묻는 .zshrc 를 둔 임시 ZDOTDIR 로 /bin/zsh 를 띄워 PATH 맨 앞의 가짜 claude(받은 인자를 임시 파일에 적는 sh 스크립트)가 프롬프트를 받는지 본다 — 진짜 claude 는 돌지 않는다. 확인 명령 줄 시험도 같은 임시 ZDOTDIR 의 /bin/zsh 에서 셸 내장 printf · print 로 임시 파일에 쓰는 줄만 돌린다. 기기 밖에 닿지 않는다.",
         &[
             ("parent", "CommandBuilder::new(\"sh\")"),
             ("the_next_line_survives_an_rc_file_that_asks_a_question", "CommandBuilder::new(zsh)"),
+            ("a_check_line_runs_as_written_and_a_shell_stays", "CommandBuilder::new(zsh)"),
         ],
     ),
     (

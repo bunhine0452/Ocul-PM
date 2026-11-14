@@ -7,7 +7,9 @@ use tauri_specta::Event;
 
 use crate::app_error::AppError;
 use crate::db::Db;
-use crate::terminal::{OpenSpec, TermBusy, TermEvent, TermInfo, TermResume, TermSessions};
+use crate::terminal::{
+    OpenSpec, TermBusy, TermCheck, TermEvent, TermInfo, TermResume, TermSessions,
+};
 
 fn term_err(e: String) -> AppError {
     AppError::new("terminal", e)
@@ -48,21 +50,23 @@ pub struct TermCloseAsked {
 /// (계획의 「끝까지」가 입력 대기 신호 뒤에 `/goal …` 을 넣는다). 출력·끝은 `on_event` 로.
 /// `cwd` 는 이 프로젝트의 레인(worktree 여럿에서)일 때만 받는다 — 아니면 거절.
 /// `resume` 이면 업데이트 전 대화를 잇는다(`claude --continue`, `term_take_resume`).
+/// `check` 이면 계획의 확인 명령 한 줄을 셸이 명령 인자로 받아 돌리고 셸로 남는다 — 사람이 확인 창에서 전문을
+/// 보고 누른 뒤에만 온다(11-15). 한 줄이 아니면 열지 않는다.
 #[tauri::command]
 #[specta::specta]
 pub async fn term_open(
     window: tauri::WebviewWindow,
     db: State<'_, Db>,
-    sessions: State<'_, TermSessions>,
     project_id: u32,
     cols: u16,
     rows: u16,
     prompt: Option<String>,
     cwd: Option<String>,
     resume: bool,
+    check: Option<TermCheck>,
     on_event: Channel<TermEvent>,
 ) -> Result<TermInfo, AppError> {
-    // 앱 핸들은 창에서 — specta 는 명령 인자를 10개까지만 받는다.
+    // 앱 핸들 · 세션 표는 창에서 — specta 는 명령 인자를 10개까지만 받는다.
     let app = window.app_handle().clone();
     let root = db.project_root(project_id).await?;
     let lane = cwd.clone();
@@ -81,9 +85,11 @@ pub async fn term_open(
         prompt,
         lane,
         resume,
+        check,
         front: Some(Box::new(move || is_front(&focus.0, &focus.1))),
     };
     let notify = app.clone();
+    let sessions = app.state::<TermSessions>();
     let table = sessions.inner().clone();
     let info = sessions
         .open(spec, move |ev| {

@@ -188,8 +188,15 @@ export const commands = {
 	 *  (계획의 「끝까지」가 입력 대기 신호 뒤에 `/goal …` 을 넣는다). 출력·끝은 `on_event` 로.
 	 *  `cwd` 는 이 프로젝트의 레인(worktree 여럿에서)일 때만 받는다 — 아니면 거절.
 	 *  `resume` 이면 업데이트 전 대화를 잇는다(`claude --continue`, `term_take_resume`).
+	 *  `check` 이면 계획의 확인 명령 한 줄을 셸이 명령 인자로 받아 돌리고 셸로 남는다 — 사람이 확인 창에서 전문을
+	 *  보고 누른 뒤에만 온다(11-15). 한 줄이 아니면 열지 않는다.
 	 */
-	termOpen: (projectId: number, cols: number, rows: number, prompt: string | null, cwd: string | null, resume: boolean, onEvent: Channel<TermEvent>) => typedError<TermInfo, AppError>(__TAURI_INVOKE("term_open", { projectId, cols, rows, prompt, cwd, resume, onEvent })),
+	termOpen: (projectId: number, cols: number, rows: number, prompt: string | null, cwd: string | null, resume: boolean, check: {
+	/**  웹뷰가 거른 한 줄 — 확인 창에 보인 그대로다. 한 줄이 아니면 열지 않는다(`terminal_env::is_one_line`). */
+	line: string,
+	/**  탭 이름(「확인 명령」) — 웹뷰가 제 언어로 정한다. `claude` 가 아니라 업데이트 뒤 잇기 대상이 아니다. */
+	label: string,
+} | null, onEvent: Channel<TermEvent>) => typedError<TermInfo, AppError>(__TAURI_INVOKE("term_open", { projectId, cols, rows, prompt, cwd, resume, check, onEvent })),
 	termWrite: (id: number, data: string) => typedError<null, AppError>(__TAURI_INVOKE("term_write", { id, data })),
 	/**
 	 *  웹뷰가 그 세션의 출력을 `bytes` 만큼 그렸다 — 출력 흐름 제어(`terminal_io::Flow`)가 그만큼 더 보낸다.
@@ -2375,6 +2382,17 @@ export type TermBusy = {
 };
 
 /**
+ *  계획의 확인 명령을 돌릴 세션 (11-15 사용자 결정 「누를 때만 돌리기」) — 사람이 확인 창에서 전문을 보고 누른
+ *  한 줄과 탭 이름. 셸은 줄을 명령 인자로 받는다(`terminal_env.rs` 의 `Launch::Check`).
+ */
+export type TermCheck = {
+	/**  웹뷰가 거른 한 줄 — 확인 창에 보인 그대로다. 한 줄이 아니면 열지 않는다(`terminal_env::is_one_line`). */
+	line: string,
+	/**  탭 이름(「확인 명령」) — 웹뷰가 제 언어로 정한다. `claude` 가 아니라 업데이트 뒤 잇기 대상이 아니다. */
+	label: string,
+};
+
+/**
  *  도는 세션이 있는 창을 닫으려 했다(`quit` 이면 앱을 끄려 했다) — 멈추고 그 창에만 묻는다.
  *  확인하면 창이 `term_end_window` 로 세션을 끝내고 다시 닫는다(앱이면 프로세스 플러그인으로 끈다).
  */
@@ -2404,7 +2422,7 @@ export type TermImage = {
 export type TermInfo = {
 	id: number,
 	project_id: number,
-	/**  셸 이름 또는 `claude` (「다음」 실행). */
+	/**  셸 이름 또는 `claude` (「다음」 실행), 확인 명령이면 그 탭 이름(`TermCheck.label`). */
 	label: string,
 	/**  시작 시각 (RFC 3339). */
 	started_at: string,

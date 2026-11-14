@@ -27,9 +27,11 @@ import { tError } from "@/i18n/errors";
 import type { PlanItemDto } from "@/lib/bindings";
 import { readChord } from "@/lib/kbd";
 import { toast } from "@/lib/toast";
+import { runCheckInTerminal } from "@/features/terminal/runCheck";
 import { runGoalInTerminal, runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { goalCommand } from "./goal";
 import { CarryInbox } from "./CarryInbox";
+import { CheckRunDialog } from "./CheckRunDialog";
 import { PlanDoc } from "./PlanDoc";
 import { itemBoxes, refocusItem } from "./PlanItems";
 import { PlanRail } from "./PlanRail";
@@ -109,6 +111,16 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     } finally {
       running.current = false;
     }
+  };
+
+  // 확인 명령을 셸에서 (X-02, 11-15 「누를 때만 돌리기」) — 판정 카드의 단추가 거른 한 줄을 넘기면 여기서 묻고,
+  // 「돌리기」 를 눌러야만 새 셸 세션을 연다. 취소 · Esc 면 아무것도 쓰지 않는다.
+  const [checkLine, setCheckLine] = useState<string | null>(null);
+  const runCheck = (line: string) => {
+    setCheckLine(null);
+    void runCheckInTerminal(projectId, line).catch((e) =>
+      toast.destructive(t("plan.check.failed", { error: tError(toAppError(e)) })),
+    );
   };
 
   // plan-log 의 일지 열은 `.oculpm/` 기준이다 — 일지 화면은 일지 루트 기준으로 연다.
@@ -197,6 +209,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           onRunUntilDone={(item) => void runPrompt(item, true)}
           onClose={() => void plan.close()}
           onOpenJournal={openJournal}
+          onRunCheck={setCheckLine}
         />
         {/* 닫힌 계획에 갇힌 미완 — 고른 진행 중 계획으로 옮긴다 (없으면 그리지 않는다). */}
         <CarryInbox projectId={projectId} selectedId={detail.plan.plan_id} selectedLocked={locked || busy} onMoved={plan.refreshDetail} />
@@ -260,6 +273,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           </>
         ) : null}
       </AppDialog>
+      <CheckRunDialog line={checkLine} onCancel={() => setCheckLine(null)} onRun={runCheck} />
     </>
   );
 }

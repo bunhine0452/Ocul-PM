@@ -17,6 +17,7 @@ pub(crate) fn spec(window: &str, project_id: u32) -> OpenSpec {
         prompt: None,
         lane: None,
         resume: false,
+        check: None,
         front: None,
     }
 }

@@ -7,7 +7,8 @@
 //!
 //! 「다음」 을 실행할 때는 프롬프트를 환경 변수(`OCULPM_PROMPT`)로 넘기고, 셸이 `claude "$OCULPM_PROMPT"`
 //! 를 명령 인자로 받아 돌린다(`terminal_env.rs`) — 따옴표·줄바꿈을 셸 문법으로 이스케이프할 일이 없고, rc 의
-//! 질문이 그 줄을 먹지 않으며, claude 가 끝나면 셸이 남는다.
+//! 질문이 그 줄을 먹지 않으며, claude 가 끝나면 셸이 남는다. 계획의 확인 명령(11-15)도 같은 길이다 — 사람이
+//! 확인 창에서 전문을 보고 누른 한 줄을 셸이 명령 인자로 받는다.
 //!
 //! 업데이트 재시작은 세션을 끝낸다(프로세스는 살리지 않는다). 대신 claude 가 돌던 세션의 자리를
 //! 창 스냅숏에 적어 두었다가, 다시 뜬 창이 같은 폴더에서 `claude --continue` 로 대화를 잇는다
@@ -31,7 +32,7 @@ mod types;
 use output::pump_output;
 pub use output::take_utf8;
 pub use pty_io::{FrontFn, BUSY as WRITE_BUSY};
-pub use types::{TermBusy, TermEvent, TermInfo, TermResume, TermStatus};
+pub use types::{TermBusy, TermCheck, TermEvent, TermInfo, TermResume, TermStatus};
 
 /// 프롬프트를 셸에 넘기는 환경 변수.
 pub const PROMPT_ENV: &str = "OCULPM_PROMPT";
@@ -49,6 +50,8 @@ pub struct OpenSpec {
     pub lane: Option<String>,
     /// 업데이트 전 대화를 잇는다 — `claude --continue`.
     pub resume: bool,
+    /// 있으면 계획의 확인 명령 한 줄을 돌리고 셸로 남는다(사람이 확인 창에서 누른 뒤).
+    pub check: Option<TermCheck>,
     /// 그 창이 앞에 있는가 — 출력 흐름 제어가 창이 뒤면 더 넉넉히 받는다(`pty_io::Flow`). 없으면 늘 앞.
     pub front: Option<FrontFn>,
 }
@@ -185,9 +188,11 @@ fn size(cols: u16, rows: u16) -> PtySize {
     }
 }
 
-/// 사용자의 셸 — 로그인 셸로 띄워 프로필의 PATH 를 받는다. `launch`(「다음」 · 잇기)가 있으면 셸이 그 줄을
-/// 명령 인자로 받고, 받지 못하는 셸이면 쳐 넣을 줄을 함께 돌려준다(`shell_env::attach_launch`).
-fn shell_command(launch: Option<shell_env::Launch>) -> (CommandBuilder, String, Option<String>) {
+/// 사용자의 셸 — 로그인 셸로 띄워 프로필의 PATH 를 받는다. `launch`(「다음」 · 잇기 · 확인 명령)가 있으면 셸이
+/// 그 줄을 명령 인자로 받고, 받지 못하는 셸이면 쳐 넣을 줄을 함께 돌려준다(`shell_env::attach_launch`).
+fn shell_command(
+    launch: Option<shell_env::Launch<'_>>,
+) -> (CommandBuilder, String, Option<String>) {
     #[cfg(windows)]
     {
         let (mut cmd, name) = match find_pwsh(std::env::var_os("PATH").as_deref()) {
@@ -317,12 +322,16 @@ impl TermSessions {
     where
         F: Fn(TermEvent) + Send + 'static,
     {
-        let launch = shell_env::Launch::of(spec.prompt.as_deref(), spec.resume);
+        let check = spec.check.as_ref().map(|c| c.line.as_str());
+        if check.is_some_and(|line| !shell_env::is_one_line(line)) {
+            return Err("check: not a single line".to_string());
+        }
+        let launch = shell_env::Launch::of(spec.prompt.as_deref(), spec.resume, check);
         let (cmd, shell_name, typed) = shell_command(launch);
-        let label = if launch.is_some() {
-            "claude".to_string()
-        } else {
-            shell_name
+        let label = match (launch, &spec.check) {
+            (Some(shell_env::Launch::Check(_)), Some(c)) => c.label.clone(),
+            (Some(_), _) => "claude".to_string(),
+            (None, _) => shell_name,
         };
         self.start(spec, cmd, label, typed, emit)
     }
