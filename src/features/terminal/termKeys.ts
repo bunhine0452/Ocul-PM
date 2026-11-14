@@ -15,16 +15,19 @@
  *                흉내 내지만 xterm 6 이 그 흉내를 뺀다(#5346) — 여기서 못박는다. ⌥⌘+방향키(칸 이동)는
  *                터미널 화면의 캡처가 먼저 잡으니 건드리지 않는다.
  *  맥 ⌃ 키        ⌃/ 0x1F(되돌리기) · ⌃2 · ⌃Space 0x00 — xterm 5.5 는 ⌃/ · ⌃2 에 아무것도 안 보낸다.
- *  그 밖 OS 복사  Ctrl+V · Ctrl+Shift+V 는 붙여넣기, Ctrl+Shift+C · 고른 채 Ctrl+C 는 복사(Windows
- *                Terminal · VS Code 규약). xterm 은 Ctrl+V 를 0x16 으로 보내고 키로 복사할 길이 없었다.
- *                고른 것 없는 Ctrl+C 는 그대로 인터럽트다.
+ *  그 밖 OS 복사  Ctrl+Shift+V 는 붙여넣기, Ctrl+Shift+C · 고른 채 Ctrl+C 는 복사. xterm 은 이 키들을
+ *                0x16 · 0x03 으로 보내 키로 복사할 길이 없었다. 고른 것 없는 Ctrl+C 는 그대로 인터럽트다.
+ *                Ctrl+V 붙여넣기는 Windows 만이다(Windows Terminal · VS Code 의 Windows 판). Linux 터미널
+ *                (GNOME Terminal · Konsole · VS Code 의 Linux 판)에서 Ctrl+V 는 ^V — vim 의 블록 선택 ·
+ *                readline 의 quoted-insert — 라 xterm 에 그대로 둔다.
  *  ⌘L            고른 출력을 「Claude 에게 보내기」로(Cursor · VS Code 의 ⌘L). 그 밖 OS 는 터미널 가족
  *                규칙대로 Ctrl+Shift+L(`kbd.readChord`). 고른 것이 없으면 키를 그대로 둔다.
  */
 import { isImeComposing } from "@/lib/ime";
+import type { Platform } from "@/lib/platform";
 
 export interface KeyCtx {
-  isMac: boolean;
+  platform: Platform;
   /** 안의 프로그램이 대체 화면(`buffer.active.type === "alternate"`)을 쓰는 중. */
   altScreen: boolean;
   hasSelection: boolean;
@@ -81,6 +84,24 @@ const MAC_CTRL = new Map([
 
 const send = (seq: string | undefined): KeyAction | null => (seq === undefined ? null : { kind: "send", seq });
 
+/**
+ * keypress 를 keydown 처럼 읽는다 — 조합 키(229) 뒤에 따로 오는 Enter 의 keypress 를 이 층에 다시 물을 때
+ * (`imeBridge`). 그 모드에서는 keydown 이 229 라 이 층을 건너뛴다.
+ */
+export function asKeydown(e: KeyEventLike): KeyEventLike {
+  return {
+    type: "keydown",
+    key: e.key,
+    code: e.code,
+    keyCode: e.keyCode,
+    isComposing: e.isComposing,
+    metaKey: e.metaKey,
+    ctrlKey: e.ctrlKey,
+    altKey: e.altKey,
+    shiftKey: e.shiftKey,
+  };
+}
+
 /** keydown 하나 → 이 층이 맡을 일. 맡지 않으면 `null`(xterm 이 종전대로 처리한다). */
 export function translateKey(e: KeyEventLike, ctx: KeyCtx): KeyAction | null {
   if (e.type !== "keydown" || isImeComposing(e)) return null;
@@ -89,7 +110,7 @@ export function translateKey(e: KeyEventLike, ctx: KeyCtx): KeyAction | null {
     return ctx.altScreen ? { kind: "send", seq: `${ESC}\r` } : null;
   }
 
-  if (ctx.isMac) {
+  if (ctx.platform === "mac") {
     if (only(e, { meta: true })) {
       if (latin(e) === "l") return ctx.hasSelection ? { kind: "sendSelection" } : null;
       return send(MAC_CMD.get(e.key));
@@ -107,7 +128,7 @@ export function translateKey(e: KeyEventLike, ctx: KeyCtx): KeyAction | null {
     return null;
   }
   if (only(e, { ctrl: true })) {
-    if (letter === "v") return { kind: "native", op: "paste" };
+    if (letter === "v" && ctx.platform === "windows") return { kind: "native", op: "paste" };
     if (letter === "c" && ctx.hasSelection) return { kind: "native", op: "copy" };
   }
   return null;

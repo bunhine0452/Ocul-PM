@@ -15,7 +15,7 @@
  * 예산(`--max-warnings`)을 먹고, CSI 의 문법(매개변수 · 중간 · 끝 바이트)은 상태로 적는 편이 정확하다.
  */
 import { t } from "@/i18n";
-import { toast } from "@/lib/toast";
+import { dismissToast, getToasts, toast } from "@/lib/toast";
 
 const ESC = 0x1b;
 const BEL = 0x07;
@@ -107,9 +107,46 @@ export function imagePasteKey(windows: boolean): string {
   return windows ? "\x1bv" : "\x16";
 }
 
+/** PSReadLine 의 Paste 키(Windows 편집 모드의 Ctrl+V) — ConPTY 가 0x16 을 Ctrl+V 키로 옮긴다. */
+const PSREADLINE_PASTE = "\x16";
+
 /** 줄 수 — 끝의 줄바꿈 하나는 줄로 세지 않는다("ls\n" 은 한 줄이다). */
 function lineCount(text: string): number {
   return text.replace(/\n$/, "").split("\n").length;
+}
+
+/**
+ * 경고를 띄운 붙여넣기 — 토스트가 떠 있는 동안 **같은 글을 한 번 더 붙이면** 그대로 붙인다. 토스트는
+ * 포커스를 받지 않고 Tab · ⇧Tab 은 xterm 이 셸로 보내므로, 키보드만 쓰는 사람에게는 이것이 「붙여넣기」
+ * 단추에 닿는 길이다(경고 문구가 그 길을 적는다). 경고는 늘 한 장 — 다른 글을 붙이면 앞 경고를 거두고
+ * 새로 띄운다. 같은 경고 두 장을 둘 다 눌러 두 번 붙는 일이 없게.
+ */
+let pending: { term: PasteTerm; text: string; toast: number } | null = null;
+
+function warnMultiline(term: PasteTerm, text: string): void {
+  const prev = pending;
+  pending = null;
+  if (prev) {
+    const shown = getToasts().some((item) => item.id === prev.toast);
+    dismissToast(prev.toast);
+    if (shown && prev.term === term && prev.text === text) {
+      term.paste(text);
+      return;
+    }
+  }
+  const id = toast.warning(t("terminal.paste.multiline", { n: lineCount(text) }), {
+    actions: [
+      {
+        label: t("terminal.paste.anyway"),
+        onClick: () => {
+          if (pending?.toast === id) pending = null;
+          term.paste(text);
+          term.focus();
+        },
+      },
+    ],
+  });
+  if (id !== null) pending = { term, text, toast: id };
 }
 
 /**
@@ -118,8 +155,12 @@ function lineCount(text: string): number {
  *   ① 글이 없고 그림만 있다 → 대체 화면(Claude · Codex)이면 그림 붙여넣기 키를 친다. 셸(보통 화면)에
  *      ⌃V 를 보내면 readline 의 quoted-insert 가 다음 키를 글자로 삼키므로 아무것도 하지 않는다.
  *   ② 글이 있다 → 걸러서 `term.paste` — 안의 프로그램이 대괄호 붙여넣기를 켰으면 xterm 이 감싼다.
- *   ③ 대괄호를 안 켠 셸(맥의 /bin/bash 3.2 · PowerShell)에 여러 줄 → 붙이지 않고 묻는다. 줄마다
- *      Enter 가 되어 경고 없이 실행되기 때문이다.
+ *   ③ 대괄호를 안 켠 프로그램(맥의 /bin/bash 3.2 · less · vi)에 여러 줄 → 붙이지 않고 묻는다. 줄마다
+ *      Enter 가 되어 경고 없이 실행되기 때문이다. 대체 화면도 묻는다 — less 의 `!` · vi 의 `:!` 는
+ *      붙인 줄을 셸 명령으로 돌린다.
+ *   ④ 다만 Windows 셸(보통 화면)에는 묻지 않고 PSReadLine 에 맡긴다. PowerShell 은 대괄호 붙여넣기를
+ *      켜지 않지만 PSReadLine 의 Paste(⌃V)가 클립보드를 직접 읽어 실행하지 않고 한 덩어리로 입력줄에
+ *      넣는다 — 예전 Ctrl+V 가 하던 그대로다. 경고도, 줄마다 실행도 없다.
  */
 export function handlePaste(term: PasteTerm, event: ClipboardEvent, windows: boolean): void {
   const data = event.clipboardData;
@@ -127,26 +168,16 @@ export function handlePaste(term: PasteTerm, event: ClipboardEvent, windows: boo
   event.preventDefault();
   event.stopPropagation();
   const raw = data.getData("text/plain");
+  const alt = term.buffer.active.type === "alternate";
   if (!raw) {
-    if (clipboardHasImage(data) && term.buffer.active.type === "alternate") {
-      term.input(imagePasteKey(windows), true);
-    }
+    if (clipboardHasImage(data) && alt) term.input(imagePasteKey(windows), true);
     return;
   }
   const clean = sanitizePaste(raw);
   if (!clean) return;
   if (!term.modes.bracketedPasteMode && clean.includes("\n")) {
-    toast.warning(t("terminal.paste.multiline", { n: lineCount(clean) }), {
-      actions: [
-        {
-          label: t("terminal.paste.anyway"),
-          onClick: () => {
-            term.paste(clean);
-            term.focus();
-          },
-        },
-      ],
-    });
+    if (windows && !alt) term.input(PSREADLINE_PASTE, true);
+    else warnMultiline(term, clean);
     return;
   }
   term.paste(clean);

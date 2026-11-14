@@ -5,8 +5,9 @@ import { translateKey, type KeyCtx, type KeyEventLike } from "@/features/termina
 import { __setPlatformForTests } from "@/lib/platform";
 import { fireKey, openRealTerm, type RealTerm } from "./xtermHarness";
 
-const MAC: KeyCtx = { isMac: true, altScreen: false, hasSelection: false };
-const PC: KeyCtx = { isMac: false, altScreen: false, hasSelection: false };
+const MAC: KeyCtx = { platform: "mac", altScreen: false, hasSelection: false };
+const PC: KeyCtx = { platform: "windows", altScreen: false, hasSelection: false };
+const LINUX: KeyCtx = { platform: "linux", altScreen: false, hasSelection: false };
 
 function ev(init: Partial<KeyEventLike>): KeyEventLike {
   return {
@@ -85,6 +86,12 @@ describe("Windows · Linux copy and paste (TI-03)", () => {
     expect(translateKey(ctrl("c"), PC)).toBeNull();
   });
 
+  it("Linux keeps Ctrl+V as ^V (vim block select · quoted-insert) — Ctrl+Shift+V/C are the clipboard there", () => {
+    expect(translateKey(ctrl("v"), LINUX)).toBeNull();
+    expect(translateKey(ctrl("V", { shiftKey: true }), LINUX)).toEqual({ kind: "native", op: "paste" });
+    expect(translateKey(ctrl("C", { shiftKey: true }), LINUX)).toEqual({ kind: "native", op: "copy" });
+  });
+
   it("reads the Latin key on a Korean 2-set layout from `code`", () => {
     // 두벌식에서 V 자리의 key 는 「ㅍ」 다.
     expect(translateKey(ctrl("v", { key: "ㅍ" }), PC)).toEqual({ kind: "native", op: "paste" });
@@ -136,5 +143,12 @@ describe("the key layer inside the bridge (real xterm)", () => {
     const down = fireKey(rt, "keydown", { key: "v", code: "KeyV", keyCode: 86, ctrlKey: true });
     expect(rt.data).toEqual([]); // 예전에는 0x16 이 나갔다
     expect(down.defaultPrevented).toBe(false); // 기본 동작(붙여넣기)은 살려 둔다
+  });
+
+  it("Linux: Ctrl+V still reaches the PTY as ^V", () => {
+    __setPlatformForTests("linux");
+    rt = openRealTerm();
+    fireKey(rt, "keydown", { key: "v", code: "KeyV", keyCode: 86, ctrlKey: true });
+    expect(rt.data).toEqual(["\x16"]);
   });
 });
