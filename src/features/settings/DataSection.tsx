@@ -1,25 +1,28 @@
 /**
- * 설정 · 데이터 — 기록 원본은 프로젝트 폴더의 마크다운이고, 여기는 앱의 **캐시**다.
+ * 설정 · 앱 — 언어 · 파일 열기 · 판과 업데이트 · 로그 · 캐시 정리. 프로젝트와 무관한 앱 전역의 것들.
  *
- * 캐시는 디스크에서 다시 만들 수 있는 것만 담는다. 그래서 「정리해서 돌려받기」(빈 자리를
- * 되찾는 VACUUM)와 「처음부터 다시 만들기」(이 프로젝트의 색인을 디스크에서 다시 투영)는
- * 둘 다 확인 없이 누를 수 있다 — 잃는 것이 없다.
+ * 캐시는 디스크에서 다시 만들 수 있는 것만 담는다. 「정리하기」(빈 자리를 되찾는 VACUUM)는 확인 없이
+ * 누를 수 있다 — 잃는 것이 없다. 이 프로젝트의 캐시를 다시 만드는 것은 이 프로젝트 칸에 있다 (11-15).
+ *
+ * 파일 이름이 `DataSection` 인 것은 옛 「데이터」 칸의 흔적이다 — `UpdateRow` 를 다른 곳(업데이트 배너
+ * 시험)이 이 경로로 들인다.
  */
 import { useEffect, useState } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { toAppError } from "@/api/invoke";
-import { oculpmApi } from "@/api/oculpm";
 import { appDataApi } from "@/api/settings";
-import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
-import { useT } from "@/i18n";
+import { useSettings } from "@/contexts/SettingsContext";
+import { resolveLang, useT, type Lang } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import type { DbHealth } from "@/lib/bindings";
 import { formatBytes } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { useUpdater } from "@/lib/updater";
 import { RELEASES_PAGE } from "@/lib/updaterRoute";
-import { PrefsCard, PrefsRow } from "./prefsUi";
+import { EditorRow } from "./EditorRow";
+import { useSaveSetting } from "./saveSetting";
+import { PrefsCard, PrefsRow, PrefsSeg, useReportFix } from "./prefsUi";
 
 /** 캐시가 디스크에서 차지하는 몫 — 본체 + WAL. */
 export function cacheBytes(h: DbHealth | null): number | null {
@@ -27,7 +30,7 @@ export function cacheBytes(h: DbHealth | null): number | null {
   return h.db_bytes + (h.wal_bytes ?? 0);
 }
 
-/** 앱 판 + 업데이트 — 열 때 한 번 스스로 묻는다(「최신이에요」가 숨지 않게). */
+/** 앱 판 + 업데이트 — 열 때 한 번 스스로 묻는다(「최신이에요」가 숨지 않게). 새 판이 있으면 「고칠 것」. */
 export function UpdateRow() {
   const { t } = useT();
   const { status, check, install, restartNow } = useUpdater();
@@ -39,6 +42,12 @@ export function UpdateRow() {
       .catch(() => {});
     void check();
   }, [check]);
+  useReportFix(
+    "update",
+    status.kind === "available"
+      ? { section: "data", label: "Ocul", detail: version ? `${version} → ${status.version}` : status.version, mono: true }
+      : null,
+  );
 
   let state: string | null = null;
   if (status.kind === "checking") state = t("prefs.data.checking");
@@ -51,34 +60,45 @@ export function UpdateRow() {
   else if (status.kind === "packageManaged") state = t("prefs.data.packageManaged", { format: status.format });
   else if (status.kind === "noBuild") state = t("prefs.data.noBuild");
 
+  const primary =
+    status.kind === "awaiting" ? (
+      <button type="button" className="btn sm primary" onClick={() => void restartNow()}>
+        {t("update.restartNow")}
+      </button>
+    ) : status.kind === "available" ? (
+      <button type="button" className="btn sm primary" onClick={() => void install()}>
+        {t("prefs.data.install", { version: status.version })}
+      </button>
+    ) : status.kind === "packageManaged" || status.kind === "noBuild" ? (
+      <a className="btn sm" href={RELEASES_PAGE} target="_blank" rel="noreferrer">
+        {t("prefs.data.releases")}
+      </a>
+    ) : (
+      <button
+        type="button"
+        className="btn sm"
+        onClick={() => void check()}
+        disabled={status.kind === "checking" || status.kind === "installing"}
+      >
+        {t("prefs.data.check")}
+      </button>
+    );
+
   return (
-    <PrefsRow label={t("prefs.data.app")}>
-      <span>Ocul {version ?? ""}</span>
+    <PrefsRow
+      label={t("prefs.data.app")}
+      actions={
+        <>
+          {primary}
+          <LogFolderButton />
+        </>
+      }
+    >
+      {/* 판 번호는 기계 글씨 — mono (영수증 규칙 2). */}
+      <span>
+        Ocul <span className="mono">{version ?? ""}</span>
+      </span>
       {state ? <span className="prefs-dim">· {state}</span> : null}
-      <span className="prefs-push" />
-      {status.kind === "awaiting" ? (
-        <button type="button" className="btn sm primary" onClick={() => void restartNow()}>
-          {t("update.restartNow")}
-        </button>
-      ) : status.kind === "available" ? (
-        <button type="button" className="btn sm primary" onClick={() => void install()}>
-          {t("prefs.data.install", { version: status.version })}
-        </button>
-      ) : status.kind === "packageManaged" || status.kind === "noBuild" ? (
-        <a className="btn sm" href={RELEASES_PAGE} target="_blank" rel="noreferrer">
-          {t("prefs.data.releases")}
-        </a>
-      ) : (
-        <button
-          type="button"
-          className="btn sm"
-          onClick={() => void check()}
-          disabled={status.kind === "checking" || status.kind === "installing"}
-        >
-          {t("prefs.data.check")}
-        </button>
-      )}
-      <LogFolderButton />
     </PrefsRow>
   );
 }
@@ -98,17 +118,35 @@ function LogFolderButton() {
     }
   };
   return (
-    <button type="button" className="btn ghost sm" onClick={() => void open()}>
+    <button type="button" className="btn sm" onClick={() => void open()}>
       {t("prefs.data.logs")}
     </button>
   );
 }
 
-export function DataSection({ id }: { id: string }) {
+function LanguageRow() {
   const { t } = useT();
-  const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
+  const { settings } = useSettings();
+  const save = useSaveSetting();
+  return (
+    <PrefsRow label={t("prefs.display.language")}>
+      <PrefsSeg<Lang>
+        label={t("prefs.display.language")}
+        value={resolveLang(settings.language)}
+        options={[
+          { id: "ko", label: t("settings.language.ko") },
+          { id: "en", label: t("settings.language.en") },
+        ]}
+        onChange={(next) => save("language", next)}
+      />
+    </PrefsRow>
+  );
+}
+
+export function AppSection({ id, arrived }: { id: string; arrived?: number }) {
+  const { t } = useT();
   const [health, setHealth] = useState<DbHealth | null>(null);
-  const [busy, setBusy] = useState<"compact" | "rebuild" | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void appDataApi
@@ -118,30 +156,22 @@ export function DataSection({ id }: { id: string }) {
   }, []);
 
   const compact = async () => {
-    setBusy("compact");
+    setBusy(true);
     const before = cacheBytes(health);
     try {
       const after = await appDataApi.compact();
       setHealth(after);
-      const freed = before != null && cacheBytes(after) != null ? Math.max(0, before - (cacheBytes(after) ?? 0)) : null;
-      toast.info(t("prefs.data.compacted", { freed: formatBytes(freed) }));
+      const now = cacheBytes(after);
+      // 얼마나 줄었는지 모르면 줄었다는 숫자를 꾸미지 않는다 — 「—」 가 문장에 박혀 나왔다.
+      toast.info(
+        before != null && now != null
+          ? t("prefs.data.compacted", { freed: formatBytes(Math.max(0, before - now)) })
+          : t("prefs.data.compactedPlain"),
+      );
     } catch (e) {
       toast.destructive(tError(toAppError(e)));
     } finally {
-      setBusy(null);
-    }
-  };
-
-  const rebuild = async () => {
-    if (projectId == null) return;
-    setBusy("rebuild");
-    try {
-      await oculpmApi.reindexCache(projectId);
-      toast.info(t("prefs.data.rebuilt"));
-    } catch (e) {
-      toast.destructive(tError(toAppError(e)));
-    } finally {
-      setBusy(null);
+      setBusy(false);
     }
   };
 
@@ -149,7 +179,10 @@ export function DataSection({ id }: { id: string }) {
   const free = health?.free_bytes ?? null;
 
   return (
-    <PrefsCard id={id} title={t("prefs.data.title")}>
+    <PrefsCard id={id} title={t("prefs.data.title")} arrived={arrived}>
+      <LanguageRow />
+      <EditorRow />
+      <UpdateRow />
       <PrefsRow
         label={t("prefs.data.cache")}
         meta={
@@ -159,21 +192,12 @@ export function DataSection({ id }: { id: string }) {
               ? t("prefs.data.cacheSizeFree", { size: formatBytes(size), free: formatBytes(free) })
               : t("prefs.data.cacheSize", { size: formatBytes(size) })
         }
-      >
-        <button type="button" className="btn sm" onClick={() => void compact()} disabled={busy != null}>
-          {t("prefs.data.compact")}
-        </button>
-        <button
-          type="button"
-          className="btn ghost sm"
-          onClick={() => void rebuild()}
-          disabled={busy != null}
-          title={t("prefs.data.rebuildHint")}
-        >
-          {t("prefs.data.rebuild")}
-        </button>
-      </PrefsRow>
-      <UpdateRow />
+        actions={
+          <button type="button" className="btn sm" onClick={() => void compact()} disabled={busy}>
+            {t("prefs.data.compact")}
+          </button>
+        }
+      />
     </PrefsCard>
   );
 }

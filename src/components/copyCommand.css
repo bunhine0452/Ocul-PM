@@ -1,4 +1,6 @@
-/* 붙여 넣을 명령 한 덩이 — 시작 창 3단계 · 설정 에이전트 연결. */
+/* 붙여 넣을 명령 한 덩이 — 시작 창 3단계 · 설정 에이전트.
+   좁은 칸에서는 줄을 꺾는다(11-15) — 가로 스크롤로 숨기던 때 520px 에서 명령 끝이 잘려 보였다. 꺾인 줄은
+   2ch 들어가 이어지는 줄임을 말한다. 복사는 원래 줄 그대로다. */
 .copy-cmd { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .copy-cmd-text {
   flex: 1 1 auto; min-width: 0;
@@ -7,7 +9,6 @@
   border-radius: var(--radius-s);
   background: var(--bg-inset); color: var(--text);
   font-size: var(--fs-3); line-height: var(--lh-snug);
-  overflow-x: auto; white-space: nowrap;
 }
-.copy-cmd-text > span { display: block; }
+.copy-cmd-text > span { display: block; white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 2ch; text-indent: -2ch; }
 .copy-cmd > .btn { flex: none; }

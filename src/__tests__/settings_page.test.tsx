@@ -133,7 +133,7 @@ describe("에이전트 연결", () => {
     renderPage();
     const agents = section(t("prefs.agents.title"));
     expect(
-      await within(agents).findByText(t("prefs.agents.behind", { installed: "3.17.0", bundled: "4.0.0" })),
+      await within(agents).findByText("3.17.0 → 4.0.0"),
     ).toBeInTheDocument();
     expect(within(agents).getByText("claude plugin update oculpm@oculpm")).toBeInTheDocument();
   });
@@ -167,7 +167,7 @@ describe("이 프로젝트", () => {
     fx.upgrade = { from_version: 18, to_version: 20 };
     renderPage();
     const proj = section(t("prefs.project.title"));
-    expect(await within(proj).findByText(t("prefs.project.behind", { from: 18, to: 20 }))).toBeInTheDocument();
+    expect(await within(proj).findByText("v18 → v20")).toBeInTheDocument();
     fx.upgrade = null;
     fireEvent.click(within(proj).getByRole("button", { name: t("prefs.project.upgrade") }));
     await waitFor(() => expect(fx.applyUpgrade).toHaveBeenCalledWith(1));
@@ -180,39 +180,39 @@ describe("이 프로젝트", () => {
   });
 });
 
-describe("표시", () => {
-  it("언어 · 밝기 · 글자 크기는 설정 키에 쓴다", async () => {
+describe("모양 · 앱", () => {
+  it("언어(앱) · 모양 · 글자 크기는 설정 키에 쓴다 — 고르기는 라디오 묶음", async () => {
     renderPage();
     const display = section(t("prefs.display.title"));
-    const lang = within(display).getByRole("tablist", { name: t("prefs.display.language") });
-    const ko = within(lang).getByRole("tab", { name: "한국어" });
-    expect(ko).toHaveAttribute("aria-selected", "true");
-    fireEvent.click(within(lang).getByRole("tab", { name: "English" }));
+    const lang = within(section(t("prefs.data.title"))).getByRole("radiogroup", { name: t("prefs.display.language") });
+    const ko = within(lang).getByRole("radio", { name: "한국어" });
+    expect(ko).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(lang).getByRole("radio", { name: "English" }));
     await waitFor(() => expect(fx.settingsSet).toHaveBeenCalledWith("language", "en"));
 
-    const brightness = within(display).getByRole("tablist", { name: t("prefs.display.brightness") });
-    fireEvent.click(within(brightness).getByRole("tab", { name: t("prefs.display.dark") }));
+    const brightness = within(display).getByRole("radiogroup", { name: t("prefs.display.brightness") });
+    fireEvent.click(within(brightness).getByRole("radio", { name: t("prefs.display.dark") }));
     await waitFor(() => expect(fx.settingsSet).toHaveBeenCalledWith("theme", "dark"));
 
-    const size = within(display).getByRole("tablist", { name: t("prefs.display.textSize") });
-    expect(within(size).getByRole("tab", { name: "100%" })).toHaveAttribute("aria-selected", "true");
-    fireEvent.click(within(size).getByRole("tab", { name: "110%" }));
+    const size = within(display).getByRole("radiogroup", { name: t("prefs.display.textSize") });
+    expect(within(size).getByRole("radio", { name: "100%" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(size).getByRole("radio", { name: "110%" }));
     await waitFor(() => expect(fx.settingsSet).toHaveBeenCalledWith("ui_scale", "1.1"));
   });
 });
 
-describe("데이터", () => {
-  it("캐시 크기를 말하고, 정리 · 다시 만들기를 부른다", async () => {
+describe("앱 · 이 프로젝트의 캐시", () => {
+  it("캐시 크기를 말하고, 정리(앱) · 다시 만들기(이 프로젝트)를 부른다", async () => {
     renderPage();
     const data = section(t("prefs.data.title"));
     // 본체 1000 + WAL 24 = 1.0 KB, 빈 자리 200 B.
     expect(await within(data).findByText(/1\.0 KB .*· .*200 B/)).toBeInTheDocument();
     fireEvent.click(within(data).getByRole("button", { name: t("prefs.data.compact") }));
     await waitFor(() => expect(fx.compact).toHaveBeenCalled());
-    fireEvent.click(within(data).getByRole("button", { name: t("prefs.data.rebuild") }));
+    fireEvent.click(within(section(t("prefs.project.title"))).getByRole("button", { name: t("prefs.data.rebuild") }));
     await waitFor(() => expect(fx.reindex).toHaveBeenCalledWith(1));
-    // 앱 판은 열 때 스스로 확인한다.
-    expect(await within(data).findByText(/Ocul 4\.0\.0/)).toBeInTheDocument();
+    // 앱 판은 열 때 스스로 확인한다 — 판 번호는 mono 조각.
+    expect(await within(data).findByText("4.0.0")).toBeInTheDocument();
     expect(await within(data).findByText(new RegExp(t("prefs.data.upToDate")))).toBeInTheDocument();
   });
 });

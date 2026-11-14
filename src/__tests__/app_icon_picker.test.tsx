@@ -19,10 +19,10 @@ describe("app icon picker", () => {
     expect(onChange).toHaveBeenCalledWith("dark");
   });
 
-  it("arrow keys move to the next variant, wrapping around", () => {
+  it("arrow keys only move focus (wrapping around) and Enter picks", () => {
     const onChange = vi.fn();
     render(<AppIconPicker value="teal" onChange={onChange} />);
-    fireEvent.keyDown(screen.getByRole("radiogroup"), { key: "ArrowRight" });
+    for (const key of ["ArrowRight", "Enter"]) fireEvent.keyDown(screen.getByRole("radiogroup"), { key });
     expect(onChange).toHaveBeenCalledWith("color");
   });
 });

@@ -1,49 +1,101 @@
 /* ============================================================
-   prefs.css — 설정 한 쪽 (4.0, 시안 Settings.dc.html).
-   칸 넷이 카드로 세로로 선다. 줄은 라벨(왼쪽 200px) · 값(오른쪽). 좁은 화면에서는
-   라벨이 값 위로 올라간다.
+   prefs.css — 설정 한 쪽 (4.0, 시안 Settings.dc.html). 11-15 부터는 상태표 (#settings-status).
+   칸 넷이 카드로 세로로 선다. 줄은 세 칸 격자 — 라벨(240px) · 값 · 동작(오른쪽 한 세로선).
+   좁은 화면에서는 한 칸으로 쌓인다.
    ============================================================ */
-.prefs { display: flex; flex-direction: column; gap: var(--space-6); max-width: var(--read-wide); margin: 0 auto; }
+/* 아래 여백 — 마지막 칸(앱)으로 바로 가도 칸 머리가 위에 닿게. */
+.prefs { display: flex; flex-direction: column; gap: var(--space-6); max-width: var(--read-wide); margin: 0 auto; padding-bottom: 40vh; }
 .prefs-h { margin: 0; font-size: var(--fs-6); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); }
+/* 맨 위 「고칠 것」 한 줄 — 칩 하나 + 항목마다 그 칸으로 가는 단추. 없으면 줄이 없다. */
+.prefs-fixes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0; font-size: var(--fs-4); color: var(--text); }
+.prefs-fixes .chip .mono { font-variant-numeric: tabular-nums; }
+.prefs-fix {
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--sep-strong); text-underline-offset: 3px;
+}
+.prefs-fix::before { content: "·"; margin-right: var(--space-3); color: var(--text-2); display: inline-block; text-decoration: none; }
+.prefs-fix:hover { text-decoration-color: currentColor; }
+.prefs-fix:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: 2px; border-radius: var(--radius-2xs); }
+.prefs-fix .mono { font-size: var(--fs-3); font-variant-numeric: tabular-nums; }
 .prefs-card { overflow: hidden; scroll-margin-top: var(--space-6); }
+/* 칸 제목은 줄 이름보다 한 단 크고 굵다 (14/600 > 13/550) — 같은 13/600 이라 제목과 줄이 구별되지 않았다. */
 .prefs-head {
+  position: relative;
   display: flex; align-items: center; gap: var(--space-3);
-  min-height: 40px; padding: 0 var(--space-6);
+  min-height: 44px; padding: 0 var(--space-6);
   border-bottom: 1px solid var(--sep);
 }
-.prefs-head h2 { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
+.prefs-head h2 { position: relative; margin: 0; font-size: var(--fs-5); font-weight: var(--fw-strong); }
+.prefs-head-act { position: relative; margin-left: auto; display: flex; gap: var(--space-2); }
+/* 다른 화면에서 이 칸으로 바로 왔다 — 머리 면이 한 번 옅게 섰다 사라진다. 새로 그려질 때만(@starting-style)
+   이라 무한 반복이 없고(영수증 규칙 6), 움직임을 줄이면 표시 없이 바로 선다. */
+.prefs-arrive {
+  position: absolute; inset: 0; pointer-events: none;
+  background: transparent;
+  transition: background-color 1200ms var(--ease-out); /* design-ignore -- hover 응답이 아니라 한 번 「여기」 를 알리는 면 — 눈에 띌 만큼 천천히 사라진다 */
+}
+@starting-style {
+  .prefs-arrive { background: var(--bg-active); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .prefs-arrive { transition: none; }
+}
 .prefs-row {
-  display: flex; align-items: center; gap: var(--space-6);
-  padding: var(--space-5) var(--space-6);
+  display: grid; grid-template-columns: 240px minmax(0, 1fr) auto; align-items: center;
+  column-gap: var(--space-6); row-gap: var(--space-2);
+  min-height: 50px; padding: var(--space-4) var(--space-6);
   border-bottom: 1px solid var(--sep);
 }
 .prefs-row:last-child { border-bottom: 0; }
-.prefs-label { width: 200px; flex: none; }
-.prefs-name { font-size: var(--fs-4); font-weight: var(--fw-strong); }
-.prefs-meta { margin-top: 2px; font-size: var(--fs-3); color: var(--text-2); }
-.prefs-val { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+.prefs-label { min-width: 0; }
+.prefs-name { font-size: var(--fs-4); font-weight: var(--fw-label); }
+.prefs-meta { margin-top: 2px; font-size: var(--fs-3); color: var(--text-2); text-wrap: pretty; }
+/* 두 줄을 넘는 설명은 줄 아래 전체 폭으로 — 라벨 칸에서 세 줄로 꺾이면 조사가 줄 머리로 갔다. */
+.prefs-meta-long { grid-column: 1 / -1; margin-top: 0; }
+.prefs-val { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+/* 동작이 없는 줄은 값이 동작 칸까지 — 명령 상자의 「복사」 가 다른 줄의 동작과 같은 세로선에 닿는다. */
+.prefs-row.no-act .prefs-val { grid-column: 2 / -1; }
 .prefs-val > .copy-cmd { flex: 1 1 320px; }
 .prefs-val .mono { font-size: var(--fs-3); }
+/* 동작 단추 — 모든 줄에서 오른쪽 한 세로선. 테두리 단추만(ghost 는 윗줄 · 툴바 몫). */
+.prefs-act { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); }
 .prefs-dim { font-size: var(--fs-3); color: var(--text-2); }
-.prefs-push { margin-left: auto; }
+.prefs-ver { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.prefs-found { color: var(--text-2); font-weight: var(--fw-label); }
+/* 등록 해제 — 가리킬 때만 붉다(위험한 동작이라는 표시는 응답일 때만). */
+.prefs-unreg:hover { color: var(--danger-text); border-color: color-mix(in srgb, var(--danger) 45%, transparent); background: var(--danger-soft); }
 .prefs-input {
   flex: 1 1 240px; min-width: 0; height: var(--ctl-4); padding: 0 var(--space-3);
   border: 1px solid var(--border-card); border-radius: var(--radius-s); background: var(--bg-inset);
   font-family: var(--mono); font-size: var(--fs-3); color: var(--text); outline: none;
 }
 .prefs-input:focus { border-color: var(--accent); box-shadow: var(--ring-soft); }
+/* 파일 열기 — 넓으면 세그먼트, 좁으면(≤420px) 고르기 칸. 둘 중 하나만 보인다. */
+.prefs-editor-select {
+  display: none; height: var(--ctl-4); padding: 0 var(--space-3);
+  border: 1px solid var(--border-card); border-radius: var(--radius-s); background: var(--bg-inset);
+  font-family: var(--font); font-size: var(--fs-3); color: var(--text);
+}
+.prefs-editor-select:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: 1px; }
 
 @container screen (max-width: 640px) {
-  .prefs-row { flex-direction: column; align-items: stretch; gap: var(--space-3); }
-  .prefs-label { width: auto; }
+  .prefs-row { grid-template-columns: minmax(0, 1fr); row-gap: var(--space-3); }
+  .prefs-row.no-act .prefs-val { grid-column: auto; }
+  .prefs-act { justify-content: flex-start; }
+}
+@container screen (max-width: 420px) {
+  .prefs-editor-seg { display: none; }
+  .prefs-editor-select { display: block; }
 }
 
-/* 앱 아이콘 고르기 (11-04) — 실제 아이콘 34px 아홉. 고른 것은 바깥 고리(글자색) 하나, 그림자 · 확대 없음. */
+/* 앱 아이콘 고르기 (11-04) — 실제 아이콘 34px 아홉. 고른 것은 바깥 고리(글자색) 하나, 그림자 · 확대 없음.
+   평소에도 머리카락 테 하나 — 밝은 견본이 흰 카드에 녹아 어디까지가 칸인지 안 보였다 (11-15). */
 .app-icons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .app-icon-opt {
   display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0;
   border: none; border-radius: var(--radius-l); background: transparent; cursor: pointer;
   appearance: none; -webkit-appearance: none;
+  box-shadow: inset 0 0 0 1px var(--border-card);
   transition: box-shadow var(--dur-1) var(--ease-out);
 }
 .app-icon-opt > svg { display: block; }
