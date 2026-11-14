@@ -15,14 +15,16 @@ import { useTopbarFit } from "./useTopbarFit";
 
 // 셸 윗줄 (4.0) — 사이드바를 걷고 한 줄에 모은다.
 //
-//   [신호등 자리] 프로젝트 ▾ · 오늘 · 작업 일지 · 계획 · 변경 ···· [화면 동작] 찾기 ⌘K ⚙
+//   [신호등 자리] 프로젝트 ▾ · 오늘 · 작업 일지 · 계획 · 변경 · 터미널 [뒤로] ···· [화면 동작] │ 찾기 ⌘K ⚙
 //
 // 사이드바 옆에 목록 칸(일지 목록 · 계획 목록 · 파일 목록)이 또 서면 왼쪽에 사이드바가 두
-// 겹이었다 (사용자 지적 2026-10-29). 화면이 넷이면 탭 한 줄로 충분하고, 그러면 화면마다
+// 겹이었다 (사용자 지적 2026-10-29). 화면이 다섯이면 탭 한 줄로 충분하고, 그러면 화면마다
 // 왼쪽 칸은 많아야 하나다. 화면 제목은 고른 탭이 대신하므로 화면의 `<Toolbar>` 는 제목 없이
-// 동작만 이 줄의 「화면 동작」 자리로 보낸다(`ToolbarSlotContext`).
+// 동작만 이 줄의 「화면 동작」 자리로 보낸다(`ToolbarSlotContext`). 「뒤로」 는 탭 바로 뒤 자리로
+// (`ToolbarLeadSlotContext`, 11-15). 화면 동작과 찾기 · 설정 사이엔 1px 세로선 — 「찾기 ⌘K」 가
+// 화면의 동작(출력 찾기)으로 읽히지 않게.
 //
-// 탭 옆의 수는 **예외만** — 확인할 것(경고색) 하나.
+// 탭 옆의 수는 **예외만** — 먼저 볼 것 하나, 색은 가장 심한 행을 따른다(`useNavBadges`).
 
 interface TopBarProps {
   view: UiV2View;
@@ -36,6 +38,13 @@ interface TopBarProps {
   badges?: NavBadges;
   /** 화면 동작이 포털될 자리. */
   slotRef: Ref<HTMLDivElement>;
+  /** 화면의 「뒤로」(`leading`)가 포털될 자리 — 탭 바로 뒤. */
+  leadRef?: Ref<HTMLDivElement>;
+}
+
+function assignRef<T>(ref: Ref<T> | undefined, el: T | null) {
+  if (typeof ref === "function") ref(el);
+  else if (ref) (ref as { current: T | null }).current = el;
 }
 
 export function TopBar({
@@ -48,19 +57,20 @@ export function TopBar({
   onProjectsChanged,
   badges,
   slotRef,
+  leadRef,
 }: TopBarProps) {
   const { t } = useT();
   // 빈 자리는 창을 잡는 띠다 — 이 줄이 제목줄인 macOS · Windows 에서만 (`dragRegion`). Windows 의 창 단추 셋은
   // 이 줄 오른쪽 끝에 떠 있다(`windows/CaptionButtons.tsx`).
   const drag = dragRegion();
-  // 좁은 창(≤640)에서 화면 동작은 「⋯」 메뉴로 — 줄 안 스크롤 칸이 29px(480 에선 5px)로 짓눌려 「새 세션 ·
+  // 좁은 창에서 화면 동작은 「⋯」 메뉴로 — 줄 안 스크롤 칸이 29px(480 에선 5px)로 짓눌려 「새 세션 ·
   // 새 일지」 를 누를 수 없었다(레드팀 10-31). 넓은 창에서는 이 단추가 보이지 않고 칸은 늘 그대로다.
   const [more, setMore] = useState(false);
   const moreRef = useRef<HTMLButtonElement | null>(null);
   const slotBox = useRef<HTMLDivElement | null>(null);
   const barRef = useRef<HTMLElement | null>(null);
-  // 접기 단계 — 실제로 들어가는지 재서 정한다(`useTopbarFit`). 3 이면 화면 동작이 「⋯」 메뉴로 간다.
-  const fit = useTopbarFit(barRef, slotBox);
+  // 접기 — 실제로 들어가는지 재서 정한다(`useTopbarFit`). `fold` 면 화면 동작이 「⋯」 메뉴로 간다.
+  const { fit, fold } = useTopbarFit(barRef, slotBox);
   useEffect(() => {
     if (!more) return;
     const onDown = (e: MouseEvent) => {
@@ -84,10 +94,10 @@ export function TopBar({
   }, [more]);
   // 화면을 바꾸면 접는다 — 다른 화면의 동작이 열린 채 남지 않게.
   useEffect(() => setMore(false), [view]);
-  // 메뉴로 접히지 않는 단계로 돌아오면 열린 메뉴도 닫는다.
+  // 접지 않는 폭으로 돌아오면 열린 메뉴도 닫는다. 화면 동작의 내용이 바뀌는 것만으로는 닫지 않는다.
   useEffect(() => {
-    if (fit < 3) setMore(false);
-  }, [fit]);
+    if (!fold) setMore(false);
+  }, [fold]);
   // 프로젝트 색 — 창 위 띠. 창 여럿 사이에서 어느 프로젝트인지 한눈에 (2026-11-03).
   const color = projectColorOf(projects.find((p) => p.id === currentProjectId)?.color);
   // 그 색이 이 창의 강조색도 된다 — 창을 나란히 세웠을 때 창 전체가 어느 프로젝트인지 말한다.
@@ -96,7 +106,14 @@ export function TopBar({
   }, [color]);
   useEffect(() => () => projectAccent.set(undefined), []);
   return (
-    <header className="topbar" data-pc={color} data-fit={fit || undefined} ref={barRef} {...drag}>
+    <header
+      className="topbar"
+      data-pc={color}
+      data-fit={fit || undefined}
+      data-fold={fold ? "" : undefined}
+      ref={barRef}
+      {...drag}
+    >
       <ProjectSwitcher
         projectName={projectName}
         currentProjectId={currentProjectId}
@@ -120,25 +137,34 @@ export function TopBar({
               title={shortcut ? `${label} (${shortcut})` : label}
               onClick={() => onNavigate(e.id)}
             >
-              {/* 좁은 창(≤640)에서는 아이콘만 — 이름은 화면에서만 감추고 접근명 · 툴팁으로 남는다. */}
+              {/* 좁은 창에서는 아이콘만 — 이름은 화면에서만 감추고 접근명 · 툴팁으로 남는다. */}
               <Icon size={15} className="topnav-ico" aria-hidden="true" />
               <span className="topnav-label">{label}</span>
-              {badge ? (
-                <span className="nav-badge" aria-label={t("nav.toCheck", { n: badge.n })}>
-                  {badge.n}
-                </span>
+              {badge && badge.n > 0 ? (
+                <>
+                  <span className="nav-badge" data-tone={badge.tone ?? "warn"} title={badge.title} aria-hidden="true">
+                    {badge.n}
+                  </span>
+                  <span className="sr-only">{badge.title ?? t("nav.toCheck", { n: badge.n })}</span>
+                </>
+              ) : null}
+              {badge?.dot ? (
+                <>
+                  <span className="nav-dot" title={t("nav.termWaiting")} aria-hidden="true" />
+                  <span className="sr-only">{t("nav.termWaiting")}</span>
+                </>
               ) : null}
             </button>
           );
         })}
       </nav>
+      <div className="topbar-lead" ref={(el) => assignRef(leadRef, el)} />
       <div className="topbar-fill" {...drag} />
       <div
         className={"topbar-actions" + (more ? " is-open" : "")}
         ref={(el) => {
           slotBox.current = el;
-          if (typeof slotRef === "function") slotRef(el);
-          else if (slotRef) (slotRef as { current: HTMLDivElement | null }).current = el;
+          assignRef(slotRef, el);
         }}
         onClick={() => setMore(false)}
       />
@@ -153,6 +179,7 @@ export function TopBar({
       >
         <MoreHorizontal size={15} aria-hidden="true" />
       </button>
+      <span className="topbar-sep" aria-hidden="true" />
       <FindButton />
       <button
         type="button"

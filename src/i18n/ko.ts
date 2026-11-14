@@ -33,6 +33,12 @@ export const ko = {
 
   // ── 4.0 셸 — 사이드바 · 시작 창 · 설정 한 쪽 (창 하나 = 프로젝트 하나) ──────
   "nav.toCheck": "먼저 볼 것 {n}개",
+  "nav.jumpWaitingNone": "기다리는 세션이 없어요",
+  "nav.projectList": "프로젝트 목록",
+  "nav.projectActions": "프로젝트 동작",
+  "nav.badgeTitle": "먼저 볼 것 {n}",
+  "nav.badgeTitleFail": "먼저 볼 것 {n} · 실패 {m}",
+  "nav.termWaiting": "기다리는 세션이 있어요",
   "sidebar.switchProjectAria": "프로젝트 바꾸기 (지금 {name})",
   "sidebar.switchProjectTitle": "최근 프로젝트 ({key})",
   "sidebar.tileWindows": "창 정리",
@@ -125,7 +131,7 @@ export const ko = {
   "start.openFolder": "폴더 열기",
   "start.openAria": "{name} 열기",
   "start.groupOpen": "열린 창",
-  "start.groupRest": "최근",
+  "start.groupRest": "다른 프로젝트",
   "start.today": "오늘 {n}건",
   "start.yesterday": "어제 {n}건",
   "start.noRecords": "기록 없음",
@@ -138,9 +144,14 @@ export const ko = {
   "start.forgetWipe": "기록 폴더(.oculpm)도 휴지통으로",
   "start.forgetWipeSub": "일지와 계획이 함께 빠져요. 휴지통에서 되살릴 수 있고, AGENTS.md 는 그대로 남아요.",
   "start.forgetWiped": "{name} 의 기록 폴더를 휴지통으로 옮겼어요",
-  "start.empty": "아직 들인 프로젝트가 없어요. 폴더를 열면 이 창이 그 프로젝트가 돼요.",
+  "start.empty": "아직 연 프로젝트가 없어요. 폴더를 열면 이 창이 그 프로젝트가 돼요.",
   "start.footRecent": "프로젝트마다 창 하나예요. 다른 프로젝트는 새 창으로 열려요.",
   "start.addFailed": "폴더를 들이지 못했어요",
+  "start.toCheckUnknown": "일지 없는 파일을 아직 세지 못했어요",
+  "start.unknown": "모름",
+  "start.listFailed": "프로젝트 목록을 읽지 못했어요",
+  "start.keysMove": "줄 옮기기 (j / k 도)",
+  "start.keysOpen": "그 프로젝트 열기",
   "prefs.sub": "한 쪽이 전부예요",
   "prefs.checking": "확인 중",
   "prefs.unknown": "확인하지 못했어요",
@@ -321,11 +332,17 @@ export const ko = {
 
   // ── ⌘K 명령 팔레트 ──────────────────────────────────────────────────────
   "palette.aria": "명령 팔레트",
-  "palette.placeholder": "화면 · 프로젝트 · 일지 · 계획…",
+  "palette.placeholder": "세션 · 화면 · 동작 · 프로젝트 · 일지…",
   "palette.empty": "매칭되는 명령이 없어요.",
   "palette.group.projects": "프로젝트 열기",
   "palette.group.nav": "이동",
   "palette.openSettings": "설정 열기",
+  "palette.group.sessions": "터미널 세션",
+  "palette.group.actions": "동작",
+  "palette.searching": "일지 찾는 중",
+  "palette.cheatsheet": "단축키 전체",
+  "palette.projectColor": "프로젝트 색 바꾸기",
+  "palette.list": "명령 목록",
 
   // ── 프로젝트 관리 다이얼로그 (App.tsx) ──────────────────────────────────
   // 탭 컨텍스트 메뉴 (2026-08-28) — 창 간 드래그의 키보드·메뉴 등가물.
@@ -1003,6 +1020,7 @@ export const ko = {
   "keys.termCycle": "이전 · 다음 세션",
   "keys.termFont": "글자 크게 · 작게 · 기본",
   "keys.startAdd": "폴더 열기",
+  "keys.jumpWaiting": "내 차례 (기다리는 세션으로, 다시 누르면 다음)",
   // v3 {#revive-recovery-cmds} — 워처 다시 시작 + 일지 캐시 복구
   // ── 출처 배지 (Osaurus 라운드 Phase 3) — 누가 이 기록을 만들었는가
   // ── 첫 실행 마법사 (WelcomeWizard.tsx) ─────────────────────────────────

@@ -2,12 +2,14 @@ import { Suspense, useEffect, useState } from "react";
 import { safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ToolbarSlotContext } from "@/components/toolbarSlot";
+import { ToolbarLeadSlotContext } from "@/components/Toolbar";
 import { TopBar } from "./TopBar";
 import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { planTargetOf } from "@/features/deeplink/deepLinkPlan";
 import { resumeAfterUpdate } from "@/features/terminal/resumeAfterUpdate";
-import { useT } from "@/i18n";
+import { onTermFocusRequested } from "@/features/terminal/focusRequest";
+import { useT, type Lang } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
@@ -17,6 +19,7 @@ import { SettingsPage, TerminalScreen } from "./screens";
 import { KNOWN_VIEWS, useShellNav } from "./useShellNav";
 import { useNavBadges } from "./useNavBadges";
 import { useTodayExceptions } from "@/features/today/useTodayExceptions";
+import { splitExceptions } from "@/features/today/todayModel";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { events, type JournalEntrySummary, type Project } from "@/lib/bindings";
 import { isMac as isMacPlatform } from "@/lib/platform";
@@ -38,6 +41,15 @@ import "@/styles/index.css";
 //
 // 셸이 소유하지 **않는** 두 결은 옆 파일에 있다: 지연 청크 목록은 `./screens`, 화면
 // 밖에서 온 이동 요청과 한 번짜리 핸드오프는 `./useShellNav`.
+
+/**
+ * 오늘 화면 머리의 날짜. UI 언어를 따른다 — `"ko-KR"` 이 박혀 있어 영어 모드에서도 「2026년 9월 11일 금」이었다
+ * (2026-09-11 영문 스크린샷 촬영에서 잡음). 해는 뺀다(11-15) — 「2026년 11월 15일 일」 의 끝 「일」 이 날짜의
+ * 「일」 과 겹쳐 읽혔다. 「11월 15일 (일)」 · 「Sun, November 15」.
+ */
+export function shellDateLabel(lang: Lang, now = new Date()): string {
+  return now.toLocaleDateString(lang === "en" ? "en-US" : "ko-KR", { month: "long", day: "numeric", weekday: "short" });
+}
 
 interface ShellV2Props {
   projectName: string | null;
@@ -70,9 +82,14 @@ export default function ShellV2({
   const projectId = runtime.currentProjectId;
   const workday = runtime.workdayKey ?? runtime.oculpmStatus?.current_workday ?? null;
   const oculpmReady = runtime.oculpmStatus?.initialized === true;
-  // 「오늘」 배지 = 오늘 화면의 확인할 것 수 — 같은 규칙(`todayModel.buildExceptions`)으로 센다.
+  // 「오늘」 배지 = 오늘 화면의 먼저 볼 것 — 같은 규칙(`todayModel.buildExceptions`)으로 세고, 색은 가장
+  // 심한 행을 따른다(11-15). 이 창의 터미널 세션이 내 손을 기다리면(「waiting」 행) 터미널 탭에 점.
   const todayCheck = useTodayExceptions(projectId ?? 0, workday, oculpmReady && projectId != null);
-  const badges = useNavBadges(projectId, workday, oculpmReady, todayCheck.count);
+  const exceptions = todayCheck.exceptions;
+  const badges = useNavBadges(projectId, workday, oculpmReady, todayCheck.count, {
+    todayRows: exceptions ? splitExceptions(exceptions).first : null,
+    termWaiting: exceptions?.some((e) => e.kind === "waiting") ?? false,
+  });
 
   // 트레이 딥링크·팔레트 점프·「수동 일지」 처럼 **다른 화면이 쏜 이동 요청**과
   // 그 한 번짜리 핸드오프는 조각 훅이 소유한다 (`./useShellNav`).
@@ -103,6 +120,10 @@ export default function ShellV2({
     return () => window.removeEventListener(NAV_BUS.setView, onSet);
   }, [setUiV2View]);
 
+  // 「이 세션을 보여 줘」 요청마다 화면을 터미널로 (11-15) — 오늘의 「터미널에서 보기」 · ⌘J · 알림 착지가
+  // 같은 길이다. 요청은 꺼내지 않는다 — 고를 세션은 늦게 서는 터미널 화면이 꺼낸다(`focusRequest`).
+  useEffect(() => onTermFocusRequested(() => setUiV2View("terminal")), [setUiV2View]);
+
   // 업데이트 재시작 뒤 — 이 창에서 돌던 claude 대화를 잇는다(평소엔 빈 목록 하나를 묻고 끝).
   useEffect(() => {
     if (projectId == null) return;
@@ -110,8 +131,9 @@ export default function ShellV2({
   }, [projectId]);
 
   const isMac = isMacPlatform();
-  // 화면 동작이 포털될 윗줄의 자리 — 붙은 뒤에야 화면이 그 안으로 그린다.
+  // 화면 동작이 포털될 윗줄의 자리 — 붙은 뒤에야 화면이 그 안으로 그린다. 「뒤로」 는 탭 뒤 자리로.
   const [actionSlot, setActionSlot] = useState<HTMLDivElement | null>(null);
+  const [leadSlot, setLeadSlot] = useState<HTMLDivElement | null>(null);
 
   // 딥링크 이동 — 확인 시트가 open_project_nav 로 쏜 WindowNavigate 를 받아
   // 화면·일지로 이동한다.
@@ -139,14 +161,7 @@ export default function ShellV2({
     };
   }, [projectId, setUiV2View, setJournalOpenEntry, setJournalReturnView]);
 
-  // 툴바 날짜는 UI 언어를 따른다 — `"ko-KR"` 이 박혀 있어 영어 모드에서도
-  // 「2026년 9월 11일 금」이었다 (2026-09-11 영문 스크린샷 촬영에서 잡음).
-  const dateLabel = new Date().toLocaleDateString(lang === "en" ? "en-US" : "ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "short",
-  });
+  const dateLabel = shellDateLabel(lang);
 
   // 경로만 읽는다 — Today 첫 기록 카드는 요약 없이 경로만 들고 온다.
   const openEntryInJournal = (entry: Pick<JournalEntrySummary, "relative_path">) => {
@@ -173,9 +188,11 @@ export default function ShellV2({
         onProjectsChanged={onProjectsChanged}
         badges={badges}
         slotRef={setActionSlot}
+        leadRef={setLeadSlot}
       />
       <WindowSwitcher currentProjectId={projectId} projects={projects} />
       <ToolbarSlotContext.Provider value={actionSlot}>
+      <ToolbarLeadSlotContext.Provider value={leadSlot}>
       <main className="content">
         <div className="content-main">
         {/* v2 U6 — lazy 화면 공용 fallback: 콘텐츠 스켈레톤.
@@ -267,6 +284,7 @@ export default function ShellV2({
         </Suspense>
         </div>
       </main>
+      </ToolbarLeadSlotContext.Provider>
       </ToolbarSlotContext.Provider>
     </div>
   );

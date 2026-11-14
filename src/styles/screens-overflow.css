@@ -1,12 +1,9 @@
 /* 화면 규칙의 넘친 자리 — screens.css 가 래칫(800줄)에 걸려 새 규칙은 여기 산다.
    2026-10-28 밀도 라운드에 `density.css` 로 태어났다. 4.0 에서 「간단 / 전문」 토글을
    걷으며(밀도는 하나 — 촘촘한 쪽) 이름을 내용대로 바꿨다: 토글·밀도 갈래 규칙·시작 탭·
-   설정 밀도 카드·터미널 열은 걷었고, 전문 밀도의 행 높이는 이제 기본값이다. */
-
-/* ⌘K 바닥 */
-.palette-foot { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-4); border-top: 1px solid var(--border-card); font-size: var(--fs-3); color: var(--text-2); }
-.palette-foot kbd { font-family: var(--mono); color: var(--text-2); }
-.palette-foot-hint { margin-left: auto; }
+   설정 밀도 카드·터미널 열은 걷었고, 전문 밀도의 행 높이는 이제 기본값이다.
+   ⌘K 팔레트의 규칙은 11-15 에 `components/palette.css` 로 옮겼다 — 시작 창도 같은 팔레트를 쓰는데
+   이 파일은 셸의 늦은 청크라 시작 창에 오지 않는다. */
 
 .diff-entry-foot {
   display: flex; align-items: center; gap: var(--space-3); min-height: var(--ctl-5); padding: 0 var(--space-4);

@@ -52,7 +52,7 @@ describe("프로젝트 번호 키", () => {
     expect(projectSlotLabel(2)).toBe("Alt+3");
   });
 
-  it("목록을 열지 않고 그 번호의 프로젝트 창을 연다 — 지금 창이면 그대로", async () => {
+  it("목록을 열지 않고 그 번호의 프로젝트 창을 연다 — 지금 창은 번호가 없다(11-15)", async () => {
     __setPlatformForTests("mac");
     const projects = [
       { id: 1, name: "a", root_path: "/a", created_at: 3 },
@@ -61,9 +61,9 @@ describe("프로젝트 번호 키", () => {
     ] as unknown as Project[];
     const onOpenProject = vi.fn();
     render(<ProjectSwitcher projectName="a" currentProjectId={1} projects={projects} onOpenProject={onOpenProject} />);
-    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit3", metaKey: true, altKey: true }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit2", metaKey: true, altKey: true }));
     await waitFor(() => expect(onOpenProject).toHaveBeenCalledWith(3));
-    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit1", metaKey: true, altKey: true }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit3", metaKey: true, altKey: true }));
     await new Promise((r) => setTimeout(r, 10));
     expect(onOpenProject).toHaveBeenCalledTimes(1);
   });

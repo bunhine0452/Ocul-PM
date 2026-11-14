@@ -9,7 +9,7 @@ describe("top bar fit", () => {
   it("folds by measured steps, not by viewport widths", () => {
     expect(shell).not.toMatch(/@media \(max-width: (640|780|900)px\)/);
     expect(shell).toMatch(/\.topbar\[data-fit\] \.kbd \{ display: none; \}/);
-    expect(shell).toMatch(/\.topbar\[data-fit="3"\] \.topbar-actions \{ display: none; \}/);
+    expect(shell).toMatch(/\.topbar\[data-fold\] \.topbar-actions \{ display: none; \}/);
     // 화면 동작은 줄지 않는다 — 잘리는 대신 다음 단계로 간다.
     expect(shell).toMatch(/\.topbar-actions \{ flex-shrink: 0; \}/);
   });

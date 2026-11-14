@@ -42,6 +42,8 @@ const GLOBAL: ShortcutGroup = {
   titleKey: "keys.g.global",
   rows: [
     { keys: "⌘K", labelKey: "keys.palette" },
+    // 기다리는 세션으로 — 다시 누르면 다음 (features/shell/jumpWaiting.ts). 터미널 안의 그 밖 OS 는 Ctrl+Shift+J.
+    { keys: "⌘J", labelKey: "keys.jumpWaiting" },
     { keys: "⌘O", labelKey: "keys.switchProject" },
     // ⌃숫자 · ⇧⌘숫자는 화면 전환 · 스크린샷과 겹친다 (features/shell/projectKeys.ts).
     // 누르고 있으면 최근 순 창 목록, 톡 누르면 직전 창 (features/shell/WindowSwitcher.tsx).
@@ -110,10 +112,15 @@ const TERMINAL: ShortcutGroup = {
   ],
 };
 
+// 시작 창 (`features/start/StartWindow.tsx`) — 첫 줄에 포커스가 있어 열자마자 먹는다. ⌘K · ⌘, · ⌘/ 는 전역 그대로.
 const START: ShortcutGroup = {
   id: "start",
   titleKey: "keys.g.start",
-  rows: [{ keys: "⌘O", labelKey: "keys.startAdd" }],
+  rows: [
+    { keys: "⌘O", labelKey: "keys.startAdd" },
+    { keys: "↑ / ↓", labelKey: "start.keysMove" },
+    { keys: "Enter", labelKey: "start.keysOpen" },
+  ],
 };
 
 /** 화면 이동 그룹 — navRegistry 에서 파생. */

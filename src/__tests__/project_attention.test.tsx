@@ -57,13 +57,13 @@ describe("byAttention", () => {
 });
 
 describe("project switcher", () => {
-  it("⌥⌘1 opens the project Claude is waiting on", async () => {
+  it("⌥⌘1 stays the most recent other project even while another one waits (numbers follow recency, 11-15)", async () => {
     __setPlatformForTests("mac");
     fx.attention = new Map([[3, { project_id: 3, waiting: 1, failing: false }]]);
     const onOpenProject = vi.fn();
     render(<ProjectSwitcher projectName="a" currentProjectId={1} projects={projects} onOpenProject={onOpenProject} />);
     window.dispatchEvent(new KeyboardEvent("keydown", { code: "Digit1", metaKey: true, altKey: true }));
-    await waitFor(() => expect(onOpenProject).toHaveBeenCalledWith(3));
+    await waitFor(() => expect(onOpenProject).toHaveBeenCalledWith(2));
   });
 
   it("rows say waiting and failed check, waiting on top", async () => {
@@ -74,9 +74,9 @@ describe("project switcher", () => {
     ]);
     render(<ProjectSwitcher projectName="a" currentProjectId={1} projects={projects} onOpenProject={vi.fn()} />);
     fireEvent(window, new Event(NAV_BUS.openProjectSwitcher));
-    const menu = await screen.findByRole("menu");
-    await waitFor(() => expect(within(menu).getAllByRole("menuitem")[0]).toHaveTextContent("d"));
-    const rows = within(menu).getAllByRole("menuitem");
+    const menu = await screen.findByRole("listbox");
+    await waitFor(() => expect(within(menu).getAllByRole("option")[0]).toHaveTextContent("d"));
+    const rows = within(menu).getAllByRole("option");
     expect(rows[0]).toHaveTextContent(t("sidebar.waiting", { n: 2 }));
     expect(rows[1]).toHaveTextContent(t("sidebar.failing"));
   });

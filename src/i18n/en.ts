@@ -37,6 +37,12 @@ export const en: Record<keyof typeof ko, string> = {
 
   // ── 4.0 shell — sidebar · start window · one-page settings (one window per project) ──
   "nav.toCheck": "{n} to look at",
+  "nav.jumpWaitingNone": "No session is waiting on you",
+  "nav.projectList": "Project list",
+  "nav.projectActions": "Project actions",
+  "nav.badgeTitle": "{n} to look at",
+  "nav.badgeTitleFail": "{n} to look at · {m} failed",
+  "nav.termWaiting": "A session is waiting on you",
   "sidebar.switchProjectAria": "Switch project — now {name}",
   "sidebar.switchProjectTitle": "Recent projects ({key})",
   "sidebar.tileWindows": "Arrange",
@@ -129,7 +135,7 @@ export const en: Record<keyof typeof ko, string> = {
   "start.openFolder": "Open folder",
   "start.openAria": "Open {name}",
   "start.groupOpen": "Open windows",
-  "start.groupRest": "Recent",
+  "start.groupRest": "Other projects",
   "start.today": "{n} today",
   "start.yesterday": "{n} yesterday",
   "start.noRecords": "No entries yet",
@@ -145,6 +151,11 @@ export const en: Record<keyof typeof ko, string> = {
   "start.empty": "No projects yet. Open a folder and this window becomes that project.",
   "start.footRecent": "One window per project. Other projects open in their own window.",
   "start.addFailed": "Couldn't add the folder",
+  "start.toCheckUnknown": "Files without a journal entry aren't counted yet",
+  "start.unknown": "Unknown",
+  "start.listFailed": "Couldn't read the project list",
+  "start.keysMove": "Move between rows (j / k too)",
+  "start.keysOpen": "Open that project",
   "prefs.sub": "Everything on one page",
   "prefs.checking": "Checking",
   "prefs.unknown": "Couldn't check",
@@ -322,11 +333,17 @@ export const en: Record<keyof typeof ko, string> = {
 
   // ── ⌘K command palette ──────────────────────────────────────────────────
   "palette.aria": "Command palette",
-  "palette.placeholder": "Screens · projects · journal · plans…",
+  "palette.placeholder": "Sessions · screens · actions · projects · journal…",
   "palette.empty": "No matching commands.",
   "palette.group.projects": "Open project",
   "palette.group.nav": "Go to",
   "palette.openSettings": "Open settings",
+  "palette.group.sessions": "Terminal sessions",
+  "palette.group.actions": "Actions",
+  "palette.searching": "Searching the journal",
+  "palette.cheatsheet": "All shortcuts",
+  "palette.projectColor": "Change project color",
+  "palette.list": "Commands",
 
   // ── Project management dialogs (App.tsx) ────────────────────────────────
   // Tab context menu (2026-08-28) — the keyboard/menu equivalent of the drag.
@@ -991,6 +1008,7 @@ export const en: Record<keyof typeof ko, string> = {
   "keys.termCycle": "Previous · next session",
   "keys.termFont": "Larger · smaller · default text",
   "keys.startAdd": "Open folder",
+  "keys.jumpWaiting": "My turn: jump to the waiting session (again for the next)",
   // v3 {#revive-recovery-cmds} — re-arm the watcher + rebuild the journal cache
   // ── Source badges (Osaurus round Phase 3) — who made this record
   // ── First-run wizard (WelcomeWizard.tsx) ───────────────────────────────
