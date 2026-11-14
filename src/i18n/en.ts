@@ -895,6 +895,11 @@ export const en: Record<keyof typeof ko, string> = {
   "crash.body":
     "The rest of the window still works. If retrying doesn't help, send us oculpm.log from Settings → Data → Log folder.",
   "crash.retry": "Try again",
+  // ── Shared floor (11-15) — dialogs (components/ui/AppDialog.tsx) · notification column (components/ui/Toaster.tsx)
+  // Tag on the shortcut group of the screen you are looking at (it moves to the front).
+  "dialog.keysHere": "This screen",
+  // Accessible name for how many identical notifications were folded — only the number is drawn.
+  "toast.repeat": "Same notice {n} times",
   // ── Polish round Phase 2 (2026-08-30) — journeys: first activation · tab close
   //    guard · doctor · index empty states · shortcut cheatsheet · What's new · review loop
   "today.activateNow": "Turn on now",

@@ -32,16 +32,22 @@ const REQUIRED = [
   ".start-row",
   // 처음 쓰는 법 — 시작 창이든 프로젝트 창이든 처음 열자마자 뜬다(세 단계 칸을 대신한다).
   ".tour",
-  ".tour-foot",
   ".copy-cmd",
-  // 창 최상위 모달 — 탭 닫기 확인창(useConfirm) · ⌘/ 치트시트. 스킬 화면을
+  // 창 최상위 모달 — 탭 닫기 확인창(useConfirm) · ⌘/ 치트시트 · 처음 쓰는 법. 셸을
   // 한 번도 안 연 창에서도 뜨므로 lazy 청크에 있으면 뼈대만 남아 나온다
-  // (2026-09-02: 실제로 skills.css/screens.css 에 갇혀 있었다).
-  ".sk-modal-head",
-  ".sk-modal-warn",
-  ".sk-modal-foot",
-  ".cf-body",
-  ".keys-grid",
+  // (2026-09-02: 실제로 skills.css/screens.css 에 갇혀 있었다). 11-15 에 대화상자 한 벌
+  // (AppDialog 의 DialogHead · DialogBody · DialogFoot, primitives.css `.dlg-*`)로 접혔다.
+  ".dlg-panel",
+  ".dlg-head",
+  ".dlg-body",
+  ".dlg-foot",
+  ".cf-list",
+  ".keys-cols",
+  // 알림 기둥 — 토스트와 업데이트 배너. 창마다 늘 떠 있다(main.tsx 의 Toaster).
+  ".toaster",
+  ".update-banner",
+  // 창이 통째로 깨졌을 때의 오류 카드 — 시작 창의 바깥 경계도 이것을 그린다.
+  ".err-card",
 ];
 
 /**

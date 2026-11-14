@@ -312,9 +312,9 @@ describe("모달 크롬", () => {
   });
 
   it("제목·설명·버튼 줄이 한 벌이다", () => {
-    expect(prim).toMatch(/\.sk-modal-head,\n\.set-modal-title \{/);
-    expect(prim).toMatch(/\.sk-modal-warn,\n\.set-modal-desc \{/);
-    expect(prim).toMatch(/\.sk-modal-foot,\n\.set-modal-actions \{/);
+    expect(prim).toMatch(/\.dlg-title,\n\.set-modal-title \{/);
+    expect(prim).toMatch(/\.dlg-text,\n\.set-modal-desc \{/);
+    expect(prim).toMatch(/\.dlg-foot,\n\.set-modal-actions \{/);
     // screens.css 에는 간격만 남는다.
     expect(screens).not.toMatch(/\.set-modal-title \{[^}]*font-size/);
   });

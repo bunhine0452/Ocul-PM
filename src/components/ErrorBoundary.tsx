@@ -1,4 +1,5 @@
 import { Component, Fragment, type ReactNode } from "react";
+import { ErrorCard } from "@/components/ErrorCard";
 import { oculpmLog } from "@/lib/oculpmLog";
 // 클래스 컴포넌트라 훅을 쓸 수 없다 — 모듈 t(). 이 경계가 떠 있는 동안에만
 // 언어 전환 반영이 늦는데, 크래시 화면은 "다시 시도" 로 곧 사라진다
@@ -51,47 +52,21 @@ export class ErrorBoundary extends Component<Props, State> {
     );
   }
 
+  // 오류 카드 한 벌 (11-15) — 가운데 정렬 인라인 리터럴 대신 화면의 다른 실패와 같은 모양으로, 본문
+  // 왼쪽 선에 선다. 「다시 시도」 는 경계를 비우고 하위 트리를 새로 마운트한다.
   render() {
     if (this.state.error == null) {
       return <Fragment key={this.state.nonce}>{this.props.children}</Fragment>;
     }
     return (
-      <div
-        role="alert"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-          height: "100%",
-          minHeight: 160,
-          padding: 24,
-          color: "var(--text-2)",
-          fontSize: "var(--fs-4)",
-          textAlign: "center",
-        }}
-      >
-        <strong style={{ color: "var(--text)" }}>{t("crash.title")}</strong>
-        <code
-          style={{
-            fontSize: "var(--fs-3)",
-            color: "var(--text-2)",
-            maxWidth: 480,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
+      <div className="err-wrap">
+        <ErrorCard
+          title={t("crash.title")}
+          error={this.state.error.message}
+          onRetry={() => this.setState((s) => ({ error: null, nonce: s.nonce + 1 }))}
         >
-          {this.state.error.message}
-        </code>
-        <span style={{ maxWidth: 420, lineHeight: 1.6 }}>{t("crash.body")}</span>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => this.setState((s) => ({ error: null, nonce: s.nonce + 1 }))}
-        >
-          {t("crash.retry")}
-        </button>
+          {t("crash.body")}
+        </ErrorCard>
       </div>
     );
   }

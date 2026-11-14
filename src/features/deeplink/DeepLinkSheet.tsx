@@ -8,11 +8,14 @@
  *
  * 시트는 셋을 말한다 — **무엇을**(제목) · **어디서**(출처 그대로) ·
  * **무엇이 바뀌는지**(효과 한 줄).
+ *
+ * 열리면 「취소」 가 포커스를 받는다 — 바깥에서 온 링크를 ↩ 한 번으로 받아들이지 않는다. 그래서 승인
+ * 단추에는 키 표기가 없다. 단추는 앱의 `.btn` 한 벌이다(11-15, shadcn Button 은 이 시트 하나만 쓰고
+ * 흰 글자가 4.35:1 이었다).
  */
 
-import { useEffect, useState } from "react";
-import { AppDialog } from "@/components/ui/AppDialog";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState } from "react";
+import { AppDialog, DialogBody, DialogFoot, DialogHead, DialogKey } from "@/components/ui/AppDialog";
 import { onDeepLink, type DeepLink } from "@/api/deeplink";
 import { useT } from "@/i18n";
 import { planFor } from "./deepLinkPlan";
@@ -26,6 +29,7 @@ export function DeepLinkSheet({
   const { t } = useT();
   const [link, setLink] = useState<DeepLink | null>(null);
   const [busy, setBusy] = useState(false);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => onDeepLink(setLink), []);
 
@@ -43,34 +47,23 @@ export function DeepLinkSheet({
   };
 
   return (
-    <AppDialog open onClose={() => setLink(null)} label={t(plan.titleKey)} width={460}>
-      <div className="p-5 space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold text-foreground">{t(plan.titleKey)}</h2>
-          <p className="text-sm text-muted-foreground">{t(plan.effectKey)}</p>
+    <AppDialog open onClose={() => setLink(null)} label={t(plan.titleKey)} width={460} initialFocusRef={cancelRef}>
+      <DialogHead title={t(plan.titleKey)} sub={t(plan.effectKey)} />
+      <DialogBody>
+        <div className="dl-origin">
+          <span className="dl-origin-label">{t("deeplink.origin")}</span>
+          <span className="dl-origin-value">{plan.origin}</span>
         </div>
-
-        <div className="rounded-lg border border-border bg-background px-3 py-2">
-          <div className="text-fs-3 uppercase tracking-wider text-muted-foreground">
-            {t("deeplink.origin")}
-          </div>
-          <div className="text-xs font-mono text-foreground break-all">{plan.origin}</div>
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setLink(null)}
-            disabled={busy}
-            className="flex-1"
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button onClick={accept} disabled={busy} className="flex-1">
-            {t(plan.actionKey)}
-          </Button>
-        </div>
-      </div>
+      </DialogBody>
+      <DialogFoot>
+        <button ref={cancelRef} type="button" className="btn ghost sm" onClick={() => setLink(null)} disabled={busy}>
+          <span>{t("common.cancel")}</span>
+          <DialogKey>esc</DialogKey>
+        </button>
+        <button type="button" className="btn primary sm" onClick={accept} disabled={busy}>
+          {t(plan.actionKey)}
+        </button>
+      </DialogFoot>
     </AppDialog>
   );
 }

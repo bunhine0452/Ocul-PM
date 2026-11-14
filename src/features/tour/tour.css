@@ -1,19 +1,10 @@
 /* ============================================================
    tour.css — 처음 쓰는 법 (첫 실행 안내, 네 쪽). AppDialog 안에 선다.
+   머리 · 본문 · 발은 대화상자 한 벌(primitives.css `.dlg-*`)이고, 여기엔 쪽 안의 글만 남는다.
    흐림 · 광택 없이 카드 하나 — 큰 글자는 쪽 제목에만.
    ============================================================ */
-.tour { display: flex; flex-direction: column; min-height: 0; }
-.tour-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: var(--space-5) var(--space-7) 0;
-  font-size: var(--fs-3); color: var(--text-2);
-}
-.tour-kicker { font-weight: var(--fw-strong); }
-.tour-body {
-  display: flex; flex-direction: column; gap: var(--space-4);
-  padding: var(--space-5) var(--space-7) var(--space-6);
-  min-height: 290px; /* 가장 긴 쪽(손에 익히기)에 맞춘다 — 쪽을 넘길 때 모달이 위아래로 튀지 않게 */
-}
+/* 판(.dlg-panel)과 머리 · 본문 · 발 사이의 껍데기 — 본문이 줄어 스크롤하려면 이 칸도 세로 흐름이어야 한다. */
+.tour { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
 .tour-title { margin: 0; font-size: var(--fs-7); font-weight: var(--fw-bold); line-height: var(--lh-snug); }
 .tour-text { margin: 0; font-size: var(--fs-4); line-height: var(--lh-body); color: var(--text); }
 .tour-quiet { color: var(--text-2); }
@@ -26,9 +17,3 @@
 .tour-row:last-child { border-bottom: 0; }
 .tour-row-label { min-width: 0; }
 .tour-row .kbd { flex: none; }
-.tour-foot {
-  display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-4) var(--space-7);
-  border-top: 1px solid var(--sep);
-}
-.tour-spacer { flex: 1; }

@@ -1,10 +1,9 @@
 /**
  * Skeleton — 콘텐츠 형태 로딩 플레이스홀더 (v2 U2, docs/20260706_v2/01-ux-spec.md §2).
  *
- * 전역 `.skel` (primitives.css) 을 사용한다 — 면이 숨 쉬듯 옅어지는 한 벌.
- * reduced-motion 에서는 정적 면으로 남는다.
- * 스피너(OculSpinner)와의 사용 구분: 목록/카드처럼 "곧 채워질 모양"이 있는 곳은
- * Skeleton, 모양을 예측할 수 없는 단발 작업(재인덱싱 등)은 스피너.
+ * 전역 `.skel` (primitives.css) 을 사용한다 — 멈춰 있는 면 한 벌(11-15, 숨쉬기는 걷었다).
+ * 사용 구분: 목록/카드처럼 "곧 채워질 모양"이 있는 곳은 Skeleton, 모양을 예측할 수 없는
+ * 자리는 `LoadingState`(300ms 뒤의 정지 글자).
  */
 
 import { useT } from "@/i18n";

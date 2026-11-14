@@ -16,6 +16,57 @@
 }
 .winroot .app { flex: 1 1 auto; min-height: 0; height: auto; }
 
+/* ── 버튼 · 포커스 · 아이콘 — 모든 창의 바닥 (11-15, styles/base.css 에서 옮겼다) ────────────────────────
+   base.css 는 셸(지연 청크)에만 실려, 처음 뜬 시작 창에는 키보드 포커스 링도 아이콘 획 보정도 없었다 —
+   Tab 으로 「폴더 열기」 에 가도 아무 표시가 없었다. 셀렉터는 옮기기 전 그대로다. */
+
+/* 공용 물성 (2026-07-16) — 전 버튼의 색·배경·그림자 전환을 한 물성으로 통일한다. :where() 로 명시도를
+   0 으로 낮춰, 자체 transition 을 가진 컴포넌트(.toggle 등)가 언제든 이긴다. transform 은 요소별
+   의도(press/lift)가 달라 각자 선언한다. */
+:where(button) {
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
+}
+
+/* 키보드 포커스 — 마우스 클릭엔 침묵(:focus-visible), Tab 이동엔 일관된 액센트 링.
+
+   링은 **한 벌**이다 (3.0 {#focus-ring-unify}). 예전엔 이 전역 규칙 말고도 화면마다 재정의가 스무 곳
+   있었고, 그중 여덟 곳이 `--accent-ring`(알파 0.32)을 outline 색으로 썼다 — 32% 불투명 2px 링은 밝은
+   표면에서 사실상 안 보인다. 이제 색·폭·간격이 전부 토큰이고, 화면 파일은 **어긋날 수 없다**.
+
+   역할(role)까지 받는 이유: `<div role="option">` 처럼 버튼이 아닌 태그로 그린 상호작용 요소가
+   목록·트리·메뉴에 있는데, 예전 선택자(button/a/input/…/[tabindex="0"])는 그것들을 하나도 못 잡아
+   키보드로 들어가면 아무 표시가 없었다. */
+:where(
+  button, a, input, textarea, select, summary,
+  [role="button"], [role="link"], [role="tab"], [role="option"], [role="menuitem"],
+  [role="menuitemradio"], [role="menuitemcheckbox"], [role="radio"], [role="checkbox"],
+  [role="switch"], [role="treeitem"], [role="slider"],
+  [tabindex="0"]
+):focus-visible {
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+/* 아이콘 광학 보정 (2026-09-09 {#icon-optical-stroke}) — lucide 도, 이 저장소의 수제 아이콘도 viewBox
+   가 24 고정이라 `strokeWidth` 는 **비율**이다. 그래서 획의 실제 두께가 아이콘 크기에 정비례해 왔다
+   (11px → 0.92px · 13px → 1.08px · 15px → 1.25px · 30px → 2.50px). 실제 아이콘 가족은 획을 크기에
+   정비례시키지 않는다 — 작은 글리프일수록 상대적으로 굵게 그려 같은 무게로 보이게 한다(SF Symbols ·
+   Feather 의 관용구). 아래 여섯 값이 아이콘 크기 램프(11·13·15·18·22·30)의 짝이고, 실효 두께를
+   1.10 → 1.69px 로 눌러 가장 많이 쓰는 두 크기(15 · 13)의 차이를 15% → 4% 로 줄인다.
+   `width` 는 두 종류의 아이콘이 **다 내보내는** 속성이고(lucide 는 `.lucide`, 수제는 `.lucide-icon`),
+   CSS 는 presentation attribute 를 이긴다. 예외가 필요하면 인라인 스타일로 — `style={{ strokeWidth: n }}`. */
+svg.lucide[width="11"], svg.lucide-icon[width="11"] { stroke-width: 2.4; }
+svg.lucide[width="13"], svg.lucide-icon[width="13"] { stroke-width: 2.1; }
+svg.lucide[width="15"], svg.lucide-icon[width="15"] { stroke-width: 1.9; }
+svg.lucide[width="18"], svg.lucide-icon[width="18"] { stroke-width: 1.75; }
+svg.lucide[width="22"], svg.lucide-icon[width="22"] { stroke-width: 1.55; }
+svg.lucide[width="30"], svg.lucide-icon[width="30"] { stroke-width: 1.35; }
+
 /* 네이티브 위젯(스크롤바 · 폼)이 테마를 따르게 — 시작 창에도 (2026-11-10). base.css 의 같은 두 줄은 셸
    청크에만 실려, 처음 뜬 시작 창은 늘 밝은 기본 위젯이었다. Windows 의 기본 스크롤바는 macOS 와 달리 늘
    서 있어 어두운 시작 창에 밝은 막대가 섰다. macOS 는 그대로(D3 — 속성 없는 :root). */

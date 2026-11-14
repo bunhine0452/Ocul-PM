@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { SettingsProvider } from "./contexts/SettingsContext";
+import { SettingsProvider, bootSettings } from "./contexts/SettingsContext";
 import { Toaster } from "./components/ui/Toaster";
 import { parseWindowRoute } from "./lib/windowRoute";
 import { installExternalLinkGuard } from "./lib/externalLinks";
@@ -9,7 +9,6 @@ import { installIdleMotionPause } from "./lib/idleMotion";
 import { installNativeDialogGuard } from "./lib/nativeDialogs";
 import { getPlatform, isMac } from "./lib/platform";
 import { bootI18n } from "./i18n";
-import { commands } from "./lib/bindings";
 import { watchCspViolations } from "./lib/oculpmLog";
 import pretendardUrl from "./assets/fonts/Pretendard-subset.woff2?url";
 
@@ -83,12 +82,9 @@ const appWindowChunk = import("./windows/AppWindow");
 
 // 언어 사전은 동적 청크다 (완성도 라운드 Phase 3) — 설정의 언어를 읽어 그 사전
 // 하나를 받은 뒤 그린다. 웹뷰 밖에선 설정 IPC 가 없으니 OS 로케일.
-void bootI18n(async () => {
-  if (!isWebview) return null;
-  const res = await commands.settingsGetAll();
-  if (res.status !== "ok") return null;
-  return res.data.find(([key]) => key === "language")?.[1] ?? null;
-}).then(renderApp);
+// 같은 조회로 테마도 첫 렌더 전에 단다(11-15) — 설정이 어둡게 · OS 가 밝게면 밝은 판이 먼저 그려졌다
+// 뒤집혔다(`bootSettings`).
+void bootI18n(async () => (isWebview ? bootSettings() : null)).then(renderApp);
 
 function renderApp() {
   // 앱 창 — 시작 창이거나 프로젝트 하나의 셸이다 (창 하나 = 프로젝트 하나, 4.0).

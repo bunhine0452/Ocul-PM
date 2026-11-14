@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Download, X } from "@/components/Icons";
+import { toasterPinnedSlot } from "@/components/ui/Toaster";
 import { updateGateApi } from "@/api/installKind";
+import { useOptionalSettings } from "@/contexts/SettingsContext";
 import { useUpdater } from "@/lib/updater";
 import { useT } from "@/i18n";
 
@@ -10,6 +13,11 @@ import { useT } from "@/i18n";
 // — no manual re-download. Offline / no-update / private-repo all fail closed,
 // so the banner simply doesn't appear. The Settings → 데이터 "업데이트" section
 // reuses the same hook for a manual check. See src/lib/updater.ts.
+//
+// 11-15 — 이 컴포넌트는 **내용과 동작만** 갖는다. 자리는 알림 기둥(`Toaster`)의 맨 아래 고정 줄이다 —
+// 따로 떠 있던 배너는 토스트와 같은 모서리에서 서로를 가렸다. 기둥이 없으면(시험) 제자리에 그린다.
+// 단추는 보통 단추다: 강조색 채운 단추는 모든 화면에 두 번째 채운 단추로 섰다(영수증 규칙 3).
+// 닫은 판은 설정(SQLite)에 남는다 — 창마다 따로 닫지 않는다.
 
 /** True if `latest` is strictly newer than `current` (semver-ish: "1.2.0" /
  *  "v1.2.0"). Kept as a tested helper; the updater plugin does its own
@@ -56,7 +64,15 @@ async function autoCheck(check: () => Promise<unknown>, urgent = false): Promise
 export function UpdateBanner() {
   const { t } = useT();
   const { status, check, install, restartNow } = useUpdater();
-  const [dismissed, setDismissed] = useState<string | null>(null);
+  const settings = useOptionalSettings();
+  const slot = toasterPinnedSlot.useValue();
+  // 설정 밖(단위 시험)에서는 이 창 안에서만 닫힌다.
+  const [localDismissed, setLocalDismissed] = useState<string | null>(null);
+  const dismissed = settings ? settings.settings.updateDismissed : localDismissed;
+  const dismiss = (v: string) => {
+    if (settings) void settings.set("updateDismissed", v);
+    else setLocalDismissed(v);
+  };
   // Once we've seen an available update we keep showing the banner through its
   // install / failure transitions. A *check* error (offline, private repo) never
   // flips this, so silent launch-time failures stay hidden.
@@ -122,16 +138,16 @@ export function UpdateBanner() {
   }, [status.kind, install]);
 
   // 닫은 배너는 **그 버전**에 대해서만 닫힌 것이다 — 나중에 더 새 버전이
-  // 오면 다시 뜬다.
-  if (version == null || dismissed === version) return null;
+  // 오면 다시 뜬다. 설정을 아직 못 읽었으면 기다린다(닫은 판이 한 번 번쩍이지 않게).
+  if (version == null || dismissed === version || (settings && !settings.loaded)) return null;
 
   const installing = status.kind === "installing";
   const failed = status.kind === "error";
   // 새 버전은 이미 깔렸고 재시작만 남았다 — 끊으면 안 되는 일이 끝나기를 기다린다.
   const awaiting = status.kind === "awaiting" ? status.reason : null;
 
-  return (
-    <div className="update-banner" role="status">
+  const banner = (
+    <div className="update-banner animate-in fade-in slide-in-from-bottom-2 duration-(--dur-2)" role="status">
       <Download size={15} />
       <div className="update-banner-text">
         {awaiting ? (
@@ -146,7 +162,7 @@ export function UpdateBanner() {
       </div>
       <button
         type="button"
-        className="update-banner-cta"
+        className="btn sm"
         onClick={() => void (awaiting ? restartNow() : install())}
         disabled={installing}
       >
@@ -158,13 +174,14 @@ export function UpdateBanner() {
       </button>
       <button
         type="button"
-        className="update-banner-x"
-        onClick={() => setDismissed(version)}
+        className="iconbtn sm"
+        onClick={() => dismiss(version)}
         aria-label={t("update.dismiss")}
         disabled={installing}
       >
-        <X size={15} />
+        <X size={13} />
       </button>
     </div>
   );
+  return slot ? createPortal(banner, slot) : banner;
 }

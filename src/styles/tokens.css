@@ -54,6 +54,9 @@
   --sep: rgba(60,52,38,0.10);
   --sep-strong: rgba(60,52,38,0.17);
   --border-card: rgba(60,52,38,0.085);
+  /* 세그먼트의 고른 칸 (11-15, primitives.css `.seg-item`) — 트랙(--bg-inset)보다 늘 밝아야 「골랐다」 로
+     읽힌다. 라이트는 카드 흰색, 다크는 아래 블록에서 트랙에 글자색을 섞는다. */
+  --seg-on: var(--bg-card);
 
   /* accent — deep emerald (브랜드 초록 가족 유지, 한 톤 깊게) */
   --accent: #0e8a60;
@@ -403,6 +406,8 @@
   --sep: rgba(255,255,255,0.08);
   --sep-strong: rgba(255,255,255,0.15);
   --border-card: rgba(255,255,255,0.075);
+  /* 다크의 카드(#232826)는 트랙(#282e2b)보다 어두워 고른 칸이 빈 구멍이었다 — 트랙에 글자색 10%. */
+  --seg-on: color-mix(in srgb, var(--text) 10%, var(--bg-inset));
 
   --accent: #34d095;
   --accent-strong: #2ac489;
