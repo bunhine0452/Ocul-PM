@@ -162,6 +162,36 @@ fn nested_repo_below_root_is_diffable() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// 공백 무시 (11-15) — 들여쓰기만 바뀐 파일은 `-w` 로 빈 패치, 없이는 그대로 보인다.
+#[test]
+fn ignore_whitespace_empties_a_whitespace_only_patch() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    if git(root, &["init", "-q"]).is_err() {
+        return; // git unavailable
+    }
+    for args in [
+        ["config", "user.email", "t@t.dev"],
+        ["config", "user.name", "t"],
+        ["config", "core.autocrlf", "false"],
+    ] {
+        git(root, &args).unwrap();
+    }
+    std::fs::write(root.join("a.ts"), "if (x) {\n  run();\n}\n").unwrap();
+    git(root, &["add", "."]).unwrap();
+    git(
+        root,
+        &["-c", "commit.gpgsign=false", "commit", "-qm", "base"],
+    )
+    .unwrap();
+    std::fs::write(root.join("a.ts"), "if (x) {\n      run();\n}\n").unwrap();
+
+    let plain = diff_patch_capped(root, "a.ts", None, None, 65_536, false).unwrap();
+    assert!(plain.text.contains("+      run();"), "{}", plain.text);
+    let quiet = diff_patch_capped(root, "a.ts", None, None, 65_536, true).unwrap();
+    assert!(quiet.text.trim().is_empty(), "{}", quiet.text);
+}
+
 #[test]
 fn unquote_git_path_handles_plain_quoted_and_octal_forms() {
     use super::repo::unquote_git_path;
