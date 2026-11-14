@@ -1,7 +1,12 @@
 import type { Terminal } from "@xterm/xterm";
 import { oculpmLog } from "@/lib/oculpmLog";
-import { dumpImeTrace, dumpImeTraceAuto, pushImeTrace } from "./imeTrace";
+import { dumpImeTrace, dumpImeTraceAuto, pushImeTrace, shapeImeDetail } from "./imeTrace";
 import { isImeComposing } from "@/lib/ime";
+import { getPlatform, isMac } from "@/lib/platform";
+import { handlePaste } from "./pasteSafe";
+import { requestSendSelection } from "./sendToClaude";
+import { copySelectionNow, handleCopy, selectedText } from "./termCopy";
+import { translateKey, type KeyAction, type KeyCtx } from "./termKeys";
 
 // WKWebView 한글/CJK 입력 브리지 (2026-07-30)
 //
@@ -191,6 +196,13 @@ const SESSION_END_KEYS = new Set([
 // 한글은 **브리지만 보낸다**: 한글 keypress 는 xterm 에 넘기지 않는다. 막을 때
 // preventDefault 를 하지 않으므로(커스텀 핸들러가 false 면 xterm 은 cancel 전에
 // 돌아간다) 글자는 textarea 에 들어가 input 으로 브리지에 온다 — 잃지 않는다.
+//
+// ── 2026-11-15: 같은 모드에서 스페이스 · 숫자 · 문장부호도 두 번 (업그레이드 라운드 TI-06) ──
+// 위 막기는 **한글 keypress 만** 걸렀다. 음절째 확정 모드에서는 스페이스 · 숫자도 229 keydown 뒤에
+// keypress 와 input 을 함께 싣는다 — keypress 로 xterm 이 한 번, input 으로 브리지가 한 번(「디  」).
+// 그래서 keydown 이 조합 키(229)였으면 뒤따르는 keypress 는 글자 종류와 상관없이 넘기지 않는다.
+// 마찬가지로 preventDefault 는 하지 않는다 — 글자는 input 으로 브리지에 온다. 표시는 keyup · 다음
+// keydown 에서 내린다. 사례표는 `ime_cases.test.ts`(Orca 의 이름 그대로).
 
 /** 잔여 조합이 확정한 공백까지 끌고 올 때 떼어내는 꼬리 (NBSP 포함). */
 const TRAILING_SPACE = /\s+$/;
@@ -239,7 +251,8 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     // 링은 릴리스에서도 돈다 (imeTrace.ts) — 배열 한 칸 쓰기라 경합을 안 바꾼다.
     pushImeTrace(event, { ...detail, echoed, textarea: textarea?.value ?? null });
     if (!TRACE) return;
-    oculpmLog.info("ime", event, { ...detail, echoed, textarea: textarea?.value ?? null });
+    // 개발 빌드의 로그도 같은 꼴로 — 입력 내용은 한글만 남긴다(imeTrace.ts 의 TI-05 주석).
+    oculpmLog.info("ime", event, shapeImeDetail({ ...detail, echoed, textarea: textarea?.value ?? null }));
   };
 
   /** 셸 입력줄을 `next` 와 같게 만든다 — 공통 접두사 뒤만 DEL 로 지우고 다시 쓴다. */
@@ -416,18 +429,69 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
   // 조합이 남은 채 포커스를 잃으면 이미 셸에 흘려둔 상태이므로 세션만 정리한다.
   const onBlur = () => endSession();
 
+  // 붙여넣기 · 복사 (업그레이드 라운드 TI-04 · TI-07) — xterm 의 처리기(textarea · element)보다 먼저
+  // 캡처 단계에서 받는다. 붙여넣기는 바이트를 거르고(`pasteSafe`), 복사는 여백을 걷는다(`termCopy`).
+  // 붙인 글은 줄을 바꾸므로 조합 부기는 새로 시작한다.
+  const onPaste = (event: Event) => {
+    endSession();
+    handlePaste(term, event as ClipboardEvent, getPlatform() === "windows");
+  };
+  const onCopy = (event: Event) =>
+    handleCopy(term, event as ClipboardEvent, { windows: getPlatform() === "windows", clear: !isMac() });
+
   container.addEventListener("input", onInput, true);
   container.addEventListener("compositionstart", stopComposition, true);
   container.addEventListener("compositionupdate", stopComposition, true);
   container.addEventListener("compositionend", stopComposition, true);
+  container.addEventListener("paste", onPaste, true);
+  container.addEventListener("copy", onCopy, true);
   textarea?.addEventListener("blur", onBlur);
+
+  /**
+   * 키 층(`termKeys`)이 keydown 에서 맡은 키 — 같은 키의 keypress · keyup 도 xterm 에 넘기지 않는다.
+   * 맥은 ⌘ 를 쥔 키의 keyup 을 안 보내기도 하니 다음 keydown 에서도 내린다.
+   */
+  let takenKey: string | null = null;
+  /** 방금 keydown 이 조합 키(229)였다 — 뒤따르는 keypress 는 넘기지 않는다 (위 2026-11-15 주석). */
+  let imeKeydown = false;
+
+  /** 키 층이 읽는 터미널 상태 — 시험의 가짜 터미널에는 버퍼 · 선택이 없을 수 있다. */
+  const keyCtx = (): KeyCtx => ({
+    isMac: isMac(),
+    altScreen: term.buffer?.active?.type === "alternate",
+    hasSelection: term.hasSelection?.() ?? false,
+  });
+
+  /** 키 층의 결과를 실행한다 — xterm 의 `cancel` 처럼 전파를 막아 화면 단축키가 같은 키를 또 먹지 않게. */
+  const runKey = (action: KeyAction, event: KeyboardEvent) => {
+    event.stopPropagation();
+    // 붙여넣기는 브라우저 몫으로 둔다 — paste 이벤트가 위 onPaste 로 온다.
+    if (action.kind === "native" && action.op === "paste") return;
+    event.preventDefault();
+    if (action.kind === "send") {
+      endSession(); // 줄이나 커서가 바뀐다 — 조합 부기를 새로
+      term.input(action.seq, true);
+    } else if (action.kind === "native") {
+      copySelectionNow(term, { clear: true });
+    } else {
+      const text = selectedText(term);
+      if (text) requestSendSelection(text);
+    }
+  };
 
   term.attachCustomKeyEventHandler((event) => {
     // 이 세 신호를 처음 알아낸 자리지만, 판정은 이제 lib/ime.ts 가 갖는다 —
     // 여기서만 알고 있으면 컴포저·시작 화면이 그 지식을 못 받는다.
     const imeKey = isImeComposing(event);
 
+    if (event.type !== "keydown" && takenKey !== null && event.key === takenKey) {
+      if (event.type === "keyup") takenKey = null;
+      return false;
+    }
+
     if (event.type === "keydown") {
+      takenKey = null;
+      imeKeydown = imeKey;
       // ⌃⌥⇧I — 그때까지의 입력 흐름을 로그 파일로 비운다. 한글 입력이 이상하게
       // 동작한 **직후** 눌러 달라고 안내하면, 릴리스 빌드에서도 재현 순간의
       // 트레이스를 그대로 받을 수 있다 (imeTrace.ts).
@@ -442,6 +506,13 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
         isComposing: event.isComposing,
         imeKey,
       });
+      // 키 층 — 조합 판정 다음, 맨 앞 (termKeys.ts 머리말: Shift+Enter · 맥 줄 편집 · 복사 · ⌘L).
+      const action = imeKey ? null : translateKey(event, keyCtx());
+      if (action) {
+        takenKey = event.key;
+        runKey(action, event);
+        return false;
+      }
       // Enter·Tab 은 조합을 끝낸다. 글자는 이미 셸에 올라가 있으므로 세션만
       // 정리하고 xterm 이 CR/TAB 을 보내게 둔다.
       // Backspace·Delete 는 xterm 이 셸에 지우라고 보내는데 textarea 는 그대로라,
@@ -486,6 +557,7 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       return true;
     }
 
+    if (event.type === "keyup") imeKeydown = false;
     if (imeKey) return false;
     if (event.type !== "keypress") return true;
     trace("keypress", { key: event.key, charCode: event.charCode });
@@ -495,6 +567,8 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       ownedKeydown = null;
       return false;
     }
+    // 조합 키(229) 뒤의 keypress 는 글자 종류와 상관없이 브리지(input) 몫 — 위 2026-11-15 주석.
+    if (imeKeydown) return false;
     // 한글은 브리지(input)만 보낸다 — 위 2026-11-12 주석.
     if (event.key.length === 1 && isComposable(event.key)) return false;
     return true;
@@ -506,6 +580,8 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       container.removeEventListener("compositionstart", stopComposition, true);
       container.removeEventListener("compositionupdate", stopComposition, true);
       container.removeEventListener("compositionend", stopComposition, true);
+      container.removeEventListener("paste", onPaste, true);
+      container.removeEventListener("copy", onCopy, true);
       textarea?.removeEventListener("blur", onBlur);
     },
   };

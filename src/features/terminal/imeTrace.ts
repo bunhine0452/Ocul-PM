@@ -15,6 +15,7 @@
 // 직렬화도 없다. 실제로 로그로 나가는 것은 사람이 부를 때뿐이고, 그때 한 번에
 // 비운다. 관측 비용을 재현 시점에서 덤프 시점으로 옮기는 것이 요지다.
 
+import { t } from "@/i18n";
 import { oculpmLog } from "@/lib/oculpmLog";
 
 /** 한 번 덤프로 되돌아볼 이벤트 수. 조합 한 세션이 보통 10~30건이다. */
@@ -29,9 +30,91 @@ interface Entry {
 const ring: (Entry | undefined)[] = new Array(CAPACITY);
 let cursor = 0;
 
-/** 이벤트 한 건. **여기서는 아무 것도 만들지 않는다** — 링에 얹기만. */
+// ── 입력 내용은 한글만 남긴다 (2026-11-15, 업그레이드 라운드 TI-05) ──────────────────────────
+// 링은 모든 keydown 의 key 와 PTY 로 간 짧은 입력(termStore 의 pty-write)을 담는다. ⌃⌥⇧I · 자동
+// 덤프로 oculpm.log 에 비울 때 sudo 비밀번호까지 한 글자씩 남았다 — 로그 마스킹은 키 패턴 정규식이라
+// 흩어진 글자를 못 잡고, 이 덤프는 사용자에게 보내 달라고 하는 물건이다.
+//
+// 그래서 **얹는 순간** 꼴로 바꾼다: 한글 · 자모, 빈칸(조합 버그의 절반이 스페이스다), 이름 있는 키
+// (Backspace · Process), 제어 바이트의 이름(DEL · ^C)만 그대로, 그 밖의 글자는 「·」. 글자 수와 순서는
+// 남으므로 "몇 번 나갔나" 는 그대로 읽힌다. 숫자로 글자를 드러내는 칸(keyCode 65 = A)도 같이 가린다 —
+// 229(조합 중)와 이름 있는 키의 코드는 남는다.
+
+/** 가린 글자 하나의 자리. */
+const MASK = "\u{b7}";
+/** 입력 내용이 아니라 이벤트의 이름인 칸 — 그대로 둔다. */
+const NAME_FIELDS = new Set(["inputType"]);
+/** KeyboardEvent.key 의 이름 있는 키 — 「Backspace」 · 「Process」 · 「F12」. 한 글자 키만 내용이다. */
+const NAMED_KEY = /^[A-Z][A-Za-z0-9]+$/;
+
+/** 남겨도 되는 글자 — 한글 자모(U+1100–11FF) · 호환 자모(U+3130–318F) · 완성형(U+AC00–D7A3) · 빈칸. */
+function keepsChar(cp: number): boolean {
+  return (
+    (cp >= 0x1100 && cp <= 0x11ff) ||
+    (cp >= 0x3130 && cp <= 0x318f) ||
+    (cp >= 0xac00 && cp <= 0xd7a3) ||
+    cp === 0x20 ||
+    cp === 0xa0
+  );
+}
+
+/** 글 하나를 꼴로 — 제어 바이트는 이름으로(DEL · ^C · ^M), 남길 수 없는 글자는 「·」. */
+function shapeText(text: string): string {
+  let out = "";
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0;
+    if (keepsChar(cp)) out += ch;
+    else if (cp === 0x7f) out += "DEL";
+    else if (cp < 0x20) out += `^${String.fromCharCode(cp + 0x40)}`;
+    else out += MASK;
+  }
+  return out;
+}
+
+/** JSON 문자열 그대로 온 값(termStore 의 `pty-write` 는 `JSON.stringify(data)` 를 싣는다)은 안을 본다. */
+function shapeString(value: string): string {
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    try {
+      const inner: unknown = JSON.parse(value);
+      if (typeof inner === "string") return `"${shapeText(inner)}"`;
+    } catch {
+      // JSON 이 아니다 — 아래에서 글로 본다
+    }
+  }
+  return shapeText(value);
+}
+
+/** 인쇄되는 글자의 keyCode — 숫자 · 글자 · 숫자판 · 문장부호. */
+function isPrintableKeyCode(code: number): boolean {
+  return (code >= 48 && code <= 90) || (code >= 96 && code <= 111) || (code >= 186 && code <= 222);
+}
+
+function shapeField(name: string, value: unknown): unknown {
+  if (typeof value === "string") {
+    if (NAME_FIELDS.has(name)) return value;
+    if (name === "key" && NAMED_KEY.test(value)) return value;
+    return shapeString(value);
+  }
+  if (typeof value === "number") {
+    if (name === "keyCode" && isPrintableKeyCode(value)) return MASK;
+    if (name === "charCode" && value >= 0x20 && value !== 0x7f && !keepsChar(value)) return MASK;
+  }
+  return value;
+}
+
+/** 링에 얹을 꼴 — `imeBridge` 의 개발 빌드 로그도 같은 꼴을 쓴다. */
+export function shapeImeDetail(detail: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [name, value] of Object.entries(detail)) out[name] = shapeField(name, value);
+  return out;
+}
+
+/**
+ * 이벤트 한 건 — 링에 얹기만 한다(직렬화 · IPC 없음). 입력 내용은 얹는 순간 꼴로 바꾼다(위 주석) —
+ * 키 하나에 객체 하나를 새로 짓는 값이고, IPC 와 달리 입력 경합의 타이밍을 바꾸지 않는다.
+ */
 export function pushImeTrace(event: string, detail: Record<string, unknown>): void {
-  ring[cursor % CAPACITY] = { at: Date.now(), event, detail };
+  ring[cursor % CAPACITY] = { at: Date.now(), event, detail: shapeImeDetail(detail) };
   cursor += 1;
 }
 
@@ -139,10 +222,12 @@ function flush(reason: string, entries: Entry[]): number {
   parts.push(part);
   // 첫 조각만 `[IME-DUMP` 로 연다 — 덤프 수를 세는 쪽(로그 grep · 테스트)이 조각을
   // 덤프로 세지 않게. 이어지는 조각은 같은 사유를 달아 이어 붙일 수 있게 한다.
+  // 첫 머리에 「입력 내용은 한글만 남겼어요」 — 「·」 가 잘린 로그가 아니라 가린 것임을 읽는 사람에게.
+  const redacted = t("terminal.imeTrace.redacted");
   parts.forEach((chunk, index) => {
     const head =
       index === 0
-        ? `[IME-DUMP ${reason}] ${entries.length} events${parts.length > 1 ? ` (1/${parts.length})` : ""}`
+        ? `[IME-DUMP ${reason}] ${entries.length} events${parts.length > 1 ? ` (1/${parts.length})` : ""} · ${redacted}`
         : `[ime-dump ${reason}] (${index + 1}/${parts.length})`;
     oculpmLog.info("ime", `${head}\n${chunk.join("\n")}`);
   });
