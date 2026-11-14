@@ -47,9 +47,9 @@ mod spawn_count_tests;
 
 pub use blob::{blob_size, path_in_head, show_file_bytes};
 pub use changes::{last_commit_changes, uncommitted_changes, GitChange, LastCommitChanges};
-pub(crate) use diff::truncate_at_char_boundary;
 pub use diff::{
-    diff_at_nearest_commit, diff_patch, diff_patches, diffs_at_nearest_commits, render_unified_diff,
+    diff_at_nearest_commit, diff_patch, diff_patch_capped, diff_patches, diffs_at_nearest_commits,
+    new_file_patch, render_unified_diff, render_unified_diff_capped, CappedPatch, PatchCut,
 };
 pub use history::{commits_for_backfill, log, BackfillCommit, BackfillFileChange, GitCommit};
 pub use path_form::{plain, relative_to, slash, touched_path};

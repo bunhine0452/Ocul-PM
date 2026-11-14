@@ -166,6 +166,7 @@ use crate::commands::{
     delete_project,
     detect_editor,
     diff_binary_preview,
+    diff_generated_files,
     // first-record-loop — 대화별 첫 일지 귀속 원장 (Today 첫 기록 카드)
     // G2 — Project Overview + Daily Brief
     get_window_project,
@@ -372,6 +373,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // Lite-W6 PR6 — LocalDiffView backend
             compute_diff,
             diff_binary_preview,
+            diff_generated_files,
             git_uncommitted_changes,
             git_last_commit_changes,
             detect_editor,
