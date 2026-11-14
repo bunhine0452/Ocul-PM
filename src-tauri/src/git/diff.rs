@@ -496,28 +496,10 @@ pub(crate) fn truncate_at_char_boundary(text: &str, max_bytes: usize) -> &str {
     &text[..end]
 }
 
+// git 을 띄우는 시험(공백 무시)은 `git/tests.rs` 에 있다 — 픽스처 저장소를 만드는 자리는 그 파일 하나다.
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn git(dir: &Path, args: &[&str]) {
-        let ok = crate::proc::std_cmd("git")
-            .args([
-                "-c",
-                "user.name=t",
-                "-c",
-                "user.email=t@t",
-                "-c",
-                "commit.gpgsign=false",
-            ])
-            .args(args)
-            .current_dir(dir)
-            .output()
-            .unwrap()
-            .status
-            .success();
-        assert!(ok, "git {args:?}");
-    }
 
     /// 70KB 패치는 줄 끝에서 64KB 안으로 잘리고, 잘린 자리는 문장이 아니라 숫자로 남는다.
     #[test]
@@ -568,23 +550,5 @@ mod tests {
         );
         let empty = new_file_patch("e.txt", b"", 0);
         assert!(!empty.text.contains("@@"));
-    }
-
-    /// 공백 무시 — 들여쓰기만 바뀐 파일은 `-w` 로 빈 패치, 없이는 그대로 보인다.
-    #[test]
-    fn ignore_whitespace_empties_a_whitespace_only_patch() {
-        let dir = tempfile::tempdir().unwrap();
-        let root = dir.path();
-        git(root, &["init", "-q", "-b", "main"]);
-        git(root, &["config", "core.autocrlf", "false"]);
-        std::fs::write(root.join("a.ts"), "if (x) {\n  run();\n}\n").unwrap();
-        git(root, &["add", "-A"]);
-        git(root, &["commit", "-qm", "base"]);
-        std::fs::write(root.join("a.ts"), "if (x) {\n      run();\n}\n").unwrap();
-
-        let plain = diff_patch_capped(root, "a.ts", None, None, 65_536, false).unwrap();
-        assert!(plain.text.contains("+      run();"), "{}", plain.text);
-        let quiet = diff_patch_capped(root, "a.ts", None, None, 65_536, true).unwrap();
-        assert!(quiet.text.trim().is_empty(), "{}", quiet.text);
     }
 }
