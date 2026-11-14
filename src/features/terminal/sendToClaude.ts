@@ -34,10 +34,16 @@ export const onSendToClaude = (fn: (ctx: SendContext) => void) => slot.subscribe
 /**
  * 터미널에서 고른 출력을 Claude 에게 (⌘L, 업그레이드 라운드 TI-08) — 셸 칸의 실패 출력을 같은 창의
  * Claude 에게 넘기는 데 복사 → 대화상자 → 붙여넣기가 들었다. 이제 고르고 한 키.
+ *
+ * 상한(`BODY_MAX`)을 넘으면 끝 쪽만 가니 이름에 그 사실을 적는다 — 「300줄」만 보이면 긴 로그를 고른
+ * 사람은 전부 간다고 믿는다.
  */
 export function requestSendSelection(text: string) {
   const n = text.split("\n").length;
-  requestSendToClaude({ kind: "terminal", label: t("send.ctx.terminal", { n }), ref: "", body: text });
+  const label = outputBody(text).cut
+    ? t("send.ctx.terminalCut", { n, max: BODY_MAX.toLocaleString("en-US") })
+    : t("send.ctx.terminal", { n });
+  requestSendToClaude({ kind: "terminal", label, ref: "", body: text });
 }
 
 type Tr = (key: I18nKey, vars?: TVars) => string;
@@ -53,16 +59,20 @@ const HEAD: Record<SendContext["kind"], I18nKey> = {
 /** 고른 출력의 상한 — 넘으면 끝 쪽을 남긴다(실패한 명령은 끝에 요약과 오류가 있다). */
 export const BODY_MAX = 4000;
 
+/** 고른 출력에서 실제로 갈 글 — 거르고, 끝 줄바꿈을 떼고, 상한을 넘으면 「…」 뒤에 끝 쪽만. */
+function outputBody(body: string): { text: string; cut: boolean } {
+  const text = sanitizePaste(body).replace(/\n+$/, "");
+  if (text.length <= BODY_MAX) return { text, cut: false };
+  let tail = text.slice(-BODY_MAX);
+  // 잘린 자리가 서로게이트 쌍 가운데면 반쪽을 버린다.
+  const first = tail.charCodeAt(0);
+  if (first >= 0xdc00 && first <= 0xdfff) tail = tail.slice(1);
+  return { text: `\u{2026}\n${tail}`, cut: true };
+}
+
 /** 고른 출력 → 코드 울타리. 글 안의 가장 긴 ``` 보다 긴 울타리를 쓴다 — 글이 울타리를 닫지 못하게. */
 function fenced(body: string): string {
-  let text = sanitizePaste(body).replace(/\n+$/, "");
-  if (text.length > BODY_MAX) {
-    let tail = text.slice(-BODY_MAX);
-    // 잘린 자리가 서로게이트 쌍 가운데면 반쪽을 버린다.
-    const first = tail.charCodeAt(0);
-    if (first >= 0xdc00 && first <= 0xdfff) tail = tail.slice(1);
-    text = `\u{2026}\n${tail}`;
-  }
+  const { text } = outputBody(body);
   const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
   const fence = "`".repeat(Math.max(3, longest + 1));
   return `${fence}\n${text}\n${fence}`;
@@ -79,11 +89,12 @@ export function composeMessage(tr: Tr, ctx: SendContext, text: string): string {
 /**
  * 안의 프로그램이 Claude 인가 — 엔진이 알린 이름(`status.app`, OSC 7501)이 있으면 그것으로 가린다.
  * 상태 신호만 보면 Codex 세션도 끼어 Claude 에게 쓴 지시가 Codex 로 갈 수 있었다. 이름을 안 알리는
- * 프로그램(엔진 합류 전 · 옛 판)은 예전처럼 믿는다.
+ * 프로그램(엔진 합류 전 · 옛 판)은 예전처럼 믿는다. 규칙은 엔진의 `runs_claude` 와 같은 모양이다 —
+ * 엔진이 소문자로 다듬은 이름이 `claude`(· `claude-code`)로 시작하면 Claude.
  */
 function isClaudeApp(s: TermInfo): boolean {
   const app = (s.status as (TermStatus & { app?: string | null }) | null)?.app;
-  return app == null || /claude/i.test(app);
+  return app == null || app.startsWith("claude");
 }
 
 /** 받을 수 있는 세션 — 셸 위에서 claude 가 돈다(상태 신호를 보냈거나 「다음」으로 띄운 것). */

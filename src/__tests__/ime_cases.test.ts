@@ -3,7 +3,7 @@
 // 진짜 xterm 위에 브리지를 붙이고(xtermHarness), 두 웹뷰의 이벤트 순서를 적어 PTY 로 나간 바이트를 문다.
 //   wkwebview  macOS — 조합 이벤트 없이 input 이 keydown(229) 보다 먼저 온다 (imeBridge 머리말).
 //   webview2   Windows — keydown(229) 다음 표준 조합(compositionstart/update/end · 확정은 삭제·삽입 한 쌍).
-//              space-after-229 만은 Alt+V 뒤 음절째 확정 모드(조합 이벤트 0건)다 (2026-11-12 덤프).
+//              space-after-229 · enter-after-229 는 Alt+V 뒤 음절째 확정 모드(조합 이벤트 0건)다 (2026-11-12 덤프).
 // 합성 이벤트에는 브라우저의 기본 동작이 없다 — keydown 을 아무도 막지 않았을 때만 keypress 를 쏜다.
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -175,5 +175,46 @@ describe.each<Model>(["wkwebview", "webview2"])("IME cases on %s", (model) => {
     fireInput(rt, `${DI}${NBSP}`);
     expect(line(rt.data)).toBe(`${DI} `);
     expect(rt.data.join("").split(" ").length - 1).toBe(1);
+  });
+
+  it("enter-after-229: Enter after a committed syllable goes out as one CR, never LF", () => {
+    rt = openRealTerm();
+    if (model === "wkwebview") {
+      fireInput(rt, "ㄷ");
+      ime("ㄷ");
+      fireInput(rt, DI, "insertReplacementText");
+      ime("ㅣ");
+      fireKey(rt, "keydown", { key: "Enter", code: "Enter", keyCode: 13 });
+    } else {
+      // Alt+V 뒤 음절째 확정 모드 — Enter 의 keydown 도 229 로 오고 keypress(13)가 뒤따른다.
+      ime("Process");
+      fireInput(rt, DI);
+      ime("Process");
+      const press = fireKey(rt, "keypress", { key: "Enter", code: "Enter", keyCode: 13, charCode: 13 });
+      // 아무도 keypress 를 막지 않으면 브라우저가 textarea 에 줄바꿈을 넣는다 — 그 input 이 LF 로 나갔었다.
+      if (!press.defaultPrevented) fireInput(rt, `${DI}\n`, "insertLineBreak");
+    }
+    expect(line(rt.data)).toBe(`${DI}\r`);
+    expect(rt.data.join("")).not.toContain("\n");
+  });
+
+  it("shift-enter-after-229: on the alternate screen Shift+Enter after a syllable stays Claude's newline", async () => {
+    rt = openRealTerm();
+    await rt.write("\x1b[?1049h");
+    if (model === "wkwebview") {
+      fireInput(rt, "ㄷ");
+      ime("ㄷ");
+      fireInput(rt, DI, "insertReplacementText");
+      ime("ㅣ");
+      fireKey(rt, "keydown", { key: "Enter", code: "Enter", keyCode: 13, shiftKey: true });
+    } else {
+      ime("Process");
+      fireInput(rt, DI);
+      ime("Process", { shiftKey: true });
+      const press = fireKey(rt, "keypress", { key: "Enter", code: "Enter", keyCode: 13, charCode: 13, shiftKey: true });
+      if (!press.defaultPrevented) fireInput(rt, `${DI}\n`, "insertLineBreak");
+    }
+    expect(line(rt.data)).toBe(`${DI}\x1b\r`);
+    expect(rt.data.join("")).not.toContain("\n");
   });
 });

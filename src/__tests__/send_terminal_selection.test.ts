@@ -7,6 +7,7 @@ import {
   composeMessage,
   onSendToClaude,
   receiversOf,
+  requestSendSelection,
   type SendContext,
 } from "@/features/terminal/sendToClaude";
 import { translateKey, type KeyEventLike } from "@/features/terminal/termKeys";
@@ -31,14 +32,14 @@ function key(init: Partial<KeyEventLike>): KeyEventLike {
 
 describe("⌘L in the key layer", () => {
   it("asks to send the selection only when something is selected", () => {
-    expect(translateKey(key({ metaKey: true }), { isMac: true, altScreen: false, hasSelection: true })).toEqual({
+    expect(translateKey(key({ metaKey: true }), { platform: "mac", altScreen: false, hasSelection: true })).toEqual({
       kind: "sendSelection",
     });
-    expect(translateKey(key({ metaKey: true }), { isMac: true, altScreen: false, hasSelection: false })).toBeNull();
+    expect(translateKey(key({ metaKey: true }), { platform: "mac", altScreen: false, hasSelection: false })).toBeNull();
   });
 
   it("is Ctrl+Shift+L elsewhere (terminal family) — plain Ctrl+L stays the shell's clear", () => {
-    const pc = { isMac: false, altScreen: false, hasSelection: true };
+    const pc = { platform: "windows", altScreen: false, hasSelection: true } as const;
     expect(translateKey(key({ ctrlKey: true, shiftKey: true, key: "L" }), pc)).toEqual({ kind: "sendSelection" });
     expect(translateKey(key({ ctrlKey: true }), pc)).toBeNull();
   });
@@ -132,8 +133,28 @@ describe("receivers are Claude sessions only", () => {
     };
   }
 
-  it("leaves out a session whose program says it is Codex", () => {
-    const got = receiversOf([session(1, "claude"), session(2, "codex"), session(3), session(4, null), session(5, "Claude Code")]);
+  it("leaves out a session whose program says it is Codex — Claude is a name starting with claude (engine rule)", () => {
+    const got = receiversOf([session(1, "claude"), session(2, "codex"), session(3), session(4, null), session(5, "claude-code")]);
     expect(got.map((s) => s.id)).toEqual([1, 3, 4, 5]);
+    expect(receiversOf([session(6, "my-claude")])).toEqual([]);
+  });
+});
+
+describe("a selection over the limit says so in its label", () => {
+  let off: (() => void) | null = null;
+  afterEach(() => {
+    off?.();
+    off = null;
+  });
+
+  it("names the cut (n lines · last 4,000 characters) when only the tail goes, plain n lines otherwise", () => {
+    const got: SendContext[] = [];
+    off = onSendToClaude((ctx) => got.push(ctx));
+    requestSendSelection(`${"x".repeat(BODY_MAX)}\nlast`);
+    requestSendSelection("short\nlines");
+    expect(got.map((c) => c.label)).toEqual([
+      t("send.ctx.terminalCut", { n: 2, max: "4,000" }),
+      t("send.ctx.terminal", { n: 2 }),
+    ]);
   });
 });

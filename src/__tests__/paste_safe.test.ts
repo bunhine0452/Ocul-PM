@@ -132,6 +132,44 @@ describe("handlePaste", () => {
     expect(paste).toHaveBeenCalledWith("ls -la");
     expect(getToasts()).toHaveLength(0);
   });
+
+  it("pasting the same text again while the warning is up pastes it — the keyboard path to the button", () => {
+    const { term, paste } = fakeTerm({ bracketed: false });
+    handlePaste(term, pasteEvent("make\nmake install"), false);
+    expect(paste).not.toHaveBeenCalled();
+    handlePaste(term, pasteEvent("make\nmake install"), false);
+    expect(paste).toHaveBeenCalledTimes(1);
+    expect(paste).toHaveBeenCalledWith("make\nmake install");
+    expect(getToasts()).toHaveLength(0);
+  });
+
+  it("one warning at a time — different text replaces it, and after the button a repeat warns again", () => {
+    const { term, paste } = fakeTerm({ bracketed: false });
+    handlePaste(term, pasteEvent("a\nb"), false);
+    handlePaste(term, pasteEvent("c\nd\ne"), false);
+    expect(paste).not.toHaveBeenCalled();
+    expect(getToasts().map((toast) => toast.message)).toEqual([t("terminal.paste.multiline", { n: 3 })]);
+    getToasts()[0].actions?.[0].onClick();
+    expect(paste).toHaveBeenCalledWith("c\nd\ne");
+    handlePaste(term, pasteEvent("c\nd\ne"), false);
+    expect(paste).toHaveBeenCalledTimes(1); // 단추로 붙인 경고는 다음 붙여넣기를 승인하지 않는다
+  });
+
+  it("Windows shell (normal screen): several lines go to PSReadLine's Paste (⌃V) — no warning, nothing run", () => {
+    const { term, paste, input } = fakeTerm({ bracketed: false });
+    handlePaste(term, pasteEvent("Get-Date\nGet-Location\n"), true);
+    expect(input).toHaveBeenCalledWith("\x16", true);
+    expect(paste).not.toHaveBeenCalled();
+    expect(getToasts()).toHaveLength(0);
+  });
+
+  it("Windows alternate screen without brackets still warns — only the shell has PSReadLine", () => {
+    const { term, paste, input } = fakeTerm({ bracketed: false, alt: true });
+    handlePaste(term, pasteEvent("a\nb"), true);
+    expect(input).not.toHaveBeenCalled();
+    expect(paste).not.toHaveBeenCalled();
+    expect(getToasts()).toHaveLength(1);
+  });
 });
 
 describe("the paste listener inside the bridge (real xterm)", () => {

@@ -39,17 +39,20 @@ export function selectedText(term: CopyTerm): string {
   return cleanSelection(term.getSelection().split(/\r?\n/));
 }
 
+/** 클립보드에 쓸 글 — Windows 면 줄바꿈을 CRLF 로(xterm 의 선택 글과 같은 규칙, Windows 앱에 붙여 넣는 글). */
+const forClipboard = (text: string, windows: boolean) => (windows ? text.replace(/\n/g, "\r\n") : text);
+
 /**
  * host 캡처 단계의 copy — xterm 의 처리기 대신 정리한 글을 클립보드에. 고른 것이 없으면 아무것도
  * 하지 않는다(xterm 과 같은 규칙 — 마우스 보고 중이면 선택은 안의 프로그램 몫이다).
  *
- * `windows` 면 줄바꿈을 CRLF 로 — xterm 의 선택 글과 같은 규칙(Windows 앱에 붙여 넣는 글).
+ * `windows` 면 줄바꿈을 CRLF 로(`forClipboard`).
  * `clear` 면 복사 뒤 선택을 지운다 — Windows Terminal 규약(다음 Ctrl+C 가 다시 인터럽트가 되게).
  */
 export function handleCopy(term: CopyTerm, event: ClipboardEvent, opts: { windows: boolean; clear: boolean }): void {
   const text = selectedText(term);
   if (!text || !event.clipboardData) return;
-  event.clipboardData.setData("text/plain", opts.windows ? text.replace(/\n/g, "\r\n") : text);
+  event.clipboardData.setData("text/plain", forClipboard(text, opts.windows));
   event.preventDefault();
   event.stopPropagation();
   if (opts.clear) term.clearSelection();
@@ -60,13 +63,14 @@ export function handleCopy(term: CopyTerm, event: ClipboardEvent, opts: { window
  *
  * Blink(WebView2)의 편집 키 표에는 Ctrl+C · Ctrl+Insert → Copy 만 있고 Ctrl+Shift+C 가 없다 — 키를
  * 브라우저에 넘기기만 하면 복사 이벤트가 안 난다. 그래서 복사 명령을 직접 부른다: 브라우저가 copy
- * 이벤트를 쏘고 위 `handleCopy` 가 받는다(정리 규칙이 한 곳). 명령이 안 들으면 비동기 클립보드로.
+ * 이벤트를 쏘고 위 `handleCopy` 가 받는다(정리 규칙이 한 곳). 명령이 안 들으면 비동기 클립보드로 —
+ * 줄 끝도 같은 규칙으로 맞춘다(Windows 는 CRLF).
  */
-export function copySelectionNow(term: CopyTerm, opts: { clear: boolean }): void {
+export function copySelectionNow(term: CopyTerm, opts: { clear: boolean; windows: boolean }): void {
   if (execCopy()) return;
   const text = selectedText(term);
   if (!text) return;
-  void navigator.clipboard?.writeText(text).catch(() => {});
+  void navigator.clipboard?.writeText(forClipboard(text, opts.windows)).catch(() => {});
   if (opts.clear) term.clearSelection();
 }
 

@@ -6,7 +6,7 @@ import { getPlatform, isMac } from "@/lib/platform";
 import { handlePaste } from "./pasteSafe";
 import { requestSendSelection } from "./sendToClaude";
 import { copySelectionNow, handleCopy, selectedText } from "./termCopy";
-import { translateKey, type KeyAction, type KeyCtx } from "./termKeys";
+import { asKeydown, translateKey, type KeyAction, type KeyCtx } from "./termKeys";
 
 // WKWebView 한글/CJK 입력 브리지 (2026-07-30)
 //
@@ -200,9 +200,13 @@ const SESSION_END_KEYS = new Set([
 // ── 2026-11-15: 같은 모드에서 스페이스 · 숫자 · 문장부호도 두 번 (업그레이드 라운드 TI-06) ──
 // 위 막기는 **한글 keypress 만** 걸렀다. 음절째 확정 모드에서는 스페이스 · 숫자도 229 keydown 뒤에
 // keypress 와 input 을 함께 싣는다 — keypress 로 xterm 이 한 번, input 으로 브리지가 한 번(「디  」).
-// 그래서 keydown 이 조합 키(229)였으면 뒤따르는 keypress 는 글자 종류와 상관없이 넘기지 않는다.
-// 마찬가지로 preventDefault 는 하지 않는다 — 글자는 input 으로 브리지에 온다. 표시는 keyup · 다음
-// keydown 에서 내린다. 사례표는 `ime_cases.test.ts`(Orca 의 이름 그대로).
+// 그래서 keydown 이 조합 키(229)였으면 뒤따르는 **글자** keypress(key 한 글자 — 한글 · 스페이스 · 숫자 ·
+// 문장부호)는 종류와 상관없이 넘기지 않는다. 마찬가지로 preventDefault 는 하지 않는다 — 글자는 input 으로
+// 브리지에 온다. 표시는 keyup · 다음 keydown 에서 내린다. 같은 자리의 Enter keypress 는 글자가 아니라
+// 키다 — xterm(CR)이나 키 층(대체 화면의 Shift+Enter → ESC CR)이 보내고, 브리지는 그 keypress 의 기본
+// 동작을 막는다. xterm 5.5 는 keypress 를 막지 않아서(cancelEvents 꺼짐) 두면 브라우저가 textarea 에
+// 줄바꿈을 넣고(insertLineBreak) 그 input 이 LF 로 나간다 — Claude 입력에서 LF(⌃J)는 제출이 아니라
+// 줄바꿈이다. 사례표는 `ime_cases.test.ts`(Orca 의 이름 그대로 + enter-after-229).
 
 /** 잔여 조합이 확정한 공백까지 끌고 올 때 떼어내는 꼬리 (NBSP 포함). */
 const TRAILING_SPACE = /\s+$/;
@@ -457,7 +461,7 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
 
   /** 키 층이 읽는 터미널 상태 — 시험의 가짜 터미널에는 버퍼 · 선택이 없을 수 있다. */
   const keyCtx = (): KeyCtx => ({
-    isMac: isMac(),
+    platform: getPlatform(),
     altScreen: term.buffer?.active?.type === "alternate",
     hasSelection: term.hasSelection?.() ?? false,
   });
@@ -472,7 +476,7 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       endSession(); // 줄이나 커서가 바뀐다 — 조합 부기를 새로
       term.input(action.seq, true);
     } else if (action.kind === "native") {
-      copySelectionNow(term, { clear: true });
+      copySelectionNow(term, { clear: true, windows: getPlatform() === "windows" });
     } else {
       const text = selectedText(term);
       if (text) requestSendSelection(text);
@@ -567,8 +571,19 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       ownedKeydown = null;
       return false;
     }
-    // 조합 키(229) 뒤의 keypress 는 글자 종류와 상관없이 브리지(input) 몫 — 위 2026-11-15 주석.
-    if (imeKeydown) return false;
+    // 조합 키(229) 뒤의 글자 keypress 는 종류와 상관없이 브리지(input) 몫 — 위 2026-11-15 주석.
+    if (imeKeydown && event.key.length === 1) return false;
+    // 같은 자리의 Enter 는 키 층(대체 화면의 Shift+Enter → ESC CR)이나 xterm(CR)이 보낸다. 다만 xterm 5.5 의
+    // keypress 는 막지 않는다(`cancel` 이 cancelEvents 꺼짐이면 아무것도 안 한다) — 그대로 두면 브라우저가
+    // textarea 에 줄바꿈을 넣고 그 input 이 LF 로 한 번 더 나간다. 여기서 막고, 줄이 바뀌니 조합 부기도 새로.
+    if (imeKeydown && event.key === "Enter") {
+      event.preventDefault();
+      endSession();
+      const action = translateKey(asKeydown(event), keyCtx());
+      if (!action) return true;
+      runKey(action, event);
+      return false;
+    }
     // 한글은 브리지(input)만 보낸다 — 위 2026-11-12 주석.
     if (event.key.length === 1 && isComposable(event.key)) return false;
     return true;

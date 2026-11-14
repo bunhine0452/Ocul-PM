@@ -44,18 +44,20 @@ describe("the copy listener inside the bridge (real xterm)", () => {
     expect(rt.term.hasSelection()).toBe(true);
   });
 
-  it("a wide character wrapped to the next row leaves no blank in the copy", async () => {
-    // 칸 5개에 「abcd가가」 — 「가」(두 칸)가 다섯째 칸에 안 맞아 다음 줄로 넘어가며 그 칸을 비운다.
-    rt = openRealTerm({ cols: 5 });
-    await rt.write(`abcd${GA}${GA}`);
+  it("a wide character wrapped to the next row leaves no blank — and the shared indent still goes", async () => {
+    // 칸 6개에 「  abc가가」 — 「가」(두 칸)가 여섯째 칸에 안 맞아 다음 줄로 넘어가며 그 칸을 비운다.
+    // 빈 셀을 자르는 것은 xterm 의 선택 글(translateToString(trimRight))이고, 공통 여백(둘째 줄 「  x」 와
+    // 함께 두 칸)을 걷는 것은 브리지의 복사다 — 브리지의 copy 리스너가 없으면 여백이 남아 붉어진다.
+    rt = openRealTerm({ cols: 6 });
+    await rt.write(`  abc${GA}${GA}\r\n  x`);
     const row0 = rt.term.buffer.active.getLine(0);
-    expect(row0?.getCell(4)?.getChars()).toBe(""); // 넘어가며 남긴 빈 셀
-    expect(row0?.translateToString(false)).toBe("abcd "); // 셀을 그대로 읽으면 빈칸이 끼었다
+    expect(row0?.getCell(5)?.getChars()).toBe(""); // 넘어가며 남긴 빈 셀
+    expect(row0?.translateToString(false)).toBe("  abc "); // 셀을 그대로 읽으면 빈칸이 끼었다
     expect(rt.term.buffer.active.getLine(1)?.isWrapped).toBe(true);
     rt.term.selectAll();
     const clip = fakeClipboard("");
     fireClipboard(rt, "copy", clip);
-    expect(clip.written["text/plain"]).toBe(`abcd${GA}${GA}`);
+    expect(clip.written["text/plain"]).toBe(`abc${GA}${GA}\nx`);
   });
 
   it("nothing selected: the copy event is left alone", () => {
@@ -100,6 +102,27 @@ describe("the copy listener inside the bridge (real xterm)", () => {
     expect(down.defaultPrevented).toBe(true);
     expect(rt.data).toEqual([]); // PTY 로는 아무것도 — 0x03 이 나가면 인터럽트다
     expect(rt.term.hasSelection()).toBe(false);
+  });
+
+  it("Windows: when the copy command is refused, the async clipboard gets the same CRLF text", async () => {
+    __setPlatformForTests("windows");
+    rt = openRealTerm({ cols: 20 });
+    await rt.write("  one\r\n  two\r\n");
+    rt.term.selectAll();
+    const writeText = vi.fn(() => Promise.resolve());
+    const clipboard = navigator.clipboard;
+    Object.assign(navigator, { clipboard: { ...clipboard, writeText } });
+    const before = Object.getOwnPropertyDescriptor(document, "execCommand");
+    Object.defineProperty(document, "execCommand", { value: () => false, configurable: true });
+    try {
+      fireKey(rt, "keydown", { key: "C", code: "KeyC", keyCode: 67, ctrlKey: true, shiftKey: true });
+    } finally {
+      if (before) Object.defineProperty(document, "execCommand", before);
+      else delete (document as { execCommand?: unknown }).execCommand;
+      Object.assign(navigator, { clipboard });
+    }
+    expect(writeText).toHaveBeenCalledWith("one\r\ntwo");
+    expect(rt.data).toEqual([]);
   });
 
   it("Windows: Ctrl+C without a selection is still the interrupt", () => {
