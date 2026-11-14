@@ -47,14 +47,13 @@ let briefEntries: unknown[] = [];
 // Mutable per-test: `git status` 조회가 실패한다 (봉투 오류 / 진짜 Error).
 let gitStatus: "ok" | "error" | "throw" = "ok";
 
-// 「Claude 에게 맡기기」 — 터미널(xterm)은 띄우지 않고 넘긴 글만 본다.
+// 「Claude 에게 맡기기」 — 작성기(대화상자)는 띄우지 않고 미리 채운 글만 본다.
 const asked: string[] = [];
 vi.mock("@/features/terminal/sendToClaude", () => ({
-  requestSendToClaude: () => {},
-  sendOrRun: async (_projectId: number, text: string) => {
-    asked.push(text);
-    return null;
+  requestSendToClaude: (ctx: { prefill?: string }) => {
+    asked.push(ctx.prefill ?? "");
   },
+  sendOrRun: async () => null,
 }));
 
 vi.mock("@/lib/bindings", () => {
@@ -66,12 +65,9 @@ vi.mock("@/lib/bindings", () => {
         get: (_t, prop) => {
           if (prop === "computeDiff")
             return (_pid: number, path: string) =>
-              ok(
-                diffByPath[path] ?? {
-                  path,
-                  source: { source: "git", patch: GIT_PATCH },
-                },
-              );
+              typeof diffByPath[path] === "string"
+                ? Promise.resolve({ status: "error" as const, error: diffByPath[path] })
+                : ok(diffByPath[path] ?? { path, source: { source: "git", patch: GIT_PATCH } });
           if (prop === "diffBinaryPreview")
             return (_pid: number, path: string) =>
               ok(previewByPath[path] ?? { old: null, new: null });
@@ -326,16 +322,16 @@ describe("PR-UI 4 — Diff screen", () => {
     await waitFor(() => expect(container.querySelector(".dl.split")).not.toBeNull());
   });
 
-  it("no baseline → renders the whole file as additions (immediate diff)", async () => {
+  it("no baseline → the backend's whole-file patch renders as additions (immediate diff)", async () => {
     seedRecentChanges([{ path: "src/c.ts", op: "A" }]);
     diffByPath["src/c.ts"] = {
       path: "src/c.ts",
-      source: { source: "snapshots_unavailable" },
+      source: { source: "new_file", patch: "--- /dev/null\n+++ b/src/c.ts\n@@ -0,0 +1,2 @@\n+새 파일 첫 줄\n+새 파일 둘째 줄\n" },
     };
     const { findByText } = renderDiff();
-    // readProjectFile content shows as additions + the new-file footer, instead
-    // of the old "no baseline" dead-end prompt (dogfood fix).
-    expect(await findByText(/아직 비교할 기준본이 없는 새 파일/)).toBeInTheDocument();
+    // 앞 64KB 만 읽은 백엔드 패치가 더한 줄로 + 새 파일 바닥줄 — 프런트가 파일을 통째로
+    // 읽던 길은 걷었다 (11-15, 10MB 로그면 웹뷰가 멈췄다).
+    expect(await findByText(/아직 커밋한 적 없는 새 파일/)).toBeInTheDocument();
     expect(await findByText(/새 파일 첫 줄/)).toBeInTheDocument();
   });
 
@@ -506,7 +502,7 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
     expect(container.querySelector(".diff-entry-foot")).not.toBeNull();
   });
 
-  it("「Claude 에게 맡기기」 는 기록 없음 묶음의 파일 목록을 기록 요청으로 앱 안 터미널의 claude 에 보낸다", async () => {
+  it("「Claude 에게 맡기기」 는 기록 없음 묶음의 파일 목록을 기록 요청으로 작성기(받는 세션 · 미리보기)에 넘긴다", async () => {
     seedMixed();
     const { findByText, getByText } = renderDiff();
     await findByText(/이 변경을 남긴 일지가 없어요/);
@@ -582,16 +578,14 @@ describe("바이너리/이미지 diff — 파일 카드 렌더", () => {
     expect(container.querySelector(".dl")).toBeNull();
   });
 
-  it("readProjectFile 실패 시 '읽는 중…' 에 갇히지 않고 안내를 띄운다", async () => {
+  it("새 파일을 못 읽으면 '읽는 중…' 에 갇히지 않고 사유와 다시 시도를 띄운다", async () => {
     seedRecentChanges([{ path: "locked.ts", op: "A" }]);
-    diffByPath["locked.ts"] = {
-      path: "locked.ts",
-      source: { source: "snapshots_unavailable" },
-    };
+    // 기준본 없는 새 파일은 백엔드가 읽는다 — 권한 오류는 compute_diff 의 오류로 온다.
+    diffByPath["locked.ts"] = "Failed to read locked.ts: Permission denied (os error 13)";
     readFileFails = true;
-    const { findByText, queryByText } = renderDiff();
-    expect(await findByText(/파일을 읽을 수 없어요/)).toBeInTheDocument();
-    expect(queryByText(/파일을 읽는 중/)).toBeNull();
+    const { findByText, findByRole } = renderDiff();
+    expect(await findByText(/diff 를 계산하지 못했어요/)).toBeInTheDocument();
+    await findByRole("button", { name: "다시 시도" });
   });
 });
 

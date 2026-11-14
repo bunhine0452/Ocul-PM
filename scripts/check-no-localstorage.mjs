@@ -51,6 +51,8 @@ const ALLOWLIST = new Set([
   // WorkspaceContext envelope (recentChanges / diffActivePath) so the diff
   // file list mounts populated. Test-only.
   "__tests__/diff_v2.test.tsx",
+  // 11-15 변경 화면 시험의 그리기 도우미 — 같은 이유(건너온 diffActivePath 를 심고 시험 사이에 비운다). Test-only.
+  "__tests__/helpers/diffScreenFx.tsx",
   // Final UI Update PR-UI 5 — Planner/Search tests clear the persisted
   // WorkspaceContext envelope between mounts (plannerOpen / searchScope).
   // Test-only.

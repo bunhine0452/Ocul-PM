@@ -42,6 +42,21 @@ export function isRecordPath(path: string): boolean {
   return path === ".oculpm" || path.startsWith(".oculpm/");
 }
 
+/** 잠금 파일 — 이름만으로 안다. 매번 목록을 차지하지만 사람이 읽을 diff 가 아니다 (11-15 #diff-basics). */
+const LOCK_FILES = new Set(["pnpm-lock.yaml", "Cargo.lock", "package-lock.json", "yarn.lock"]);
+
+export function isLockFile(path: string): boolean {
+  return LOCK_FILES.has(path.slice(path.lastIndexOf("/") + 1));
+}
+
+/**
+ * 끝의 「생성된 파일」 로 접을 것 — 잠금 파일과, 맨 위에 생성 표지가 든 파일(백엔드가 앞부분을 읽어
+ * `diff_generated_files` 로 준다).
+ */
+export function generatedSet(changes: readonly RecentChange[], marked: ReadonlySet<string>): ReadonlySet<string> {
+  return new Set(changes.map((c) => c.path).filter((p) => isLockFile(p) || marked.has(p)));
+}
+
 /**
  * 영속 git 목록(앱 재시작·프로젝트 전환을 견딘다)과 라이브 파일 워처 버퍼를
  * 합친다. 경로로 중복을 제거하며 **워처 항목이 이긴다** — 가장 최신 op 와 진짜

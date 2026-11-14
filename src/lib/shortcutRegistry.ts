@@ -111,14 +111,18 @@ const PLAN: ShortcutGroup = {
   ],
 };
 
+// 변경 화면 (11-15) — `features/diff/useDiffKeys.ts` 가 듣는 키 그대로. 예전 표는 화면에 없는 키 셋
+// (/ · n/N · f)을 알렸다 — `diff_keys_handoff.test.tsx` 가 행마다 키를 보내 화면이 반응하는지 문다.
 const DIFF: ShortcutGroup = {
   id: "diff",
   titleKey: "keys.g.diff",
   rows: [
-    { keys: "/", labelKey: "keys.diffFind" },
-    { keys: "n / N", labelKey: "keys.diffNext" },
     { keys: "j / k", labelKey: "keys.diffFiles" },
-    { keys: "f", labelKey: "keys.diffFilter" },
+    { keys: "[ / ]", labelKey: "keys.diffGroups" },
+    { keys: "n / p", labelKey: "keys.diffHunks" },
+    { keys: "⌥n", labelKey: "keys.diffNextNote" },
+    { keys: "v", labelKey: "keys.diffViewed" },
+    { keys: "e", labelKey: "keys.diffEditor" },
   ],
 };
 

@@ -72,9 +72,12 @@
   --t-error: #d9881f;     --t-error-soft: #fbf0db;
   --t-chore: #5a7a95;     --t-chore-soft: #e9eff4;
 
-  /* diff */
+  /* diff — 줄 안의 글자(코드 · 거터 숫자 · 표식 · +N)는 -text 단이다(카드 · add · del 위 4.5:1 이상).
+     -line 은 글자가 아닌 표시(바이너리 크기 증감)만. -word 는 짝지은 줄 안에서 바뀐 단어의 한 단
+     진한 바탕 (11-15 #diff-basics). */
   --diff-add-bg: #e6f6ec;   --diff-add-line: #1f9d57;  --diff-add-text: #0e6b39;
   --diff-del-bg: #fbe9e9;   --diff-del-line: #d6443c;  --diff-del-text: #9b2820;
+  --diff-add-word: #d3f1dd; --diff-del-word: #f9dcdb;
   --diff-gutter: #f2f0e9;
 
   /* status — ok/warn/danger/info (완성도 라운드 Phase 5). 화면이 fallback 으로
@@ -100,15 +103,18 @@
 
      주석색만 원본 테마(One Light #a0a1a7 / One Dark #6b7280)보다 진하다:
      그 값들은 우리 코드 배경(--bg-inset)에서 2.4:1 이라 주석이 사실상
-     사라진다. 나머지 아홉은 원본 그대로다. */
+     사라진다.
+     11-15 #diff-contrast: 라이트의 문자열 · 함수 · 타입 · 속성 · 숫자 · 주석은 같은 색상에서 밝기만
+     내렸다 — diff 의 세 바탕(카드 · add · del) 위에서 문자열이 2.7:1, 함수가 3.5:1 이었다. 이제
+     열 개 모두 세 바탕 위 4.5:1 이상이다 (`diff_contrast.test.ts` 가 계산해 문다). */
   --code-fg: var(--text);
   --code-kw: #a626a4;      /* 키워드 · this/self */
-  --code-str: #50a14f;     /* 문자열 · 정규식 */
-  --code-comment: #6a737d; /* 주석 · 메타 */
-  --code-num: #986801;     /* 숫자 · 리터럴 */
-  --code-fn: #4078f2;      /* 함수/제목 */
-  --code-type: #c18401;    /* 타입 · 클래스 · 내장 */
-  --code-prop: #e45649;    /* 속성 · 태그 · 변수 */
+  --code-str: #3b763a;     /* 문자열 · 정규식 */
+  --code-comment: #636b75; /* 주석 · 메타 */
+  --code-num: #8e6101;     /* 숫자 · 리터럴 */
+  --code-fn: #1a5def;      /* 함수/제목 */
+  --code-type: #a14f05;    /* 타입 · 클래스 · 내장 */
+  --code-prop: #ca2c1e;    /* 속성 · 태그 · 변수 */
   --code-def: #383a42;     /* 정의부 기본 글자 */
   --code-op: #52565e;      /* 연산자 · 구두점 */
 
@@ -425,22 +431,25 @@
 
   --diff-add-bg: rgba(46,160,87,0.16);  --diff-add-line: #3fb950;  --diff-add-text: #6cd584;
   --diff-del-bg: rgba(214,68,60,0.16);  --diff-del-line: #f1685f;  --diff-del-text: #f7918a;
+  --diff-add-word: rgba(46,160,87,0.26); --diff-del-word: rgba(214,68,60,0.26);
 
   /* status — 다크: 채도를 낮추고 명도를 올린다 (트리거 색과 같은 규칙). */
   --ok: #34d095;      --ok-text: #6cd584;     --ok-soft: rgba(52,208,149,0.16);
   --warn: #eaa23f;    --warn-text: #f0b660;   --warn-soft: rgba(234,162,63,0.16);
   --danger: #f1685f;  --danger-text: #f7918a; --danger-soft: rgba(241,104,95,0.16);
   --info: #5b9cf5;    --info-text: #8ab8f8;   --info-soft: rgba(91,156,245,0.16);
-  --diff-gutter: #232826;
+  /* 거터는 카드보다 한 단 어둡다 — 카드와 같은 값이던 때 번호 칸이 코드에 녹았다 (11-15). */
+  --diff-gutter: #1e2220;
 
-  /* 문법 강조 — One Dark. 주석만 라이트와 같은 이유로 한 단 밝다. */
-  --code-kw: #c678dd;
+  /* 문법 강조 — One Dark. 주석만 라이트와 같은 이유로 한 단 밝다. 키워드 · 주석 · 속성은 add 바탕
+     위 4.5:1 을 넘게 한 단 더 밝혔다 (11-15 #diff-contrast). */
+  --code-kw: #cc86e1;
   --code-str: #98c379;
-  --code-comment: #8b949e;
+  --code-comment: #9aa2ab;
   --code-num: #d19a66;
   --code-fn: #61afef;
   --code-type: #e5c07b;
-  --code-prop: #e06c75;
+  --code-prop: #e5858d;
   --code-def: #abb2bf;
   --code-op: #9ca3af;
 
