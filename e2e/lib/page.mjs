@@ -49,9 +49,12 @@ export async function clickCss(wd, css, index = 0, opts = {}) {
  * 토스트가 전부 사라질 때까지 기다린다 — 액션이 달린 토스트는 15초를 산다.
  * 토스트는 오른쪽 아래에 고정이라, 그 자리의 버튼을 누르는 단계 앞에 부른다.
  * 닫기 버튼을 대신 누르지 않는 이유: 그 클릭 자체가 다른 요소에 가로막힐 수 있다.
+ *
+ * 토스트는 알림 기둥(`[data-toaster]`, components/ui/Toaster.tsx)의 `.toast` 다(11-15). 같은 기둥의
+ * 업데이트 배너(`.update-banner`)는 세지 않는다 — 저절로 닫히지 않는 상태 줄이라, 세면 영영 기다린다.
  */
 export function waitNoToasts(wd, opts = {}) {
-  return waitFor(wd, "return document.querySelectorAll('.fixed.bottom-4 .pointer-events-auto').length === 0;", [], {
+  return waitFor(wd, "return document.querySelectorAll('[data-toaster] .toast').length === 0;", [], {
     timeout: 20_000,
     interval: 500,
     desc: "토스트가 사라짐",
@@ -147,7 +150,7 @@ export function screenState(wd, crashTitles) {
        .map((el) => el.innerText || '')
        .filter((txt) => titles.some((t) => txt.includes(t)))
        .map((txt) => txt.replace(/\\s+/g, ' ').slice(0, 300));
-     const toasts = [...document.querySelectorAll('.z-top [role="alert"] > *, .z-top [role="status"] > *')]
+     const toasts = [...document.querySelectorAll('[data-toaster] .toast')]
        .map((el) => (el.innerText || '').replace(/\\s+/g, ' ').trim()).filter(Boolean);
      const errors = window.__e2e ? window.__e2e.errors.splice(0) : [];
      // 앱이 시작부터 모은 CSP 위반 (src/lib/oculpmLog.ts watchCspViolations).

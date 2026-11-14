@@ -93,7 +93,9 @@ export async function runScenario(ctx) {
     }
     if (tour) {
       await report.shot(wd, { phase: "01 기동", key: "boot", screen: "tour", caption: "처음 쓰는 법 — 첫 실행 안내 1쪽" });
-      await clickCss(wd, ".tour-foot .btn.ghost", 0);
+      // 「건너뛰기」 — 발은 대화상자 한 벌의 .dlg-foot 이다(11-15 에 처음 쓰는 법의 자기 발을 걷었다).
+      // 선택자는 src/__tests__/dialogs_v2.test.tsx 가 실제 마크업에 대어 본다.
+      await clickCss(wd, ".tour .dlg-foot .btn.ghost", 0);
       await waitFor(wd, "return !document.querySelector('.tour');", [], { desc: "처음 쓰는 법 닫힘" });
     }
     await wd.execute("return window.__TAURI_INTERNALS__.invoke('settings_set', { key: 'tour_seen', value: '1' }).then(() => true);");

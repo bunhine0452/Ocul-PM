@@ -26,6 +26,7 @@ vi.mock("@/api/deeplink", () => ({
 }));
 
 import { ShortcutCheatsheet, orderShortcutGroups, splitKeyLabel, viewOnScreen } from "@/components/ShortcutCheatsheet";
+import { AppDialog } from "@/components/ui/AppDialog";
 import { DeepLinkSheet } from "@/features/deeplink/DeepLinkSheet";
 import { TourDialog } from "@/features/tour/TourDialog";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -84,9 +85,10 @@ const groupTitles = (dialog: HTMLElement) =>
   Array.from(dialog.querySelectorAll(".keys-group h3")).map((h) => h.firstChild?.textContent ?? "");
 
 describe("AppDialog — the body is the scroll element", () => {
-  it("760×520 — head and foot hold, only the body shrinks and scrolls, and the last group is inside it", async () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 760 });
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 520 });
+  // 창 크기를 흉내 내도 jsdom 은 배치를 하지 않는다 — 그래서 「어느 창에서든 마지막 묶음에 닿는다」 를 구조로 문다:
+  // 판은 창 안에서 자르고(최대 높이 · overflow hidden), 줄어 스크롤하는 칸은 본문 하나, 마지막 묶음은 그 안.
+  // 실제 기하(760×520 · 480×520 에서 끝까지 내린 그림)는 하네스 스크린샷 keys-*-480x520 이 본다.
+  it("head and foot hold, only the body shrinks and scrolls, and the last group is inside it", async () => {
     const dialog = await openCheatsheet();
 
     // 판은 넘치는 것을 자르고(위 18vh + 아래 여백을 뺀 높이), 세로로 쌓는다.
@@ -113,6 +115,17 @@ describe("AppDialog — the body is the scroll element", () => {
     const groups = dialog.querySelectorAll(".keys-group");
     expect(groups.length).toBeGreaterThanOrEqual(6);
     expect(body.contains(groups[groups.length - 1])).toBe(true);
+  });
+
+  it("a dialog not yet on the kit still scrolls — the panel's direct child shrinks and scrolls (race diff at 520 high)", () => {
+    render(
+      <AppDialog open onClose={() => {}} label="legacy">
+        <div className="legacy-body">form</div>
+      </AppDialog>,
+    );
+    const child = getComputedStyle(document.querySelector(".legacy-body")!);
+    expect(child.overflowY).toBe("auto");
+    expect(child.minHeight).toMatch(/^0(px)?$/);
   });
 
   it("foot is right-aligned · head is 14/600", () => {
@@ -175,6 +188,8 @@ describe("same head · same foot — deep link · tour · confirm", () => {
   it("all three use .dlg-head > h2.dlg-title and .dlg-foot with at most one filled button (axe 0)", async () => {
     for (const { name, dialog } of await heads()) {
       expect(dialog.querySelector(".dlg-head h2.dlg-title"), name).not.toBeNull();
+      // h2 는 머리 하나 — 처음 쓰는 법의 쪽 제목은 h3 다(한 판에 h2 가 둘이면 위계가 뒤집힌다).
+      expect(dialog.querySelectorAll("h2"), name).toHaveLength(1);
       const foot = dialog.querySelector(".dlg-foot");
       expect(foot, name).not.toBeNull();
       expect(foot!.querySelectorAll(".btn.primary").length, name).toBeLessThanOrEqual(1);
@@ -193,6 +208,13 @@ describe("same head · same foot — deep link · tour · confirm", () => {
     expect(accept.className).toContain("primary");
     expect(accept.querySelector("kbd")).toBeNull();
     expect(screen.getByText("/Users/me/proj").className).toContain("dl-origin-value");
+  });
+
+  it("the E2E skip selector still finds the tour's skip button (e2e/scenario.mjs)", () => {
+    // 발이 .tour-foot → .dlg-foot 으로 바뀌며 E2E 의 「기동」 단계가 20초 뒤 멈췄다 — 마크업과 함께 문다.
+    const sel = /clickCss\(wd, "(\.tour [^"]+)"/.exec(read("../e2e/scenario.mjs"))![1];
+    render(<TourDialog open onClose={() => {}} />);
+    expect(document.querySelector(sel)?.textContent).toContain(t("tour.skip"));
   });
 
   it("src/components/ui/button.tsx is gone and nothing imports it", () => {
@@ -269,5 +291,52 @@ describe("shortcut sheet — the current screen first, flowing in columns", () =
     expect(results.violations.map((v) => v.id)).toEqual([]);
     fireEvent.click(screen.getByRole("button", { name: t("common.close") }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});
+
+describe("the trap holds — Tab never leaves the dialog", () => {
+  it("shortcut sheet: the body is a Tab stop · Tab from it wraps to × · ⇧Tab from × comes back", async () => {
+    const dialog = await openCheatsheet();
+    const body = dialog.querySelector<HTMLElement>(".dlg-body")!;
+    const close = screen.getByRole("button", { name: t("common.close") });
+    expect(document.activeElement).toBe(body);
+    expect(body.tabIndex).toBe(0);
+    // 열자마자 첫 포커스로 앉은 동안은 테가 없다 — 한 번 떠났다가 돌아오면 다른 Tab 자리와 같은 테.
+    expect(body.hasAttribute("data-quiet")).toBe(true);
+    // 기본 동작(브라우저의 Tab 이동)을 막고 판 안에서 옮긴다 — 막지 않으면 덮개 뒤로 나갔다.
+    expect(fireEvent.keyDown(body, { key: "Tab" })).toBe(false);
+    expect(document.activeElement).toBe(close);
+    expect(body.hasAttribute("data-quiet")).toBe(false);
+    expect(fireEvent.keyDown(close, { key: "Tab", shiftKey: true })).toBe(false);
+    expect(document.activeElement).toBe(body);
+    expect(rule(".dlg-body[data-quiet]:focus")).toMatch(/outline:\s*none/);
+    expect(rule(".dlg-body:focus-visible")).toMatch(/outline-offset:\s*var\(--focus-offset-inset\)/);
+  });
+
+  it("any dialog: focus on the panel itself or a tabIndex -1 spot stays inside, in DOM order", () => {
+    render(
+      <AppDialog open onClose={() => {}} label="spots">
+        <button>first</button>
+        <p tabIndex={-1}>middle spot</p>
+        <button>last</button>
+        <p tabIndex={-1}>end spot</p>
+      </AppDialog>,
+    );
+    const dialog = screen.getByRole("dialog");
+    const [first, last] = [screen.getByText("first"), screen.getByText("last")];
+    const tab = (from: HTMLElement, shiftKey = false) => {
+      from.focus();
+      expect(fireEvent.keyDown(from, { key: "Tab", shiftKey })).toBe(false);
+      return document.activeElement;
+    };
+    // 뒤에 아무것도 없는 칸(단축키 표의 본문이 그랬다) — 밖으로 나가지 않고 처음으로 되감는다.
+    expect(tab(screen.getByText("end spot"))).toBe(first);
+    expect(tab(screen.getByText("end spot"), true)).toBe(last);
+    // 사이의 칸 — 브라우저의 순서 그대로 다음 · 앞.
+    expect(tab(screen.getByText("middle spot"))).toBe(last);
+    expect(tab(screen.getByText("middle spot"), true)).toBe(first);
+    // 판 자체(본문 글자를 눌렀을 때) — ⇧Tab 이 판 앞의 문서로 새지 않는다.
+    expect(tab(dialog, true)).toBe(last);
+    expect(tab(dialog)).toBe(first);
   });
 });

@@ -58,7 +58,7 @@ export function DeepLinkSheet({
       <DialogFoot>
         <button ref={cancelRef} type="button" className="btn ghost sm" onClick={() => setLink(null)} disabled={busy}>
           <span>{t("common.cancel")}</span>
-          <DialogKey>esc</DialogKey>
+          <DialogKey>Esc</DialogKey>
         </button>
         <button type="button" className="btn primary sm" onClick={accept} disabled={busy}>
           {t(plan.actionKey)}

@@ -68,15 +68,24 @@ export function useModalBehavior({
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
       const active = document.activeElement as HTMLElement | null;
-      if (e.shiftKey) {
-        if (active === first || !panel.contains(active)) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else if (active === last || !panel.contains(active)) {
+      const at = active ? focusables.indexOf(active) : -1;
+      if (at >= 0) {
+        // 끝에서만 되감는다 — 그 사이는 브라우저의 Tab 순서 그대로.
+        if (e.shiftKey ? at > 0 : at < focusables.length - 1) return;
         e.preventDefault();
-        first.focus();
+        (e.shiftKey ? last : first).focus();
+        return;
       }
+      // 포커스가 목록 밖이다 — 판 자체나 tabIndex -1 칸(글자를 눌렀을 때)에 앉았다. 브라우저는 DOM 순서로 다음 Tab
+      // 자리를 찾는데, 판 안에 그 뒤(⇧Tab 이면 앞)가 없으면 판 밖으로 나간다(11-15 — 단축키 표에서 열자마자 Tab
+      // 한 번에 덮개 뒤로 나갔고, 그 뒤로는 Esc 도 가두기도 듣지 않았다). 같은 순서로 판 안에서 고르고, 없으면 되감는다.
+      e.preventDefault();
+      const follows = (el: HTMLElement) =>
+        active != null &&
+        panel.contains(active) &&
+        (active.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+      const next = e.shiftKey ? focusables.filter((el) => !follows(el)).pop() : focusables.find(follows);
+      (next ?? (e.shiftKey ? last : first)).focus();
     };
     panel.addEventListener("keydown", onKeyDown);
     return () => panel.removeEventListener("keydown", onKeyDown);
