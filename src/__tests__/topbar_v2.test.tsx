@@ -57,7 +57,7 @@ vi.mock("@/features/terminal/attention", () => ({ setAlertProjectName: () => {},
 
 import { TopBar } from "@/features/shell/TopBar";
 import { navBadgesOf, type NavBadges } from "@/features/shell/useNavBadges";
-import { decideFit, decideFold } from "@/features/shell/useTopbarFit";
+import { decideFit, decideFold, neededWidth } from "@/features/shell/useTopbarFit";
 import { shellDateLabel } from "@/features/shell/ShellV2";
 import ProjectWindow from "@/windows/ProjectWindow";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
@@ -159,12 +159,25 @@ describe("fit — the tabs do not move between screens", () => {
     expect(decideFit([640, 610, 350], 700, 0)).toBe(0);
     expect(decideFit([640, 610, 350], 620, 0)).toBe(1);
     expect(decideFit([640, 610, 350], 400, 0)).toBe(2);
+    // 조이는 두 단계 — 맥 480 · Windows 504 에서 톱니가 창 안에 남는다.
+    expect(decideFit([640, 610, 350, 330, 300], 340, 0)).toBe(3);
+    expect(decideFit([640, 610, 350, 330, 300], 310, 0)).toBe(4);
     // 경계에서 오락가락하지 않는다 — 내리려면 여유(12px)가 있어야 한다.
     expect(decideFit([640, 610, 350], 645, 1)).toBe(1);
     expect(decideFit([640, 610, 350], 660, 1)).toBe(0);
     expect(decideFold(710, 700, false)).toBe(true);
     expect(decideFold(695, 700, true)).toBe(true);
     expect(decideFold(680, 700, true)).toBe(false);
+  });
+
+  it("the separator does not change the fixed part — Today (no actions, no line) and the other screens agree", () => {
+    const restore = stubLayout(760);
+    const { container } = renderBar();
+    const bar = container.querySelector<HTMLElement>(".topbar")!;
+    const withLine = neededWidth(bar, true);
+    bar.querySelector<HTMLElement>(".topbar-sep")!.style.display = "none";
+    expect(neededWidth(bar, true)).toBe(withLine);
+    restore();
   });
 });
 

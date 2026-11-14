@@ -36,8 +36,8 @@ export const ko = {
   "nav.jumpWaitingNone": "기다리는 세션이 없어요",
   "nav.projectList": "프로젝트 목록",
   "nav.projectActions": "프로젝트 동작",
-  "nav.badgeTitle": "먼저 볼 것 {n}",
-  "nav.badgeTitleFail": "먼저 볼 것 {n} · 실패 {m}",
+  "nav.badgeTitle": "손댈 것 {n}",
+  "nav.badgeTitleFail": "손댈 것 {n} · 실패 {m}",
   "nav.termWaiting": "기다리는 세션이 있어요",
   "sidebar.switchProjectAria": "프로젝트 바꾸기 (지금 {name})",
   "sidebar.switchProjectTitle": "최근 프로젝트 ({key})",
@@ -333,6 +333,7 @@ export const ko = {
   // ── ⌘K 명령 팔레트 ──────────────────────────────────────────────────────
   "palette.aria": "명령 팔레트",
   "palette.placeholder": "세션 · 화면 · 동작 · 프로젝트 · 일지…",
+  "palette.placeholderStart": "세션 · 설정 · 동작 · 프로젝트…",
   "palette.empty": "매칭되는 명령이 없어요.",
   "palette.group.projects": "프로젝트 열기",
   "palette.group.nav": "이동",

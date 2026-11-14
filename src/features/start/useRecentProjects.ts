@@ -3,7 +3,7 @@
  *
  * 숫자는 둘뿐이다: **오늘(또는 마지막 날) 기록 수**와 **확인할 것** — 오늘 에이전트가
  * 고치고 일지에 안 적은 파일 수(`compare_workday` 의 미기록). 둘 다 로컬 SQLite 질의라
- * 가볍고, 못 읽은 줄은 `null` 로 남는다 — 화면은 그 칸을 비운다.
+ * 가볍고, 못 읽은 줄은 `null`(모름), 아직 안 물은 줄은 `undefined`(칩 없음)로 남는다.
  *
  * 규칙 넷 (3.x 시작 탭의 `useHomeBrief` 를 이었다):
  *  1. **실패해도 목록은 선다.** 집계가 실패하면 이름·경로만으로 그린다.
@@ -35,8 +35,12 @@ export interface RecentProject {
   lastWorkday: string | null;
   /** 그날 기록 수 — 오늘·어제만 센다(그 밖은 `null`). */
   dayCount: number | null;
-  /** 확인할 것 — 오늘 기록 없이 바뀐 파일 수. 모르면 `null`. */
-  toCheck: number | null;
+  /**
+   * 오늘 일지 없이 바뀐 파일 수. 물었는데 못 읽었으면 `null`(모름 — 회색 「—」), 아직 안 물었으면 `undefined`(칩 없음):
+   * 답을 기다리는 동안과 `CHECK_CAP` 밖의 줄이다. 둘을 하나로 치면 열세 번째 줄부터 「아직 세지 못했어요」 가
+   * 영영 섰고, 창을 열 때마다 모든 줄에 「—」 가 섰다 사라졌다.
+   */
+  toCheck: number | null | undefined;
 }
 
 function lastAtOf(brief: HomeBrief | null, id: number): string {
@@ -69,7 +73,7 @@ export function toRecentRows(
         : lastWorkday === yesterday
           ? (b?.days.find((d) => d.workday === yesterday)?.count ?? null)
           : null;
-    return { project, lastWorkday, dayCount, toCheck: checks.get(project.id) ?? null };
+    return { project, lastWorkday, dayCount, toCheck: checks.has(project.id) ? (checks.get(project.id) ?? null) : undefined };
   });
 }
 

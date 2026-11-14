@@ -57,15 +57,19 @@ function openProject(projectId: number, failed: (error: unknown) => void) {
 /**
  * 규칙 템플릿 경고는 판마다 한 번 (11-15) — 창을 열 때마다 20초짜리 앰버 토스트가 다시 떴다. 한 번 말한 판은
  * 설정(SQLite, 모든 창이 같이 본다)에 적어 두고, 그 뒤로는 설정 · 이 프로젝트 칸의 조용한 줄(올리기 단추)만 남는다.
- * 처음이면 `true` — 적기까지 한다. 설정을 못 읽으면 처음으로 친다(말하지 않는 것보다 한 번 더 말하는 편이 낫다).
+ * 묻기와 적기는 나눈다 — 적는 것은 토스트를 띄운 **뒤**다. 그 사이 초기화가 취소되면(「지금 활성화」 · 프로젝트
+ * 바뀜) 적기만 하고 한 번도 안 보인 채 지나갔다. 설정을 못 읽으면 아직으로 친다(말하지 않는 것보다 한 번 더 말하는 편이 낫다).
  */
-export async function firstTemplateWarning(projectId: number, mark: string): Promise<boolean> {
-  const key = `agents_template_warned_p${projectId}`;
+const templateWarnedKey = (projectId: number) => `agents_template_warned_p${projectId}`;
+
+async function templateWarned(projectId: number, mark: string): Promise<boolean> {
   const all = await commands.settingsGetAll().catch(() => null);
-  const seen = all?.status === "ok" ? all.data.find(([k]) => k === key)?.[1] : undefined;
-  if (seen === mark) return false;
-  await commands.settingsSet(key, mark).catch(() => null);
-  return true;
+  const key = templateWarnedKey(projectId);
+  return all?.status === "ok" && all.data.find(([k]) => k === key)?.[1] === mark;
+}
+
+function markTemplateWarned(projectId: number, mark: string): void {
+  void commands.settingsSet(templateWarnedKey(projectId), mark).catch(() => null);
 }
 
 export default function ProjectWindow({
@@ -99,8 +103,8 @@ export default function ProjectWindow({
     uiV2Nav: setUiV2View,
     onNavBack: navHistory.goBack,
     onNavForward: navHistory.goForward,
-    // ⌘J — 이 창의 기다리는 세션, 없으면 기다리는 다른 프로젝트 창.
-    onJumpWaiting: () => void jumpToWaiting(projectId, projects.map((p) => p.id)),
+    // ⌘J — 이 창의 기다리는 세션 · 질문, 없으면 기다리는 다른 프로젝트 창.
+    onJumpWaiting: () => void jumpToWaiting(projectId),
   });
   // ⌃Tab 화면 순환 · 트랙패드 두 손가락 쓸기 — 윗줄까지 가지 않고 (ocul-next #nav-cycle).
   useScreenCycle(prefs.uiV2View, setUiV2View);
@@ -234,7 +238,8 @@ export default function ProjectWindow({
       const aheadRes = await commands.oculpmAgentsCheckMasterAhead(projectId);
       if (cancelled) return;
       const ahead = aheadRes.status === "ok" ? aheadRes.data : null;
-      if (ahead && (await firstTemplateWarning(projectId, `ahead:${ahead.from_version}>${ahead.to_version}`))) {
+      const aheadMark = ahead ? `ahead:${ahead.from_version}>${ahead.to_version}` : "";
+      if (ahead && !(await templateWarned(projectId, aheadMark))) {
         if (cancelled) return;
         toast.warning(t("agents.ahead.title"), {
           title: t("agents.ahead.version", {
@@ -244,6 +249,7 @@ export default function ProjectWindow({
           dedupKey: `master-ahead-${projectId}`,
           durationMs: 20000,
         });
+        markTemplateWarned(projectId, aheadMark);
       }
 
       // Offer a master-template upgrade for projects initialized before a
@@ -251,7 +257,8 @@ export default function ProjectWindow({
       const upRes = await commands.oculpmAgentsCheckMasterUpgrade(projectId);
       if (cancelled) return;
       const up = upRes.status === "ok" ? upRes.data : null;
-      if (up && (await firstTemplateWarning(projectId, `upgrade:${up.from_version}>${up.to_version}`))) {
+      const upMark = up ? `upgrade:${up.from_version}>${up.to_version}` : "";
+      if (up && !(await templateWarned(projectId, upMark))) {
         if (cancelled) return;
         const { from_version, to_version } = up;
         toast.warning(t("agents.upgrade.title"), {
@@ -274,6 +281,7 @@ export default function ProjectWindow({
             },
           ],
         });
+        markTemplateWarned(projectId, upMark);
       }
     })();
     return () => {

@@ -40,8 +40,8 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.jumpWaitingNone": "No session is waiting on you",
   "nav.projectList": "Project list",
   "nav.projectActions": "Project actions",
-  "nav.badgeTitle": "{n} to look at",
-  "nav.badgeTitleFail": "{n} to look at · {m} failed",
+  "nav.badgeTitle": "{n} to act on",
+  "nav.badgeTitleFail": "{n} to act on · {m} failed",
   "nav.termWaiting": "A session is waiting on you",
   "sidebar.switchProjectAria": "Switch project — now {name}",
   "sidebar.switchProjectTitle": "Recent projects ({key})",
@@ -334,6 +334,7 @@ export const en: Record<keyof typeof ko, string> = {
   // ── ⌘K command palette ──────────────────────────────────────────────────
   "palette.aria": "Command palette",
   "palette.placeholder": "Sessions · screens · actions · projects · journal…",
+  "palette.placeholderStart": "Sessions · settings · actions · projects…",
   "palette.empty": "No matching commands.",
   "palette.group.projects": "Open project",
   "palette.group.nav": "Go to",

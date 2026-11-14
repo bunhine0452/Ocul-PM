@@ -7,7 +7,8 @@
  * 「VS Code 에서 열기」는 이 창의 프로젝트 폴더를 설정 「파일 열기」 의 편집기로 연다(2026-11-02).
  *
  * 11-15: 거르기 칸이 콤보박스, 목록이 리스트박스다. 포커스는 칸에 머물고 ↑↓ 는 프로젝트 줄만 옮긴다(예전엔
- * 색 견본 · 창 정리 칸까지 돌았다). ↩ 가 열 줄은 늘 면(--bg-active)으로 보인다. 아래 묶음(색 · 동작)은 Tab 으로.
+ * 색 견본 · 창 정리 칸까지 돌았다). ↩ 가 열 줄은 늘 면(--bg-active)으로 보인다. 아래 묶음(색 · 동작)은 Tab 으로
+ * 들어가 화살표로 돈다.
  * 줄은 `ProjectRow` 한 벌 — 시작 창 · ⌥Tab · ⌘K 와 같은 칩을 단다.
  */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -56,7 +57,10 @@ export function ProjectSwitcher({
   const [open, setOpen] = useState(false);
   // 목록 거르기 (2026-11-03) — 열면 바로 쳐서 이름 · 경로로 좁히고 ↩ 로 고른 줄을 연다.
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState(0);
+  // 고른 줄은 자리가 아니라 **프로젝트**로 쥔다 — 연 동안 기다림이 바뀌거나 브리프가 늦게 와 줄 순서가 바뀌면,
+  // 자리로 쥔 선택은 소리 없이 다른 프로젝트로 옮겨 갔다(↓↓ 로 c 를 골랐는데 d 가 맨 위로 오면 ↩ 가 b 를 열었다).
+  // `null` 이면 맨 윗줄.
+  const [activePid, setActivePid] = useState<number | null>(null);
   const [brief, setBrief] = useState<HomeBrief | null>(null);
   const [openWindows, setOpenWindows] = useState<number[]>([]);
   const [attention, setAttention] = useState<Map<number, ProjectAttention>>(new Map());
@@ -91,7 +95,7 @@ export function ProjectSwitcher({
     if (!open) return;
     let alive = true;
     setQuery("");
-    setActive(0);
+    setActivePid(null);
     void projectsApi
       .brief(1)
       .then((b) => alive && setBrief(b))
@@ -231,7 +235,8 @@ export function ProjectSwitcher({
   const shown = byAttention(recent, attention).filter(
     (p) => !q || p.name.toLowerCase().includes(q) || p.root_path.toLowerCase().includes(q),
   );
-  const at = Math.min(active, Math.max(0, shown.length - 1));
+  // 고른 프로젝트가 걸러져 사라졌으면 맨 윗줄.
+  const at = Math.max(0, shown.findIndex((p) => p.id === activePid));
   const optionId = (p: Project) => `${listId}-p${p.id}`;
   const shortcut = kbd("⌘O");
 
@@ -253,7 +258,7 @@ export function ProjectSwitcher({
       if (shown.length === 0) return;
       e.preventDefault();
       const step = e.key === "ArrowDown" ? 1 : -1;
-      setActive((at + step + shown.length) % shown.length);
+      setActivePid(shown[(at + step + shown.length) % shown.length].id);
       return;
     }
     if (e.key === "Enter") {
@@ -262,6 +267,18 @@ export function ProjectSwitcher({
       e.preventDefault();
       pick(target);
     }
+  };
+
+  // 아래 묶음(색 · 창 정리 · 편집기 · 폴더)은 메뉴다 — Tab 으로 들어오면 화살표가 그 안의 단추를 돈다. 칸의 ↑↓ 는
+  // 프로젝트 줄만 옮기므로, 이것이 없으면 메뉴라고 말하면서 화살표가 먹지 않았다.
+  const onFootKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    const items = [...e.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
+    const from = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (from < 0) return;
+    e.preventDefault();
+    items[(from + step + items.length) % items.length].focus();
   };
 
   return (
@@ -302,13 +319,14 @@ export function ProjectSwitcher({
               autoComplete="off"
               onChange={(e) => {
                 setQuery(e.target.value);
-                setActive(0);
+                setActivePid(null);
               }}
               onKeyDown={onFindKey}
             />
           </div>
+          {/* 맞는 것이 없다는 말은 목록 밖에 — 리스트박스 안에는 옵션만 선다(aria-required-children). */}
+          {shown.length === 0 ? <p className="proj-pop-none">{t("sidebar.findProjectNone")}</p> : null}
           <div className="proj-pop-list" role="listbox" id={listId} aria-label={t("nav.projectList")}>
-            {shown.length === 0 ? <p className="proj-pop-none">{t("sidebar.findProjectNone")}</p> : null}
             {shown.map((p, i) => {
               const isCurrent = p.id === currentProjectId;
               const slot = slots.get(p.id);
@@ -322,7 +340,7 @@ export function ProjectSwitcher({
                   className={"proj-pop-item" + (isCurrent ? " on" : "")}
                   // 포커스는 거르기 칸에 남는다 — 누른 줄로 옮겨 가면 ↑↓ · ↩ 가 끊긴다.
                   onMouseDown={(e) => e.preventDefault()}
-                  onMouseMove={() => i !== at && setActive(i)}
+                  onMouseMove={() => i !== at && setActivePid(p.id)}
                   onClick={() => pick(p)}
                 >
                   <ProjectRow
@@ -348,7 +366,7 @@ export function ProjectSwitcher({
               );
             })}
           </div>
-          <div className="proj-pop-foot" role="menu" aria-label={t("nav.projectActions")}>
+          <div className="proj-pop-foot" role="menu" aria-label={t("nav.projectActions")} onKeyDown={onFootKey}>
             {currentProjectId != null ? (
               <div className="proj-colors" role="group" aria-label={t("sidebar.projectColor")} ref={colorsRef}>
                 <span className="proj-colors-label">{t("sidebar.projectColor")}</span>

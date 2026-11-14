@@ -175,9 +175,10 @@ export async function runScenario(ctx) {
         const overflow = await wd.execute(
           "const d = document.documentElement; return d.scrollWidth - d.clientWidth;",
         );
-        // 셸이 잘라 scrollWidth 로는 안 보이는 넘침 — 윗줄 칸이 창 밖으로 나가면(레드팀 10-31) 실패.
+        // 셸이 잘라 scrollWidth 로는 안 보이는 넘침 — 윗줄 칸이 창 밖으로 나가면(레드팀 10-31) 실패. Windows 는 창
+        // 단추 셋이 오른쪽 끝에 떠 있어 그 왼쪽 끝이 경계다 — 톱니가 최소화 단추 밑으로 들어가도 창 안이라 지나갔다(11-15).
         const clipped = await wd.execute(
-          "return [...document.querySelectorAll('header.topbar > *')].filter((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().right > window.innerWidth + 1).length;",
+          "const edge = document.querySelector('.wincaption')?.getBoundingClientRect().left ?? window.innerWidth; return [...document.querySelectorAll('header.topbar > *')].filter((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().right > edge + 1).length;",
         );
         const ok = !readyErr && state.crashes.length === 0 && state.csp.length === 0 && overflow <= 1 && clipped === 0;
         await report.shot(wd, { phase, key, screen: `${n}-${dest.id}`, caption: `${t(dest.labelKey)} (${dest.id})`, state, ok });

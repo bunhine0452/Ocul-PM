@@ -31,7 +31,7 @@
    (tauri.conf.json `trafficLightPosition` · window/mod.rs `TRAFFIC_LIGHT_*`). */
 .is-mac .topbar { padding-left: 84px; }
 /* Windows 는 제목줄이 없는 창 — 단추 셋(`windows/CaptionButtons.tsx`, 46px × 3)이 이 줄 오른쪽 끝에
-   앉는다. 좁은 창의 오른쪽 여백 규칙(아래 data-fit · ≤460)보다 이 선택자가 무겁다 — 단추 자리는 줄지 않는다. */
+   앉는다. 좁은 창의 오른쪽 여백 규칙(아래 data-fit 3 · 4)보다 이 선택자가 무겁다 — 단추 자리는 줄지 않는다. */
 :root[data-platform="windows"] .topbar { padding-right: calc(var(--caption-w) * 3 + var(--space-2)); }
 .topbar-fill { flex: 1; min-width: var(--space-4); align-self: stretch; }
 /* 화면 동작 — 화면의 <Toolbar> 가 포털로 채운다. 좁은 창에서는 압착 대신 가로 스크롤. */
@@ -302,23 +302,40 @@
 
 /* 좁은 창 — 접기 (11-04 → 11-15, `features/shell/useTopbarFit.ts`). 폭 숫자(@media 640 · 780 · 900)로
    정하던 때는 화면마다 다른 「화면 동작」 폭을 못 봤다. 이제 윗줄이 실제로 들어가는지 잰다. 두 갈래다:
-   `data-fit` 은 화면 동작을 뺀 줄(프로젝트 · 탭 · 찾기 · 설정)만으로 정해서 화면마다 같다 — 탭은 화면을 바꿔도
-   그 자리 그 모양이다(예전엔 단계 3 이 gap · 여백 · ▾ 까지 줄여 탭 줄이 20px 옆으로 뛰었다).
+   `data-fit` 은 화면마다 같은 고정 부분(프로젝트 · 탭 · 찾기 · 설정)만으로 정해서 화면마다 같다 — 탭은 화면을
+   바꿔도 그 자리 그 모양이다(예전엔 단계 3 이 화면 동작의 폭으로 정해져 탭 줄이 20px 옆으로 뛰었다).
      1  단축키 표시(⌘T · ⌘K)를 감춘다 — ⌘K 는 툴팁 · 팔레트에 남는다
      2  탭 이름을 아이콘으로 — 이름은 화면에서만 감춘다(접근명 · E2E 의 탭 찾기가 글자로 읽는다)
+     3  줄을 조인다 — 칸 사이 10→6 · 오른쪽 여백 16→8 · 빈 띠 10→6, ▾ 를 감춘다. 이것을 걷었더니 맥 480 에서 톱니가
+        창 밖으로, Windows 504 에서 최소화 단추 밑으로 갔다(레드팀 11-15). Windows 의 창 단추 자리는 줄지 않는다.
+     4  더 조인다 — 프로젝트 이름도 화면에서 감추고(알약 40px) 탭을 붙이고, 찾기 단추 · 구분선은 ⌘K 로 넘긴다.
+        예전엔 폭 숫자(@media ≤460 — 480 창에 글자 125%)로 걸었는데, 창 단추 자리(144px) 때문에 그보다 좁은
+        Windows 504 에는 걸리지 않았다. 이제 재서 걸어 둘 다 받는다.
    `data-fold` 는 그 단계에서 화면 동작이 남은 자리에 안 들어가면 「⋯」 메뉴로 접는다 — 줄 안 스크롤 칸이 29px 로
    짓눌려 누를 수 없었다(레드팀 10-31). 접기만 한다(탭 · 여백은 그대로).
    화면 동작은 줄지 않는다(잘리지 않게). 신호등 자리(84px)는 줄이지 않는다(76 이었을 때 macOS 27 의 더 큰
-   신호등에 이름이 붙었다, 11-02). 이름은 56px 아래로 짓눌리지 않는다. */
+   신호등에 이름이 붙었다, 11-02). 이름은 56px 아래로 짓눌리지 않는다(단계 4 는 이름을 감추고 알약만). */
 .topbar-actions { flex-shrink: 0; }
 .proj-switch-wrap { min-width: 56px; }
 .topbar[data-fit] .kbd { display: none; }
-.topbar[data-fit="2"] .topnav-label {
+.topbar:is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .topnav-label {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
-.topbar[data-fit="2"] .topnav { padding-left: var(--space-2); }
-.topbar[data-fit="2"] .topnav-item { padding: 0 var(--space-2); gap: var(--space-1); }
-.topbar[data-fit="2"] .topnav-ico { display: inline-flex; }
+.topbar:is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .topnav { padding-left: var(--space-2); }
+.topbar:is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .topnav-item { padding: 0 var(--space-2); gap: var(--space-1); }
+.topbar:is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .topnav-ico { display: inline-flex; }
+.topbar[data-fit="3"] { gap: var(--space-2); padding-right: var(--space-3); }
+.topbar:is([data-fit="3"], [data-fit="4"]) .topbar-fill { min-width: var(--space-2); }
+/* ▾ 는 감춘다 — 알약 면이 이미 누르는 것이고, 그 19px 이 이름 두 글자다. 이름까지 감추는 단계 4 에서는 색 점이
+   없으면 ▾ 를 남긴다 — 색 없는 프로젝트의 알약은 빈 칸이라 누를 것이 안 보였다. */
+.topbar[data-fit="3"] .proj-switch > svg,
+.topbar[data-fit="4"] .proj-switch:has(.proj-dot) > svg { display: none; }
+.topbar[data-fit="4"] { gap: var(--space-1); padding-right: var(--space-1); }
+.topbar[data-fit="4"] .proj-switch-wrap { min-width: 40px; max-width: 40px; }
+.topbar[data-fit="4"] .proj-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.topbar[data-fit="4"] .topnav { gap: 0; padding-left: var(--space-1); }
+.topbar[data-fit="4"] .topnav-item { padding: 0 var(--space-1); }
+.topbar[data-fit="4"] :is(.find-btn, .topbar-sep) { display: none; }
 .topbar[data-fold] .topbar-actions { display: none; }
 .topbar[data-fold] .topbar-actions.is-open {
   display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1);
@@ -337,19 +354,6 @@
 .topbar[data-fold] .topbar-actions.is-open .iconbtn[aria-label]::after { content: attr(aria-label); }
 .topbar[data-fold] .topbar-more { display: inline-flex; }
 .topbar[data-fold] .topbar-actions:empty + .topbar-more { display: none; }
-/* 더 좁으면(≤460 — 480 창에 글자 125% 가 이 폭이다) 프로젝트 이름 · ▾ 도 화면에서 감추고 탭을 더 붙인다 —
-   찾기 · 설정이 창 밖(396–467 / 384)으로 밀려났다(레드팀 10-31). 폭 숫자라 화면마다 같다. */
-@media (max-width: 460px) {
-  .topbar { gap: var(--space-1); padding-right: var(--space-1); }
-  .proj-switch-wrap { min-width: 40px; max-width: 40px; }
-  .proj-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  /* ▾ 는 감춘다 — 알약 면이 이미 누르는 것이고, 그 14px 이 이름 두 글자다. */
-  .proj-switch > svg { display: none; }
-  .topnav { gap: 0; padding-left: var(--space-1); }
-  .topnav-item { padding: 0 var(--space-1); }
-  /* 찾기는 ⌘K 로 — 단추까지 서면 설정 톱니가 창 밖으로 나간다. */
-  .topbar .find-btn, .topbar-sep { display: none; }
-}
 
 /* ============================================================ WINDOW SWITCHER (⌥Tab, 11-04)
    누르고 있는 동안만 서는 목록 — 화면 가운데 카드 한 장, 어둡게 덮지 않는다(⌘Tab 처럼 지나가는 것).

@@ -14,7 +14,7 @@ import {
 } from "@/components/Icons";
 import { useOptionalWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_DESTINATIONS, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
-import { tAll, useT, type I18nKey, type Lang, type TVars } from "@/i18n";
+import { tAll, useT } from "@/i18n";
 import type { HomeBrief, JournalSearchHit, PlanSummary, Project, ProjectAttention } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
 import { planApi } from "@/api/plan";
@@ -26,7 +26,7 @@ import { kbd } from "@/lib/kbd";
 import { matchScore } from "@/lib/choseong";
 import { requestCheatsheet, requestTour } from "@/lib/projectActions";
 import { toast } from "@/lib/toast";
-import { localWorkdayKey, shiftWorkday } from "@/lib/workday";
+import { dayWord } from "@/lib/workdayLabel";
 import { ProjectRow, distinctWhere } from "@/features/shell/ProjectRow";
 import { projectColorOf } from "@/features/shell/projectColor";
 import { projectSlotLabel, slotsOf } from "@/features/shell/projectKeys";
@@ -34,7 +34,7 @@ import type { OpenSwitcherDetail } from "@/features/shell/ProjectSwitcher";
 import { useOpenInEditor } from "@/features/shell/useOpenInEditor";
 import { orderRecent } from "@/features/start/useRecentProjects";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
-import { countByProject, needsMe, sessionWord } from "@/features/terminal/status";
+import { coalesce, countByProject, needsMe, sessionWord } from "@/features/terminal/status";
 import "./palette.css";
 
 // ⌘K 팔레트 (MASTER-GUIDE §5.9 → 4.0 → 11-15) — 「어디로」 에서 「무엇을」 까지.
@@ -58,8 +58,6 @@ interface CommandPaletteProps {
   onOpenFolder?: () => void;
 }
 
-type Tr = (key: I18nKey, vars?: TVars) => string;
-
 type CommandItem = {
   id: string;
   label: string;
@@ -76,9 +74,12 @@ type CommandItem = {
 const MIN_QUERY = 2;
 const DEBOUNCE_MS = 120;
 const JOURNAL_LIMIT = 8;
-/** 일지 줄의 점수 — 백엔드가 이미 맞췄다. 검색어가 화면 이름과 안 맞으면 일지 묶음이 맨 위로 온다. */
-const JOURNAL_FIRST = 10;
-const JOURNAL_LAST = 0.5;
+/**
+ * 일지 줄의 점수 — 백엔드가 이미 맞췄다. 늘 다른 줄보다 낮다(가장 낮은 초성 맞음이 1): 일지 답은 120ms + IPC 뒤에
+ * 오는데, 위로 끼어들면 cmdk 가 고른 줄을 그대로 두어 목록이 눈앞에서 뛰고 고른 줄이 밀렸다. 일지만 맞는 검색이면
+ * 그 묶음 혼자라 맨 위에 선다.
+ */
+const JOURNAL_SCORE = 0.5;
 
 /** 세션의 이름 — 엔진이 붙이는 제목(선택 필드)이 있으면 그것, 없으면 셸 이름 · `claude`. */
 function sessionName(s: TermInfo): string {
@@ -86,26 +87,19 @@ function sessionName(s: TermInfo): string {
   return title?.trim() || s.label;
 }
 
-/** 세션 줄 순서 — 내 손을 기다리는 것(오래 기다린 순), 이 창의 것, 다른 창의 것. */
+/** 세션 줄 순서 — 내 손을 기다리는 것(이 창의 것 먼저, 오래 기다린 순), 이 창의 것, 다른 창의 것. ⌘J 의 차례와 같다. */
 function sessionRank(s: TermInfo, currentProjectId: number | null): number {
-  if (s.alive && needsMe(s.status)) return 0;
-  return s.project_id === currentProjectId ? 1 : 2;
+  const here = s.project_id === currentProjectId;
+  if (s.alive && needsMe(s.status)) return here ? 0 : 1;
+  return here ? 2 : 3;
 }
+
+/** 고른 줄을 사람이 옮긴 키 — 이것을 누른 뒤로는 늦게 온 세션이 고른 줄을 가져가지 않는다. */
+const MOVE_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp"]);
 
 function sinceMs(s: TermInfo): number {
   const ms = Date.parse(s.status?.since ?? s.started_at);
   return Number.isNaN(ms) ? 0 : ms;
-}
-
-/** 일지 날짜 — 앱 공통 표기(오늘 · 어제 · 11월 4일). 20261115 원본은 사람이 읽는 글이 아니다. */
-export function dayWord(workday: string, lang: Lang, t: Tr, today = localWorkdayKey()): string {
-  if (workday === today) return t("journal.day.today");
-  if (workday === shiftWorkday(today, -1)) return t("journal.day.yesterday");
-  const y = Number(workday.slice(0, 4));
-  const m = Number(workday.slice(4, 6));
-  const d = Number(workday.slice(6, 8));
-  if (!y || !m || !d) return "";
-  return new Date(y, m - 1, d).toLocaleDateString(lang === "en" ? "en-US" : "ko-KR", { month: "long", day: "numeric" });
 }
 
 export function CommandPalette({
@@ -149,21 +143,27 @@ export function CommandPalette({
     };
   }, [open, currentProjectId]);
 
-  // 터미널 세션 — 모든 창의 것. 열려 있는 동안 상태가 바뀌면(기다리기 시작 · 끝남) 따라 읽는다.
+  // 터미널 세션 — 모든 창의 것. 열려 있는 동안 상태가 바뀌면(기다리기 시작 · 끝남) 따라 읽는다. 사건이 몰려 와도
+  // 읽기는 한 번에 묶는다(`coalesce` — 읽을 때마다 백엔드가 「도는 중」 을 잰다, 11-11). 늦게 온 옛 답은 버린다.
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    const load = () =>
+    let seq = 0;
+    const load = () => {
+      const mine = ++seq;
       void Promise.resolve()
         .then(() => terminalApi.overview())
-        .then((list) => alive && setSessions(Array.isArray(list) ? list : []))
+        .then((list) => alive && mine === seq && setSessions(Array.isArray(list) ? list : []))
         .catch(() => {});
+    };
     load();
+    const later = coalesce(load);
     const off = Promise.resolve()
-      .then(() => terminalApi.onSessionsChanged(load))
+      .then(() => terminalApi.onSessionsChanged(later.call))
       .catch(() => null);
     return () => {
       alive = false;
+      later.cancel();
       void off.then((unlisten) => unlisten?.());
     };
   }, [open]);
@@ -328,22 +328,26 @@ export function CommandPalette({
         .sort((a, b) => {
           const ra = sessionRank(a.s, currentProjectId);
           const rb = sessionRank(b.s, currentProjectId);
-          return ra - rb || (ra === 0 ? sinceMs(a.s) - sinceMs(b.s) : a.i - b.i);
+          return ra - rb || (ra <= 1 ? sinceMs(a.s) - sinceMs(b.s) : a.i - b.i);
         })
         .map(({ s }) => s),
     [sessions, currentProjectId],
   );
-  // 고른 줄 — 기다리는 세션이 오면 그 줄을 고른다(아직 아무것도 안 쳤을 때, 연 동안 한 번). ⌘K ↩ 가 ⌘J 와 같은
-  // 곳에 간다. 세션 목록은 늦게 와서, 그 사이 cmdk 가 이미 첫 줄(오늘)을 골라 둔다.
+  // 고른 줄 — 기다리는 세션이 오면 그 줄을 고른다(아직 아무것도 안 쳤고 줄을 옮기지도 않았을 때, 연 동안 한 번).
+  // 이 창의 기다림이 있으면 ⌘K ↩ 가 ⌘J 의 첫 세션과 같은 곳에 간다. 다른 창의 세션은 그 창을 앞으로 가져올 뿐 그
+  // 칸까지 고르지는 못한다. 세션 목록은 늦게 와서 그 사이 cmdk 가 첫 줄(오늘)을 골라 두는데, 사람이 이미 ↓ 로
+  // 옮긴 줄은 빼앗지 않는다 — 그러면 ↩ 가 엉뚱한 곳에 갔다.
   const [selected, setSelected] = useState("");
   const preselected = useRef(false);
+  const moved = useRef(false);
   useEffect(() => {
     if (open) return;
     preselected.current = false;
+    moved.current = false;
     setSelected("");
   }, [open]);
   useEffect(() => {
-    if (!open || preselected.current || search) return;
+    if (!open || preselected.current || moved.current || search) return;
     const first = sessionRows[0];
     if (!first || !first.alive || !needsMe(first.status)) return;
     preselected.current = true;
@@ -364,16 +368,8 @@ export function CommandPalette({
   const where = distinctWhere(projects ?? []);
   const terms = useMemo(() => countByProject(sessions), [sessions]);
 
-  // 두 글자 이상인데 화면 이름에 안 걸리면 일지 묶음을 위로 — 그 검색은 일지를 찾는 것이다.
-  const screenHit = useMemo(
-    () =>
-      navItems.some((it) => it.id !== "view-settings" && matchScore(query, it.keywords) > 0),
-    [navItems, query],
-  );
-  const filter = (value: string, q: string, keywords?: string[]) => {
-    if (value.startsWith("journal:")) return screenHit ? JOURNAL_LAST : JOURNAL_FIRST;
-    return matchScore(q, keywords ?? []);
-  };
+  const filter = (value: string, q: string, keywords?: string[]) =>
+    value.startsWith("journal:") ? JOURNAL_SCORE : matchScore(q, keywords ?? []);
 
   // Esc · Tab 트랩 · 닫힐 때 포커스 복원 — 다른 모달(AppDialog)과 같은 훅.
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -410,24 +406,21 @@ export function CommandPalette({
         filter={filter}
         value={selected}
         onValueChange={setSelected}
+        onKeyDown={(e) => {
+          if (MOVE_KEYS.has(e.key) || (e.ctrlKey && "jknp".includes(e.key))) moved.current = true;
+        }}
       >
         <Command.Input
           autoFocus
           value={search}
           onValueChange={setSearch}
-          placeholder={t("palette.placeholder")}
+          // 시작 창엔 화면 · 일지가 없다 — 찾을 수 없는 것을 자리표시가 약속하지 않게.
+          placeholder={t(ws ? "palette.placeholder" : "palette.placeholderStart")}
           className="palette-input"
         />
         {/* 찾는 동안은 aria-busy — 줄이 아직 오는 중인 목록이다(그 사이 빈 목록을 「항목 없음」 으로 읽지 않게). */}
         <Command.List className="palette-list scrollbar-thin" label={t("palette.list")} aria-busy={searching || undefined}>
-          {/* 목록(listbox) 안이라 status 같은 역할을 못 단다 — cmdk 의 빈 칸과 같이 presentation. */}
-          {searching ? (
-            <div className="palette-status" role="presentation">
-              {t("palette.searching")}
-            </div>
-          ) : (
-            <Command.Empty className="palette-status">{t("palette.empty")}</Command.Empty>
-          )}
+          {searching ? null : <Command.Empty className="palette-status">{t("palette.empty")}</Command.Empty>}
           {sessionRows.length > 0 ? (
             <Command.Group heading={t("palette.group.sessions")}>
               {sessionRows.map((s) => {
@@ -519,6 +512,14 @@ export function CommandPalette({
               ))}
             </Command.Group>
           ) : null}
+          {/* 찾는 중 — 일지 묶음이 설 자리(맨 끝)에 정지 글자 한 줄. 맨 위에 두면 맞은 줄이 있어도 글자 하나 칠 때마다
+              줄 전체가 한 줄씩 내려갔다 올라왔다. 맞은 줄이 없으면 혼자라 판 가운데에 선다. 목록(listbox) 안이라
+              status 같은 역할을 못 단다 — cmdk 의 빈 칸과 같이 presentation. */}
+          {searching ? (
+            <div className="palette-status" role="presentation">
+              {t("palette.searching")}
+            </div>
+          ) : null}
         </Command.List>
         <div className="palette-foot">
           <span>
@@ -527,7 +528,7 @@ export function CommandPalette({
           <span>
             <kbd className="kbd">⏎</kbd> {t("palette.foot.open")}
           </span>
-          <span className="palette-foot-hint">{t("palette.footHint")}</span>
+          {ws ? <span className="palette-foot-hint">{t("palette.footHint")}</span> : null}
         </div>
       </Command>
     </div>

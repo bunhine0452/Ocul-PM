@@ -8,6 +8,8 @@ const fx = vi.hoisted(() => ({
   projects: [] as Project[],
   listFails: 0,
   briefGate: null as null | Promise<void>,
+  openIds: [] as number[],
+  adopted: [] as number[],
 }));
 
 vi.mock("@/lib/bindings", () => ({
@@ -31,8 +33,11 @@ vi.mock("@/api/projects", () => ({
 }));
 vi.mock("@/api/window", () => ({
   windowApi: {
-    adoptProject: async () => true,
-    openProjectIds: async () => [],
+    adoptProject: async (id: number) => {
+      fx.adopted.push(id);
+      return true;
+    },
+    openProjectIds: async () => fx.openIds,
     onOpenProjectsChanged: async () => () => {},
     attention: async () => new Map(),
     onAttentionChanged: async () => () => {},
@@ -75,6 +80,8 @@ beforeEach(() => {
   fx.projects = [project(1, "ocul-pm", "/Users/me/dev/ocul-pm", 2), project(2, "naeri", "/Users/me/dev/naeri", 1)];
   fx.listFails = 0;
   fx.briefGate = null;
+  fx.openIds = [];
+  fx.adopted = [];
 });
 afterEach(() => cleanup());
 
@@ -149,5 +156,41 @@ describe("start window — keyboard", () => {
     expect(document.activeElement?.querySelector(".prow-name")?.textContent).toBe("naeri");
     fireEvent.keyDown(document.activeElement!, { key: "k", code: "KeyK" });
     expect(document.activeElement?.querySelector(".prow-name")?.textContent).toBe("ocul-pm");
+  });
+
+  it("↩ in the filter opens the top row on screen — the 「open windows」 group comes first", async () => {
+    // naeri 는 다른 창에 열려 있다 — 최근 순으로는 둘째지만 화면에서는 「열린 창」 묶음이라 맨 위다.
+    fx.openIds = [2];
+    render(<StartWindow />);
+    await screen.findByText(t("start.groupOpen"));
+    const find = screen.getByRole("textbox", { name: t("sidebar.findProject") });
+    fireEvent.change(find, { target: { value: "dev/" } });
+    expect(rowNames()).toEqual(["naeri", "ocul-pm"]);
+    fireEvent.keyDown(find, { key: "Enter" });
+    expect(fx.adopted).toEqual([2]);
+  });
+
+  it("Korean (2-set) keys on a row only move focus to the filter — the IME composes there", async () => {
+    render(<StartWindow />);
+    await waitFor(() => expect(document.activeElement?.classList.contains("start-row-open")).toBe(true));
+    const find = screen.getByRole("textbox", { name: t("sidebar.findProject") });
+    // 낱자를 칸에 직접 넣으면 입력기 밖에 박힌다 — 막지 않고(기본 동작이 새 칸으로 간다) 포커스만 옮긴다.
+    // i18n-ignore-next-line -- 두벌식 낱자가 검사 재료다
+    expect(fireEvent.keyDown(document.activeElement!, { key: "ㅇ", code: "KeyD" })).toBe(true);
+    expect(document.activeElement).toBe(find);
+    expect(find).toHaveValue("");
+    act(() => screen.getAllByRole("button", { name: /ocul-pm/ })[0].focus());
+    expect(fireEvent.keyDown(document.activeElement!, { key: "Process", code: "KeyD", keyCode: 229 })).toBe(true);
+    expect(document.activeElement).toBe(find);
+    expect(find).toHaveValue("");
+  });
+
+  it("coming back from settings puts focus on the first row again", async () => {
+    render(<StartWindow />);
+    const name = await screen.findByText("ocul-pm", { selector: ".prow-name" });
+    await waitFor(() => expect(document.activeElement).toBe(name.closest("button")));
+    await act(async () => void fireEvent.keyDown(window, { key: ",", code: "Comma", metaKey: true }));
+    fireEvent.click(await screen.findByRole("button", { name: t("start.recent") }));
+    await waitFor(() => expect(document.activeElement?.querySelector(".prow-name")?.textContent).toBe("ocul-pm"));
   });
 });

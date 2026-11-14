@@ -3,17 +3,28 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const fx = vi.hoisted(() => ({
   list: [] as unknown[],
+  overview: [] as unknown[],
+  open: [] as number[],
   attention: new Map<number, { project_id: number; waiting: number; failing: boolean }>(),
+  asked: [] as number[][],
   openWindow: vi.fn(async (_id: number) => null),
 }));
 
-vi.mock("@/api/terminal", () => ({ terminalApi: { list: async () => fx.list } }));
+vi.mock("@/api/terminal", () => ({ terminalApi: { list: async () => fx.list, overview: async () => fx.overview } }));
 vi.mock("@/api/window", () => ({
-  windowApi: { attention: async () => fx.attention, openProjectWindow: fx.openWindow },
+  windowApi: {
+    openProjectIds: async () => fx.open,
+    attention: async (ids: number[]) => {
+      fx.asked.push(ids);
+      return new Map([...fx.attention].filter(([id]) => ids.includes(id)));
+    },
+    openProjectWindow: fx.openWindow,
+  },
 }));
 
 import { __resetJumpForTests, jumpToWaiting, nextWaiting, waitingOrder } from "@/features/shell/jumpWaiting";
 import { onTermFocusRequested, takeTermFocus } from "@/features/terminal/focusRequest";
+import { NAV_BUS } from "@/lib/navRegistry";
 import { toast } from "@/lib/toast";
 import { t } from "@/i18n";
 import type { TermInfo } from "@/lib/bindings";
@@ -42,7 +53,10 @@ afterEach(() => {
   __resetJumpForTests();
   takeTermFocus();
   fx.list = [];
+  fx.overview = [];
+  fx.open = [];
   fx.attention = new Map();
+  fx.asked = [];
   fx.openWindow.mockClear();
   vi.restoreAllMocks();
 });
@@ -79,25 +93,50 @@ describe("jumpToWaiting", () => {
     fx.list = [blocked(2, "10:05"), blocked(3, "10:00")];
     const asked: number[] = [];
     const off = onTermFocusRequested((id) => asked.push(id));
-    expect(await jumpToWaiting(1, [1, 2])).toBe("session");
-    expect(await jumpToWaiting(1, [1, 2])).toBe("session");
+    expect(await jumpToWaiting(1)).toBe("session");
+    expect(await jumpToWaiting(1)).toBe("session");
     off();
     expect(asked).toEqual([3, 2]);
     expect(fx.openWindow).not.toHaveBeenCalled();
   });
 
-  it("brings the other project window that waits most to the front when this window has no turn", async () => {
+  it("a question in this project goes to Today — not 「no session is waiting」", async () => {
+    fx.open = [1];
+    fx.attention = new Map([[1, { project_id: 1, waiting: 1, failing: false }]]);
+    const views: string[] = [];
+    const onView = (e: Event) => views.push((e as CustomEvent<string>).detail);
+    window.addEventListener(NAV_BUS.setView, onView);
+    const info = vi.spyOn(toast, "info");
+    expect(await jumpToWaiting(1)).toBe("today");
+    window.removeEventListener(NAV_BUS.setView, onView);
+    expect(views).toEqual(["today"]);
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it("another window's session waits by the same rule as this window's — the oldest one's window comes forward", async () => {
+    fx.open = [1, 2, 3];
+    fx.overview = [{ ...blocked(7, "10:05"), project_id: 2 }, { ...blocked(8, "10:00"), project_id: 3 }, blocked(9, "09:00")];
+    // 다른 창의 질문이 더 많아도 세션 기다림이 먼저다.
+    fx.attention = new Map([[2, { project_id: 2, waiting: 3, failing: false }]]);
+    expect(await jumpToWaiting(1)).toBe("window");
+    expect(fx.openWindow).toHaveBeenCalledWith(3);
+  });
+
+  it("falls back to the open window that waits most — never opens a window for a project without one", async () => {
+    fx.open = [1, 2];
     fx.attention = new Map([
       [2, { project_id: 2, waiting: 1, failing: false }],
       [3, { project_id: 3, waiting: 2, failing: false }],
     ]);
-    expect(await jumpToWaiting(1, [1, 2, 3])).toBe("window");
-    expect(fx.openWindow).toHaveBeenCalledWith(3);
+    expect(await jumpToWaiting(1)).toBe("window");
+    expect(fx.openWindow).toHaveBeenCalledWith(2);
+    expect(fx.asked.flat()).not.toContain(3);
   });
 
   it("says so quietly when nothing waits anywhere", async () => {
+    fx.open = [1];
     const info = vi.spyOn(toast, "info");
-    expect(await jumpToWaiting(1, [1])).toBe("none");
+    expect(await jumpToWaiting(1)).toBe("none");
     expect(info).toHaveBeenCalledWith(t("nav.jumpWaitingNone"), expect.objectContaining({ dedupKey: expect.any(String) }));
     expect(takeTermFocus()).toBeNull();
   });

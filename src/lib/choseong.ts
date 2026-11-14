@@ -28,9 +28,47 @@ export function toChoseong(text: string): string {
   return out;
 }
 
-/** 검색어가 자음 낱자(ㄱ~ㅎ)만으로 이뤄졌나 — 띄어쓰기는 상관없다. */
+/** 자음 낱자(호환 자모)의 범위 — ㄱ U+3131 부터 ㅎ U+314E 까지. 겹받침 낱자(ㄳ …)도 이 안에 든다. */
+const JAMO_FIRST = 0x3131;
+const JAMO_LAST = 0x314e;
+
+function isJamo(ch: string): boolean {
+  const c = ch.codePointAt(0) ?? 0;
+  return c >= JAMO_FIRST && c <= JAMO_LAST;
+}
+
+/** 검색어가 자음 낱자만으로 이뤄졌나 — 띄어쓰기는 상관없다. */
 export function isChoseongQuery(query: string): boolean {
-  return /^[ㄱ-ㅎ\s]+$/.test(query) && /[ㄱ-ㅎ]/.test(query);
+  const chars = [...query].filter((ch) => !/\s/.test(ch));
+  return chars.length > 0 && chars.every(isJamo);
+}
+
+/**
+ * 겹받침 낱자를 두 초성으로 — ㄳ → ㄱㅅ, ㄵ → ㄴㅈ … ㅄ → ㅂㅅ. 입력기가 「ㄱ」 다음 「ㅅ」 을 ㄳ 한 자로 합치는데
+ * (Windows MS IME), 초성은 19자뿐이라 합친 채로는 아무것도 안 맞았다(「ㄱㅅ」 → 기술). 쌍자음(ㄲ ㄸ ㅃ ㅆ ㅉ)은
+ * 그 자체가 초성이라 그대로 둔다.
+ */
+const CLUSTERS: Record<number, [number, number]> = {
+  0x3133: [0x3131, 0x3145], // ㄳ
+  0x3135: [0x3134, 0x3148], // ㄵ
+  0x3136: [0x3134, 0x314e], // ㄶ
+  0x313a: [0x3139, 0x3131], // ㄺ
+  0x313b: [0x3139, 0x3141], // ㄻ
+  0x313c: [0x3139, 0x3142], // ㄼ
+  0x313d: [0x3139, 0x3145], // ㄽ
+  0x313e: [0x3139, 0x314c], // ㄾ
+  0x313f: [0x3139, 0x314d], // ㄿ
+  0x3140: [0x3139, 0x314e], // ㅀ
+  0x3144: [0x3142, 0x3145], // ㅄ
+};
+
+function splitClusters(query: string): string {
+  let out = "";
+  for (const ch of query) {
+    const pair = CLUSTERS[ch.codePointAt(0) ?? 0];
+    out += pair ? String.fromCodePoint(...pair) : ch;
+  }
+  return out;
 }
 
 /** 단어 시작 — 띄어쓰기 · 구두점 · 경로 구분자 뒤. */
@@ -53,7 +91,7 @@ function choseongHit(text: string, cho: string): boolean {
 export function matchScore(query: string, texts: readonly string[]): number {
   const q = query.trim().toLowerCase();
   if (!q) return 1;
-  const cho = isChoseongQuery(q) ? q.replace(/\s+/g, "") : null;
+  const cho = isChoseongQuery(q) ? splitClusters(q.replace(/\s+/g, "")) : null;
   let best = 0;
   for (const raw of texts) {
     const text = raw.trim().toLowerCase();
