@@ -4,7 +4,7 @@
  * 재료는 따로 읽는다. 하나가 늦거나 실패해도 나머지는 선다:
  *   - 오늘 일지 + 총 일지 수   `oculpm_workday_brief([workday])`  — 일지가 바뀌면
  *   - 계획 집계              `today_digest`                      — 계획 파일이 바뀌면
- *   - 일지 없는 파일          `oculpm_compare_workday`            — 일지가 바뀌면
+ *   - 일지 없는 파일          `oculpm_compare_workday`            — 일지가 바뀌거나 세션이 끝나면
  *   - 일지 없이 끝난 대화      `journal_missing_signals(1일)`      — 일지가 바뀌거나 세션이 끝나면
  *   - 동료의 일지 · 이 기기에만 · 받아 온 것 (git 을 읽는다)        — 일지 · 계획이 바뀌면, 창으로 돌아오면
  *   - 플러그인 판             `claude_plugin_status`              — 처음 한 번
@@ -248,8 +248,9 @@ function listen(projectId: number): () => void {
         else safeUnlisten(off);
       })
       .catch(() => {});
-  // 세션이 끝나면 「일지 없이 끝난 대화」가 새로 생길 수 있다.
-  keep(oculpmApi.onSessionEnded((p) => p.project_id === projectId && request(projectId, ["silent"])));
+  // 세션이 끝나면 「일지 없이 끝난 대화」가 새로 생길 수 있고, 일지 없는 파일(그 세션의 파일 사건)도 다시 센다 —
+  // 일지 없이 끝난 세션 뒤에는 일지 사건이 오지 않아, 앱 안 터미널에서 일했다면 창 복귀도 없이 늦었다.
+  keep(oculpmApi.onSessionEnded((p) => p.project_id === projectId && request(projectId, ["silent", "unrecorded"])));
   keep(hooksApi.onWaitingChanged((pid) => pid === projectId && request(projectId, ["waiting"])));
   keep(hooksApi.onQuestionsChanged((pid) => pid === projectId && request(projectId, ["questions"])));
   return () => {

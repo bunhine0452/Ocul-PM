@@ -85,12 +85,18 @@ describe("moving between rows", () => {
 });
 
 describe("v · r · Enter act only inside a row", () => {
-  it("v with the screen focused does not mark anything read", async () => {
+  it("v with the screen focused does not mark the row it just left read", async () => {
     const { root } = await mount();
-    root.focus();
+    // 먼저 목록에 들어가 「지금 행」 을 만든 뒤 나온다 — 그 행이 보이지 않는 대상이 되던 것이 결함이었다.
+    fireEvent.keyDown(root, { key: "j" });
+    const first = rowsOf(unreadCard())[0];
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: "Escape" });
+    expect(document.activeElement).toBe(root);
     fireEvent.keyDown(root, { key: "v" });
     await new Promise((r) => setTimeout(r, 30));
     expect(fx.verifyCalls).toEqual([]);
+    expect(rowsOf(unreadCard())).toHaveLength(3);
   });
 
   it("after v the focus moves to the row that took its place, so j keeps going (not to body)", async () => {
@@ -115,6 +121,45 @@ describe("v · r · Enter act only inside a row", () => {
     expect(row.dataset.kind).toBe("question");
     fireEvent.keyDown(row, { key: "Enter" });
     expect(document.activeElement).toBe(within(row).getByRole("textbox", { name: t("today.check.answerPlaceholder") }));
+  });
+});
+
+describe("the focus never falls to body when what held it goes away", () => {
+  it("after 'mark all read' the focus lands on the row that is left", async () => {
+    fx.unrecorded = ["src/a.ts"];
+    const { root } = await mount();
+    const all = within(unreadCard()).getByRole("button", { name: t("today.unread.allRead") });
+    all.focus();
+    fireEvent.click(all);
+    await waitFor(() => expect(screen.queryByRole("region", { name: t("today.unread.title") })).toBeNull());
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toBe(screen.getByRole("region", { name: t("today.check.title") }).querySelector("[data-row]"));
+    expect(root.contains(document.activeElement)).toBe(true);
+  });
+
+  it("a row's own 'read' button lands on the row that took its place — not the top of the list", async () => {
+    await mount();
+    const [, second, third] = rowsOf(unreadCard());
+    const read = within(second).getByRole("button", { name: t("today.check.verifyAria", { title: "unread 2" }) });
+    read.focus();
+    fireEvent.click(read);
+    await waitFor(() => expect(rowsOf(unreadCard())).toHaveLength(2));
+    expect(document.activeElement).toBe(third);
+  });
+
+  it("'N more' turns into 'show fewer' in place — the focus stays on it, and it folds back", async () => {
+    fx.entries = Array.from({ length: 7 }, (_, i) => entry(i + 1, { type: "bug", evidence: 0, title: `unread ${i + 1}` }));
+    renderToday();
+    await waitFor(() => expect(rowsOf(unreadCard())).toHaveLength(5));
+    const more = within(unreadCard()).getByRole("button", { name: t("today.unread.more", { n: 2 }) });
+    more.focus();
+    fireEvent.click(more);
+    expect(rowsOf(unreadCard())).toHaveLength(7);
+    expect(document.activeElement).toBe(more);
+    expect(more).toHaveTextContent(t("today.unread.less"));
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(more);
+    expect(rowsOf(unreadCard())).toHaveLength(5);
   });
 });
 

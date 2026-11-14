@@ -33,6 +33,22 @@ const rowOf = (kind: string) =>
     return el;
   });
 const failed = { passed: false, summary: "2 failed, 418 passed", ts: new Date().toISOString(), agent_id: "claude-code", item_id: "x" };
+/** 이 창의 터미널 세션 — `busy` 면 셸 위에서 무언가 돈다. */
+const termSession = (id: number, busy: boolean) => ({ id, project_id: 1, label: "zsh", started_at: new Date().toISOString(), alive: true, exit_code: null, busy, status: null });
+/** 150분째 기록이 없는 작업 세션 — 「지금 일하는 중」 이 조용하다고 말한다. */
+const quietSession = {
+  id: "s-1",
+  started_at: new Date(Date.now() - 150 * 60_000).toISOString(),
+  ended_at: null,
+  ended_reason: null,
+  active_window_ms: 0,
+  file_event_count: 1,
+  files_unique: 1,
+  git_head_at_start: null,
+  git_head_at_end: null,
+  agent_label_guess: "claude-code",
+  linked_journal_entries: [],
+};
 
 beforeEach(() => {
   resetFx();
@@ -86,30 +102,29 @@ describe("each exception offers its next step", () => {
     expect(meta.title).toBe("#hook");
   });
 
-  it("a quiet session says how long in hours, plainly, and offers the terminal it runs in", async () => {
-    const since = new Date().toISOString();
-    fx.terms = [{ id: 9, project_id: 1, label: "claude", started_at: since, alive: true, exit_code: null, busy: true, status: null }];
-    fx.sessions = [
-      {
-        id: "s-1",
-        started_at: new Date(Date.now() - 150 * 60_000).toISOString(),
-        ended_at: null,
-        ended_reason: null,
-        active_window_ms: 0,
-        file_event_count: 1,
-        files_unique: 1,
-        git_head_at_start: null,
-        git_head_at_end: null,
-        agent_label_guess: "claude-code",
-        linked_journal_entries: [],
-      },
-    ];
+  it("a quiet session says how long in hours, plainly, and offers the one terminal session running something", async () => {
+    fx.terms = [termSession(9, true), termSession(4, false)];
+    fx.sessions = [quietSession];
     const { onNavigate } = renderToday();
     const live = await screen.findByRole("region", { name: t("today.live.title") });
     expect(within(live).getByText(t("today.live.quietHours", { n: 2 }))).toBeInTheDocument();
     fireEvent.click(within(live).getByRole("button", { name: t("today.check.openTerminal") }));
     expect(takeTermFocus()).toBe(9);
     expect(onNavigate).toHaveBeenCalledWith("terminal");
+  });
+
+  it("does not guess a terminal: only an idle shell (the agent runs outside) or two running sessions — no button", async () => {
+    fx.sessions = [quietSession];
+    fx.terms = [termSession(4, false)];
+    renderToday();
+    const live = await screen.findByRole("region", { name: t("today.live.title") });
+    expect(within(live).queryByRole("button", { name: t("today.check.openTerminal") })).toBeNull();
+    cleanup();
+    __resetTodayStoreForTests();
+    fx.terms = [termSession(9, true), termSession(10, true)];
+    renderToday();
+    const again = await screen.findByRole("region", { name: t("today.live.title") });
+    expect(within(again).queryByRole("button", { name: t("today.check.openTerminal") })).toBeNull();
   });
 });
 

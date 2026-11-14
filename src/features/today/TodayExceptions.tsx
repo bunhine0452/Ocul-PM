@@ -14,7 +14,7 @@
  * 고정폭이다(영수증 규칙 2).
  */
 
-import { useState, type FocusEvent, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Check, SquareTerminal } from "@/components/Icons";
 import { VerdictLine } from "@/components/VerdictLine";
@@ -56,7 +56,6 @@ export interface RowNav {
   /** 로빙 탭 — 목록에서 하나만 0 이다. */
   tabIndex: 0 | -1;
   rowRef: (el: HTMLLIElement | null) => void;
-  onFocus: () => void;
 }
 
 /** 행의 동작 하나. 첫 동작(막히지 않은 것)이 그 행의 기본 동작이다. */
@@ -76,17 +75,24 @@ function mono(text: string): ReactNode {
   return <span className="mono">{text}</span>;
 }
 
-/** 번역된 문장 안의 기계 글씨 한 조각(경로 · 시각)만 고정폭으로 — 사전에는 JSX 를 넣지 않는다. */
-function monoPart(full: string, part: string): ReactNode {
-  const at = part ? full.indexOf(part) : -1;
-  if (at < 0) return full;
-  return (
-    <>
-      {full.slice(0, at)}
-      {mono(part)}
-      {full.slice(at + part.length)}
-    </>
-  );
+/** 번역된 문장 안의 기계 글씨 조각(경로 · 시각 · 판 번호)만 고정폭으로, 나온 차례대로 — 사전에는 JSX 를 넣지 않는다. */
+function monoPart(full: string, ...parts: string[]): ReactNode {
+  const out: ReactNode[] = [];
+  let rest = full;
+  for (const part of parts) {
+    const at = part ? rest.indexOf(part) : -1;
+    if (at < 0) continue;
+    out.push(
+      rest.slice(0, at),
+      <span key={out.length} className="mono">
+        {part}
+      </span>,
+    );
+    rest = rest.slice(at + part.length);
+  }
+  if (out.length === 0) return full;
+  out.push(rest);
+  return <>{out}</>;
 }
 
 /** 메타 한 줄 — 빈 조각은 빼고 「 · 」 로 잇는다. */
@@ -106,9 +112,16 @@ function shortId(id: string): string {
 
 interface RowText {
   title: string;
+  /** 제목을 그릴 때 — 기계 글씨 조각만 고정폭으로. 없으면 `title` 그대로. */
+  titleNode?: ReactNode;
   meta: ReactNode;
   /** 잘린 메타의 전문 — 툴팁. */
   metaTitle?: string;
+}
+
+/** 메타 조각들의 글자 — 한 줄로 잘리는 메타의 툴팁(전문). */
+function metaText(parts: Array<string | null | false | undefined>): string {
+  return parts.filter(Boolean).join(" · ");
 }
 
 function useRowText(ex: TodayException): RowText {
@@ -121,13 +134,24 @@ function useRowText(ex: TodayException): RowText {
       const s = ex.session;
       const word = sessionWord(t, s);
       const when = s.status ? whenLabel(s.status.since) : "";
-      return { title: s.status?.msg || word, meta: metaLine([s.label, s.status?.msg ? word : "", when && mono(when)]) };
+      const msgWord = s.status?.msg ? word : "";
+      return {
+        title: s.status?.msg || word,
+        meta: metaLine([s.label, msgWord, when && mono(when)]),
+        metaTitle: metaText([s.label, msgWord, when]),
+      };
     }
     case "hookWaiting": {
       // 바깥 터미널 — 앱 안에서 갈 곳이 없으니 무엇을 기다리는지와 언제부터인지만.
       const w = ex.item;
       const word = w.kind === "permission" ? t("terminal.state.permission") : t("terminal.state.idle");
-      return { title: w.message || word, meta: metaLine([t("today.check.outsideTerminal"), w.message ? word : "", mono(whenLabel(w.since))]) };
+      const when = whenLabel(w.since);
+      const msgWord = w.message ? word : "";
+      return {
+        title: w.message || word,
+        meta: metaLine([t("today.check.outsideTerminal"), msgWord, mono(when)]),
+        metaTitle: metaText([t("today.check.outsideTerminal"), msgWord, when]),
+      };
     }
     case "verdict":
       return { title: t("today.check.verdictTitle", { plan: ex.plan.title }), meta: null };
@@ -163,8 +187,11 @@ function useRowText(ex: TodayException): RowText {
         metaTitle: ex.items.map((it) => `#${it.item_id}`).join(" "),
       };
     }
-    case "plugin":
-      return { title: t("today.pluginDrift.title", { installed: ex.installed, bundled: ex.bundled }), meta: mono("/plugin update oculpm@oculpm") };
+    case "plugin": {
+      // 판 번호는 기계 글씨다(영수증 규칙 2) — 문장은 본문 서체, 두 번호만 고정폭.
+      const title = t("today.pluginDrift.title", { installed: ex.installed, bundled: ex.bundled });
+      return { title, titleNode: monoPart(title, ex.installed, ex.bundled), meta: mono("/plugin update oculpm@oculpm") };
+    }
   }
 }
 
@@ -172,7 +199,8 @@ function useRowText(ex: TodayException): RowText {
  * Claude 의 질문에 답하는 칸 (MCP ask_user) — 앱 안에서 Claude 의 말을 읽고 답하는 곳은 여기뿐이라 질문은
  * 잘리지 않고 다 보인다(편지처럼). 고를 답이 있으면 단추로, 직접 쓸 수도 있다. 답하면 기다리던 도구가 그 답을
  * Claude 에게 돌려준다(앱 안 · 바깥 터미널 모두). 「보내기」 는 보통 단추다 — 채운 단추는 화면에 하나(영수증
- * 규칙 3, 「터미널에서 실행」). 비어 있으면 단추 대신 ↩ 표시만 둔다.
+ * 규칙 3, 「터미널에서 실행」). 비어 있으면 단추 대신 ↩ 표시만 둔다. 쓴 답은 실제로 간 뒤에 비운다 — 못 보냈으면
+ * 사람이 쓴 문장을 그대로 둬 처음부터 다시 쓰지 않게.
  */
 function QuestionAnswer({
   ex,
@@ -181,7 +209,8 @@ function QuestionAnswer({
   sending,
 }: {
   ex: Extract<TodayException, { kind: "question" }>;
-  onAnswer: (id: string, answer: string) => void;
+  /** 답을 보낸다 — 갔으면 `true`. */
+  onAnswer: (id: string, answer: string) => Promise<boolean>;
   /** 보낸 시각(`HH:MM`) — 보냈는데 질문이 아직 서 있으면 그 사실을 말한다. */
   sentAt?: string;
   sending: boolean;
@@ -189,17 +218,19 @@ function QuestionAnswer({
   const { t } = useT();
   const [text, setText] = useState("");
   const options = ex.item.options ?? [];
-  const send = (answer: string) => {
+  const send = (answer: string, typedAnswer: boolean) => {
     const a = answer.trim();
     if (!a) return;
-    onAnswer(ex.item.id, a);
-    setText("");
+    void onAnswer(ex.item.id, a).then((ok) => {
+      // 그사이 더 쓴 글은 지우지 않는다 — 보낸 그 글일 때만 비운다.
+      if (ok && typedAnswer) setText((cur) => (cur.trim() === a ? "" : cur));
+    });
   };
   const typed = text.trim() !== "";
   return (
     <div className="tdy-answer">
       {options.map((o) => (
-        <button key={o} type="button" className="btn sm tdy-option" disabled={sending} onClick={() => send(o)}>
+        <button key={o} type="button" className="btn sm tdy-option" disabled={sending} onClick={() => send(o, false)}>
           {o}
         </button>
       ))}
@@ -213,7 +244,7 @@ function QuestionAnswer({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.nativeEvent.isComposing) {
               e.preventDefault();
-              send(text);
+              send(text, true);
             }
           }}
         />
@@ -224,7 +255,7 @@ function QuestionAnswer({
         )}
       </span>
       {typed ? (
-        <button type="button" className="btn sm" disabled={sending} onClick={() => send(text)}>
+        <button type="button" className="btn sm" disabled={sending} onClick={() => send(text, true)}>
           {t("send.submit")}
         </button>
       ) : null}
@@ -241,20 +272,33 @@ function QuestionAnswer({
 function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "stale" | "elsewhere" }> }) {
   const { t } = useT();
   const parts: ReactNode[] = [];
-  if (ex.plan.check) parts.push(<code className="mono">{ex.plan.check}</code>);
-  parts.push(t("today.check.inPlan", { plan: ex.plan.title }));
+  // 툴팁의 전문 — 바뀐 파일은 「외 N」 으로 줄이지 않고 다 적는다.
+  const full: string[] = [];
+  if (ex.plan.check) {
+    parts.push(<code className="mono">{ex.plan.check}</code>);
+    full.push(ex.plan.check);
+  }
+  const inPlan = t("today.check.inPlan", { plan: ex.plan.title });
+  parts.push(inPlan);
+  full.push(inPlan);
   if (ex.kind === "stale") {
     const [first, ...rest] = ex.files;
     const files = rest.length > 0 ? t("today.check.moreFiles", { first, n: rest.length }) : first;
     parts.push(monoPart(t("today.check.staleFiles", { files }), first));
+    full.push(t("today.check.staleFiles", { files: ex.files.join(", ") }));
   }
-  if (ex.kind === "elsewhere") parts.push(t("today.check.elsewhereSub", { os: osLabel(ex.os) }));
+  if (ex.kind === "elsewhere") {
+    const sub = t("today.check.elsewhereSub", { os: osLabel(ex.os) });
+    parts.push(sub);
+    full.push(sub);
+  }
   return (
     <VerdictLine
       state={ex.kind === "stale" ? "stale" : ex.kind === "elsewhere" ? "away" : "fail"}
       summary={ex.verdict.summary}
       when={whenLabel(ex.verdict.ts)}
       sub={metaLine(parts)}
+      subTitle={full.join(" · ")}
       bare
     />
   );
@@ -273,15 +317,13 @@ function RowActions({ actions }: { actions: RowAction[] }) {
   );
 }
 
+/** 행의 키보드 자리. 포커스가 행(또는 그 안의 단추)에 들면 「지금 행」 이 되는 것은 화면 루트가 맡는다. */
 function rowProps(nav: RowNav) {
   return {
     ref: nav.rowRef,
     tabIndex: nav.tabIndex,
     "data-row": nav.index,
     "data-active": nav.active ? "" : undefined,
-    onFocus: (e: FocusEvent<HTMLLIElement>) => {
-      if (e.target === e.currentTarget) nav.onFocus();
-    },
   };
 }
 
@@ -296,12 +338,12 @@ function ExceptionRow({
   ex: TodayException;
   nav: RowNav;
   actions: RowAction[];
-  onAnswer: (id: string, answer: string) => void;
+  onAnswer: (id: string, answer: string) => Promise<boolean>;
   sentAt?: string;
   sending: boolean;
 }) {
   const { t } = useT();
-  const { title, meta, metaTitle } = useRowText(ex);
+  const { title, titleNode, meta, metaTitle } = useRowText(ex);
   const pill = PILL[ex.kind as ChipKind];
   const isVerdict = ex.kind === "verdict" || ex.kind === "stale" || ex.kind === "elsewhere";
   const isQuestion = ex.kind === "question";
@@ -316,7 +358,7 @@ function ExceptionRow({
           <>
             {/* 질문은 잘리지 않는다 — 그 밖의 제목은 한 줄로 자르고 전문은 툴팁. */}
             <div className={"tdy-row-title" + (isQuestion ? " tdy-wrap" : "")} title={isQuestion ? undefined : title}>
-              {title}
+              {titleNode ?? title}
             </div>
             {meta ? (
               <div className="tdy-meta" title={metaTitle}>
@@ -418,7 +460,8 @@ function UnreadRow({
     <li {...rowProps(nav)} className="tdy-row tdy-unread" data-kind={ex.kind} aria-label={e.title} title={why}>
       <span className="tdy-time">{whenLabel(e.created_at)}</span>
       <div className="tdy-row-t">
-        <button type="button" className="tdy-row-title tdy-row-open" onClick={() => onOpen(e)}>
+        {/* 제목은 두 줄에서 잘린다 — 그 위에서는 행의 이유가 아니라 제목 전문이 툴팁이다(가까운 title 이 이긴다). */}
+        <button type="button" className="tdy-row-title tdy-row-open" title={e.title} onClick={() => onOpen(e)}>
           {e.title}
         </button>
         {meta ? (
@@ -474,8 +517,8 @@ interface TodayExceptionsProps {
   onRetry: () => void;
   navFor: (index: number) => RowNav;
   actionsFor: (ex: TodayException) => RowAction[];
-  /** Claude 의 질문에 답한다 (MCP ask_user). */
-  onAnswer: (id: string, answer: string) => void;
+  /** Claude 의 질문에 답한다 (MCP ask_user) — 갔으면 `true`. */
+  onAnswer: (id: string, answer: string) => Promise<boolean>;
   /** 질문 id → 보낸 시각. */
   sent: Readonly<Record<string, string>>;
   /** 이 질문에 보낸 답이 아직 가는 중인가 — 그동안 답 단추를 잠근다. */
@@ -564,8 +607,10 @@ export function TodayExceptions({
 
 interface TodayUnreadProps {
   split: TodaySplit | null;
-  /** 지금 그리는 행 — `UNREAD_LIMIT` 행이거나, 「N건 더」 를 눌렀으면 전부. */
+  /** 지금 그리는 행 — `UNREAD_LIMIT` 행이거나, 펼쳤으면 전부. */
   shown: TodaySplit["unread"];
+  /** 「N건 더」 로 펼친 채인가 — 그러면 같은 단추가 「접기」 다. */
+  expanded: boolean;
   /** 첫 행의 키보드 목록 자리. */
   offset: number;
   navFor: (index: number) => RowNav;
@@ -576,12 +621,28 @@ interface TodayUnreadProps {
   onOpen: (entry: JournalEntrySummary) => void;
   onVerify: (entry: JournalEntrySummary) => void;
   onVerifyAll: (entries: JournalEntrySummary[]) => void;
-  onMore: () => void;
+  onToggleMore: () => void;
   isBusy: (id: string) => boolean;
 }
 
-/** 「검증 없이 끝난 일지」 — 먼저 볼 것 아래 한 묶음, 처음엔 `UNREAD_LIMIT` 행 + 「N건 더」. */
-export function TodayUnread({ split, shown, offset, navFor, showAgent, teammates, onOpen, onVerify, onVerifyAll, onMore, isBusy }: TodayUnreadProps) {
+/**
+ * 「검증 없이 끝난 일지」 — 먼저 볼 것 아래 한 묶음, 처음엔 `UNREAD_LIMIT` 행 + 「N건 더」. 펼치면 같은 단추가
+ * 「접기」 가 된다(같은 단추라 누른 뒤에도 포커스가 그 자리에 있다).
+ */
+export function TodayUnread({
+  split,
+  shown,
+  expanded,
+  offset,
+  navFor,
+  showAgent,
+  teammates,
+  onOpen,
+  onVerify,
+  onVerifyAll,
+  onToggleMore,
+  isBusy,
+}: TodayUnreadProps) {
   const { t } = useT();
   if (!split || split.unread.length === 0) return null;
   const { unread } = split;
@@ -594,9 +655,16 @@ export function TodayUnread({ split, shown, offset, navFor, showAgent, teammates
         <h2 id="tdy-unread-h">{t("today.unread.title")}</h2>
         <span className="tdy-cnt">{unread.length}</span>
         <span className="tdy-sp" />
-        {/* 한 건이면 「모두 읽음」 은 그 행의 「읽음」 과 같은 말이다 — 행의 것만 늘 보이게 둔다. */}
+        {/* 한 건이면 「모두 읽음」 은 그 행의 「읽음」 과 같은 말이다 — 행의 것만 늘 보이게 둔다.
+            누르면 이 카드가 통째로 빠진다 — `data-land` 는 그때 포커스가 갈 자리(이 묶음의 첫 행 자리, 없으면 앞 행). */}
         {single ? null : (
-          <button type="button" className="btn ghost sm" disabled={verifying} onClick={() => onVerifyAll(unread.map((u) => u.entry))}>
+          <button
+            type="button"
+            className="btn ghost sm"
+            data-land={offset}
+            disabled={verifying}
+            onClick={() => onVerifyAll(unread.map((u) => u.entry))}
+          >
             {t("today.unread.allRead")}
           </button>
         )}
@@ -616,9 +684,9 @@ export function TodayUnread({ split, shown, offset, navFor, showAgent, teammates
           />
         ))}
       </ul>
-      {hidden > 0 ? (
-        <button type="button" className="tdy-more" onClick={onMore}>
-          {t("today.unread.more", { n: hidden })}
+      {hidden > 0 || expanded ? (
+        <button type="button" className="tdy-more" aria-expanded={expanded} onClick={onToggleMore}>
+          {expanded ? t("today.unread.less") : t("today.unread.more", { n: hidden })}
         </button>
       ) : null}
     </section>

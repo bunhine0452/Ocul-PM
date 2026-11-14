@@ -279,7 +279,7 @@ describe("확인할 것 — 종류와 순서", () => {
   });
 
   it("이 기기에만 있는 기록은 날짜 줄의 수 하나 — 배지에 안 세고, 누르면 변경 화면 (11-13 · 11-15)", async () => {
-    fx.localOnly = { uncommitted: 5, records: 2, unpushed: 3 };
+    fx.localOnly = { uncommitted: 5, records: 2, unpushed: 3, unpushed_records: 0 };
     const { onNavigate } = renderToday();
     const open = await screen.findByRole("button", { name: t("today.nums.local", { n: 2 }) });
     expect(open.title).toContain(t("today.local.unpushed", { n: 3 }));
@@ -362,7 +362,7 @@ describe("확인할 것 — 종류와 순서", () => {
     // 판정 실패 행은 결과 끝 줄(에이전트의 말이 아니라)을 보여 준다.
     expect(within(card).getByText(/2 failed, 418 passed/)).toBeInTheDocument();
     expect(within(card).getByText(t("today.check.unrecordedTitle", { n: 2 }))).toBeInTheDocument();
-    expect(within(card).getByText(/3\.3\.0 → 4\.0\.0/)).toBeInTheDocument();
+    expect(within(card).getByTitle(/3\.3\.0 → 4\.0\.0/).querySelectorAll(".mono")).toHaveLength(2); // 판 번호 둘은 기계 글씨
   });
 
   it("앱 안 터미널의 Claude 가 내 손을 기다리면 맨 위 한 줄 — 누르면 그 세션의 터미널로", async () => {
@@ -559,7 +559,7 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
     expect(within(work).getByRole("button", { name: new RegExp(t("today.work.outside")), expanded: false })).toBeInTheDocument();
     // 묶음 머리는 예외 수만 — 「검증 n · 없음 m」 은 검증 대상이 아닌 일지를 빼먹어 합이 안 맞았다.
     expect(work.querySelector(".tdy-ok")).toBeNull();
-    expect(within(work).getByText(t("today.work.above", { n: 1 }))).toBeInTheDocument();
+    expect(within(work).getByText(t("today.work.unverified", { n: 1 }))).toBeInTheDocument();
     // 같은 행을 두 번 세우지 않는다 — 검증 없는 일지는 위 칸에만.
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(0);
     expect(within(unreadCard()).getByText("새 폴더 감시 경합")).toBeInTheDocument();

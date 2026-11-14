@@ -71,7 +71,8 @@ describe("the empty day uses the busy day's frame", () => {
 });
 
 describe("chips are short state names", () => {
-  it("every chip on a full screen is at most four letters in Korean", async () => {
+  // 낱말 사이 공백은 세지 않는다 — 「일지 없음」 · 「다른 기기」 는 두 낱말 넉 자다(공백 포함 다섯 칸).
+  it("every chip on a full screen is at most four letters in Korean, spaces not counted", async () => {
     const since = new Date().toISOString();
     fx.questions = [{ id: "q1", question: "ship?", options: [], asked_at: since }];
     fx.terms = [{ id: 3, project_id: 1, label: "claude", started_at: since, alive: true, exit_code: null, busy: true, status: { state: "blocked", kind: "permission", msg: "approve Bash", since } }];
