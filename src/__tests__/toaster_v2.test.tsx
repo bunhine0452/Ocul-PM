@@ -157,7 +157,10 @@ describe("the same key folds — one toast · a count", () => {
     expect(document.querySelectorAll(".toast")).toHaveLength(1);
     const count = document.querySelector(".toast .toast-count")!;
     expect(count.textContent).toBe("3");
-    expect(count.getAttribute("aria-label")).toBe(t("toast.repeat", { n: 3 }));
+    // 숫자는 화면에만, 읽기 프로그램에는 감춘 글자로 — 역할 없는 span 의 aria-label 은 읽히지 않는다.
+    expect(count.getAttribute("aria-hidden")).toBe("true");
+    expect(count.hasAttribute("aria-label")).toBe(false);
+    expect(document.querySelector(".toast .toast-msg .sr-only")?.textContent).toBe(" " + t("toast.repeat", { n: 3 }));
   });
 
   it("a fold replaces the text and restarts the clock", () => {
@@ -182,5 +185,57 @@ describe("the same key folds — one toast · a count", () => {
     const a = toast.info("Read", { dedupKey: "read-now", dedupWindowMs: 0 })!;
     dismissToast(a);
     expect(toast.info("Read", { dedupKey: "read-now", dedupWindowMs: 0 })).not.toBeNull();
+  });
+
+  it("folded for over 30s, closed with × → a repeat 2s later stays dropped (the window counts from the last fold)", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    render(<Toaster />);
+    // 깨진 파일을 에이전트가 거듭 저장한다 — 경고 시계(8초)보다 촘촘히 40초.
+    for (let s = 0; s <= 40; s += 5) {
+      act(() => void toast.warning("Could not read the file", { dedupKey: "integrity:fold" }));
+      act(() => void vi.advanceTimersByTime(5_000));
+    }
+    expect(getToasts()).toHaveLength(1);
+    expect(getToasts()[0].count).toBe(9);
+    fireEvent.click(screen.getByRole("button", { name: t("common.close") }));
+    act(() => void vi.advanceTimersByTime(2_000));
+    expect(toast.warning("Could not read the file", { dedupKey: "integrity:fold" })).toBeNull();
+  });
+
+  it("× starts the window — a sticky toast closed long after it came is not revived at once", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    render(<Toaster />);
+    act(() => void toast.warning("Drift", { dedupKey: "drift:sticky", dedupWindowMs: 60_000, durationMs: 0 }));
+    act(() => void vi.advanceTimersByTime(90_000));
+    fireEvent.click(screen.getByRole("button", { name: t("common.close") }));
+    act(() => void vi.advanceTimersByTime(1_000));
+    expect(toast.warning("Drift", { dedupKey: "drift:sticky", dedupWindowMs: 60_000, durationMs: 0 })).toBeNull();
+  });
+
+  it("acting on a toast is not clearing it — after Retry the next failure shows", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    render(<Toaster />);
+    const retry = { label: "Retry", onClick: () => {} };
+    act(() => void toast.destructive("Init failed", { dedupKey: "init:act", durationMs: 0, actions: [retry] }));
+    act(() => void vi.advanceTimersByTime(40_000));
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(getToasts()).toHaveLength(0);
+    expect(toast.destructive("Init failed", { dedupKey: "init:act", durationMs: 0, actions: [retry] })).not.toBeNull();
+  });
+});
+
+describe("the E2E reads the same column", () => {
+  it("waitNoToasts' selector counts toasts and skips the banner (it never closes by itself)", async () => {
+    const sel = /querySelectorAll\('([^']+)'\)\.length === 0/.exec(read("../e2e/lib/page.mjs"))![1];
+    render(
+      <>
+        <Toaster />
+        <UpdateBanner />
+      </>,
+    );
+    await screen.findByText(/v4\.11\.0/);
+    expect(document.querySelectorAll(sel)).toHaveLength(0);
+    act(() => void toast.info("Copied"));
+    expect(document.querySelectorAll(sel)).toHaveLength(1);
   });
 });

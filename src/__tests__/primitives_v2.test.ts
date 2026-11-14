@@ -12,6 +12,8 @@
  */
 import { describe, expect, it } from "vitest";
 
+// @ts-expect-error — 빌드 대상이 아닌 zero-dep 검사 스크립트 (.mjs, 타입 없음).
+import { accentRingHits } from "../../scripts/design-accent-ring.mjs";
 import { read } from "./designFs";
 
 const TOKENS = read("styles/tokens.css").replace(/\/\*[\s\S]*?\*\//g, "");
@@ -164,18 +166,46 @@ describe("6 focus ring · stroke fix live on every window floor (window.css)", (
   });
 });
 
+// 규칙 22 의 판정 그 자체 — 게이트(check-design-discipline.mjs)가 같은 함수를 부른다. 예전 시험은 게이트에
+// 함수 이름이 있는지만 봐서, 몸통을 비워도 초록이었다.
+type Hit = { line: number; what: string };
+const hits = (src: string, isCss: boolean): Hit[] => accentRingHits(src, src.split("\n"), isCss);
+const css = (src: string) => hits(src, true);
+const tsx = (src: string) => hits(src, false);
+
 describe("rule 22 — the accent halo is for focus rings only (lint:design)", () => {
-  it("the gate has the rule", () => {
+  it("flags a halo off focus — the primary glow, one unfocused part of a list, an inline TSX shadow", () => {
+    expect(css(".btn.primary { box-shadow: 0 1px 2px var(--accent-ring) }")).toHaveLength(1);
+    expect(css(".a, .b:focus-visible { box-shadow: var(--ring-soft) }")).toHaveLength(1);
+    expect(tsx('const s = { boxShadow: "0 0 0 3px var(--accent-ring)" };')).toHaveLength(1);
+  });
+
+  it("passes a halo on a focus state, and neutral shadows", () => {
+    expect(css(".x:focus-visible { box-shadow: var(--ring-soft) }")).toEqual([]);
+    expect(css(".x:focus-within,\n.y:focus { box-shadow: var(--ring-soft); }")).toEqual([]);
+    expect(css(".x { box-shadow: var(--shadow-card) }")).toEqual([]);
+    expect(tsx("const s = { boxShadow: shadow, color: 'var(--accent-ring)' };")).toEqual([]);
+  });
+
+  it("closes the gaps — a layered TSX shadow, a later declaration, :not(:focus)", () => {
+    expect(tsx('<i style={{ boxShadow: "0 1px 0 var(--sep), 0 0 0 2px var(--accent-ring)" }} />')).toHaveLength(1);
+    const later = css(".x {\n  box-shadow: none;\n  box-shadow: 0 0 0 2px var(--accent-ring);\n}");
+    expect(later).toEqual([{ line: 3, what: ".x { box-shadow: 0 0 0 2px var(--accent-ring) }" }]);
+    expect(css(".x:not(:focus-visible) { box-shadow: var(--ring-soft) }")).toHaveLength(1);
+  });
+
+  it("a design-ignore with a reason on the line or the three above lets it through", () => {
+    expect(css("/* design-ignore -- reason */\n.x { box-shadow: var(--ring-soft) }")).toEqual([]);
+  });
+
+  it("the gate runs it on every file", () => {
     const gate = read("../scripts/check-design-discipline.mjs");
-    expect(gate).toMatch(/function checkAccentRing\(/);
+    expect(gate).toMatch(/import \{ accentRingHits \} from "\.\/design-accent-ring\.mjs";/);
+    expect(gate).toMatch(/accentRingHits\(src, rawLines, isCss\)/);
     expect(gate).toMatch(/checkAccentRing\(rel, src, rawLines, isCss\);/);
   });
 
   it("every halo in primitives today sits on a focus state", () => {
-    for (const m of PRIM.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      const shadow = /box-shadow:\s*([^;]+)/.exec(m[2]);
-      if (!shadow || !/--(?:accent-ring|ring-soft)/.test(shadow[1])) continue;
-      for (const part of m[1].split(",")) expect(part).toMatch(/:focus/);
-    }
+    expect(css(PRIM)).toEqual([]);
   });
 });

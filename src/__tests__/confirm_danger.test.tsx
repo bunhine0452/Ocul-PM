@@ -77,6 +77,19 @@ describe("danger confirm — first focus on cancel, only ⌘↩ confirms", () =>
     await waitFor(() => expect(answers).toEqual([true]));
   });
 
+  it("⇧⌘↩ (the terminal's zoom key) and ⌥⌘↩ do nothing — no confirm, no button press", async () => {
+    const { answers, cancel } = await open(true);
+    cancel.focus();
+    for (const extra of [{ shiftKey: true }, { altKey: true }]) {
+      const ev = fireEvent.keyDown(cancel, { key: "Enter", metaKey: true, ...extra });
+      // 기본 동작(포커스된 「취소」 누르기)도 막는다 — 줌을 누른 손이 질문을 닫지 않는다.
+      expect(ev).toBe(false);
+    }
+    await new Promise((r) => setTimeout(r, 20));
+    expect(answers).toEqual([]);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
   it("Windows · Linux use Ctrl+Enter, and the hint says so", async () => {
     __setPlatformForTests("windows");
     const { answers, cancel, confirmBtn } = await open(true);
@@ -88,7 +101,7 @@ describe("danger confirm — first focus on cancel, only ⌘↩ confirms", () =>
   it("the danger button hint is ⌘↩, not ↩", async () => {
     const { confirmBtn, cancel } = await open(true);
     expect(confirmBtn.querySelector(".dlg-key")?.textContent).toBe("⌘↩");
-    expect(cancel.querySelector(".dlg-key")?.textContent).toBe("esc");
+    expect(cancel.querySelector(".dlg-key")?.textContent).toBe("Esc");
     // 키 표기는 접근명에 섞이지 않는다.
     expect(confirmBtn).toHaveAccessibleName(END());
   });

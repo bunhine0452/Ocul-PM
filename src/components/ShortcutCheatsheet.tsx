@@ -70,6 +70,7 @@ export function ShortcutCheatsheet() {
   );
   const here = where.inProject ? where.view : "start";
   // 첫 포커스는 표(본문) — 열자마자 화살표 · PageDown 이 표를 내린다. × 가 먼저 포커스 테를 쥐지 않는다.
+  // 본문은 Tab 자리다(× ↔ 표) — 가두기 목록의 끝이라 Tab 이 대화상자 밖으로 새지 않는다.
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
   return (
@@ -80,7 +81,7 @@ export function ShortcutCheatsheet() {
         sub={t("keys.hint")}
         onClose={() => setOpen(false)}
       />
-      <DialogBody ref={bodyRef} tabIndex={-1}>
+      <DialogBody ref={bodyRef} focusable>
         <div className="keys-cols">
           {groups.map((g) => (
             <section className="keys-group" key={g.id} aria-labelledby={`keys-${g.id}`}>

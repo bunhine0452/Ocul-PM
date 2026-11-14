@@ -55,7 +55,8 @@
  *     화면이 픽셀 단위로 같으면 "기다리면 채워진다" 와 "여기는 원래 비어
  *     있다" 가 구분되지 않는데, 둘은 정반대의 행동을 요구한다.
  *     `LoadingState` 는 같은 밀도를 그대로 입어 자리·치수를 유지하고
- *     스피너·role=status 로만 갈린다 ({#layout-loading-state}).
+ *     role=status 와 300ms 뒤의 멈춘 글자로만 갈린다 ({#layout-loading-state},
+ *     돌던 스피너는 11-15 에 걷었다).
  *     **여러 줄 JSX 를 봐야 해서 별도 패스다** (checkLoadingAsEmpty) — 처음엔
  *     줄 단위 규칙으로 넣었다가 아홉 번째 자리를 통째로 놓쳤다.
  *
@@ -142,8 +143,9 @@
  *     (글로우 — 위 4 와 같은 관용구다). 그 후광은 키보드가 지금 어디 있는지 말하는 **포커스 테**에만
  *     쓴다: 선택자에 `:focus` · `:focus-visible` · `:focus-within` 이 있어야 한다. 정의 자리
  *     (tokens.css 의 `--ring-soft: 0 0 0 3px var(--accent-ring)`)는 선언이 아니라 값이라 안 본다.
- *     **선택자와 여러 줄 선언을 봐야 해서 별도 패스다** (checkAccentRing). TSX 인라인 `boxShadow` 는
- *     포커스를 알 길이 없어 그 자체로 위반이다.
+ *     **선택자와 여러 줄 선언을 봐야 해서 별도 패스다** (checkAccentRing — 판정은 시험이 무는 순수 함수
+ *     `design-accent-ring.mjs`). TSX 인라인 `boxShadow` 는 포커스를 알 길이 없어 그 자체로 위반이다.
+ *     블록 안의 box-shadow 는 전부 보고, 겹 그림자(`a, b`)는 끝까지, `:not(:focus)` 는 포커스로 치지 않는다.
  *
  * 예외 주석:  // design-ignore -- 사유   (같은 줄, TS/TSX)
  *            /* design-ignore -- 사유 *​/ (같은 줄, CSS)
@@ -152,6 +154,7 @@
  */
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { accentRingHits } from "./design-accent-ring.mjs";
 
 // `import.meta.dirname` = OS 경로 그대로. `new URL(…).pathname` 은 Windows 에서 "/C:/…" 가 되어 드라이브가 두 번 붙었다.
 const SRC = join(import.meta.dirname, "..", "src");
@@ -427,7 +430,7 @@ function checkLoadingAsEmpty(rel, src, rawLines) {
     if (rawLines.slice(Math.max(0, line - 4), line).some((l) => /design-ignore\s*--/.test(l))) continue;
     violations.push(
       `${rel}:${line}  [loading-as-empty] <EmptyState …>{t("${m[1]}")}\n` +
-        "      → 로딩은 <LoadingState> ({#layout-loading-state}) — 치수는 같은 밀도를 상속하고 스피너·role=status 로만 갈린다",
+        "      → 로딩은 <LoadingState> ({#layout-loading-state}) — 치수는 같은 밀도를 상속하고 role=status · 300ms 뒤의 멈춘 글자로만 갈린다",
     );
   }
 }
@@ -547,40 +550,13 @@ function checkInlineSelected(rel, src, rawLines) {
   }
 }
 
-/**
- * 규칙 22 — 액센트 후광은 포커스 테에만. CSS 는 선언이 어느 선택자 밑에 있는지를 알아야 해서 줄 단위가
- * 아니다. `box-shadow` 값에 `--accent-ring` · `--ring-soft` 가 있으면 그 선택자(쉼표로 나뉜 조각 **모두**)에
- * 포커스 의사 클래스가 있어야 한다 — 하나라도 빠지면 그 조각에서는 늘 켜진 후광이다.
- */
+/** 규칙 22 — 판정은 `design-accent-ring.mjs`(시험이 같은 함수를 문다), 여기는 보고만. */
 function checkAccentRing(rel, src, rawLines, isCss) {
-  const RING = /var\(\s*--(?:accent-ring|ring-soft)\b/;
-  const ignoredNear = (line) => {
-    for (let i = Math.max(1, line - 3); i <= line; i++) {
-      if (/design-ignore\s*--/.test(rawLines[i - 1] ?? "")) return true;
-    }
-    return false;
-  };
-  const report = (line, what) =>
+  for (const { line, what } of accentRingHits(src, rawLines, isCss)) {
     violations.push(
       `${rel}:${line}  [accent-ring] ${what}\n` +
         "      → 액센트 후광은 :focus · :focus-visible · :focus-within 의 테에만. 그림자는 중립(--shadow-card) 이거나 없다",
     );
-  if (!isCss) {
-    for (const m of src.matchAll(/boxShadow\s*:\s*[^,}\n]*var\(\s*--(?:accent-ring|ring-soft)\b/g)) {
-      const line = src.slice(0, m.index).split("\n").length;
-      if (!ignoredNear(line)) report(line, "인라인 boxShadow 가 액센트 후광을 쓴다");
-    }
-    return;
-  }
-  for (const m of src.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    const [, selector, body] = m;
-    const decl = /(?:^|[;{\s])box-shadow\s*:\s*([^;}]+)/.exec(body);
-    if (!decl || !RING.test(decl[1])) continue;
-    const parts = selector.trim().split("\n").filter((l) => !l.trim().startsWith("@")).join(" ").split(",");
-    if (parts.every((p) => /:focus(?:-visible|-within)?\b/.test(p))) continue;
-    const line = src.slice(0, m.index + m[0].indexOf(decl[0])).split("\n").length;
-    if (ignoredNear(line)) continue;
-    report(line, `${selector.trim().split("\n").pop().trim()} { box-shadow: ${decl[1].trim().slice(0, 60)} }`);
   }
 }
 

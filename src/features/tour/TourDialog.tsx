@@ -64,14 +64,15 @@ export function TourDialog({ open, onClose }: { open: boolean; onClose: () => vo
     }
   };
 
+  // 쪽 제목은 h3 — 대화상자 머리(「처음 쓰는 법」)가 h2 다. 한 판에 h2 가 둘이면 위계가 뒤집힌다.
   const pages: ReactNode[] = [
     <>
-      <h2 className="tour-title">{t("tour.p1.title")}</h2>
+      <h3 className="tour-title">{t("tour.p1.title")}</h3>
       <p className="tour-text">{t("tour.p1.body")}</p>
       <p className="tour-text tour-quiet">{t("tour.p1.local")}</p>
     </>,
     <>
-      <h2 className="tour-title">{t("tour.p2.title")}</h2>
+      <h3 className="tour-title">{t("tour.p2.title")}</h3>
       <ul className="tour-list">
         {NAV_ENTRIES.map((e) => {
           const line = SCREEN_LINE[e.id];
@@ -88,14 +89,14 @@ export function TourDialog({ open, onClose }: { open: boolean; onClose: () => vo
       </ul>
     </>,
     <>
-      <h2 className="tour-title">{t("tour.p3.title")}</h2>
+      <h3 className="tour-title">{t("tour.p3.title")}</h3>
       <p className="tour-text">{t("tour.p3.body")}</p>
       <CopyCommand lines={CLAUDE_PLUGIN_INSTALL} label={t("tour.p3.title")} />
       <p className="tour-text tour-quiet">{t("tour.p3.others")}</p>
       <p className="tour-text tour-quiet">{t("tour.p3.folder")}</p>
     </>,
     <>
-      <h2 className="tour-title">{t("tour.p4.title")}</h2>
+      <h3 className="tour-title">{t("tour.p4.title")}</h3>
       <ul className="tour-list">
         <KeyRow keys={kbd("⌘K")} label={t("tour.key.find")} />
         <KeyRow keys={kbd("⌃Tab")} label={t("tour.key.screens")} />
@@ -121,7 +122,7 @@ export function TourDialog({ open, onClose }: { open: boolean; onClose: () => vo
           {last ? null : (
             <button type="button" className="btn ghost sm" onClick={onClose}>
               <span>{t("tour.skip")}</span>
-              <DialogKey>esc</DialogKey>
+              <DialogKey>Esc</DialogKey>
             </button>
           )}
           <span className="dlg-spacer" />

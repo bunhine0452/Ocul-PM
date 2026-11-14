@@ -15,6 +15,9 @@
   color: var(--text);
 }
 .winroot .app { flex: 1 1 auto; min-height: 0; height: auto; }
+/* 창이 통째로 깨졌을 때의 오류 카드(AppWindow 의 바깥 경계) — 윗줄이 없어 카드 위 모서리(28, 24)가 macOS 신호등
+   자리(84×44) · Windows 창 단추에 걸렸다. 윗줄 높이만큼 내려 선다(11-15). */
+.winroot > .err-wrap { padding-top: var(--toolbar-h); }
 
 /* ── 버튼 · 포커스 · 아이콘 — 모든 창의 바닥 (11-15, styles/base.css 에서 옮겼다) ────────────────────────
    base.css 는 셸(지연 청크)에만 실려, 처음 뜬 시작 창에는 키보드 포커스 링도 아이콘 획 보정도 없었다 —

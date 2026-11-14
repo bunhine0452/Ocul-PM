@@ -72,6 +72,8 @@ export function useConfirm(): {
   const danger = options?.danger === true;
 
   // ⌘↩ = 확인 — 포커스가 어디 있든(「취소」 위에서도). 기본 동작을 막아 그 단추가 눌리지 않게 한다.
+  // ⇧ · ⌥ 가 더 붙으면 아무 일도 없다: ⇧⌘↩ 는 터미널의 「한 칸 크게」 키라, 터미널 닫기 확인이 떠 있는 동안
+  // 손에 익은 한 번이 줌과 세션 종료를 함께 했다(터미널의 창 리스너는 전파를 막지 않는다).
   // 맨 Enter = 확인 — 보통 질문에서만, 그리고 버튼 위가 아닐 때만(취소 위의 Enter 는 취소다). 본문을
   // 클릭해 포커스가 패널 자체로 옮겨 갔을 때 받는다 (패널은 tabIndex=-1 이라 안쪽 어디를 눌러도 포커스가
   // 거기 앉는다).
@@ -79,7 +81,7 @@ export function useConfirm(): {
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     if (isModKey(e)) {
       e.preventDefault();
-      settle(true);
+      if (!e.shiftKey && !e.altKey) settle(true);
       return;
     }
     if (danger) return;
@@ -118,7 +120,7 @@ export function useConfirm(): {
           <DialogFoot>
             <button ref={cancelRef} type="button" className="btn ghost sm" onClick={() => settle(false)}>
               <span>{t("common.cancel")}</span>
-              <DialogKey>esc</DialogKey>
+              <DialogKey>Esc</DialogKey>
             </button>
             <button
               ref={confirmRef}

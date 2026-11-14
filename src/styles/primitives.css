@@ -346,7 +346,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
                  잘리고 스크롤도 안 되던 자리다.
      .dlg-head   머리 — 14/600 제목(+ 보조 줄) · 오른쪽에 × 또는 쪽수.
      .dlg-body   본문 — min-height 0 · overflow-y auto. 판 안의 유일한 스크롤 칸이다.
-     .dlg-foot   발 — 오른쪽 정렬, 채운 단추는 하나(영수증 규칙 3). 키 표기(esc · ↩)는 단추 안의 .dlg-key.
+     .dlg-foot   발 — 오른쪽 정렬, 채운 단추는 하나(영수증 규칙 3). 키 표기(Esc · ↩)는 단추 안의 .dlg-key —
+                 단축키 표 · × 툴팁과 같은 「Esc」 한 벌이다(영수증 규칙 4).
 
    항상 필요한 CSS 는 전역에 둔다 — 확인 창 · 단축키 표는 창 최상위라 셸을 한 번도 안 연 시작 창에서도
    뜬다(scripts/check-critical-css.mjs 가 창 엔트리 청크에서 이 선택자들을 지킨다). `.set-modal-*`(수동
@@ -368,6 +369,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   box-shadow: var(--shadow-pop);
   outline: none;
 }
+/* 판의 직계 자식(머리 · 발 말고)은 줄어들고, 넘치면 제가 스크롤한다. 판이 위에 서며 낮아졌고(가운데 85vh → 위 18vh
+   아래 82vh−24px), 아직 한 벌로 옮기지 않은 대화상자의 직계 칸은 판보다 크면 판이 잘라 아래가 닿지 않는다 — 레이스
+   diff 칸(78vh)이 520 높이 창에서 판보다 컸다. 한 벌을 쓰는 판에서는 본문이 먼저 줄어 이 칸에 넘침이 생기지 않는다. */
+.dlg-panel > :not(.dlg-head, .dlg-foot) { min-height: 0; overflow-y: auto; }
 .dlg-head {
   flex: none;
   display: flex; align-items: flex-start; gap: var(--space-3);
@@ -407,9 +412,11 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   color: var(--text);
 }
 .dlg-body > * { flex: none; }
-/* 본문이 첫 포커스를 받을 때(단축키 표 — 키로 표를 내리려고) 스크롤 칸 자체에는 테를 그리지 않는다.
-   Tab 순서에는 없다(tabIndex -1) — 판(.dlg-panel)이 포커스를 받을 때와 같다. */
-.dlg-body:focus { outline: none; }
+/* 본문이 Tab 자리일 때(단축키 표 — DialogBody `focusable`) 테는 안쪽에 그린다 — 판이 넘침을 자른다. 열자마자
+   첫 포커스로 앉은 동안(data-quiet)은 테가 없다: 표 전체를 두르는 테는 × 에 먼저 서던 테와 같은 소음이다. 한 번
+   떠났다가 Tab 으로 돌아오면 다른 Tab 자리와 같은 테다(window.css 의 [tabindex="0"]:focus-visible). */
+.dlg-body:focus-visible { outline-offset: var(--focus-offset-inset); }
+.dlg-body[data-quiet]:focus { outline: none; }
 .dlg-body code {
   font-size: var(--fs-3);
   padding: 1px var(--space-2);
@@ -526,8 +533,10 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .err-hint { margin: 0; font-size: var(--fs-3); line-height: var(--lh-body); color: var(--text-2); text-wrap: pretty; }
-/* 렌더 경계의 자리 — 화면 본문과 같은 왼쪽 선(.page 의 여백)에 선다. 가운데 정렬 리터럴은 걷었다. */
-.err-wrap { padding: var(--space-8) 28px; }
+/* 렌더 경계의 자리 — 화면 본문과 같은 왼쪽 선에 선다: .page(shell.css)의 여백 · 폭 1180 · 가운데. 여백만 따라 하던
+   때는 넓은 창(1440)에서 카드가 본문 선(158px)이 아니라 28px 에 섰다. 가운데 정렬 리터럴은 걷었다. 윗줄이 없는
+   창 단위 경계(AppWindow)의 위 여백은 window.css 가 신호등 자리만큼 더 준다. */
+.err-wrap { padding: var(--space-8) 28px; max-width: 1180px; margin: 0 auto; width: 100%; }
 
 /* ── 알림 기둥 — 토스트와 업데이트 배너가 한 줄기 (11-15) ───────────────────
    토스트(bottom 16 · right 16)와 업데이트 배너(bottom · right 18)가 같은 모서리에 따로 떠 서로를 가렸다.

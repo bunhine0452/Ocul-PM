@@ -10,7 +10,12 @@
  * 바꾸고 수를 하나 올린다(「읽음 5 · 되돌리기」). 예전엔 버리기만 해서, 떠 있는 동안 온 소식이 사라지거나
  * (경고) 열쇠가 없는 자리에서는 같은 토스트가 다섯 장 쌓였다(읽음 다섯 번). 이미 닫힌 뒤
  * `dedupWindowMs`(기본 30초) 안에 다시 온 것은 예전처럼 버린다 — 사람이 방금 치운 것을 되살리지 않는다
- * (`integrity_warning` · `agent_drift` 가 그 창에 기댄다).
+ * (`integrity_warning` · `agent_drift` 가 그 창에 기댄다). 창은 **마지막으로 온 때(띄우거나 접은 때) · 사람이 ×
+ * 로 치운 때** 가운데 늦은 쪽부터 센다(`closeToast`): 처음 띄운 때부터 세면, 시계보다 촘촘히 30초 넘게 접혀 살아
+ * 있던 토스트를 사람이 닫는 순간 다음 소식이 새 토스트로 곧바로 되살아났다.
+ *
+ * 접힌 토스트의 글과 동작(`actions`)은 **마지막 호출의 것**이다. 그래서 동작 달린 토스트를 접는 호출부는
+ * 쌓인 수 전부를 되돌리는 동작을 넘긴다 — 「읽음 5 · 되돌리기」 가 마지막 하나만 되돌리면 화면의 수와 어긋난다.
  *
  * Cooldown: `agent_drift` also uses sessionStorage for the [무시] action
  * — see `DriftCooldown` below.
@@ -89,6 +94,16 @@ export function dismissToast(id: number) {
   emit();
 }
 
+/**
+ * 사람이 × 로 치웠다 — 닫힌 뒤의 창(dedupWindowMs)을 그때부터 센다(머리 주석). 시계가 닫은 것과 동작을 눌러
+ * 닫힌 것은 치운 것이 아니라 여기를 지나지 않는다: 「다시 시도」 를 누른 뒤 또 실패하면 그 소식은 떠야 한다.
+ */
+export function closeToast(id: number) {
+  const key = toasts.find((t) => t.id === id)?.key;
+  if (key) recentByKey.set(key, Date.now());
+  dismissToast(id);
+}
+
 /** 호버·포커스 동안 시계를 멈춘다. 이미 멈췄으면 아무것도 하지 않는다. */
 export function pauseToast(id: number) {
   const timer = timers.get(id);
@@ -165,6 +180,7 @@ function push(opts: ToastOpts): number | null {
         count: live.count + 1,
       };
       toasts = toasts.map((t) => (t.id === live.id ? folded : t));
+      recentByKey.set(key, Date.now());
       rearm(live.id, durationMs);
       emit();
       return live.id;

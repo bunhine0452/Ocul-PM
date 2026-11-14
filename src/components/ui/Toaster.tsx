@@ -13,6 +13,7 @@
 import { useSyncExternalStore } from "react";
 import { createStore } from "@/lib/createStore";
 import {
+  closeToast,
   dismissToast,
   getToasts,
   pauseToast,
@@ -83,10 +84,15 @@ function ToastItem({ toast }: { toast: Toast }) {
         {toast.title && <div className="toast-title">{toast.title}</div>}
         <div className="toast-msg">
           {toast.message}
+          {/* 화면에는 숫자만, 읽기 프로그램에는 「같은 알림 3번」 — 역할 없는 span 의 aria-label 은 무시되고
+              숫자만 앞 문장에 붙어 읽혔다(「…표시했어요3」). */}
           {toast.count > 1 ? (
-            <span className="toast-count" aria-label={t("toast.repeat", { n: toast.count })}>
-              {toast.count}
-            </span>
+            <>
+              <span className="toast-count" aria-hidden="true">
+                {toast.count}
+              </span>
+              <span className="sr-only"> {t("toast.repeat", { n: toast.count })}</span>
+            </>
           ) : null}
         </div>
         {toast.actions && toast.actions.length > 0 && (
@@ -109,7 +115,7 @@ function ToastItem({ toast }: { toast: Toast }) {
       </div>
       <button
         type="button"
-        onClick={() => dismissToast(toast.id)}
+        onClick={() => closeToast(toast.id)}
         aria-label={t("common.close")}
         className="iconbtn sm"
       >

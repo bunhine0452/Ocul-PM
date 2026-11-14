@@ -67,6 +67,14 @@ describe("LoadingState — still text after 300ms", () => {
     const app = read("App.css").replace(/\/\*[\s\S]*?\*\//g, "");
     expect(app).not.toMatch(/ocul-spin|oculSpin/);
     expect(() => read("components/OculSpinner.tsx")).toThrow();
+    expect(EMPTY).not.toMatch(/\.ls-spin/);
+  });
+
+  it("the text line is held from the start — the slot does not grow when the text comes in at 300ms", () => {
+    // 폭 없는 글자 하나가 상속받은 크기 · 줄 높이로 줄을 세운다(부르는 쪽의 인라인 여백과 무관).
+    expect(rule(EMPTY, ".ls::before")).toMatch(/content:\s*"\\200b"/);
+    // 스피너와 글자 사이의 틈이던 gap 은 걷었다 — 남으면 버팀 글자 뒤로 글자가 밀린다.
+    expect(rule(EMPTY, ".ls")).not.toMatch(/gap/);
   });
 });
 
@@ -136,6 +144,9 @@ describe("ErrorBoundary — the one error card", () => {
     quiet.mockRestore();
     const card = container.querySelector(".err-wrap > .err-card")!;
     expect(card).not.toBeNull();
+    // 본문 선 — .page 의 여백 · 폭 1180 · 가운데. 윗줄 없는 창 단위 경계는 신호등 자리만큼 내려 선다.
+    expect(rule(PRIM, ".err-wrap")).toMatch(/max-width:\s*1180px;\s*margin:\s*0 auto/);
+    expect(read("windows/window.css")).toMatch(/\.winroot > \.err-wrap \{ padding-top: var\(--toolbar-h\); \}/);
     expect(card.querySelector(".err-title")?.textContent).toBe(t("crash.title"));
     expect(card.querySelector("pre.err-raw")?.textContent).toBe("render exploded");
     expect(card.querySelector(".err-hint")?.textContent).toBe(t("crash.body"));

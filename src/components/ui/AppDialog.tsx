@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type ReactNode, type Ref } from "react";
+import { useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { X } from "@/components/Icons";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { useT } from "@/i18n";
@@ -116,22 +116,35 @@ export function DialogHead({
 
 /**
  * 본문 — 판 안의 유일한 스크롤 칸. 넘치면 머리 · 발은 그대로 두고 여기만 흐른다.
- * 읽기만 하는 대화상자(단축키 표)는 `ref` · `tabIndex={-1}` 로 첫 포커스를 여기 둔다 — 열자마자 화살표 ·
- * PageDown 이 표를 내리고, × 에 포커스 테가 먼저 서지 않는다.
+ *
+ * 읽기만 하는 대화상자(단축키 표)는 `focusable` 로 본문을 Tab 자리로 두고 `ref` 로 첫 포커스를 여기 준다. 안에
+ * 포커스할 것이 없는 스크롤 칸은 키보드로 닿아야 내린다 — tabIndex -1 이던 때는 × 로 한 번 나가면 다시 못
+ * 들어왔다. 열자마자 첫 포커스로 앉은 동안(`data-quiet`)은 테를 그리지 않는다: 표 전체를 두르는 테는 × 에 먼저
+ * 서던 테와 같은 소음이다. 한 번 떠났다가 Tab 으로 돌아오면 다른 Tab 자리와 같은 테다(primitives.css).
  */
 export function DialogBody({
   children,
   className,
   ref,
-  tabIndex,
+  focusable = false,
 }: {
   children: ReactNode;
   className?: string;
   ref?: Ref<HTMLDivElement>;
-  tabIndex?: number;
+  focusable?: boolean;
 }) {
+  // 판이 열릴 때마다 새로 마운트된다(AppDialog 는 닫히면 아무것도 그리지 않는다) — 조용함도 열 때마다 처음부터.
+  const [quiet, setQuiet] = useState(true);
   return (
-    <div ref={ref} tabIndex={tabIndex} className={"dlg-body" + (className ? ` ${className}` : "")}>
+    <div
+      ref={ref}
+      tabIndex={focusable ? 0 : undefined}
+      data-quiet={focusable && quiet ? "" : undefined}
+      onBlur={(e) => {
+        if (e.target === e.currentTarget) setQuiet(false);
+      }}
+      className={"dlg-body" + (className ? ` ${className}` : "")}
+    >
       {children}
     </div>
   );
@@ -143,8 +156,8 @@ export function DialogFoot({ children }: { children: ReactNode }) {
 }
 
 /**
- * 단추 안의 키 표기 — 그 키가 **정말로** 그 단추를 누를 때만 붙인다(esc · ↩ · ⌘↩). 단추의 접근명에는
- * 섞지 않는다 — 「취소 esc」 로 읽히면 이름이 아니다.
+ * 단추 안의 키 표기 — 그 키가 **정말로** 그 단추를 누를 때만 붙인다(Esc · ↩ · ⌘↩). 단축키 표 · × 툴팁과 같은
+ * 「Esc」 로 적는다(영수증 규칙 4). 단추의 접근명에는 섞지 않는다 — 「취소 Esc」 로 읽히면 이름이 아니다.
  */
 export function DialogKey({ children }: { children: ReactNode }) {
   return (
