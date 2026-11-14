@@ -45,6 +45,12 @@ export const planApi = {
   applyEdit: (projectId: number, planId: string, op: PlanEditOp, agentId: string | null) =>
     call("plan_apply_edit", commands.planApplyEdit(projectId, planId, op, agentId)),
 
+  /** 계획 닫기(진행 → 끝남) — 남은 항목이 있으면 `plan_has_open_items` 로 거부된다. 고친 뒤의 계획을 돌려준다. */
+  close: (projectId: number, planId: string) => call("plan_close", commands.planClose(projectId, planId)),
+
+  /** 닫기 되돌리기(끝남 → 진행) — 닫은 직후 알림의 「되돌리기」 가 부른다. */
+  reopen: (projectId: number, planId: string) => call("plan_reopen", commands.planReopen(projectId, planId)),
+
   /** 닫힌(done/archived) 플랜에 남은 미완 — 이미 `carry-<id>` 로 옮긴 것은 빠져 온다. */
   lockedOpen: (projectId: number): Promise<LockedOpenItem[]> =>
     call("plan_locked_open", commands.planLockedOpen(projectId)),

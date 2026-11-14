@@ -189,6 +189,7 @@ function plan(id: string, over: Partial<DigestPlan> = {}): DigestPlan {
     progress: 0.5,
     done_count: 2,
     item_count: 4,
+    closable: false,
     updated_at: "2026-10-28",
     done_when: "끝나면 끝",
     check: "pnpm test",
@@ -298,6 +299,24 @@ describe("확인할 것 — 종류와 순서", () => {
     expect(within(checkCard()).queryAllByRole("listitem")).toHaveLength(0);
     fireEvent.click(open);
     expect(onOpenEntry).toHaveBeenCalledWith({ relative_path: "20261112/Bugs/0327_bug_b.md" });
+  });
+
+  it("남은 항목이 없는 계획은 「닫을 수 있는 계획 N개」 한 줄 — 누르면 그 계획이 열린다 (11-14)", async () => {
+    fx.digest = digest({ plans: [plan("open"), plan("done-a", { closable: true }), plan("done-b", { closable: true })] });
+    const { onNavigate, container } = renderToday();
+    const open = await screen.findByRole("button", { name: t("today.closable.open") });
+    expect(container.textContent).toContain(t("today.closable.line", { n: 2 }));
+    // 행도 배지도 아니다 — 닫는 것은 급한 일이 아니다.
+    expect(within(checkCard()).queryAllByRole("listitem")).toHaveLength(0);
+    fireEvent.click(open);
+    expect(onNavigate).toHaveBeenCalledWith("planner");
+  });
+
+  it("닫을 계획이 없으면 그 줄은 없다", async () => {
+    fx.digest = digest({ plans: [plan("open")] });
+    renderToday();
+    await screen.findByRole("region", { name: t("today.check.title") });
+    expect(screen.queryByRole("button", { name: t("today.closable.open") })).toBeNull();
   });
 
   it("동료가 git 으로 올린 일지는 그 사람 이름을 단다 — 내 에이전트의 일이 아니다", async () => {

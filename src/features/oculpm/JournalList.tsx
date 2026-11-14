@@ -1,4 +1,5 @@
 import type { Ref } from "react";
+import { ChevronRight } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { shiftWorkday } from "@/lib/workday";
 import type { JournalEntrySummary } from "@/lib/bindings";
@@ -38,6 +39,11 @@ interface JournalListProps {
   /** 목록 위에 붙는 고지(상한에 걸렸다). */
   notice?: React.ReactNode;
   empty?: React.ReactNode;
+  /**
+   * 사라진 코드의 일지(건드린 파일이 지금 하나도 없는 것)의 경로 — 날마다 한 줄로 접는다.
+   * 주지 않으면 접지 않는다. 찾거나 거르는 중에는 화면이 주지 않는다: 그때 사람은 바로 그것을 찾는 중일 수 있다.
+   */
+  gone?: ReadonlySet<string>;
 }
 
 export function JournalList({
@@ -51,11 +57,24 @@ export function JournalList({
   footer,
   notice,
   empty,
+  gone,
 }: JournalListProps) {
   const { t } = useT();
   let drawn = 0;
   const total = days.reduce((s, d) => s + d.entries.length, 0);
   const showAgent = new Set(days.flatMap((d) => d.entries.map((e) => e.agent_id))).size > 1;
+  // 전부가 사라진 코드의 일지면 접지 않는다 — 날짜 머리만 남은 목록은 목록이 아니다
+  // (경로를 다른 폴더 기준으로 적은 저장소가 그렇게 된다).
+  const fold = gone != null && gone.size > 0 && days.some((d) => d.entries.some((e) => !gone.has(e.relative_path)));
+  const row = (e: JournalEntrySummary) => (
+    <JournalRow
+      key={e.relative_path}
+      entry={e}
+      selected={e.relative_path === selectedPath}
+      onSelect={onSelect}
+      showAgent={showAgent}
+    />
+  );
   return (
     <div className="jl-list" ref={listRef} role="region" aria-label={t("journal.listAria")}>
       {notice}
@@ -65,18 +84,22 @@ export function JournalList({
         const room = limit - drawn;
         const rows = day.entries.slice(0, room);
         drawn += rows.length;
+        const folded = fold ? rows.filter((e) => gone.has(e.relative_path)) : [];
+        const shown = fold ? rows.filter((e) => !gone.has(e.relative_path)) : rows;
         return (
           <section key={day.workday} aria-label={dayHeading(day.workday, todayKey, t)}>
             <h3 className="jl-dayh">{dayHeading(day.workday, todayKey, t)}</h3>
-            {rows.map((e) => (
-              <JournalRow
-                key={e.relative_path}
-                entry={e}
-                selected={e.relative_path === selectedPath}
-                onSelect={onSelect}
-                showAgent={showAgent}
-              />
-            ))}
+            {shown.map(row)}
+            {folded.length > 0 ? (
+              // 고른 일지가 접힌 쪽이면 펴 둔다 — 상세에 열린 것이 목록에 없으면 길을 잃는다.
+              <details className="jl-gone" open={folded.some((e) => e.relative_path === selectedPath) || undefined}>
+                <summary className="jl-gone-h" title={t("journal.goneFoldTitle")}>
+                  <ChevronRight size={11} className="jl-gone-chev" aria-hidden="true" />
+                  {t("journal.goneFold", { n: folded.length })}
+                </summary>
+                {folded.map(row)}
+              </details>
+            ) : null}
           </section>
         );
       })}

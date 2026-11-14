@@ -513,4 +513,17 @@ impl<'a> JournalCache<'a> {
             .await
             .map_err(map_sqlite_err)
     }
+
+    /// 모든 `(일지 경로, 건드린 파일, op)` — 「남은 파일」 판정의 재료.
+    pub async fn file_touches(
+        &self,
+        project_id: u32,
+    ) -> Result<Vec<(String, String, String)>, OculpmError> {
+        let pid = project_id as i64;
+        self.db
+            .conn()
+            .call(move |c| crate::oculpm::journal_search::cache::fetch_touches(c, pid))
+            .await
+            .map_err(map_sqlite_err)
+    }
 }

@@ -212,6 +212,7 @@ use crate::commands::{
     oculpm_get_journal_entry,
     oculpm_get_log_dir,
     oculpm_get_status,
+    oculpm_gone_journals,
     oculpm_group_changes,
     // journal-scale-round {#index-usage} — index/ 사용량 조회 + diff 정리
     // .oculpm/ subsystem (W1-PR6 + W2-PR6 + W3-PR3)
@@ -248,6 +249,7 @@ use crate::commands::{
     open_project_window,
     open_url,
     plan_apply_edit,
+    plan_close,
     plan_create,
     // Planner Upgrade (PR-PLN 0/1/5) — file-based Plan read + write + AI/migration
     plan_dispatch_prompt,
@@ -255,6 +257,7 @@ use crate::commands::{
     plan_list,
     plan_locked_open,
     plan_log,
+    plan_reopen,
     project_attention,
     // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
     quick_look_file,
@@ -320,6 +323,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             plan_log,
             plan_create,
             plan_apply_edit,
+            plan_close,
+            plan_reopen,
             plan_dispatch_prompt,
             today_digest,
             today_arrived,
@@ -399,6 +404,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_set_journal_verified_bulk,
             oculpm_search_entities,
             oculpm_search_journal,
+            oculpm_gone_journals,
             oculpm_tag_stats,
             oculpm_tag_merge,
             oculpm_workday_brief,

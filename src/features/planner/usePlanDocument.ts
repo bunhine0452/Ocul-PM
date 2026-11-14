@@ -12,6 +12,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { t } from "@/i18n";
 import { toAppError } from "@/api/invoke";
+import { planApi } from "@/api/plan";
 import { tError } from "@/i18n/errors";
 import { commands, type PlanDetail, type PlanItemDto, type PlanSummary } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -30,6 +31,8 @@ export interface PlanDocument {
   retry: () => void;
   refreshDetail: () => void;
   setStatus: (item: PlanItemDto, status: string) => Promise<void>;
+  /** 고른 계획을 닫는다 (남은 항목이 0 일 때만 화면이 부른다) — 알림에 「되돌리기」 가 달린다. */
+  close: () => Promise<void>;
 }
 
 export function usePlanDocument(projectId: number): PlanDocument {
@@ -125,6 +128,32 @@ export function usePlanDocument(projectId: number): PlanDocument {
     }
   };
 
+  // 계획 닫기 — 닫으면 잠겨서 에이전트도 고치지 못한다. 잘못 눌렀을 때를 위해 알림에 되돌리기를 단다.
+  const close = async () => {
+    if (selectedId == null || detail == null) return;
+    const planId = selectedId;
+    const title = detail.plan.title;
+    try {
+      const closed = await planApi.close(projectId, planId);
+      if (closed && selectedIdRef.current === planId) setDetail(closed);
+      void refreshPlans();
+      toast.info(t("plan.closed", { title }), {
+        actions: [
+          {
+            label: t("plan.closeUndo"),
+            onClick: () =>
+              void planApi
+                .reopen(projectId, planId)
+                .then(refreshFromDisk)
+                .catch((e) => toast.destructive(t("plan.closeFailed", { error: tError(toAppError(e)) }))),
+          },
+        ],
+      });
+    } catch (e) {
+      toast.destructive(t("plan.closeFailed", { error: tError(toAppError(e)) }));
+    }
+  };
+
   return {
     plans,
     selectedId,
@@ -139,5 +168,6 @@ export function usePlanDocument(projectId: number): PlanDocument {
     },
     refreshDetail: () => void refreshDetail(),
     setStatus,
+    close,
   };
 }

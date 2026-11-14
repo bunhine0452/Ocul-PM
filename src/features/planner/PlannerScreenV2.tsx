@@ -107,6 +107,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           onSetStatus={applyStatus}
           onRun={(item) => void runPrompt(item, false)}
           onRunUntilDone={(item) => void runPrompt(item, true)}
+          onClose={() => void plan.close()}
           onOpenJournal={openJournal}
         />
         {/* 닫힌 계획에 갇힌 미완 — 고른 활성 계획으로 옮긴다 (없으면 그리지 않는다). */}

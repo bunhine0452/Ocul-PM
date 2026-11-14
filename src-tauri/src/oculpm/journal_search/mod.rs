@@ -30,6 +30,7 @@
 
 use std::cmp::Ordering;
 
+pub mod alive;
 pub mod cache;
 
 #[cfg(test)]
@@ -93,6 +94,9 @@ pub struct SearchRow {
     pub tags: Vec<String>,
     /// frontmatter `files_touched[].path`.
     pub files: Vec<String>,
+    /// `files` 가운데 지우거나 옮긴 것(`op: delete|rename`) — 지금 없는 것이 정상이라
+    /// 「남은 파일」 셈([`alive`])에서 뺀다.
+    pub files_dropped: Vec<String>,
     /// 본문 마크다운 (frontmatter 제외).
     pub body: String,
     /// `file` 필터가 걸렸다면 **어느 경로로** 걸렸는지 — query 매치가 없을 때

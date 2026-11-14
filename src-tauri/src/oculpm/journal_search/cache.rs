@@ -208,6 +208,7 @@ pub fn fetch_rows(
             slug: r.get(5)?,
             tags: Vec::new(),
             files: Vec::new(),
+            files_dropped: Vec::new(),
             body: r.get(6)?,
             file_hit: None,
         })
@@ -215,6 +216,23 @@ pub fn fetch_rows(
     let mut out: Vec<SearchRow> = rows.collect::<rusqlite::Result<_>>()?;
     hydrate(conn, project_id, &mut out, filters.file.as_deref())?;
     Ok(out)
+}
+
+/// 이 프로젝트의 모든 `(일지 경로, 건드린 파일, op)` — 본문을 읽지 않는다.
+pub fn fetch_touches(
+    conn: &Connection,
+    project_id: i64,
+) -> rusqlite::Result<Vec<(String, String, String)>> {
+    let mut stmt = conn.prepare(
+        "SELECT relative_path, file_path, op FROM oculpm_journal_files WHERE project_id = ?1",
+    )?;
+    let it = stmt.query_map([project_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+    it.collect()
+}
+
+/// 지금 없는 것이 정상인 op — 「남은 파일」 셈([`super::alive`])에서 뺀다.
+pub fn is_dropped_op(op: &str) -> bool {
+    matches!(op, "delete" | "rename")
 }
 
 /// 태그·파일 경로를 왕복 두 번에 붙인다 (행마다 한 번씩 묻지 않는다).
@@ -241,23 +259,17 @@ fn hydrate(
             tags.push(row?);
         }
     }
-    let mut files: Vec<(String, String)> = Vec::new();
-    {
-        let mut stmt = conn.prepare(
-            "SELECT relative_path, file_path FROM oculpm_journal_files WHERE project_id = ?1",
-        )?;
-        let it = stmt.query_map([project_id], |r| Ok((r.get(0)?, r.get(1)?)))?;
-        for row in it {
-            files.push(row?);
-        }
-    }
+    let files = fetch_touches(conn, project_id)?;
     for (rel, tag) in tags {
         if let Some(i) = index.get(rel.as_str()) {
             rows[*i].tags.push(tag);
         }
     }
-    for (rel, path) in files {
+    for (rel, path, op) in files {
         if let Some(i) = index.get(rel.as_str()) {
+            if is_dropped_op(&op) {
+                rows[*i].files_dropped.push(path.clone());
+            }
             rows[*i].files.push(path);
         }
     }

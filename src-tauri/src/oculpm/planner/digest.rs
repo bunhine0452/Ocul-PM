@@ -37,6 +37,9 @@ pub struct DigestPlan {
     pub progress: f64,
     pub done_count: u32,
     pub item_count: u32,
+    /// 닫을 수 있다 — 항목이 있고 남은 것(할 일 · 진행 · 막힘)이 0 이다
+    /// (`lifecycle::close_plan` 이 받아 주는 조건과 같다).
+    pub closable: bool,
     pub updated_at: String,
     pub done_when: Option<String>,
     pub check: Option<String>,
@@ -158,6 +161,10 @@ pub fn build(mut details: Vec<PlanDetail>) -> TodayDigest {
             progress: d.plan.progress,
             done_count: d.plan.done_count,
             item_count: d.plan.item_count,
+            closable: !leaves.is_empty()
+                && !leaves
+                    .iter()
+                    .any(|i| matches!(i.status.as_str(), "todo" | "in_progress" | "blocked")),
             updated_at: d.plan.updated_at.clone(),
             done_when: d.done_when.clone(),
             check: d.check.clone(),
@@ -381,5 +388,33 @@ mod tests {
                 item_id: "p".into(),
             }]
         );
+    }
+
+    /// 닫을 수 있는 계획 — 항목이 있고, 남은 것(할 일 · 진행 · 막힘)이 없다.
+    #[test]
+    fn a_plan_is_closable_only_when_it_has_items_and_none_are_open() {
+        let closable = |items: Vec<PlanItemDto>| {
+            build(vec![plan("a", "active", "2026-11-14", items)]).plans[0].closable
+        };
+        assert!(closable(vec![
+            it("a", "끝남", "done", 0, None),
+            it("b", "안 함", "dropped", 1, None),
+            it("c", "나중", "deferred", 2, None),
+        ]));
+        assert!(!closable(vec![]), "항목 없는 계획은 닫을 것이 없다");
+        for open in ["todo", "in_progress", "blocked"] {
+            assert!(
+                !closable(vec![
+                    it("a", "끝남", "done", 0, None),
+                    it("b", "남음", open, 1, None)
+                ]),
+                "{open}"
+            );
+        }
+        // 부모는 세지 않는다 — 하위가 다 끝났으면 부모 글리프가 무엇이든 닫을 수 있다.
+        assert!(closable(vec![
+            it("mom", "부모", "todo", 0, None),
+            it("kid", "아이", "done", 1, Some("mom")),
+        ]));
     }
 }

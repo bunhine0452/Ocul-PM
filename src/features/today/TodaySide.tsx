@@ -109,6 +109,24 @@ export function MineLine({ mine, onOpen }: { mine: TodaySplit["mine"]; onOpen: (
 }
 
 /**
+ * 닫을 수 있는 계획 — 남은 항목이 0 인데 「진행 중」 으로 남은 계획의 수를 한 줄로 (11-14). 닫는 것은
+ * 사람의 결정이라 여기서 닫지 않고 계획 화면으로 보낸다. 닫지 않은 계획은 Claude 가 세션마다 다시 읽는다.
+ */
+export function ClosableLine({ plans, onOpen }: { plans: DigestPlan[]; onOpen: (planId: string) => void }) {
+  const { t } = useT();
+  const closable = plans.filter((p) => p.closable);
+  if (closable.length === 0) return null;
+  return (
+    <p className="tdy-mine" title={t("today.closable.hint")}>
+      {t("today.closable.line", { n: closable.length })}
+      <button type="button" className="tdy-link" onClick={() => onOpen(closable[0].plan_id)}>
+        {t("today.closable.open")}
+      </button>
+    </p>
+  );
+}
+
+/**
  * 이 기기에만 — 커밋 안 한 변경(그중 기록)과 안 올린 커밋을 한 줄로 (11-13, 두 기기를 오갈 때).
  * 올리지 않은 일지는 다른 기기의 Claude 에게 없는 일이다. 일하는 중에는 늘 있는 것이라 「먼저 볼 것」의
  * 행도 배지의 수도 아니다 — 「내 차례」처럼 수만 말하고 변경 화면으로 보낸다. 없으면 그리지 않는다.

@@ -19,6 +19,7 @@ function plan(id: string, over: Partial<DigestPlan>): DigestPlan {
     progress: 0.5,
     done_count: 1,
     item_count: 2,
+    closable: false,
     updated_at: "2026-11-02",
     done_when: null,
     check: "pnpm test",

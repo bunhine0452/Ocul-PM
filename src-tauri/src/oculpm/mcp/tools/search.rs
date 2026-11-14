@@ -21,11 +21,13 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use crate::oculpm::frontmatter::parse_frontmatter_and_body;
+use crate::oculpm::journal_search::alive::gone_last;
 use crate::oculpm::journal_search::cache::{self, CacheHandle, SqlFilters};
 use crate::oculpm::journal_search::{rank, tokenize, SearchRow};
 use crate::oculpm::manager::entry_type_filename_token;
 use crate::oculpm::markdown::parse_body;
 use crate::oculpm::redact::{compile_redact_patterns, redact_text};
+use crate::oculpm::spec::FileOp;
 use crate::oculpm::spec::{EntryStatus, EntryType};
 
 use super::plan_ops::tsv_cell;
@@ -136,21 +138,23 @@ pub(crate) fn journal_search_with(
     let cfg = load_config(root);
     let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
 
-    let scored = rank(rows, &parsed.tokens);
+    // 건드린 파일이 하나도 남지 않은 일지는 뒤로 ({#search-alive}).
+    let (scored, gone) = gone_last(root, rank(rows, &parsed.tokens));
     let total = scored.len();
     let shown = scored.len().min(parsed.limit);
 
-    let mut tsv = String::from("path\tdate\ttype\tst\ttitle\twhy");
-    for hit in scored.iter().take(parsed.limit) {
+    let mut tsv = String::from("path\tdate\ttype\tst\tfiles\ttitle\twhy");
+    for (hit, alive) in scored.iter().take(parsed.limit) {
         let (title, _) = redact_text(&hit.row.title, &patterns);
         let (why, _) = redact_text(&hit.why(), &patterns);
         tsv.push('\n');
         tsv.push_str(&format!(
-            "{}\t{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
             tsv_cell(&hit.row.relative_path),
             hit.row.workday,
             hit.row.type_token,
             hit.row.status_token,
+            alive.cell(),
             tsv_cell(&title),
             tsv_cell(&why)
         ));
@@ -165,15 +169,29 @@ pub(crate) fn journal_search_with(
         "more": total > shown,
         "scanned": scanned,
         "source": source,
-        "legend": "why: 본문 매치는 발췌, 그 외는 매치한 자리(title/tag:…/slug/path:…/file:…). 본문 전체는 journal_read 로.",
+        "legend": "files: 그 일지가 건드린 파일 중 지금 프로젝트에 남은 수/전체 (지우거나 옮긴 파일은 셈에서 뺌, `-` 는 셀 파일 없음). 0/N 은 그 일지가 다룬 코드가 지금 없다는 뜻이다. why: 본문 매치는 발췌, 그 외는 매치한 자리(title/tag:…/slug/path:…/file:…). 본문 전체는 journal_read 로.",
     });
+    let mut notes: Vec<String> = Vec::new();
     if total == 0 {
-        out["note"] = json!(
+        notes.push(
             "일치하는 일지가 없습니다. query 를 짧게 하거나(부분 일치), file 필터를 파일명만으로 좁혀 보세요."
+                .to_string(),
         );
     } else if total > shown {
-        out["note"] =
-            json!("limit 을 넘겼습니다 — 관련도 상위만 실렸습니다. 더 좁히거나 limit 을 올리세요.");
+        notes.push(
+            "limit 을 넘겼습니다 — 관련도 상위만 실렸습니다. 더 좁히거나 limit 을 올리세요."
+                .to_string(),
+        );
+    }
+    if gone > 0 {
+        // 조용히 순서를 바꾸지 않는다 — 걷어낸 기능의 사정을 찾는 중이면 그쪽이 답이다.
+        out["gone_last"] = json!(gone);
+        notes.push(format!(
+            "건드린 파일이 하나도 남지 않은 일지 {gone}건은 뒤로 보냈습니다 (files 칸 0/N)."
+        ));
+    }
+    if !notes.is_empty() {
+        out["note"] = json!(notes.join(" "));
     }
     Ok(out)
 }
@@ -281,6 +299,17 @@ fn collect_from_disk(root: &Path, args: &Args) -> Vec<SearchRow> {
             .as_ref()
             .map(|f| f.files_touched.iter().map(|ft| ft.path.clone()).collect())
             .unwrap_or_default();
+        let files_dropped: Vec<String> = fm
+            .parsed
+            .as_ref()
+            .map(|f| {
+                f.files_touched
+                    .iter()
+                    .filter(|ft| matches!(ft.op, FileOp::Delete | FileOp::Rename))
+                    .map(|ft| ft.path.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
         // files_touched 필터 — 에이전트가 가장 자주 던지는 질문("이 파일 전에
         // 왜 건드렸지")이 여기로 답해진다.
         let mut file_hit = None;
@@ -313,6 +342,7 @@ fn collect_from_disk(root: &Path, args: &Args) -> Vec<SearchRow> {
                 .unwrap_or_default(),
             tags,
             files,
+            files_dropped,
             body,
             file_hit,
         });

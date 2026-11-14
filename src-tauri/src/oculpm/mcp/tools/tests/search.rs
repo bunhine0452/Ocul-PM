@@ -5,7 +5,7 @@ use tempfile::TempDir;
 
 /// 규격대로 생긴 일지 1건을 디스크에 놓는다 (journal_write 를 거치지 않고
 /// 직접 — 과거 workday 와 깨진 frontmatter 까지 만들 수 있어야 한다).
-fn seed_entry(root: &Path, workday: &str, folder: &str, file: &str, md: &str) {
+pub(super) fn seed_entry(root: &Path, workday: &str, folder: &str, file: &str, md: &str) {
     let dir = root
         .join(".oculpm")
         .join("journal")
@@ -87,7 +87,7 @@ fn seed_corpus(root: &Path) {
     );
 }
 
-fn hit_paths(out: &Value) -> Vec<String> {
+pub(super) fn hit_paths(out: &Value) -> Vec<String> {
     out["hits_tsv"]
         .as_str()
         .unwrap()
@@ -120,7 +120,7 @@ fn journal_search_finds_by_body_and_reports_where_it_matched() {
         "본문 매치는 발췌를 실어야 한다: {why}"
     );
     // 발췌는 TSV 한 칸이므로 탭·줄바꿈이 없어야 한다.
-    assert_eq!(why.split('\t').count(), 6, "열 수가 어긋났다: {why}");
+    assert_eq!(why.split('\t').count(), 7, "열 수가 어긋났다: {why}");
 }
 
 #[test]
@@ -524,7 +524,7 @@ fn path_prefilter_helpers_read_the_naming_convention() {
 ///
 /// `Db` 를 같이 돌려주는 이유: WAL 파일이 살아 있는 동안에만 읽기 전용
 /// 커넥션이 `-shm` 을 붙일 수 있다. 호출자가 둘을 같이 붙들어야 한다.
-async fn cache_of(
+pub(super) async fn cache_of(
     root: &Path,
 ) -> (
     crate::db::Db,
