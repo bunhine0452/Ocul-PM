@@ -1,10 +1,13 @@
 /**
- * 설정 · 표시 · 「파일 열기」 — 변경 · 터미널 ⌘클릭 · 작업 일지가 파일을 여는 편집기 (2026-11-02).
+ * 설정 · 앱 · 「파일 열기」 — 변경 · 터미널 ⌘클릭 · 작업 일지가 파일을 여는 편집기 (2026-11-02).
  *
  * 예전엔 셸 명령 `code "%path"` 가 고정 기본값이었고 바꿀 칸이 없었다. macOS 에서 VS Code 를
  * 깔아도 `code` 셸 명령은 따로 설치해야 해서, 편집기로 열기가 오류 토스트만 띄웠다. 이제 값은
  * `auto`(깔린 것을 찾는다) · `vscode` · `cursor` · `system` · 셸 명령 템플릿 — 읽는 쪽은
  * `src-tauri/src/commands/editor_choice.rs`.
+ *
+ * 11-15 (#settings-status): 「자동」 은 찾은 이름을 괄호에 넣지 않고 회색 mono 로 덧붙인다 — 다섯 칸
+ * 세그먼트가 좁은 창(480 × 125%)에서 넘쳤다. 화면이 420px 아래면 세그먼트 대신 고르기 칸(select)이 선다.
  */
 import { useEffect, useState } from "react";
 
@@ -62,25 +65,50 @@ export function EditorRow() {
     if (v && v !== saved) save("externalEditorCommand", v);
   };
 
-  const autoLabel =
-    found && NAMES[found]
-      ? t("prefs.display.editorAutoFound", { name: NAMES[found] })
-      : t("prefs.display.editorAuto");
+  const foundName = found ? NAMES[found] : undefined;
+  const options: Array<{ id: Choice; label: string }> = [
+    { id: "auto", label: t("prefs.display.editorAuto") },
+    { id: "vscode", label: "VS Code" },
+    { id: "cursor", label: "Cursor" },
+    { id: "system", label: t("prefs.display.editorSystem") },
+    { id: "custom", label: t("prefs.display.editorCustom") },
+  ];
 
   return (
     <PrefsRow label={t("prefs.display.editor")} meta={t("prefs.display.editorMeta")}>
-      <PrefsSeg<Choice>
-        label={t("prefs.display.editor")}
+      <div className="prefs-editor-seg">
+        <PrefsSeg<Choice>
+          label={t("prefs.display.editor")}
+          value={choice}
+          options={options.map((o) =>
+            o.id === "auto" && foundName
+              ? {
+                  id: o.id,
+                  aria: t("prefs.display.editorAutoFound", { name: foundName }),
+                  label: (
+                    <>
+                      {o.label} <span className="prefs-found mono">{foundName}</span>
+                    </>
+                  ),
+                }
+              : o,
+          )}
+          onChange={pick}
+        />
+      </div>
+      {/* 좁은 화면(≤420px)의 같은 고르기 — 둘 중 하나만 보인다(prefs.css 의 컨테이너 쿼리). */}
+      <select
+        className="prefs-editor-select"
+        aria-label={t("prefs.display.editor")}
         value={choice}
-        options={[
-          { id: "auto", label: autoLabel },
-          { id: "vscode", label: "VS Code" },
-          { id: "cursor", label: "Cursor" },
-          { id: "system", label: t("prefs.display.editorSystem") },
-          { id: "custom", label: t("prefs.display.editorCustom") },
-        ]}
-        onChange={pick}
-      />
+        onChange={(e) => pick(e.target.value as Choice)}
+      >
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.id === "auto" && foundName ? t("prefs.display.editorAutoFound", { name: foundName }) : o.label}
+          </option>
+        ))}
+      </select>
       {choice === "custom" ? (
         <input
           className="prefs-input mono"

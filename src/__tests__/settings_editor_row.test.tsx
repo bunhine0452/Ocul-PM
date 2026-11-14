@@ -70,21 +70,21 @@ describe("choiceOf — stored value → choice", () => {
 describe("Open files in row", () => {
   it("auto shows the detected editor name", async () => {
     renderRow();
-    expect(await screen.findByRole("tab", { name: t("prefs.display.editorAutoFound", { name: "VS Code" }) })).toHaveAttribute(
-      "aria-selected",
+    expect(await screen.findByRole("radio", { name: t("prefs.display.editorAutoFound", { name: "VS Code" }) })).toHaveAttribute(
+      "aria-checked",
       "true",
     );
   });
 
   it("picking VS Code saves vscode", async () => {
     renderRow();
-    fireEvent.click(screen.getByRole("tab", { name: "VS Code" }));
+    fireEvent.click(screen.getByRole("radio", { name: "VS Code" }));
     await waitFor(() => expect(fx.settingsSet).toHaveBeenCalledWith("external_editor_command", "vscode"));
   });
 
   it("custom opens a field and saves the command on Enter", async () => {
     renderRow();
-    fireEvent.click(screen.getByRole("tab", { name: t("prefs.display.editorCustom") }));
+    fireEvent.click(screen.getByRole("radio", { name: t("prefs.display.editorCustom") }));
     expect(fx.settingsSet).not.toHaveBeenCalled();
     const input = screen.getByRole("textbox", { name: t("prefs.display.editorCustom") });
     fireEvent.change(input, { target: { value: "subl %path:%line" } });
