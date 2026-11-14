@@ -28,6 +28,11 @@ export function clampRatio(ratio: number, size: number, dir: "row" | "col"): num
 export interface PaneTreeProps {
   node: PaneNode;
   active: number | null;
+  /**
+   * 참이면 지금 붙는 칸이 입력에 포커스를 가져가지 않는다 — 키보드로 탭을 옮겨 고른 칸의 세션을 갈아 끼울 때.
+   * 붙인 효과가 읽을 때의 값이라 ref 로 받는다(그 뒤 화면 쪽 효과가 끈다).
+   */
+  holdFocus?: { readonly current: boolean };
   dropOver: number | null;
   dropHint: string;
   /** 칸이 둘 이상일 때 칸 머리 — 하나면 `null`. */
@@ -36,7 +41,8 @@ export interface PaneTreeProps {
   band: (id: number) => ReactNode;
   /** 칸의 모양 — 기다림 · 끝남 (`is-wait` · `is-ended`). */
   leafClass: (id: number) => string;
-  onActivate: (id: number) => void;
+  /** 칸을 골랐다 — `keepFocus` 면 포커스를 그 자리(띠 · 머리의 단추)에 둔다. */
+  onActivate: (id: number, keepFocus?: boolean) => void;
   onRatio: (path: string, ratio: number) => void;
   onEqualize: () => void;
   separatorLabel: string;
@@ -66,24 +72,42 @@ function Node(props: PaneTreeProps & { path: string }) {
   );
 }
 
-function Leaf({ id, active, dropOver, dropHint, head, band, leafClass, onActivate, overlay }: PaneTreeProps & { id: number }) {
+/** 칸 위 크롬(상태 띠 · 찾기 막대 · 칸 머리) 안인가 — 거기로 들어온 포커스는 터미널로 끌려가지 않는다. */
+function inChrome(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(".tm-over, .tm-pane-head") != null;
+}
+
+function Leaf({
+  id,
+  active,
+  holdFocus,
+  dropOver,
+  dropHint,
+  head,
+  band,
+  leafClass,
+  onActivate,
+  overlay,
+}: PaneTreeProps & { id: number }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const isActive = id === active;
   // 나눌 때마다 트리 모양이 바뀌어 칸이 다시 서도, 초점은 고른 칸에만 — 마지막에 선 칸이 빼앗지 않게.
   useEffect(() => {
     if (!ref.current) return;
-    return mountTerm(id, ref.current, isActive);
+    return mountTerm(id, ref.current, isActive && !holdFocus?.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
   const top = head(id);
   const strip = band(id);
   const find = isActive ? overlay : null;
   const extra = leafClass(id);
+  // 고르지 않은 칸의 띠 · 머리 단추로 들어온 포커스는 그 자리에 둔다 — 고르며 터미널로 끌어가 그 단추들에
+  // 키보드로 닿을 수 없었다(xterm 은 Tab 을 삼킨다).
   return (
     <div
       className={"tm-leaf" + (isActive && top ? " is-active" : "") + (extra ? " " + extra : "")}
-      onFocusCapture={() => onActivate(id)}
-      onMouseDown={() => onActivate(id)}
+      onFocusCapture={(e) => onActivate(id, inChrome(e.target))}
+      onMouseDown={(e) => onActivate(id, inChrome(e.target))}
     >
       {top}
       <div

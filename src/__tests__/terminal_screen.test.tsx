@@ -143,11 +143,11 @@ describe("터미널 탭", () => {
       info(2, "claude", { status: { state: "working", kind: null, msg: "읽는 중", since } }),
     ]);
     render(<TerminalScreen projectId={1} workday="20261029" />);
-    // 둘 이상이면 위 탭 줄 — 예외만 말한다(30분 넘게 그대로인 「작업 중」 은 「최근 소식 없음」).
+    // 둘 이상이면 위 탭 줄 — 예외만 말한다(「작업 중」 은 `since` 가 오래여도 평상 — 소식 없음은 마지막 활동 기준).
     const tabs = screen.getAllByRole("tab");
     expect(tabs).toHaveLength(2);
     expect(within(tabs[0]).getByText(t("terminal.state.question"), { exact: false })).toBeInTheDocument();
-    expect(within(tabs[1]).getByText(t("terminal.state.quiet"), { exact: false })).toBeInTheDocument();
+    expect(tabs[1].querySelector(".tm-meta")).toBeNull();
     // 작업 중인 세션을 보고 있으면 예외 줄이 없다.
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByText("읽는 중")).toBeNull();

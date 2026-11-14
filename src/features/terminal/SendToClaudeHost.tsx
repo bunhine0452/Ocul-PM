@@ -4,7 +4,9 @@
  *
  * 받는 곳은 열린 동안 계속 따라간다(`useWindowTermsState`) — 한 번만 읽던 때는 읽기 전에 ⌘↩ 를 누르면 조용히
  * 새 claude 세션이 열렸고, 열린 사이 Claude 가 일을 시작해도 「일하는 중」 안내가 그대로였다. 목록을 읽기 전에는
- * 보내지 않고, 못 읽었으면 새 세션으로 간다고 말한다. 받는 곳의 이름은 탭과 같은 번호 · 이름이다.
+ * 보내지 않고, 못 읽었으면 받는 곳을 새 세션 하나로 두고 그렇게 말한다(안내와 실제로 보내는 곳이 같게).
+ * 받는 곳의 이름은 탭과 같은 번호 · 이름이다. 기본 받는 곳은 **이번에 연 뒤 읽은** 목록으로 정한다 — 닫힌 동안
+ * 목록은 낡는다(첫 보내기가 연 claude 세션을 두 번째 열 때 몰라 「새 세션」 이 기본이 되던 것).
  *
  * 쓰던 말은 맥락(종류 + 자리)마다 앱이 켜 있는 동안 남는다 — Esc 한 번에 길게 쓴 지시가 사라지지 않게.
  * 보내면 지운다.
@@ -19,7 +21,7 @@ import { tError } from "@/i18n/errors";
 import { kbd } from "@/lib/kbd";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { toast } from "@/lib/toast";
-import { terminalApi } from "@/api/terminal";
+import { terminalApi, type TermInfo } from "@/api/terminal";
 import { requestTermFocus } from "./focusRequest";
 import { useRace } from "./race";
 import { runPromptInTerminal } from "./runPrompt";
@@ -39,6 +41,7 @@ import { numberSessions, sessionName, sessionNumber, sessionWord, useWindowTerms
 import "./send.css";
 
 const NEW = "new";
+const NO_TERMS: TermInfo[] = [];
 
 /** 쓰던 말 — 맥락(종류 + 자리)마다, 앱이 켜 있는 동안(창의 웹뷰). */
 const drafts = new Map<string, string>();
@@ -58,8 +61,10 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const terms = useWindowTermsState(ctx != null);
   useRace(); // 시도(레인) 세션의 이름 「시도 n」 이 바뀌면 다시 그린다
-  numberSessions(terms.list);
-  const sessions = useMemo(() => receiversOf(terms.list), [terms.list]);
+  // 못 읽었으면 받는 곳은 새 세션뿐 — 앞서 읽은 목록의 세션은 지금 쉬는지 모른다.
+  const list = terms.state === "failed" ? NO_TERMS : terms.list;
+  numberSessions(list);
+  const sessions = useMemo(() => receiversOf(list), [list]);
   // 목록을 읽기 전 — 받는 곳을 모르니 보내지 않는다(곧 풀리는 진행 중).
   const loading = terms.state === "loading";
 
@@ -73,19 +78,21 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
     [],
   );
 
-  // 받는 곳 — 목록이 처음 서면 쉬는 세션을, 고른 세션이 사라지면 다시 고른다. 사람이 고른 것은 그대로 둔다.
+  // 받는 곳 — 이번에 연 뒤 목록이 처음 서면 쉬는 세션을, 고른 세션이 사라지면 다시 고른다. 사람이 고른 것은
+  // 그대로 둔다. 못 읽은 동안은 정하지 않는다(그동안은 새 세션) — 다시 읽히면 고른 세션이 돌아온다.
+  // 정해 두기(효과) 전 렌더도 같은 답을 그린다 — 목록이 선 그 렌더에 잠깐 「새 세션」 이 보이고 보내지지 않게.
+  const ready = terms.state === "ready";
+  const kept = target === NEW || (target != null && sessions.some((s) => String(s.id) === target)) ? target : null;
+  const first = ready ? defaultReceiver(sessions) : null;
+  const chosen = kept ?? (first ? String(first.id) : NEW);
   useEffect(() => {
-    if (!ctx || terms.state === "loading") return;
-    if (target === NEW || (target != null && sessions.some((s) => String(s.id) === target))) return;
-    const first = defaultReceiver(sessions);
-    setTarget(first ? String(first.id) : NEW);
-  }, [ctx, terms.state, target, sessions]);
+    if (ctx && ready && kept == null) setTarget(chosen);
+  }, [ctx, ready, kept, chosen]);
 
   useSendQueueFlusher();
 
   const close = () => setCtx(null);
-  const chosen = target ?? NEW;
-  const picked = chosen === NEW ? null : sessions.find((s) => String(s.id) === chosen);
+  const picked = chosen === NEW ? undefined : sessions.find((s) => String(s.id) === chosen);
   const readiness = picked ? readinessOf(picked.status) : "ready";
   const edit = (value: string) => {
     setText(value);

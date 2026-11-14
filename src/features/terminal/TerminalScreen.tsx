@@ -58,7 +58,7 @@ import { useMinuteTick } from "@/hooks/useSecondTick";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import { terminalApi } from "@/api/terminal";
 import { clampTermFont, termFontKey } from "./termFontSize";
-import { laneNumberOf, laneOf, lanePathOf, rebindLane, useRace } from "./race";
+import { laneOf, lanePathOf, rebindLane, useRace } from "./race";
 import { RaceStartDialog, RaceStrip } from "./RacePanel";
 import { onTermFocus, takeTermFocus } from "./focusRequest";
 import { closePeek } from "./imagePeek";
@@ -67,7 +67,7 @@ import { TermFileMenuHost } from "./TermFileMenu";
 import { runPromptInTerminal } from "./runPrompt";
 import { sendOrQueue, toastQueued } from "./sendToClaude";
 import { SessionDot, SessionTabs, SessionWord } from "./SessionTabs";
-import { StatusBand, hasBand } from "./StatusBand";
+import { StatusBand, __resetStatusBandForTests, hasBand, unfoldWorking } from "./StatusBand";
 import { TermToolbar } from "./TermToolbar";
 import {
   __resetSessionNumbersForTests,
@@ -134,10 +134,28 @@ function useNextItem(projectId: number, enabled: boolean) {
 /** 칸 트리와 고른 칸 — 화면을 오가도 기억한다(창 하나에 하나, 모듈 범위). */
 let remembered: PaneView = { layout: null, active: null };
 
+/**
+ * 나누거나 다시 열며 프로젝트 루트 밖(레인 worktree)에서 연 세션의 폴더. 레인의 짝 세션은 `race` 가 알지만,
+ * 레인 칸을 나눠 연 셸은 짝이 아니라서 다시 열면 루트에서 뜨고 파일 링크도 원래 체크아웃 기준으로 열렸다.
+ */
+const cwds = new Map<number, string>();
+
+/** 세션이 도는 폴더 — `null` 이면 프로젝트 루트. */
+function cwdOf(id: number): string | null {
+  return lanePathOf(id) ?? cwds.get(id) ?? null;
+}
+
+/** 안에서 claude 가 도는가 — 「다음」 으로 띄웠거나, 셸에서 띄워 상태 신호를 보낸다. */
+function runsClaude(s: TermInfo): boolean {
+  return s.label === "claude" || s.status != null;
+}
+
 /** 테스트 전용 — 창 하나의 수명을 흉내 낸다. */
 export function __resetTermLayoutForTests() {
   remembered = { layout: null, active: null };
+  cwds.clear();
   __resetSessionNumbersForTests();
+  __resetStatusBandForTests();
 }
 
 /** 터미널 단축키 — macOS 는 ⌘(⌃ 는 셸의 것), 그 밖은 터미널 가족(Ctrl+Shift+…, `readChord`). */
@@ -173,12 +191,13 @@ function paneMoveOf(e: KeyboardEvent): PaneMove | null {
 
 /**
  * 터미널 단축키가 물러날 때 — 다른 처리기가 이미 받았거나(defaultPrevented), 대화상자(레인 변경 · 닫기 확인) ·
- * 크게 본 미리보기 · 파일 메뉴가 떠 있거나, 화면 밖 입력칸(⌘K 팔레트)의 키. 예전엔 window 캡처라 대화상자
- * 뒤에서 ⌘F 가 막대를 열며 포커스를 빼앗고 ⌘T 가 세션을 열었다(`useNavGestures` 는 이미 물러난다).
+ * 크게 본 미리보기 · 팝오버 메뉴(파일 · 「새 세션 ▾」 · 숨은 세션 「+N」)가 떠 있거나, 화면 밖 입력칸(⌘K 팔레트)의
+ * 키. 예전엔 window 캡처라 대화상자 뒤에서 ⌘F 가 막대를 열며 포커스를 빼앗고 ⌘T 가 세션을 열었다
+ * (`useNavGestures` 는 이미 물러난다). 메뉴가 열린 채 ⌘T 면 새 세션이 포커스를 가져가고 메뉴만 남았다.
  */
 function yieldsToOverlay(e: KeyboardEvent): boolean {
   if (e.defaultPrevented) return true;
-  if (document.querySelector('[aria-modal="true"], .tm-file-menu')) return true;
+  if (document.querySelector('[aria-modal="true"], .tm-file-menu, .tm-menu, .tm-more-pop')) return true;
   const el = e.target instanceof Element ? e.target : null;
   return !!el && !el.closest(".tm-split") && el.matches("input, textarea, select, [contenteditable='true']");
 }
@@ -208,20 +227,22 @@ export function TerminalScreen({
     setViewState((prev) => (remembered = fn(prev)));
   }, []);
   const { layout, active } = view;
-  // 터미널 찾기 (⌘F) — 고른 칸 위에 한 줄. 다른 칸을 고르면 닫는다. ⌘F 마다 `findSeq` 가 올라 찾기 칸으로 돌아온다.
-  const [finding, setFinding] = useState(false);
+  // 터미널 찾기 (⌘F) — 고른 칸 위에 한 줄, 연 세션의 것. 다른 칸을 고르면 닫는다(그 렌더에 새 칸 위로 잠깐 서며
+  // 새 칸의 선택까지 지우던 것 — 막대는 연 세션 위에만 선다). ⌘F 마다 `findSeq` 가 올라 찾기 칸으로 돌아온다.
+  const [finding, setFinding] = useState<number | null>(null);
   const [findSeq, setFindSeq] = useState(0);
   // 한 칸 크게 (Orca 「Expand pane」 ⇧⌘↩) — 트리는 그대로 두고 고른 칸만 그린다.
   const [zoomed, setZoomed] = useState(false);
   const panesRef = useRef<HTMLDivElement | null>(null);
   const opening = useRef(false);
-  // 첫 셸을 여는 중 · 못 열었음 — 세션이 없을 때 빈 화면이 깜빡이거나 토스트만 남지 않게.
-  const [openState, setOpenState] = useState<{ phase: "idle" | "opening" | "slow" | "failed"; error?: string }>({
-    phase: "idle",
-  });
+  // 첫 셸을 여는 중 · 못 열었음 — 세션이 없을 때 빈 화면이 깜빡이거나 토스트만 남지 않게. 세션 없이 서면 첫 렌더부터
+  // 「여는 중」 — 「idle」 로 시작하면 빈 화면 카드(채운 단추)가 한 번 그려지고 쓰지 않을 다음 항목도 읽었다.
+  const [openState, setOpenState] = useState<{ phase: "idle" | "opening" | "slow" | "failed"; error?: string }>(() =>
+    termsSnapshot().length === 0 ? { phase: "opening" } : { phase: "idle" },
+  );
   // 같은 일을 worktree 여럿에서 (Orca 벤치마킹 #worktree-race) — 시작 대화상자. 레인 띠는 RaceStrip.
   const [raceOpen, setRaceOpen] = useState(false);
-  useRace(); // 레인 ↔ 세션 짝이 바뀌면 탭 이름(「시도 n」) · 일지 수를 다시 그린다
+  const race = useRace(); // 레인 ↔ 세션 짝이 바뀌면 탭 이름(「시도 n」) · 일지 수를 다시 그린다
   // 나누려고(다시 열려고) 연 세션은 「새 세션이면 고른 칸에」 규칙에서 뺀다 — 고른 칸을 빼앗지 않게.
   const openingSplit = useRef(false);
   const records = useRecordsSince(projectId, workday, sessions);
@@ -297,11 +318,15 @@ export function TerminalScreen({
     }
   }, [projectId, setView, t]);
 
-  // 처음 열면 셸 하나 — 빈 화면에서 단추부터 찾게 하지 않는다.
+  // 처음 열면 셸 하나 — 빈 화면에서 단추부터 찾게 하지 않는다. 그 사이 세션이 생겼으면 「여는 중」 을 거둔다.
   useEffect(() => {
     if (termsSnapshot().length === 0) void add();
+    else setOpenState((o) => (o.phase === "opening" ? { phase: "idle" } : o));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 접어 둔 「일지 없음」 띠는 Claude 가 다시 일하면 편다 — 칸에 없는(탭에만 있는) 세션도 보게 화면이 넘긴다.
+  useEffect(() => unfoldWorking(sessions), [sessions]);
 
   // 세션이 닫히면 그 칸을 접고, 새 세션이 생기면(「다음」 실행 · 레인) 고른 칸에 띄운다.
   const lastId = sessions[sessions.length - 1]?.id ?? null;
@@ -354,7 +379,9 @@ export function TerminalScreen({
       opening.current = true;
       openingSplit.current = true;
       try {
-        const id = await openTerm(projectId, null, lanePathOf(active));
+        const cwd = cwdOf(active);
+        const id = await openTerm(projectId, null, cwd);
+        if (cwd) cwds.set(id, cwd);
         setZoomed(false);
         setView((v) =>
           v.layout && v.active != null ? { layout: splitLeaf(v.layout, v.active, id, dir), active: id } : show(v, id),
@@ -369,7 +396,17 @@ export function TerminalScreen({
     [active, projectId, roomFor, setView, t],
   );
 
-  // 끝난 세션을 같은 자리(같은 폴더 · 레인)에서 다시 연다 — claude 였으면 그 대화를 잇는다(`claude --continue`).
+  // 「다시 열기」 가 대화를 잇는가 — claude 로 연 세션이고, 같은 폴더에서 다른 claude 가 돌고 있지 않을 때만.
+  // `claude --continue` 는 **그 폴더의 가장 최근** 대화를 연다: 같은 폴더의 다른 세션이 살아 있으면 그쪽 대화를
+  // 이어 한 대화에 Claude 둘이 번갈아 썼다. 레인은 폴더에 세션이 하나뿐이라 그대로 잇는다.
+  const resumes = useCallback((id: number) => {
+    const list = sessionsRef.current;
+    if (list.find((s) => s.id === id)?.label !== "claude") return false;
+    const cwd = cwdOf(id);
+    return !list.some((s) => s.id !== id && s.alive && runsClaude(s) && cwdOf(s.id) === cwd);
+  }, []);
+
+  // 끝난 세션을 같은 자리(같은 폴더 · 레인)에서 다시 연다 — 잇는 것은 `resumes` 가 정한다.
   // 새 세션은 그 칸에 앉고, 끝난 세션은 닫는다.
   const reopen = useCallback(
     async (id: number) => {
@@ -378,7 +415,9 @@ export function TerminalScreen({
       opening.current = true;
       openingSplit.current = true;
       try {
-        const next = await openTerm(projectId, null, lanePathOf(id), old.label === "claude");
+        const cwd = cwdOf(id);
+        const next = await openTerm(projectId, null, cwd, resumes(id));
+        if (cwd && lanePathOf(id) == null) cwds.set(next, cwd);
         rebindLane(id, next);
         setView((v) => swapSession(v, id, next));
         closeTerm(id);
@@ -389,7 +428,7 @@ export function TerminalScreen({
         opening.current = false;
       }
     },
-    [projectId, setView, t],
+    [projectId, resumes, setView, t],
   );
 
   // 「기록 남기게 하기」 — 일지 없이 손을 놓은 Claude 에게 기록을 부탁한다(쉬지 않으면 줄에 세운다).
@@ -406,7 +445,9 @@ export function TerminalScreen({
     [t],
   );
 
-  // 탭 · 칸을 고른다 — 칸에 없던 세션이면 고른 칸에 갈아 끼운다. 키보드로 탭을 옮길 때는 입력을 넘기지 않는다.
+  // 탭 · 칸을 고른다 — 칸에 없던 세션이면 고른 칸에 갈아 끼운다. 키보드로 탭을 옮길 때 · 칸의 띠나 머리 단추로
+  // 포커스가 들어올 때는 입력을 넘기지 않는다. 갈아 끼운 칸이 화면을 붙이며 포커스를 가져가지 않게 `PaneTree`
+  // 에도 넘긴다 — 그 칸의 `mountTerm` 이 고른 칸이면 입력에 포커스를 줘, 다음 화살표가 셸 · Claude 로 갔다.
   const keepFocus = useRef(false);
   const pick = useCallback(
     (id: number, keep = false) => {
@@ -418,7 +459,7 @@ export function TerminalScreen({
 
   // 고른 칸이 바뀌면 입력도 그리로 — 찾기 줄은 닫는다(다른 세션의 출력이다).
   useEffect(() => {
-    setFinding(false);
+    setFinding((f) => (f === active ? f : null));
     if (active == null) return;
     if (keepFocus.current) {
       keepFocus.current = false;
@@ -432,7 +473,7 @@ export function TerminalScreen({
 
   const openFind = useCallback(() => {
     if (activeRef.current == null) return;
-    setFinding(true);
+    setFinding(activeRef.current);
     setFindSeq((n) => n + 1);
   }, []);
 
@@ -500,11 +541,14 @@ export function TerminalScreen({
   const dropOver = useTerminalFileDrop(active, getPlatform() === "windows", pasteToTerm);
 
   // ⌘W — 세션이 둘 이상이면 고른 세션만 닫는다. 하나 남으면 창을 닫는다(돌고 있으면 창 닫기 확인이 묻는다).
+  // 대화상자(보내기 · 나란히 돌리기 · 변경 보기)가 떠 있으면 키만 삼킨다 — 앱 메뉴를 거쳐 와 다른 단축키처럼
+  // 물러나지 못했고, 대화상자 뒤의 고른 세션을 닫았다(빈 셸이면 묻지도 않고). `false` 면 창이 닫힌다.
   const sessionCountRef = useRef(sessions.length);
   sessionCountRef.current = sessions.length;
   useEffect(
     () =>
       interceptCloseKey(() => {
+        if (document.querySelector('[aria-modal="true"]')) return true;
         const id = activeRef.current;
         if (id == null || sessionCountRef.current < 2) return false;
         void closeSession(id);
@@ -551,7 +595,14 @@ export function TerminalScreen({
   const band = (id: number) => {
     const s = byId(id);
     return s ? (
-      <StatusBand info={s} view={viewOf(s)} onAskRecord={askRecord} onReopen={reopen} onClose={closeTerm} />
+      <StatusBand
+        info={s}
+        view={viewOf(s)}
+        resumes={!s.alive && resumes(id)}
+        onAskRecord={askRecord}
+        onReopen={reopen}
+        onClose={closeTerm}
+      />
     ) : null;
   };
   // 기다리는 칸(고른 칸이 아닐 때)은 1px 앰버 테, 끝난 칸은 흐리게 — 마지막 화면이 산 것처럼 남지 않게.
@@ -562,6 +613,9 @@ export function TerminalScreen({
     return id !== active && viewOf(s).mark === "wait" ? "is-wait" : "";
   };
   const current = active != null ? (byId(active) ?? null) : null;
+  // 고른 세션의 폴더 — 파일 메뉴는 이 체크아웃 기준(레인이면 그 worktree, 레인 칸을 나눈 셸도), 머리에 「시도 n」.
+  const activeCwd = active != null ? cwdOf(active) : null;
+  const activeLane = activeCwd == null ? -1 : race.lanes.findIndex((l) => l.path === activeCwd);
   const tabsNeeded = sessions.length > 1 && sessions.some((s) => !shown.has(s.id));
   const empty = sessions.length === 0 && openState.phase === "idle";
   const next = useNextItem(projectId, empty);
@@ -641,10 +695,6 @@ export function TerminalScreen({
             recordsOf={recordsOf}
             onPick={pick}
             onClose={(id) => void closeSession(id)}
-            onAskRecord={(id) => {
-              pick(id);
-              void askRecord(id);
-            }}
           />
         ) : null}
         <div className="tm-panes" ref={panesRef}>
@@ -652,6 +702,7 @@ export function TerminalScreen({
             <PaneTree
               node={zoomed && active != null ? leaf(active) : layout}
               active={active}
+              holdFocus={keepFocus}
               dropOver={dropOver}
               dropHint={t("terminal.drop.hint")}
               head={paneHead}
@@ -663,13 +714,12 @@ export function TerminalScreen({
               separatorLabel={t("terminal.divider")}
               separatorHelp={t("terminal.dividerHelp")}
               overlay={
-                finding && current ? (
+                current && finding === current.id ? (
                   <TermFindBar
                     id={current.id}
                     seq={findSeq}
-                    claude={current.label === "claude" || current.status != null}
-                    working={current.status?.state === "working"}
-                    onClose={() => setFinding(false)}
+                    claude={runsClaude(current)}
+                    onClose={() => setFinding(null)}
                   />
                 ) : null
               }
@@ -678,10 +728,7 @@ export function TerminalScreen({
         </div>
       </div>
       <TermImagePeekHost />
-      <TermFileMenuHost
-        projectRoot={(active != null ? lanePathOf(active) : null) ?? projectRoot}
-        lane={active != null ? laneNumberOf(active) : null}
-      />
+      <TermFileMenuHost projectRoot={activeCwd ?? projectRoot} lane={activeLane >= 0 ? activeLane + 1 : null} />
       {confirmDialog}
       {raceOpen ? <RaceStartDialog projectId={projectId} onClose={() => setRaceOpen(false)} /> : null}
     </>

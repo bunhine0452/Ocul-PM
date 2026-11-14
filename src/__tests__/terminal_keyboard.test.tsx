@@ -36,7 +36,15 @@ vi.mock("@/features/terminal/termStore", () => ({
     store.set([...store.list, info(id, "zsh")]);
     return id;
   },
-  mountTerm: () => () => {},
+  // 실제처럼 — 칸에 입력을 세우고, `focus` 가 참이면 거기 포커스(termStore.mountTerm). 탭을 옮겨 칸의 세션을
+  // 갈아 끼울 때 이 포커스가 탭에서 터미널로 새던 길을 문다.
+  mountTerm: (id: number, el: HTMLElement, focus = true) => {
+    const input = document.createElement("textarea");
+    input.setAttribute("aria-label", `xterm ${id}`);
+    el.appendChild(input);
+    if (focus) input.focus();
+    return () => input.remove();
+  },
   pasteToTerm: () => {},
   setTermFontSize: (px: number) => void store.fonts.push(px),
   focusTerm: (id: number) => void store.focused.push(id),
@@ -57,9 +65,14 @@ vi.mock("@/api/terminal", () => ({
 vi.mock("@/api/oculpm", () => ({ oculpmApi: { listJournalEntries: async () => [] } }));
 vi.mock("@/api/projects", () => ({ projectsApi: { onJournalAdded: async () => () => {} } }));
 vi.mock("@/api/race", () => ({ raceApi: { lanes: async () => [] } }));
+const win = vi.hoisted(() => ({ closed: 0 }));
+vi.mock("@/api/window", () => ({
+  windowApi: { closeThisWindow: async () => void (win.closed += 1), newWindow: async () => {} },
+}));
 
 import { t } from "@/i18n";
 import { AppDialog } from "@/components/ui/AppDialog";
+import { closeByKey } from "@/hooks/useWindowKeys";
 import { TerminalScreen, __resetTermLayoutForTests } from "@/features/terminal/TerminalScreen";
 
 function info(id: number, label: string): TermInfo {
@@ -110,6 +123,34 @@ describe("terminal shortcuts step back for dialogs", () => {
     expect(store.opened).toBe(0);
     expect(store.fonts).toEqual([13]);
   });
+
+  it("⌘W with a dialog open closes neither the selected session behind it nor the window", async () => {
+    win.closed = 0;
+    store.set([info(1, "zsh"), info(2, "zsh")]);
+    render(
+      <>
+        <TerminalScreen projectId={1} workday={null} />
+        <AppDialog open onClose={() => {}} label="dialog">
+          <button type="button">ok</button>
+        </AppDialog>
+      </>,
+    );
+    closeByKey();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(store.closed).toEqual([]);
+    expect(win.closed).toBe(0);
+  });
+
+  it("with the ▾ menu open, ⌘T stays with the menu instead of opening a session behind it", async () => {
+    store.set([info(1, "zsh")]);
+    render(<TerminalScreen projectId={1} workday={null} />);
+    fireEvent.click(screen.getByRole("button", { name: t("terminal.newMenu") }));
+    expect(document.activeElement).toBe(screen.getAllByRole("menuitem")[0]);
+    fireEvent.keyDown(window, { key: "t", code: "KeyT", metaKey: true });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(store.opened).toBe(0);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
 });
 
 describe("session tabs keyboard (roving)", () => {
@@ -118,10 +159,12 @@ describe("session tabs keyboard (roving)", () => {
     render(<TerminalScreen projectId={1} workday={null} />);
     const tabs = screen.getAllByRole("tab");
     expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, -1, 0]);
+    tabs[2].focus();
     fireEvent.keyDown(tabs[2], { key: "ArrowLeft" });
     await waitFor(() => expect(screen.getAllByRole("tab")[1]).toHaveAttribute("aria-selected", "true"));
+    // 칸이 하나라 고른 칸의 세션이 갈아 끼워져도(그 칸이 화면을 다시 붙여도) 포커스는 탭에 남는다 — 다음 화살표 ·
+    // Enter 가 셸이나 허락을 기다리는 Claude 로 가지 않는다.
     expect(document.activeElement).toBe(screen.getAllByRole("tab")[1]);
-    // 키보드로 옮기는 동안은 입력이 터미널로 가지 않는다 — 다음 화살표도 탭 줄이 받는다.
     expect(store.focused).not.toContain(2);
     fireEvent.keyDown(screen.getAllByRole("tab")[1], { key: "ArrowRight" });
     await waitFor(() => expect(screen.getAllByRole("tab")[2]).toHaveAttribute("aria-selected", "true"));

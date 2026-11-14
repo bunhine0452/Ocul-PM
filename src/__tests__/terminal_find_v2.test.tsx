@@ -91,42 +91,31 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("find in a full-screen program", () => {
-  it("on the alternate screen it says the conversation isn't in the scrollback and offers 'Find in Claude'", async () => {
+  it("on the alternate screen it says only the visible screen is searched and how to page Claude's conversation — typing nothing", async () => {
     store.alt.add(1);
-    render(<TermFindBar id={1} seq={1} claude working={false} onClose={() => {}} />);
+    render(<TermFindBar id={1} seq={1} claude onClose={() => {}} />);
     expect(screen.getByText(t("terminal.find.altClaude"))).toBeInTheDocument();
+    expect(t("terminal.find.altClaude")).toContain("Ctrl+O");
+    // 앱이 대신 치는 키는 없다 — 앱이 터미널에 치는 줄은 CLAUDE.md 의 목록뿐이다. 단추는 찾기 막대의 다섯(Aa · .* · ↑ · ↓ · ×)뿐.
+    expect(screen.getAllByRole("button")).toHaveLength(5);
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: t("terminal.find.inClaude") }));
-      await new Promise((r) => setTimeout(r, 120));
+      fireEvent.change(screen.getByRole("textbox"), { target: { value: "error" } });
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
     });
-    // Claude 의 대화 기록(Ctrl+O) 다음 찾기(/) — 그 순서로.
-    expect(store.writes).toEqual([
-      [1, "\x0f"],
-      [1, "/"],
-    ]);
-  });
-
-  it("while Claude is working the button says why it can't (keys would land in the conversation)", () => {
-    store.alt.add(1);
-    render(<TermFindBar id={1} seq={1} claude working onClose={() => {}} />);
-    const button = screen.getByRole("button", { name: t("terminal.find.inClaude") });
-    expect(button).toHaveAttribute("aria-disabled", "true");
-    expect(button).toHaveAttribute("title", t("terminal.find.claudeBusy"));
-    fireEvent.click(button);
     expect(store.writes).toEqual([]);
   });
 
-  it("a full-screen program that is not claude gets the note without the button", () => {
+  it("a full-screen program that is not claude gets its own note", () => {
     store.alt.add(1);
-    render(<TermFindBar id={1} seq={1} claude={false} working={false} onClose={() => {}} />);
+    render(<TermFindBar id={1} seq={1} claude={false} onClose={() => {}} />);
     expect(screen.getByText(t("terminal.find.altOther"))).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: t("terminal.find.inClaude") })).toBeNull();
+    expect(screen.queryByText(t("terminal.find.altClaude"))).toBeNull();
   });
 });
 
 describe("find bar", () => {
   it("regex on + 'error|fail' searches with regex: true; a broken pattern is said, not searched", () => {
-    render(<TermFindBar id={1} seq={1} claude={false} working={false} onClose={() => {}} />);
+    render(<TermFindBar id={1} seq={1} claude={false} onClose={() => {}} />);
     const toggle = screen.getByRole("button", { name: t("terminal.find.regex") });
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
@@ -147,7 +136,8 @@ describe("find bar", () => {
     await screen.findByRole("search");
     fireEvent.mouseDown(container.querySelector('.tm-pane[data-term-id="1"]')!);
     await waitFor(() => expect(screen.queryByRole("search")).toBeNull());
-    expect(store.decorCleared).toContain(2);
+    // 막대는 연 세션 위에만 — 새 칸 위로 잠깐 서며 새 칸의 칠 · 선택까지 지우지 않는다.
+    expect(store.decorCleared).toEqual([2]);
   });
 
   it("⌘F while the bar is open brings focus back to the find input", async () => {

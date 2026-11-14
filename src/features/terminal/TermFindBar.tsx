@@ -6,29 +6,23 @@
  * 열린 채 ⌘F 를 다시 누르면(`seq`) 찾기 칸으로 돌아와 글자를 고른다.
  *
  * 대체 화면(전체 화면 TUI)에는 스크롤백이 없다 — Ocul 은 Claude Code 를 `CLAUDE_CODE_NO_FLICKER` 로 띄워 대화가
- * 거기 산다. ⌘F 가 보이는 몇 줄만 찾고 「없음」이라 말하던 것 대신, 그 사실 한 줄과 「Claude 에서 찾기」
- * (Claude 의 대화 기록 Ctrl+O 를 열고 / 로 찾기 시작)를 낸다. 일하는 중에는 키가 대화에 섞이니 막는다.
+ * 거기 산다. ⌘F 가 보이는 몇 줄만 찾고 「없음」이라 말하던 것 대신, 그 사실과 지난 대화를 보는 길(Claude 의
+ * 대화 기록 Ctrl+O)을 한 줄로 말한다. 앱이 그 키를 대신 치지는 않는다 — 앱이 터미널에 치는 줄은 CLAUDE.md 의
+ * 목록뿐이고, 대화 기록 화면에는 찾기 키가 없다(Claude Code 키 표의 Transcript 맥락: 넘기기 · 모두 보기 · 나가기).
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
-import { terminalApi } from "@/api/terminal";
 import { ArrowDown, X } from "@/components/Icons";
 import { useT } from "@/i18n";
-import { blocked } from "@/lib/blocked";
 import { observeTerminalTheme } from "./termTheme";
-import { clearFind, clearFindDecor, findInTerm, focusTerm, isAltScreen, onFindResult, type FindResult } from "./termStore";
-
-/** Ctrl+O(대화 기록 열기) 뒤 / 를 넣기까지 — Claude Code 가 화면을 바꿀 틈. */
-const TRANSCRIPT_SETTLE_MS = 80;
+import { clearFind, clearFindDecor, findInTerm, isAltScreen, onFindResult, type FindResult } from "./termStore";
 
 export interface TermFindBarProps {
   id: number;
   /** ⌘F 를 누를 때마다 오른다 — 그때마다 찾기 칸으로 돌아온다. */
   seq: number;
-  /** 안의 프로그램이 claude 인가 — 대체 화면 안내가 「Claude 에서 찾기」 를 낸다. */
+  /** 안의 프로그램이 claude 인가 — 대체 화면 안내가 Claude 의 대화 기록을 말한다. */
   claude: boolean;
-  /** 지금 일하는 중인가 — 「Claude 에서 찾기」 는 그동안 막는다. */
-  working: boolean;
   onClose: () => void;
 }
 
@@ -41,7 +35,7 @@ function validRegex(q: string): boolean {
   }
 }
 
-export function TermFindBar({ id, seq, claude, working, onClose }: TermFindBarProps) {
+export function TermFindBar({ id, seq, claude, onClose }: TermFindBarProps) {
   const { t } = useT();
   const [query, setQuery] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
@@ -92,16 +86,6 @@ export function TermFindBar({ id, seq, claude, working, onClose }: TermFindBarPr
       go(e.shiftKey);
     }
   };
-  // Claude 의 대화 기록(Ctrl+O)을 열고 그 안에서 찾기(/)를 시작한다 — 사람이 누를 때만, 일하는 중이 아닐 때만.
-  const findInClaude = async () => {
-    clearFindDecor(id);
-    onClose();
-    await terminalApi.write(id, "\x0f").catch(() => {});
-    await new Promise((r) => setTimeout(r, TRANSCRIPT_SETTLE_MS));
-    await terminalApi.write(id, "/").catch(() => {});
-    focusTerm(id);
-  };
-
   const count = badRegex
     ? t("terminal.find.badRegex")
     : !query || result == null
@@ -173,19 +157,7 @@ export function TermFindBar({ id, seq, claude, working, onClose }: TermFindBarPr
         </button>
       </div>
       {alt ? (
-        <div className="tm-find-alt">
-          <span className="tm-find-alt-text">{t(claude ? "terminal.find.altClaude" : "terminal.find.altOther")}</span>
-          {claude ? (
-            <button
-              type="button"
-              className="btn sm"
-              {...blocked(working ? t("terminal.find.claudeBusy") : null, t("terminal.find.inClaudeTitle"))}
-              onClick={() => void findInClaude()}
-            >
-              {t("terminal.find.inClaude")}
-            </button>
-          ) : null}
-        </div>
+        <p className="tm-find-alt">{t(claude ? "terminal.find.altClaude" : "terminal.find.altOther")}</p>
       ) : null}
     </div>
   );

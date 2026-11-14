@@ -18,22 +18,35 @@ export function needsMe(status: TermStatus | null): boolean {
 }
 
 /**
- * 「작업 중」 이 이만큼 그대로면(상태가 안 바뀌면) 「최근 소식 없음」 — 30분 넘게 말이 없는 「작업 중」 을
- * 믿고 기다리지 않게. 멈췄는지는 화면을 봐야 안다.
+ * 「작업 중」 인데 이만큼 아무 소식(출력 · 상태 사건)이 없으면 「최근 소식 없음」 — 30분 넘게 말이 없는
+ * 「작업 중」 을 믿고 기다리지 않게. 멈췄는지는 화면을 봐야 안다.
  */
 export const QUIET_AFTER_MS = 30 * 60_000;
 
-/** working 이 `since` 뒤로 `QUIET_AFTER_MS` 넘게 이어졌다. `since` 를 못 읽으면 아니다. */
-export function isQuiet(status: TermStatus | null, now = Date.now()): boolean {
-  if (status?.state !== "working") return false;
-  const since = Date.parse(status.since);
-  return !Number.isNaN(since) && now - since > QUIET_AFTER_MS;
+// 세션마다 마지막 활동(출력 조각 · 상태 사건) 시각 — 창(웹뷰) 하나에 하나. 적는 쪽은 세션의 사건을 받는
+// 엔진(`termStore` 의 사건 처리)이다. `status.since` 는 「그 상태로 들어선 시각」 이라 쉬지 않고 출력하는
+// 긴 턴도 30분이 지나면 멈춘 것처럼 말했다.
+const activity = new Map<number, number>();
+
+/** 세션에 출력 · 상태 사건이 왔다 — 엔진이 부른다. */
+export function noteTermActivity(id: number, at = Date.now()): void {
+  activity.set(id, at);
 }
 
-function stateWord(tr: Tr, status: TermStatus): string {
+/**
+ * working 인데 마지막 활동 뒤로 `QUIET_AFTER_MS` 가 넘었다. 활동 시각을 모르면(엔진이 아직 안 적었으면)
+ * 아니다 — 모르는 것을 「소식 없음」 이라 말하지 않는다.
+ */
+export function isQuiet(info: TermInfo, now = Date.now()): boolean {
+  if (info.status?.state !== "working") return false;
+  const last = activity.get(info.id);
+  return last != null && now - last > QUIET_AFTER_MS;
+}
+
+function stateWord(tr: Tr, info: TermInfo, status: TermStatus): string {
   switch (status.state) {
     case "working":
-      return isQuiet(status) ? tr("terminal.state.quiet") : tr("terminal.state.working");
+      return isQuiet(info) ? tr("terminal.state.quiet") : tr("terminal.state.working");
     case "idle":
       return tr("terminal.state.idle");
     case "done":
@@ -65,12 +78,17 @@ export function sessionWord(tr: Tr, info: TermInfo): string {
   if (!info.alive) {
     return info.exit_code != null ? tr("terminal.ended", { code: info.exit_code }) : tr("terminal.endedUnknown");
   }
-  return info.status ? stateWord(tr, info.status) : tr("terminal.running");
+  return info.status ? stateWord(tr, info, info.status) : tr("terminal.running");
 }
 
 /** 엔진이 싣는 OSC 제목 · 안의 프로그램 이름 — 합류 전에도 컴파일되게 선택 속성으로 읽는다. */
 type TitledInfo = TermInfo & { title?: string | null };
 type AppStatus = TermStatus & { app?: string | null };
+
+/** 안의 프로그램이 붙인 제목(OSC 0/2) — 없으면 `null`. */
+export function oscTitle(info: TermInfo): string | null {
+  return (info as TitledInfo).title?.trim() || null;
+}
 
 /**
  * 세션 이름 — 레인이면 「시도 n」, 아니면 안의 프로그램이 붙인 제목(OSC), 프로그램 이름, 셸 이름 순.
@@ -79,7 +97,7 @@ type AppStatus = TermStatus & { app?: string | null };
 export function sessionName(tr: Tr, info: TermInfo): string {
   const lane = laneNumberOf(info.id);
   if (lane != null) return tr("race.lane", { n: lane });
-  const title = (info as TitledInfo).title?.trim();
+  const title = oscTitle(info);
   if (title) return title;
   const app = (info.status as AppStatus | null)?.app?.trim();
   return app || info.label;
@@ -90,8 +108,9 @@ const numbers = new Map<number, number>();
 let lastNumber = 0;
 
 /**
- * 창 안에서 연 순서(1부터) — 닫혀도 그 번호는 다시 쓰지 않는다. 탭 앞 숫자 · 칸 머리 · 닫기 확인 ·
- * 「Claude 에게 보내기」 의 받는 곳 · 알림이 같은 번호를 부른다.
+ * 창 안에서 연 순서(1부터) — 닫혀도 그 번호는 다시 쓰지 않는다. 탭 앞 숫자 · 칸 머리 · 닫기 확인 · 창 닫기
+ * 확인 · 「Claude 에게 보내기」 의 받는 곳과 그 알림이 같은 번호를 부른다. (변경 화면의 「Claude 에게 맡기기」
+ * 토스트 · OS 알림은 아직 이 번호를 모른다 — 입력 · 엔진 쪽 몫.)
  */
 export function sessionNumber(id: number): number {
   let n = numbers.get(id);
@@ -116,6 +135,7 @@ export function sessionLabel(tr: Tr, info: TermInfo): string {
 export function __resetSessionNumbersForTests() {
   numbers.clear();
   lastNumber = 0;
+  activity.clear();
 }
 
 /** 점의 모양 — 살아 있음(회색) · 기다림(앰버 + 고리) · 끝남(빈 고리) · 실패(빨강). */
@@ -145,7 +165,7 @@ export function sessionView(tr: Tr, info: TermInfo, worked: boolean, records: nu
   }
   if (needsMe(info.status)) return { mark: "wait", word: plain, tone: "warn", norec, plain };
   if (info.status?.state === "error") return { mark: "fail", word: plain, tone: "danger", norec, plain };
-  if (isQuiet(info.status)) return { mark: "live", word: plain, tone: null, norec, plain };
+  if (isQuiet(info)) return { mark: "live", word: plain, tone: null, norec, plain };
   return { mark: "live", word: null, tone: null, norec, plain };
 }
 
@@ -215,14 +235,23 @@ export interface WindowTerms {
   state: "loading" | "ready" | "failed";
 }
 
+/** 아직 못 읽은 목록 — 꺼질 때 이리로 돌아간다. */
+const UNREAD: WindowTerms = { list: [], state: "loading" };
+
 /**
  * 이 창의 세션 — 처음 한 번 읽고, 어느 창에서든 세션 · 상태가 바뀌면 다시 읽는다(`REFETCH_COALESCE_MS`).
  * 「Claude 에게 보내기」 는 읽기 전 · 실패를 갈라 말해야 해서 상태도 받는다.
+ *
+ * 꺼지면(`enabled` → false) 읽지 않은 상태로 돌아간다 — 꺼진 동안 목록은 따라가지 않아 낡는다. 남겨 두면 다시
+ * 켠 첫 렌더가 지난번 목록을 「읽음」 으로 보여, 보내기 대화상자가 그 낡은 목록으로 받는 곳을 정했다.
  */
 export function useWindowTermsState(enabled = true): WindowTerms {
-  const [terms, setTerms] = useState<WindowTerms>({ list: [], state: "loading" });
+  const [terms, setTerms] = useState<WindowTerms>(UNREAD);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setTerms(UNREAD);
+      return;
+    }
     let alive = true;
     setTerms((t) => (t.state === "loading" ? t : { ...t, state: "loading" }));
     const load = () =>
