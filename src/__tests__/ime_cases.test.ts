@@ -198,9 +198,9 @@ describe.each<Model>(["wkwebview", "webview2"])("IME cases on %s", (model) => {
     expect(rt.data.join("")).not.toContain("\n");
   });
 
-  it("shift-enter-after-229: on the alternate screen Shift+Enter after a syllable stays Claude's newline", async () => {
+  it("shift-enter-after-229: on Claude's alternate screen Shift+Enter after a syllable stays its newline", async () => {
     rt = openRealTerm();
-    await rt.write("\x1b[?1049h");
+    await rt.write("\x1b[?1049h\x1b]7501;state=idle:app=claude\x1b\\");
     if (model === "wkwebview") {
       fireInput(rt, "ㄷ");
       ime("ㄷ");

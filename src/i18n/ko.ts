@@ -419,7 +419,6 @@ export const ko = {
   "terminal.state.question": "답을 기다려요",
   "terminal.state.auth": "로그인을 기다려요",
   "terminal.sum.running": "실행 중 {n}",
-  "terminal.sum.waiting": "내 차례",
   "terminal.sum.unseen": "새 소식",
   "terminal.sum.unseenTitle": "이 창을 본 뒤로 Claude 가 끝냈거나 멈췄어요. 그 창을 열면 사라져요",
   "terminal.sum.title": "이 프로젝트 창의 터미널에서 실행 중인 세션 {n}개",
@@ -459,6 +458,8 @@ export const ko = {
   "terminal.keys.copyPaste": "복사 · 붙여넣기",
   "terminal.peek.hint__win": "누르면 탐색기에서 · {mod} 누르면 크게",
   "terminal.peek.hint__linux": "누르면 파일 관리자에서 · {mod} 누르면 크게",
+  "terminal.peek.hintTracking__win": "{mod} 누르면 탐색기에서",
+  "terminal.peek.hintTracking__linux": "{mod} 누르면 파일 관리자에서",
   "terminal.peek.revealFailed__win": "그림을 탐색기에서 열지 못했어요 — {error}",
   "terminal.peek.revealFailed__linux": "그림을 파일 관리자에서 열지 못했어요 — {error}",
   // ── 오늘 4.0 — 예외만 보여 준다 (features/today) ─────────────────────────
@@ -535,6 +536,8 @@ export const ko = {
   "terminal.zoomed": "크게 보는 중 ({key} 로 돌아가기)",
   "terminal.peek.loading": "이미지를 읽는 중",
   "terminal.peek.hint": "누르면 Finder 에서 · {mod} 누르면 크게",
+  // 마우스를 쓰는 전체 화면 프로그램 위 — 맨 클릭은 그 프로그램의 것이라 수식키 누름이 Finder 다(크게 보기는 없다).
+  "terminal.peek.hintTracking": "{mod} 누르면 Finder 에서",
   "terminal.peek.revealFailed": "그림을 Finder 에서 열지 못했어요 — {error}",
   "terminal.peek.copyPath": "경로 복사",
   "terminal.peek.copied": "경로를 복사했어요",
@@ -1103,6 +1106,8 @@ export const ko = {
   "keys.termFind": "출력에서 찾기",
   "keys.termCycle": "이전 · 다음 세션",
   "keys.termFont": "글자 크게 · 작게 · 기본",
+  "keys.termSendSelection": "고른 출력을 Claude 에게",
+  "keys.termNewline": "Claude 입력에서 줄바꿈",
   "keys.startAdd": "폴더 열기",
   "keys.jumpWaiting": "내 차례 (기다리는 세션으로, 다시 누르면 다음)",
   // 오늘 (11-15) — `TodayScreenV2` 의 keydown 이 듣는 키. 화면 안에서만, v · r · ↩ 는 포커스가 행에 있을 때만.
@@ -1125,8 +1130,8 @@ export const ko = {
   "err.code.image_too_large": "16MB 가 넘어 미리 볼 수 없어요",
   "err.code.image_unreadable": "이미지를 읽지 못했어요 ({detail})",
   "err.code.race_no_commit": "커밋이 하나도 없는 저장소예요. 첫 커밋 뒤에 돌릴 수 있어요.",
-  "err.code.race_not_a_lane": "이 프로젝트의 레인이 아니에요",
-  "err.code.race_empty_lane": "이 레인에는 아직 변경이 없어요",
+  "err.code.race_not_a_lane": "이 프로젝트의 시도가 아니에요",
+  "err.code.race_empty_lane": "이 시도에는 아직 변경이 없어요",
   "err.code.race_failed": "git 이 거절했어요: {detail}",
   "err.code.unsafe_project_root": "파일시스템 루트, 홈 폴더와 그 위(/Users 등), 시스템 폴더(/etc 등)는 프로젝트로 쓸 수 없어요. 그 안의 프로젝트 폴더를 고르세요.",
   "err.code.oculpm_symlink":

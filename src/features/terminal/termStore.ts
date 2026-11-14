@@ -23,6 +23,7 @@ import { isMac } from "@/lib/platform";
 import { t } from "@/i18n";
 import { oculpmLog } from "@/lib/oculpmLog";
 import { toast } from "@/lib/toast";
+import { watchAgentScreen } from "./agentScreen";
 import { alertIfWaiting, alertOnSignal, forgetAlerts, trackSession } from "./attention";
 import { createImagePathProvider, createOscLinkHandler, shouldOpenLink } from "./fileLinks";
 import { createFileRefProvider, openFileMenu } from "./fileRefs";
@@ -30,6 +31,7 @@ import { peekEvent } from "./imagePeek";
 import { pushImeTrace } from "./imeTrace";
 import { attachImeBridge } from "./imeBridge";
 import { LAUNCH_WATCH_CHARS, launchFailed } from "./launchCheck";
+import { forgetTermActivity, noteTermActivity } from "./status";
 import { afterFit, forgetCell, initialSize } from "./termSize";
 import { contrastFloor, observeTerminalTheme, readTerminalTheme } from "./termTheme";
 
@@ -93,6 +95,8 @@ interface Entry {
   host: HTMLDivElement;
   opened: boolean;
   disposeIme: (() => void) | null;
+  /** 지금 에이전트(Claude · Codex)가 이 화면에 있는가 — 열 때부터 출력을 본다(`agentScreen`), 브리지가 묻는다. */
+  agent: () => boolean;
   /** 지금 이 세션을 보여 주는 칸 수 — 0 이면 내려가 있다. */
   mounts: number;
   webgl: WebglAddon | null;
@@ -256,6 +260,8 @@ export async function openTerm(
   term.loadAddon(search);
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = "11";
+  // 첫 바이트부터 — 브리지는 첫 마운트에 붙어서 그 전에 온 claude 의 탐침 · idle 을 못 본다.
+  const agent = watchAgentScreen(term);
   const openUrl = (uri: string) => void fileOpenApi.url(uri).catch(() => {});
   term.loadAddon(
     new WebLinksAddon((event, uri) => (shouldOpenLink(event, term) ? openUrl(uri) : hintModClick())),
@@ -293,6 +299,8 @@ export async function openTerm(
   };
   const onEvent = (ev: TermEvent) => {
     if (ev.kind === "output") {
+      // 「최근 소식 없음」 의 시계 — 출력 조각마다 시각 하나(Map 한 칸)라 값싸다. 표시는 화면의 분 틱이 다시 읽는다.
+      if (entry) noteTermActivity(entry.info.id);
       const n = Number.isFinite(ev.n) ? ev.n : ev.data.length;
       if (flow.pending > DROP_BYTES) {
         flow.skipped += n;
@@ -323,6 +331,7 @@ export async function openTerm(
     if (ev.kind === "status") {
       // 프로그램 상태(OSC 7501) — open 이 돌아온 뒤에야 오지만(탐침 답이 먼저다) 앞서 오면 버린다.
       if (!entry) return;
+      noteTermActivity(entry.info.id);
       const prev = entry.info.status;
       if (ev.status?.state === "working") worked.add(entry.info.id);
       entry.info = { ...entry.info, status: ev.status };
@@ -367,6 +376,7 @@ export async function openTerm(
     host,
     opened: false,
     disposeIme: null,
+    agent,
     mounts: 0,
     webgl: null,
     webglIdle: null,
@@ -402,7 +412,7 @@ export function mountTerm(id: number, container: HTMLElement, focus = true): () 
   container.appendChild(e.host);
   if (!e.opened) {
     e.term.open(e.host);
-    const ime = attachImeBridge(e.term, e.host);
+    const ime = attachImeBridge(e.term, e.host, e.agent);
     e.disposeIme = () => ime.dispose();
     e.opened = true;
   }
@@ -757,5 +767,6 @@ export function closeTerm(id: number) {
   entries.delete(id);
   worked.delete(id);
   forgetAlerts(id);
+  forgetTermActivity(id);
   notify();
 }

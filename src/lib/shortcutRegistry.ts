@@ -138,6 +138,10 @@ const TERMINAL: ShortcutGroup = {
     { keys: "⌥⌘← → ↑ ↓", nonMac: "Ctrl+Alt+← → ↑ ↓", labelKey: "keys.termPaneMove" },
     { keys: "⇧⌘↩", labelKey: "keys.termZoom" },
     { keys: "⌘F", labelKey: "keys.termFind" },
+    // 키 층(`termKeys`)이 듣는 둘 — ⌘L 은 고른 출력이 있을 때만(없으면 셸의 키), ⇧↩ 는 Claude · Codex 의 입력 칸
+    // (대체 화면 + 상태 신호)에서만 줄바꿈이고 셸 · vim 에서는 그냥 Enter 다. 그 밖 OS 는 터미널 가족 표기로 옮겨진다.
+    { keys: "⌘L", labelKey: "keys.termSendSelection" },
+    { keys: "⇧↩", labelKey: "keys.termNewline" },
     { keys: "⇧⌘[ / ⇧⌘]", nonMac: "Ctrl+PageUp / PageDown", labelKey: "keys.termCycle" },
     { keys: "⌘= / ⌘- / ⌘0", nonMac: "Ctrl+= / Ctrl+- / Ctrl+0", labelKey: "keys.termFont" },
     // 세션이 둘 이상이면 ⌘W 는 고른 세션만 닫는다(`interceptCloseKey`) — 그 밖 OS 는 터미널 가족 Ctrl+Shift+W.

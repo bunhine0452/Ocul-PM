@@ -23,6 +23,11 @@ export interface Peek {
   x: number;
   y: number;
   pinned: boolean;
+  /**
+   * 마우스를 쓰는 전체 화면 프로그램 위에서 올렸다(`fileLinks` 의 올림 사건) — 맨 클릭은 그 프로그램의 것이고 수식키
+   * 누름이 Finder 라, 카드의 안내가 그 뜻을 말한다.
+   */
+  tracking: boolean;
 }
 
 let current: Peek | null = null;
@@ -53,11 +58,12 @@ export function peekEvent(event: ImageLinkEvent): void {
       .catch((e: unknown) => toast.warning(t("terminal.peek.revealFailed", { error: tError(toAppError(e)) })));
     return;
   }
-  if (event.kind === "open") return set({ path, x, y, pinned: true });
+  if (event.kind === "open") return set({ path, x, y, pinned: true, tracking: false });
   if (current?.pinned) return;
+  const tracking = event.tracking === true;
   timer = setTimeout(() => {
     timer = null;
-    if (!current?.pinned) set({ path, x, y, pinned: false });
+    if (!current?.pinned) set({ path, x, y, pinned: false, tracking });
   }, HOVER_DELAY_MS);
 }
 

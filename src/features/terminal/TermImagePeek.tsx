@@ -56,7 +56,7 @@ export function TermImagePeekHost() {
   return peek ? <TermImagePeek key={peek.path} {...peek} /> : null;
 }
 
-function TermImagePeek({ path, x, y, pinned }: Peek) {
+function TermImagePeek({ path, x, y, pinned, tracking }: Peek) {
   const { t } = useT();
   const [load, setLoad] = useState<Load>(() => {
     const hit = cache.get(path);
@@ -165,6 +165,9 @@ function TermImagePeek({ path, x, y, pinned }: Peek) {
   const place = below ? { top: y + 18 } : { bottom: window.innerHeight - y + 12 };
   // 수정키 이름 — `kbd("⌘")` 만으로는 그 밖 OS 에서 「Ctrl+」 로 끝이 빈 채 나왔다.
   const mod = isMac() ? kbd("⌘") : "Ctrl";
+  // 마우스를 쓰는 전체 화면 프로그램(Claude 의 전체 화면 렌더러) 위 — 맨 클릭은 그 프로그램에 가고 수식키 누름이
+  // Finder 다(`fileLinks` 의 clickKind). 평소 안내(「누르면 Finder 에서」)를 띄우면 누른 사람의 클릭이 Claude 로 갔다.
+  const hint = tracking ? t("terminal.peek.hintTracking", { mod }) : t("terminal.peek.hint", { mod });
   return (
     <div className="tm-peek" style={{ left, ...place }} role="tooltip">
       {stage}
@@ -175,7 +178,7 @@ function TermImagePeek({ path, x, y, pinned }: Peek) {
         {facts || load.status === "ready" ? (
           <span className="tm-peek-sub">
             {facts ? <span className="tm-peek-facts">{facts}</span> : null}
-            {load.status === "ready" ? <span className="tm-peek-hint">{t("terminal.peek.hint", { mod })}</span> : null}
+            {load.status === "ready" ? <span className="tm-peek-hint">{hint}</span> : null}
           </span>
         ) : null}
       </div>
