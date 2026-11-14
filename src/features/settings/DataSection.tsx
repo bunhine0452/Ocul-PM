@@ -85,15 +85,7 @@ export function UpdateRow() {
     );
 
   return (
-    <PrefsRow
-      label={t("prefs.data.app")}
-      actions={
-        <>
-          {primary}
-          <LogFolderButton />
-        </>
-      }
-    >
+    <PrefsRow label={t("prefs.data.app")} actions={primary}>
       {/* 판 번호는 기계 글씨 — mono (영수증 규칙 2). */}
       <span>
         Ocul <span className="mono">{version ?? ""}</span>
@@ -103,7 +95,8 @@ export function UpdateRow() {
   );
 }
 
-function LogFolderButton() {
+/** 로그 — 자기 줄이다. 업데이트 줄의 동작으로 서던 때 범위가 다른 두 단추가 한 줄에 섰다. */
+function LogsRow() {
   const { t } = useT();
   const open = async () => {
     try {
@@ -118,9 +111,14 @@ function LogFolderButton() {
     }
   };
   return (
-    <button type="button" className="btn sm" onClick={() => void open()}>
-      {t("prefs.data.logs")}
-    </button>
+    <PrefsRow
+      label={t("prefs.data.logs")}
+      actions={
+        <button type="button" className="btn sm" onClick={() => void open()}>
+          {t("prefs.project.reveal")}
+        </button>
+      }
+    />
   );
 }
 
@@ -183,6 +181,7 @@ export function AppSection({ id, arrived }: { id: string; arrived?: number }) {
       <LanguageRow />
       <EditorRow />
       <UpdateRow />
+      <LogsRow />
       <PrefsRow
         label={t("prefs.data.cache")}
         meta={

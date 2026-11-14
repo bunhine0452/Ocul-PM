@@ -6,8 +6,9 @@
  * `auto`(깔린 것을 찾는다) · `vscode` · `cursor` · `system` · 셸 명령 템플릿 — 읽는 쪽은
  * `src-tauri/src/commands/editor_choice.rs`.
  *
- * 11-15 (#settings-status): 「자동」 은 찾은 이름을 괄호에 넣지 않고 회색 mono 로 덧붙인다 — 다섯 칸
- * 세그먼트가 좁은 창(480 × 125%)에서 넘쳤다. 화면이 420px 아래면 세그먼트 대신 고르기 칸(select)이 선다.
+ * 11-15 (#settings-status): 「자동」 은 찾은 이름을 괄호에 넣지 않고 회색으로 덧붙인다 — 다섯 칸
+ * 세그먼트가 좁은 창(480 × 125%)에서 넘쳤다. 제품 이름은 기계 글씨가 아니라 본문 서체다(영수증 규칙 2 —
+ * 옆 칸의 「VS Code」 와 같은 낱말이 두 서체로 섰다). 화면이 420px 아래면 세그먼트 대신 고르기 칸(select)이 선다.
  */
 import { useEffect, useState } from "react";
 
@@ -87,7 +88,7 @@ export function EditorRow() {
                   aria: t("prefs.display.editorAutoFound", { name: foundName }),
                   label: (
                     <>
-                      {o.label} <span className="prefs-found mono">{foundName}</span>
+                      {o.label} <span className="prefs-found">{foundName}</span>
                     </>
                   ),
                 }

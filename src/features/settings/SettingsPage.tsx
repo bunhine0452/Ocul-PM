@@ -29,10 +29,12 @@ export const SECTION_ID: Record<SettingsSection, string> = {
 };
 
 function scrollTo(section: SettingsSection) {
-  // 마운트 직후에는 아직 칸이 없다 — 한 프레임 뒤에 찾는다.
+  // 마운트 직후에는 아직 칸이 없다 — 한 프레임 뒤에 찾는다. 포커스도 도착 칸의 머리로 옮긴다: 스크롤만 하면
+  // 포커스가 맨 위 「고칠 것」 단추에 남아, 키보드 · 화면 읽기 사용자는 도착 칸까지 Tab 으로 다시 훑었다.
   requestAnimationFrame(() => {
     const el = document.getElementById(SECTION_ID[section]);
     el?.scrollIntoView?.({ block: "start" });
+    document.getElementById(`${SECTION_ID[section]}-title`)?.focus({ preventScroll: true });
   });
 }
 
