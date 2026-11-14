@@ -1,22 +1,31 @@
 /**
- * 계획 한 장 — 메타 한 줄 · 문서 제목 · 완료 조건/확인 명령/마지막 판정 · 다음 · 단계 격자 ·
- * 갱신 기록 (시안 Plan).
+ * 계획 한 장 — 메타 한 줄 · 문서 제목 · 완료 조건/확인 명령/마지막 결과 · 다음 · 단계 격자 ·
+ * 계획 기록 (시안 Plan).
  *
  * 판정 카드가 제목 바로 아래에 있는 이유: 「항목이 다 닫혔다」와 「완료 조건이 참이다」는
  * 다른 주장이고, 둘째를 말하는 것은 에이전트가 아니라 확인 명령의 결과 끝 줄이다.
+ *
+ * 판정은 오늘 화면과 같은 네 모습이다(11-15, `verdictStateOf`): 통과 · 실패 · 통과 뒤 바뀜 · 여기선 아직.
+ * 계획 화면만 앞의 둘을 알아, 오늘이 호박색 ✓ 로 짚는 계획을 회색 통과로 그렸다.
  */
+
+import { useState } from "react";
 
 import { SquareTerminal } from "@/components/Icons";
 import { VerdictLine } from "@/components/VerdictLine";
 import { agentLabel } from "@/features/today/agentColor";
+import { osLabel } from "@/features/today/todayModel";
+import { useOpenInEditor } from "@/features/shell/useOpenInEditor";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { relativeTime } from "@/lib/format";
 import { whenLabel } from "@/lib/whenLabel";
 import { getLang, useT } from "@/i18n";
 import type { PlanDetail, PlanItemDto } from "@/lib/bindings";
 import { PlanItems } from "./PlanItems";
 import { PlanLog } from "./PlanLog";
-import { hasOpenLeaves, nextLeaf } from "./planMeta";
+import { hasOpenLeaves, lastLogAt, nextLeaf, stripUserTag } from "./planMeta";
+import { checkLines, verdictStateOf } from "./verdictState";
 import { requestSendToClaude } from "@/features/terminal/sendToClaude";
-import { stripUserTag } from "./planMeta";
 
 function dateOf(iso: string): string {
   const ms = Date.parse(iso);
@@ -24,63 +33,118 @@ function dateOf(iso: string): string {
   return new Intl.DateTimeFormat(getLang(), { month: "long", day: "numeric" }).format(new Date(ms));
 }
 
+/** 읽지 못한 줄 — warn 칩 하나, 누르면 줄 목록과 파일로 여는 길 (일지 상세의 파싱 경고와 같은 꼴). */
+function WarnLines({ warnings, filePath }: { warnings: string[]; filePath: string }) {
+  const { t } = useT();
+  const { state } = useWorkspace();
+  const editor = useOpenInEditor(state.currentProjectRoot);
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="plv-warn">
+      <button type="button" className="chip sm warn plv-warn-btn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {t("plan.warnLines", { n: warnings.length })}
+      </button>
+      {open ? (
+        <div className="plv-warn-list">
+          <ul>
+            {warnings.map((w, i) => (
+              <li key={`${i}-${w}`}>{w}</li>
+            ))}
+          </ul>
+          <button type="button" className="btn sm" onClick={() => editor.open(filePath)}>
+            {t("plan.openFile")}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function JudgeCard({ detail }: { detail: PlanDetail }) {
   const { t } = useT();
   const v = detail.plan.last_verdict;
+  const state = verdictStateOf(detail.plan);
   // 한 칸에 한 상태 (화면 검사 {#plan-verdict}) — 명령이 없는데 결과가 있으면(명령 줄을 나중에 지운
   // 계획) 결과만 말하고, 명령도 결과도 없으면 「없어요」 한 번만 말한다. 「확인 명령이 없어요」 옆에
   // 「✗ 실패」 가, 또는 「아직 안 돌렸어요」 가 같이 서던 것을 걷는다.
   const showCheck = detail.check != null || v == null;
   const showLast = v != null || detail.check != null;
+  const files = detail.plan.stale_files ?? [];
+  const extra =
+    state === "stale"
+      ? t("plan.judge.staleSub", { n: files.length })
+      : state === "away" && detail.plan.verdict_from
+        ? t("plan.judge.awaySub", { os: osLabel(detail.plan.verdict_from) })
+        : null;
   return (
-    <section className="card plv-judge" aria-label={t("plan.judge.aria")}>
+    <section className="plv-judge" aria-label={t("plan.judge.aria")}>
       <div>
         <h3 className="plv-sec-h">{t("plan.judge.doneWhen")}</h3>
         <p className={detail.done_when ? "plv-judge-text" : "plv-meta"}>{detail.done_when ?? t("plan.judge.noDoneWhen")}</p>
       </div>
-      <div className="plv-judge-row">
-        {showCheck ? (
-          <div className="plv-judge-check">
-            <h3 className="plv-sec-h">{t("plan.judge.check")}</h3>
-            {detail.check ? <code className="plv-code mono">{detail.check}</code> : <p className="plv-meta">{t("plan.judge.noCheck")}</p>}
-          </div>
-        ) : null}
-        {showLast ? (
-          <div className="plv-judge-last">
-            <h3 className="plv-sec-h">{t("plan.judge.last")}</h3>
-            {v ? (
-              <VerdictLine
-                state={v.passed ? "pass" : "fail"}
-                summary={v.summary}
-                when={whenLabel(v.ts)}
-                sub={agentLabel(v.agent_id)}
-              />
-            ) : (
-              <p className="plv-meta">{t("plan.judge.notRun")}</p>
-            )}
-          </div>
-        ) : null}
-      </div>
+      {showCheck ? (
+        <div>
+          <h3 className="plv-sec-h">{t("plan.judge.check")}</h3>
+          {detail.check ? (
+            // 보일 때만 && · ; 뒤에서 줄을 나눈다 — 복사하면 한 줄 원문으로 돌아간다.
+            <code
+              className="plv-code mono"
+              onCopy={(e) => {
+                const text = window.getSelection()?.toString() ?? "";
+                if (!text.includes("\n")) return;
+                e.preventDefault();
+                e.clipboardData.setData("text/plain", text.replace(/\s*\n\s*/g, " "));
+              }}
+            >
+              {checkLines(detail.check).join("\n")}
+            </code>
+          ) : (
+            <p className="plv-meta">{t("plan.judge.noCheck")}</p>
+          )}
+        </div>
+      ) : null}
+      {showLast ? (
+        <div className="plv-judge-last">
+          <h3 className="plv-sec-h">{t("plan.judge.last")}</h3>
+          {v && state ? (
+            <VerdictLine
+              state={state}
+              summary={v.summary}
+              when={whenLabel(v.ts)}
+              sub={[agentLabel(v.agent_id), extra].filter(Boolean).join(" · ")}
+            />
+          ) : (
+            <p className="plv-meta">{t("plan.judge.notRun")}</p>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }
 
 function NextRow({
   items,
+  passed,
+  busy,
   onRun,
   onRunUntilDone,
   onClose,
 }: {
   items: PlanItemDto[];
+  /** 마지막 결과가 지금도 통과인가 — 항목이 다 닫혔을 때 다음 할 일의 문장을 가른다. */
+  passed: boolean;
+  /** 다른 계획을 읽는 중 — 옛 문서의 항목을 새 계획으로 보내지 않게 단추를 막는다. */
+  busy: boolean;
   onRun: (item: PlanItemDto) => void;
   onRunUntilDone: (item: PlanItemDto) => void;
   onClose: () => void;
 }) {
   const { t } = useT();
   const next = nextLeaf(items);
+  const open = hasOpenLeaves(items);
   return (
     <div className="plv-next">
-      <b className="plv-next-label">{t("plan.nextRow.label")}</b>
+      <b className="plv-next-label">{next || open ? t("plan.nextRow.label") : t("plan.nextRow.doneLabel")}</b>
       {next ? (
         <>
           {/* 제목은 줄을 바꿔 끝까지 — 항목 id 는 내부 이름이라 툴팁으로만 (화면 검사 #plan-head). */}
@@ -88,24 +152,24 @@ function NextRow({
             {next.title}
           </span>
           <span className="plv-grow" />
-          <button type="button" className="btn primary sm" onClick={() => onRun(next)}>
+          <button type="button" className="btn primary sm" disabled={busy} onClick={() => onRun(next)}>
             <SquareTerminal size={13} aria-hidden="true" />
             {t("plan.nextRow.run")}
           </button>
-          <button type="button" className="btn sm" title={t("plan.nextRow.untilDoneTitle")} onClick={() => onRunUntilDone(next)}>
+          <button type="button" className="btn sm" disabled={busy} title={t("plan.nextRow.untilDoneTitle")} onClick={() => onRunUntilDone(next)}>
             {t("plan.nextRow.untilDone")}
           </button>
         </>
-      ) : hasOpenLeaves(items) ? (
+      ) : open ? (
         <span className="plv-meta">{t("plan.nextRow.none")}</span>
       ) : (
         <>
-          <span className="plv-meta">{t("plan.nextRow.allClosed")}</span>
+          <span className="plv-meta">{passed ? t("plan.nextRow.allClosedPassed") : t("plan.nextRow.allClosed")}</span>
           {/* 닫기는 사람의 결정이다 — 남은 항목이 0 일 때만 선다. 닫지 않으면 「진행 중」 으로 쌓인다(11-14). */}
           {items.length > 0 ? (
             <>
               <span className="plv-grow" />
-              <button type="button" className="btn sm" title={t("plan.closeTitle")} onClick={onClose}>
+              <button type="button" className="btn sm" disabled={busy} title={t("plan.closeTitle")} onClick={onClose}>
                 {t("plan.close")}
               </button>
             </>
@@ -120,6 +184,7 @@ export function PlanDoc({
   projectId,
   detail,
   locked,
+  busy,
   onSetStatus,
   onRun,
   onRunUntilDone,
@@ -129,6 +194,8 @@ export function PlanDoc({
   projectId: number;
   detail: PlanDetail;
   locked: boolean;
+  /** 고른 계획과 이 문서가 다르다(다른 계획을 읽는 중) — 동작 단추를 막는다. */
+  busy: boolean;
   onSetStatus: (item: PlanItemDto, status: string) => void;
   onRun: (item: PlanItemDto) => void;
   onRunUntilDone: (item: PlanItemDto) => void;
@@ -138,20 +205,38 @@ export function PlanDoc({
 }) {
   const { t } = useT();
   const p = detail.plan;
+  const last = lastLogAt(detail.items);
+  // 메타 — 만든 날과 마지막 기록을 따로 말한다. 날짜 하나만 서 있으면(만든 날) 최근 활동처럼 읽혔다.
+  const meta = [
+    t("plan.doc.created", { date: dateOf(p.updated_at) }),
+    last ? t("plan.doc.lastLog", { ago: relativeTime(last, Date.now()) }) : null,
+    agentLabel(p.owner_agent),
+    locked ? t("plan.doc.locked") : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <article className="plv-doc">
       <header className="plv-head">
-        <div className="plv-meta">
-          {t("plan.doc.meta", { date: dateOf(p.updated_at), agent: agentLabel(p.owner_agent), n: p.item_count })}
-          {locked ? ` · ${t("plan.doc.locked")}` : null}
-        </div>
+        <div className="plv-meta">{meta}</div>
         <h2 className="plv-title">{p.title}</h2>
       </header>
+      {detail.warnings.length > 0 ? <WarnLines warnings={detail.warnings} filePath={p.file_path} /> : null}
       <JudgeCard detail={detail} />
-      {locked ? null : <NextRow items={detail.items} onRun={onRun} onRunUntilDone={onRunUntilDone} onClose={onClose} />}
+      {locked ? null : (
+        <NextRow
+          items={detail.items}
+          passed={verdictStateOf(p) === "pass"}
+          busy={busy}
+          onRun={onRun}
+          onRunUntilDone={onRunUntilDone}
+          onClose={onClose}
+        />
+      )}
       <PlanItems
+        key={p.plan_id}
         items={detail.items}
-        locked={locked}
+        locked={locked || busy}
         onSetStatus={onSetStatus}
         onOpenJournal={onOpenJournal}
         onSend={(item) =>
@@ -163,7 +248,14 @@ export function PlanDoc({
           })
         }
       />
-      <PlanLog projectId={projectId} planId={p.plan_id} revision={detail.items.map((i) => i.status).join("")} decisions={detail.decisions} />
+      <PlanLog
+        key={`log-${p.plan_id}`}
+        projectId={projectId}
+        planId={p.plan_id}
+        revision={detail.items.map((i) => i.status).join("")}
+        decisions={detail.decisions}
+        items={detail.items}
+      />
     </article>
   );
 }

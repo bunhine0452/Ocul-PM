@@ -8,10 +8,11 @@
 import type { I18nKey } from "@/i18n";
 import type { PlanItemDto } from "@/lib/bindings";
 
+// 끝난 것 · 하는 중인 것은 조용하다(영수증 규칙 1, 11-15) — 색은 막힘(예외)에만 남는다.
 export const STATUS_META: Record<string, { glyph: string; labelKey: I18nKey; color: string }> = {
   todo: { glyph: "☐", labelKey: "plan.status.todo", color: "var(--text-2)" },
-  in_progress: { glyph: "▣", labelKey: "plan.status.in_progress", color: "var(--accent)" },
-  done: { glyph: "☑", labelKey: "plan.status.done", color: "var(--accent)" },
+  in_progress: { glyph: "▣", labelKey: "plan.status.in_progress", color: "var(--text-2)" },
+  done: { glyph: "☑", labelKey: "plan.status.done", color: "var(--text-2)" },
   // U+FE0E (text presentation selector): ⚠ 는 기본이 컬러 이모지라 OS 이모지 폰트로 그려진다.
   blocked: { glyph: "⚠︎", labelKey: "plan.status.blocked", color: "var(--t-bug)" },
   deferred: { glyph: "→", labelKey: "plan.status.deferred", color: "var(--text-2)" },
@@ -65,6 +66,30 @@ export function nextLeaf(items: readonly PlanItemDto[]): PlanItemDto | null {
 /** 남은 일(할 일·진행·막힘)이 하나라도 있는가. */
 export function hasOpenLeaves(items: readonly PlanItemDto[]): boolean {
   return leafItems(items).some((i) => i.status === "todo" || i.status === "in_progress" || i.status === "blocked");
+}
+
+/** 진행 중 항목을 이만큼 넘게 잡고 있으면 「오래 잡힘」 — 버려진 `[~]` 가 계획을 멈춰 세운다. */
+export const HELD_LONG_MS = 24 * 60 * 60 * 1000;
+
+/** 진행 중 항목을 너무 오래 잡고 있는가 — 마지막 기록(`last_update`)이 24시간보다 오래됐다. */
+export function heldTooLong(item: Pick<PlanItemDto, "status" | "last_update">, now = Date.now()): boolean {
+  if (item.status !== "in_progress" || !item.last_update) return false;
+  const at = Date.parse(item.last_update);
+  return !Number.isNaN(at) && now - at > HELD_LONG_MS;
+}
+
+/** 계획의 마지막 기록 시각 — 항목들의 `last_update` 중 가장 늦은 것. 없으면 `null`. */
+export function lastLogAt(items: readonly PlanItemDto[]): string | null {
+  let best: string | null = null;
+  let bestMs = -Infinity;
+  for (const i of items) {
+    const ms = i.last_update ? Date.parse(i.last_update) : Number.NaN;
+    if (!Number.isNaN(ms) && ms > bestMs) {
+      bestMs = ms;
+      best = i.last_update;
+    }
+  }
+  return best;
 }
 
 /** 「완료/전체」 — 리프 중 이월·폐기를 뺀 것이 분모다 (백엔드 진척 분모와 같다). */

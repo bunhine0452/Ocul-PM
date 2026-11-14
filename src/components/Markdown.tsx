@@ -20,9 +20,8 @@ export function Markdown(props: {
   return (
     <Suspense
       fallback={
-        <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-          {props.children}
-        </div>
+        // 조판은 소비처의 한 벌(`.jd-prose`)이 쥔다 — 여기서 크기 · 줄간격을 따로 주면 청크가 오는 순간 글이 뛴다.
+        <div className="md-fallback">{props.children}</div>
       }
     >
       <MarkdownImpl {...props} />

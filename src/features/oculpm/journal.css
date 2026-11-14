@@ -4,115 +4,139 @@
    두 칸이다. 목록은 날짜 머리 아래 한 줄이 한 건이고, 상세는 고른 한 건의
    **믿을 근거**(검증 상자)와 **실제로 바뀐 것**(인라인 diff)을 한 장에 놓는다.
    화면 크기는 에이전트가 한 양이 아니라 사람이 볼 것에 비례한다 — 하루에 60건이
-   쌓여도 같은 두 칸이다. 예외(증거 없음)는 칩 하나와 필터 하나로 드러난다.
+   쌓여도 같은 두 칸이다. 증거가 선 일지는 한 줄로 접히고, 예외(검증 없음 · 미완료 ·
+   중단 · 파싱 경고)만 두 줄에 이유 칩을 단다(11-15).
 
-   색은 종류 점(--t-*)과 상태 칩(.chip + warn/ok)만 말한다. 선택은 면(--bg-active)이다.
+   계획 화면과 같은 뼈대다(11-15): 목록 칸 폭 `--panel-w`, 문서 여백 24, 고른 줄은
+   면(--bg-active)만 — 굵기는 바꾸지 않는다. 색은 예외 칩(warn)만 말한다.
    ============================================================ */
 
 .jl-split { flex: 1; min-height: 0; display: flex; outline: none; }
 
-/* ── 왼쪽: 목록 칸 = 머리(검색 · 종류) + 목록 ─────────────────────────────── */
+/* ── 왼쪽: 목록 칸 = 머리(검색 · 종류 · 거르기) + 목록 ──────────────────────── */
 .jl-col {
-  width: 400px; max-width: 45%; flex: none; min-height: 0;
+  width: var(--panel-w); max-width: 45%; flex: none; min-height: 0;
   display: flex; flex-direction: column;
   border-right: 1px solid var(--sep); background: var(--bg-window);
 }
-/* 머리 — 검색칸 한 줄, 종류 한 줄. 목록이 스크롤돼도 서 있다. */
+/* 머리 — 검색칸 줄(돌아가기 · 검색 · 기간/순서), 종류 줄, 거르기 줄. 목록이 스크롤돼도 서 있다. */
 .jl-head {
-  flex: none; display: flex; flex-direction: column; gap: var(--space-3);
-  padding: var(--space-4) var(--space-6);
+  flex: none; display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-3) var(--space-6);
   border-bottom: 1px solid var(--sep);
 }
-/* 상자는 `.search-box`(primitives.css), 여기는 칸을 채우게만. */
-.jl-search { width: 100%; box-sizing: border-box; }
-/* 종류 여섯은 칸 폭을 넘을 수 있다(영어) — 꺾지 않고 가로로 민다. */
-.jl-head .seg { align-self: flex-start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
-.jl-head .seg::-webkit-scrollbar { display: none; }
-/* 여섯 칸이 칸 폭(400 − 여백)에 들도록 안쪽 여백을 한 단 줄이고, 꺾지 않는다(영어 「No evidence」). */
+.jl-head-row { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+/* 상자는 `.search-box`(primitives.css), 여기는 남는 폭을 채우게만. */
+.jl-search { flex: 1; min-width: 0; box-sizing: border-box; }
+.jl-head .seg { flex: none; max-width: 100%; }
 .jl-head .seg-item { padding: 0 var(--space-3); white-space: nowrap; }
-.jl-count { font-size: var(--fs-3); color: var(--text-2); }
-/* 「검증 없는 것만」 — 종류 세그먼트 옆의 켜고 끄는 단추. 켜진 모양은 세그먼트의 고른 칸과 같다. */
-.jl-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
-.jl-only { border: 1px solid var(--border-card); }
-.jl-only[aria-pressed="true"] { background: var(--bg-card); color: var(--warn-text); box-shadow: var(--shadow-card); }
+/* 종류는 radiogroup 이라 고른 칸이 aria-checked 로 선다 — 모양은 세그먼트의 고른 칸과 같다. */
+.jl-head .seg-item[aria-checked="true"] { background: var(--bg-card); color: var(--text); box-shadow: var(--shadow-card); }
+.jl-head .seg-item:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
+.jl-head .seg-item:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+/* 「검증 없는 것만」 — 머리카락 선 단추(26). 켜지면 면 + 걸린 수(warn 숫자만). */
+.jl-only {
+  display: inline-flex; align-items: center; gap: var(--space-2); flex: none;
+  height: var(--ctl-3); padding: 0 var(--space-3);
+  border: 1px solid var(--sep-strong); border-radius: var(--radius-s);
+  background: transparent; color: var(--text-2);
+  font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong); cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.jl-only:hover { color: var(--text); }
+.jl-only[aria-pressed="true"] { background: var(--bg-active); color: var(--text); }
+.jl-only:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+.jl-warn-n { color: var(--warn-text); font-variant-numeric: tabular-nums; font-weight: var(--fw-strong); }
+/* 숫자 한 줄 — 「조건에 맞는 312 · 표시 200」. 거르기 줄의 오른쪽 끝. */
+.jl-count { margin-left: auto; min-width: 0; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; }
+
+/* 목록 — 손잡이는 가리킬 때만 색이 든다(늘 서 있던 회색 막대를 걷었다). 자리를 미리 잡아 두는
+   gutter(`scrollbar-gutter: stable`)도 걷었다 — 넘치지 않는 목록은 고른 줄 · 가리킨 줄의 면이 칸 끝까지 간다.
+   표준 `scrollbar-color` 가 아니라 `::-webkit-scrollbar-thumb` 로 — base.css 의 손잡이가 그 길이라, 표준 속성을
+   주면 크로미움에서는 base.css 손잡이가 통째로 꺼지고 WebKit 에서는 안 먹어 두 엔진이 갈린다. */
 .jl-list {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+  overflow-y: auto; overscroll-behavior: contain;
 }
-/* 날짜 머리 — 스크롤 중 붙는다. 불투명이 아니면 행이 글자 뒤로 비친다. */
+.jl-list::-webkit-scrollbar-thumb { background: transparent; }
+.jl-list:is(:hover, :focus-within)::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-2) 32%, transparent); background-clip: padding-box;
+}
+/* 날짜 머리 — 스크롤 중 붙는다. 불투명이 아니면 행이 글자 뒤로 비친다. 오른쪽은 그날 수 · 검증 없음 수. */
 .jl-dayh {
   position: sticky; top: 0; z-index: var(--z-sticky);
-  margin: 0; padding: var(--space-5) var(--space-6) var(--space-2);
+  display: flex; align-items: baseline; gap: var(--space-3);
+  margin: 0; padding: var(--space-2) var(--space-6) 2px;
   background: var(--bg-window);
-  font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2);
+  font-size: var(--fs-3); font-weight: var(--fw-strong); line-height: var(--lh-tight); color: var(--text-2);
 }
+.jl-dayn { margin-left: auto; font-weight: var(--fw-body); font-variant-numeric: tabular-nums; }
+.jl-rows { display: flex; flex-direction: column; }
+/* 한 건 — 증거가 선 일지는 36px 한 줄(제목 · 오른쪽 고정 칸 시각), 예외는 두 줄(이유 칩). */
 .jl-item {
-  display: flex; flex-direction: column; gap: var(--space-1);
-  width: 100%; margin: 0; padding: var(--space-3) var(--space-6);
-  appearance: none; -webkit-appearance: none; border: none;
-  border-bottom: 1px solid var(--sep); background: transparent;
-  font-family: var(--font); color: var(--text); text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  min-height: 36px; box-sizing: border-box; padding: var(--space-2) var(--space-6);
+  color: var(--text); cursor: pointer; outline: none;
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .jl-item:hover { background: var(--bg-hover); }
-.jl-item[aria-current="true"] { background: var(--bg-active); }
+.jl-item[aria-selected="true"] { background: var(--bg-active); }
 .jl-item:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
-.jl-r1 { display: flex; align-items: flex-start; gap: var(--space-3); min-width: 0; }
-/* 제목은 두 줄까지 — 한 줄로 자르면 48건 중 45건이 잘렸고, 결과는 대개 잘린 쪽에 있었다 (화면 검사 {#journal-list}). */
-.jl-ti {
-  flex: 1; min-width: 0; font-size: var(--fs-4); line-height: var(--lh-snug);
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+.jl-r1 { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; }
+.jl-ti { flex: 1; min-width: 0; font-size: var(--fs-4); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 시각은 기계 글씨 — 오른쪽 고정 칸이라 줄마다 세로로 맞는다(영수증 규칙 2). */
+.jl-when {
+  flex: none; min-width: 5ch; text-align: right;
+  font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2);
+  font-variant-numeric: tabular-nums; font-variant-ligatures: none;
 }
-.jl-meta { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jl-r2 { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--fs-3); color: var(--text-2); }
+.jl-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jl-ok { display: inline-flex; align-items: center; flex: none; color: var(--text-2); }
-/* `<i>` 는 인라인이라 flex 밖에서는 크기가 죽는다 — 블록으로. */
-/* 사라진 코드의 일지 — 날마다 한 줄로 접힌다. 계획 목록의 「끝난 계획」 과 같은 손잡이. */
-.jl-gone > summary { cursor: pointer; list-style: none; }
-.jl-gone > summary::-webkit-details-marker { display: none; }
-.jl-gone-h {
-  display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-3) var(--space-6);
-  border-bottom: 1px solid var(--sep);
-  font-size: var(--fs-3); color: var(--text-2);
-}
-.jl-gone-h:hover { background: var(--bg-hover); }
-.jl-gone-h:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
-.jl-gone-chev { flex: none; transition: transform var(--dur-1) var(--ease-out); }
-.jl-gone[open] .jl-gone-chev { transform: rotate(90deg); }
+/* 검색 발췌 — 맞은 낱말은 굵게만, 색은 없다. */
+.jl-excerpt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jl-excerpt b { font-weight: var(--fw-strong); color: var(--text); }
+/* 사라진 코드의 일지 — 날마다 한 줄로 접힌다(`Disclosure`, 계획의 접는 자리와 같은 손잡이). */
+.jl-gone > .disc-h { padding: var(--space-2) var(--space-6); border-radius: 0; }
 .jl-more { margin: var(--space-5) var(--space-6); align-self: flex-start; }
 .jl-empty { padding: var(--space-6); font-size: var(--fs-3); color: var(--text-2); }
 
-/* 목록 위 고지(상한에 걸렸다) — 바닥에만 두면 끝까지 내린 사람만 안다. */
-.jl-notice {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
-  padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--sep);
-  font-size: var(--fs-3); color: var(--text-2);
-}
-
 /* ── 오른쪽: 상세 ─────────────────────────────────────────────────────────── */
+/* 읽기 폭 열 하나 — 머리 · 검증 · 본문 · diff · 관련이 같은 끝선에서 멈춘다. 자식은 줄어들지 않는다:
+   `.jd` 는 높이가 정해진 flex 열이라, overflow 가 hidden 인 상자(검증 · diff)는 자동 최소 높이가 0 이
+   되고 긴 본문에 밀려 7px · 30px 로 눌렸다(11-15). */
 .jd {
   flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: var(--space-8); outline: none;
   display: flex; flex-direction: column; gap: var(--space-6);
   background: var(--bg-card);
 }
+.jd > * { flex-shrink: 0; max-width: var(--read-narrow); }
 .jd-empty { flex: 1; display: grid; place-items: center; background: var(--bg-card); color: var(--text-2); font-size: var(--fs-4); }
 .jd-head { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .jd-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-width: 0; }
 .jd-meta { font-size: var(--fs-3); color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
-/* 이 일지가 갱신한 계획 — 글자 그대로의 링크. 누르면 그 계획으로 (#nav-links). */
-.jd-plan-link {
-  padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer;
-  text-decoration: underline; text-decoration-color: var(--sep); text-underline-offset: 2px;
+/* 글자 그대로의 링크 하나 — 이 일지가 갱신한 계획 · 관련 일지가 같은 모양이다(본문색 · 옅은 밑줄). */
+.jd-link {
+  padding: 0; border: 0; background: none; font: inherit; color: var(--text); cursor: pointer; text-align: left;
+  text-decoration: underline; text-decoration-color: var(--sep-strong); text-underline-offset: 2px;
 }
-.jd-plan-link:hover { color: var(--text); text-decoration-color: currentColor; }
-.jd-plan-link:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); border-radius: var(--radius-2xs); }
+.jd-meta .jd-link { color: inherit; }
+.jd-link:hover { text-decoration-color: currentColor; }
+.jd-link:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); border-radius: var(--radius-2xs); }
 /* 문서 제목만 큰 활자다 — 크롬은 작게 (툴바 14 · 목록 13). */
 .jd-title { margin: 0; font-size: var(--fs-8); font-weight: var(--fw-bold); line-height: var(--lh-tight); letter-spacing: var(--track-snug); overflow-wrap: anywhere; }
 .jd-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* 파싱 경고 — 칩을 누르면 읽지 못한 줄 목록 + 파일로 열기 (계획의 「읽지 못한 줄」 과 같은 꼴). */
+.jd-warn-btn { border: 0; cursor: pointer; font-family: var(--font); }
+.jd-warn-btn:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+.jd-warns { margin: 0; padding: var(--space-3) var(--space-5); border: 1px solid var(--sep); border-radius: var(--radius-m); font-size: var(--fs-3); color: var(--text-2); }
+.jd-warns ul { margin: 0 0 var(--space-3); padding-left: var(--space-6); }
+.jd-warns li { font-family: var(--mono); overflow-wrap: anywhere; }
 
-/* 검증 상자 — 에이전트의 말이 아니라 돌린 명령과 결과 끝 줄이 서는 자리. */
+/* 검증 상자 — 에이전트의 말이 아니라 돌린 명령과 결과 끝 줄이 서는 자리. 머리 바로 아래, 본문 앞이다
+   (계획 문서가 판정 카드를 제목 아래 두는 이유와 같다). */
 .jd-verify { border: 1px solid var(--sep); border-radius: var(--radius-m); overflow: hidden; }
 .jd-verify-hd {
   display: flex; align-items: center; gap: var(--space-3);
@@ -121,6 +145,8 @@
 }
 .jd-verify-hd b { font-size: var(--fs-3); font-weight: var(--fw-strong); }
 .jd-verify-sp { flex: 1; }
+/* 「읽음」 — 눌린 상태는 면 + 굵게. 상태 글자와 툴팁이 같이 바뀐다. */
+.jd-read[aria-pressed="true"] { background: var(--bg-active); font-weight: var(--fw-strong); }
 .jd-verify-note { margin: 0; padding: var(--space-4) var(--space-5); font-size: var(--fs-3); color: var(--text-2); }
 .jd-term {
   margin: 0; padding: var(--space-4) var(--space-5);
@@ -129,39 +155,41 @@
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
 
-/* 인라인 diff — 기존 렌더러(PatchView)를 그대로 얹는다. */
+/* 인라인 diff — 기존 렌더러(PatchView)를 그대로 얹는다. 안쪽 세로 스크롤은 없다(휠이 갇히지 않게) —
+   긴 패치는 상세가 통째로 스크롤한다. */
 .jd-diff { border: 1px solid var(--sep); border-radius: var(--radius-m); overflow: hidden; }
 .jd-diff-fh {
   display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
   background: var(--bg-window); border-bottom: 1px solid var(--sep);
 }
-.jd-diff-name { flex: 0 1 auto; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 경로 두 조각 — 폴더가 먼저 줄고 파일 이름은 온전히 (변경 화면 `.chg-dir` · `.chg-base` 와 같은 규칙). */
+.jd-diff-name { display: flex; align-items: baseline; flex: 0 1 auto; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); }
+.jd-diff-dir { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); direction: rtl; text-align: left; }
+.jd-diff-base { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-strong); }
 .jd-diff-sp { flex: 1; }
-.jd-diff-pos { font-size: var(--fs-3); color: var(--text-2); white-space: nowrap; }
+.jd-diff-pos { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .jd-diff-body {
-  max-height: 60vh; overflow: auto; background: var(--bg-card);
+  overflow-x: auto; background: var(--bg-card);
   font-family: var(--mono); font-size: var(--fs-3); line-height: var(--lh-prose);
 }
 .jd-diff-note { padding: var(--space-4) var(--space-5); font-size: var(--fs-3); color: var(--text-2); }
 .jd-diff-note + .jd-diff-note { border-top: 1px solid var(--sep); }
 
-/* 관련 일지 — 한 줄 바닥. */
+/* 관련 일지 — 한 줄 바닥. 이유는 숫자만, 경로는 title 에. */
 .jd-related { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); font-size: var(--fs-3); color: var(--text-2); }
-.jd-related-link {
-  appearance: none; -webkit-appearance: none; border: none; background: none; padding: 0;
-  font: inherit; color: var(--accent-text); cursor: pointer; text-align: left;
-}
-.jd-related-link:hover { text-decoration: underline; }
-.jd-related-why { color: var(--text-2); }
+.jd-related-why { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.jd-related-missing { color: var(--text-2); }
 
-/* 전체 본문의 마크다운 — 읽는 글의 조판. 제목은 절 구분이고, 코드는 바탕 한 장이다. */
-.jd-prose { color: var(--text); font-size: var(--fs-4); line-height: var(--lh-prose); max-width: var(--read-wide); }
-.jd-prose > :first-child { margin-top: 0; }
-.jd-prose > :last-child { margin-bottom: 0; }
+/* 본문 — 조판은 이 한 벌이다(Tailwind prose 를 걷었다, 11-15). 13px / 1.7 ≈ 22px, 산문은 읽기 폭.
+   마크다운 래퍼가 하나 끼므로 첫 줄 · 끝 줄 여백 리셋은 그 안쪽 자식을 가리킨다. */
+.jd-prose { color: var(--text); font-size: var(--fs-4); line-height: var(--lh-prose); max-width: var(--read-narrow); }
+.jd-prose > * > :first-child { margin-top: 0; }
+.jd-prose > * > :last-child { margin-bottom: 0; }
+.jd-prose .md-fallback { white-space: pre-wrap; }
 .jd-prose h1, .jd-prose h2, .jd-prose h3, .jd-prose h4 {
   color: var(--text); font-weight: var(--fw-bold); letter-spacing: var(--track-tight);
-  line-height: var(--lh-tight); margin: var(--space-7) 0 var(--space-3);
+  line-height: var(--lh-tight); margin: var(--space-8) 0 var(--space-3);
 }
 .jd-prose h1, .jd-prose h2 { font-size: var(--fs-6); }
 .jd-prose h3, .jd-prose h4 { font-size: var(--fs-5); }
@@ -170,15 +198,18 @@
 .jd-prose ul { list-style: disc; }
 .jd-prose ol { list-style: decimal; }
 .jd-prose li { margin: var(--space-1) 0; }
-.jd-prose strong { font-weight: var(--fw-strong); }
-.jd-prose a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
+/* 굵은 첫 문장은 절 제목보다 한 단 가볍다 — 둘이 1px 차이로 서면 채팅 답변처럼 읽혔다. */
+.jd-prose strong { font-weight: var(--fw-label); }
+.jd-prose a { color: var(--text); text-decoration: underline; text-decoration-color: var(--sep-strong); text-underline-offset: 3px; }
 .jd-prose blockquote { margin: var(--space-4) 0; padding: var(--space-1) var(--space-5); border-left: 1px solid var(--sep-strong); color: var(--text-2); }
-/* 본문의 코드는 보통 굵기 — 굵은 고정폭이 문단마다 서면 글보다 코드가 먼저 읽혀 본문이 무거웠다(11-04).
-   굵기는 어디서 물려받든 여기서 못 박는다. */
+/* 본문의 코드는 보통 굵기 · 한 단 작게. 짧은 것(24자 이하)은 꺾지 않고(렌더러가 `.nowrap`), 긴 것만
+   꺾되 꺾인 조각마다 바탕을 다시 그린다(box-decoration-break) — 하이픈에서 두 조각으로 갈라지던 것. */
 .jd-prose :not(pre) > code {
-  font-family: var(--mono); font-size: 0.88em; font-weight: var(--fw-body); background: var(--bg-inset);
+  font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-body); background: var(--bg-inset);
   padding: 0.1em 0.4em; border-radius: var(--radius-2xs); overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
+.jd-prose :not(pre) > code.nowrap { white-space: nowrap; }
 .jd-prose pre {
   overflow-x: auto; margin: var(--space-4) 0; padding: var(--space-4) var(--space-5);
   background: var(--bg-inset); border: 1px solid var(--sep); border-radius: var(--radius-s);

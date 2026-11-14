@@ -4,6 +4,13 @@
  * 3.x 에서는 이 훅이 쓰기 열다섯(이름 바꾸기·옮기기·단계 편집·잠그기·보관·앱 안 AI 갱신 …)을
  * 들고 있었다. 4.0 에서 계획은 **에이전트가 쓴다** — 사람이 화면에서 하는 쓰기는 항목 상태
  * 하나만 남았다(막힘·이월·폐기처럼 사람이 정하는 상태가 있어서다).
+ *
+ * 옛 상태가 남지 않게 (11-15):
+ *  - 읽기에 성공하면 오류를 지운다 — 에이전트가 계획 .md 를 고치는 순간 한 번 실패하면, 다시 읽어도
+ *    오류 카드가 남아 있었다.
+ *  - 조용한 갱신(디스크 변경)이 실패하면 마지막 문서를 그대로 두고 문서 위에 한 줄만 단다(`stale`).
+ *  - 모든 쓰기는 **보이는 문서의 계획 id**(`detail.plan.plan_id`)로 간다 — 고른 id 는 앞서 바뀌어 있을
+ *    수 있다(다른 계획을 읽는 중). 화면은 그동안 동작 단추를 막는다(`busy`).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,14 +31,19 @@ export interface PlanDocument {
   select: (planId: string) => void;
   detail: PlanDetail | null;
   loadingDetail: boolean;
+  /** 고른 계획과 보이는 문서가 다르다(읽는 중) — 동작 단추를 막는다. */
+  busy: boolean;
   /** frontmatter status 가 "active" 가 아니면 잠김 (done/archived) — 고치지 않는다. */
   locked: boolean;
+  /** 목록 · 문서를 처음부터 못 읽었다 — 오류 카드. */
   error: string | null;
-  /** 오류 카드의 「다시 시도」 — 사유를 지우고 목록부터 다시 읽는다. */
+  /** 문서는 있는데 방금 다시 읽기를 못 했다 — 문서 위 한 줄. */
+  stale: boolean;
+  /** 「다시 시도」 — 사유를 지우고 목록과 문서를 다시 읽는다. */
   retry: () => void;
   refreshDetail: () => void;
   setStatus: (item: PlanItemDto, status: string) => Promise<void>;
-  /** 고른 계획을 닫는다 (남은 항목이 0 일 때만 화면이 부른다) — 알림에 「되돌리기」 가 달린다. */
+  /** 보이는 계획을 닫는다 (남은 항목이 0 일 때만 화면이 부른다) — 알림에 「되돌리기」 가 달린다. */
   close: () => Promise<void>;
 }
 
@@ -46,34 +58,46 @@ export function usePlanDocument(projectId: number): PlanDocument {
   const [detail, setDetail] = useState<PlanDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
 
-  const refreshPlans = useCallback(async () => {
-    try {
-      const res = await commands.planList(projectId);
-      if (res.status === "ok") {
-        const list = res.data ?? [];
-        setPlans(list);
-        // 고른 계획이 아직 있으면 그대로, 없으면 진행 중 첫 계획(오늘 화면과 같은 순서).
-        setSelectedId((cur) => {
-          if (cur && list.some((p) => p.plan_id === cur)) return cur;
-          const { active, closed } = railOrder(list);
-          return active[0]?.plan_id ?? closed[0]?.plan_id ?? null;
-        });
-      } else {
-        setError(tError(res.error));
-        setPlans([]);
+  const refreshPlans = useCallback(
+    async (silent = false) => {
+      try {
+        const res = await commands.planList(projectId);
+        if (res.status === "ok") {
+          const list = res.data ?? [];
+          setPlans(list);
+          setError(null);
+          // 고른 계획이 아직 있으면 그대로, 없으면 진행 중 첫 계획(오늘 화면과 같은 순서).
+          setSelectedId((cur) => {
+            if (cur && list.some((p) => p.plan_id === cur)) return cur;
+            const { active, closed } = railOrder(list);
+            return active[0]?.plan_id ?? closed[0]?.plan_id ?? null;
+          });
+          return;
+        }
+        if (silent) setStale(true);
+        else {
+          setError(tError(res.error));
+          setPlans((cur) => cur ?? []);
+        }
+      } catch (e) {
+        if (silent) setStale(true);
+        else {
+          setError(tError(toAppError(e)));
+          setPlans((cur) => cur ?? []);
+        }
       }
-    } catch (e) {
-      setError(tError(toAppError(e)));
-      setPlans([]);
-    }
-  }, [projectId]);
+    },
+    [projectId],
+  );
 
   useEffect(() => {
     setState((prev) => (prev.plannerPlanId === selectedId ? prev : { ...prev, plannerPlanId: selectedId }));
   }, [selectedId, setState]);
 
-  // `silent` — 디스크 변경(에이전트가 계획을 고침)으로 도는 갱신은 뼈대로 깜빡이지 않는다.
+  // `silent` — 디스크 변경(에이전트가 계획을 고침)으로 도는 갱신은 뼈대로 깜빡이지 않고, 실패해도 문서를
+  // 걷지 않는다(문서 위 한 줄).
   const refreshDetail = useCallback(
     async (silent = false) => {
       if (selectedId == null) {
@@ -85,11 +109,16 @@ export function usePlanDocument(projectId: number): PlanDocument {
       try {
         const res = await commands.planGet(projectId, selectedId);
         if (selectedIdRef.current !== selectedId) return;
-        if (res.status === "ok") setDetail(res.data);
+        if (res.status === "ok") {
+          setDetail(res.data);
+          setError(null);
+          setStale(false);
+        } else if (silent) setStale(true);
         else setError(tError(res.error));
       } catch (e) {
         if (selectedIdRef.current !== selectedId) return;
-        setError(tError(toAppError(e)));
+        if (silent) setStale(true);
+        else setError(tError(toAppError(e)));
       } finally {
         if (!silent && selectedIdRef.current === selectedId) setLoadingDetail(false);
       }
@@ -98,7 +127,7 @@ export function usePlanDocument(projectId: number): PlanDocument {
   );
 
   const refreshFromDisk = useCallback(() => {
-    void refreshPlans();
+    void refreshPlans(true);
     void refreshDetail(true);
   }, [refreshPlans, refreshDetail]);
   useOculpmDataEvents("planner", projectId, true, refreshFromDisk);
@@ -111,32 +140,36 @@ export function usePlanDocument(projectId: number): PlanDocument {
     void refreshDetail();
   }, [refreshDetail]);
 
-  // 낙관적 갱신 — 상자를 즉시 바꾸고 뒤에서 기록한다. 실패하면 되돌리고 알린다.
+  // 낙관적 갱신 — 상자를 즉시 바꾸고 뒤에서 기록한다. 실패하면 **그 항목만** 되돌리고 알린다
+  // (그 사이 디스크에서 다시 읽힌 다른 항목을 옛 문서로 덮지 않게).
   const setStatus = async (item: PlanItemDto, status: string) => {
-    if (selectedId == null || item.status === status) return;
-    const prevDetail = detail;
-    setDetail((d) =>
-      d ? { ...d, items: d.items.map((it) => (it.item_id === item.item_id ? { ...it, status } : it)) } : d,
-    );
-    const res = await commands.planApplyEdit(projectId, selectedId, { kind: "set_status", item_id: item.item_id, status }, "user");
+    const planId = detail?.plan.plan_id;
+    if (planId == null || item.status === status) return;
+    const prevStatus = item.status;
+    const patch = (to: string) => (d: PlanDetail | null) =>
+      d && d.plan.plan_id === planId
+        ? { ...d, items: d.items.map((it) => (it.item_id === item.item_id ? { ...it, status: to } : it)) }
+        : d;
+    setDetail(patch(status));
+    const res = await commands.planApplyEdit(projectId, planId, { kind: "set_status", item_id: item.item_id, status }, "user");
     if (res.status === "ok") {
-      if (res.data) setDetail(res.data);
-      void refreshPlans();
+      if (res.data && selectedIdRef.current === planId) setDetail(res.data);
+      void refreshPlans(true);
     } else {
-      setDetail(prevDetail);
+      if (selectedIdRef.current === planId) setDetail(patch(prevStatus));
       toast.destructive(t("plan.statusFailed", { error: tError(res.error) }));
     }
   };
 
   // 계획 닫기 — 닫으면 잠겨서 에이전트도 고치지 못한다. 잘못 눌렀을 때를 위해 알림에 되돌리기를 단다.
   const close = async () => {
-    if (selectedId == null || detail == null) return;
-    const planId = selectedId;
+    if (detail == null) return;
+    const planId = detail.plan.plan_id;
     const title = detail.plan.title;
     try {
       const closed = await planApi.close(projectId, planId);
       if (closed && selectedIdRef.current === planId) setDetail(closed);
-      void refreshPlans();
+      void refreshPlans(true);
       toast.info(t("plan.closed", { title }), {
         actions: [
           {
@@ -160,11 +193,15 @@ export function usePlanDocument(projectId: number): PlanDocument {
     select: setSelectedId,
     detail,
     loadingDetail,
+    busy: detail != null && detail.plan.plan_id !== selectedId,
     locked: (detail?.plan.status ?? "active") !== "active",
     error,
+    stale,
     retry: () => {
       setError(null);
+      setStale(false);
       void refreshPlans();
+      void refreshDetail();
     },
     refreshDetail: () => void refreshDetail(),
     setStatus,

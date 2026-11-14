@@ -4,7 +4,6 @@ import rehypeHighlight from "rehype-highlight";
 import { useState, useCallback, type ReactNode } from "react";
 import { ImageOff } from "lucide-react";
 import { Copy, Check } from "./Icons";
-import { useTheme } from "@/lib/theme";
 import { useT } from "@/i18n";
 
 // v2 U6 — react-markdown + remark-gfm + rehype-highlight(≈141KB) 를 lazy 경계
@@ -113,23 +112,11 @@ export default function MarkdownImpl({
    */
   urlTransform?: (url: string) => string;
 }) {
-  // PR-UI 8b — Tailwind Typography's dark inversion applied via the theme
-  // (no Tailwind dark-variant): add `prose-invert` only when the resolved
-  // theme is dark. data-theme drives `resolvedTheme`.
-  const { resolvedTheme } = useTheme();
+  // 조판은 소비처의 한 벌이 쥔다(일지 상세 `.jd-prose`, 11-15). Tailwind Typography(prose prose-sm …)가
+  // 14px/24px 로 이겨 일지 화면의 13px/1.7 이 닿지 않았고, 첫 줄 · 끝 줄 여백 리셋이 이 래퍼를 가리켜
+  // 제목 위에 39px 빈 띠가 섰다. 래퍼는 이름만 남긴다.
   return (
-    <div
-      className={`
-        prose prose-sm prose-neutral max-w-none
-        ${resolvedTheme === "dark" ? "prose-invert" : ""}
-        prose-pre:bg-muted prose-pre:text-foreground prose-pre:rounded-md
-        prose-code:before:hidden prose-code:after:hidden
-        prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5
-        prose-pre:p-3 prose-pre:my-2
-        prose-p:my-2 prose-headings:my-3
-        prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5
-      `}
-    >
+    <div className="md">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
@@ -146,6 +133,9 @@ export default function MarkdownImpl({
               {children}
             </CodeBlockWrapper>
           ),
+          code: ({ className, children }) => (
+            <code className={codeClass(className, children)}>{children}</code>
+          ),
           ...components,
         }}
       >
@@ -153,4 +143,16 @@ export default function MarkdownImpl({
       </ReactMarkdown>
     </div>
   );
+}
+
+/** 꺾지 않을 인라인 코드의 길이 — 경로 꼬리 · 명령 이름 · 함수 이름은 대개 이 안이다. */
+export const NOWRAP_CODE_MAX = 24;
+
+/**
+ * 인라인 코드 클래스 — 24자 이하 한 줄이면 `nowrap`(하이픈에서 두 조각으로 꺾이지 않게). 긴 것은 꺾인다.
+ * 블록 코드(`pre` 안)에도 같은 렌더러가 불리지만 CSS 가 `:not(pre) > code` 만 본다.
+ */
+function codeClass(className: string | undefined, children: ReactNode): string | undefined {
+  const short = typeof children === "string" && !children.includes("\n") && [...children].length <= NOWRAP_CODE_MAX;
+  return [className, short ? "nowrap" : null].filter(Boolean).join(" ") || undefined;
 }

@@ -270,7 +270,7 @@ describe("상세 — 확인함 토글 (사람 확인은 증거와 다른 사실)
   it("확인 안 된 일지: 「확인함」 을 누르면 true — 이때 백엔드가 해시를 묶고, 눌린 상태가 된다", async () => {
     const entry = summary({ relative_path: "20260531/F/1000_no.md", type: "bug", evidence: 1 });
     const { getByRole, findByRole } = renderDetail(entry);
-    const btn = await findByRole("button", { name: "읽음", pressed: false });
+    const btn = await findByRole("button", { name: "읽음 표시", pressed: false });
     fireEvent.click(btn);
     await waitFor(() =>
       expect(mocks.verify).toEqual([{ projectId: 1, relativePath: "20260531/F/1000_no.md", verified: true }]),
@@ -285,7 +285,7 @@ describe("상세 — 확인함 토글 (사람 확인은 증거와 다른 사실)
     await waitFor(() =>
       expect(mocks.verify).toEqual([{ projectId: 1, relativePath: "20260531/F/1000_ok.md", verified: false }]),
     );
-    await waitFor(() => expect(getByRole("button", { name: "읽음", pressed: false })).toBeTruthy());
+    await waitFor(() => expect(getByRole("button", { name: "읽음 표시", pressed: false })).toBeTruthy());
   });
 
   it("확인 뒤 바뀐 일지: 눌리지 않은 「다시 검토」, 누르면 true 로 다시 묶는다", async () => {
@@ -314,33 +314,33 @@ describe("상세 — 인라인 diff", () => {
   it("기록된 diff 를 기존 렌더러로 그리고, 파일명 · +N −M · 「파일 N 중 i」 를 헤더에 둔다", async () => {
     mocks.diffs = two;
     const { container, findByText } = renderDetail(summary({ type: "bug" }));
-    expect(await findByText("src/a.ts")).toBeInTheDocument();
+    expect(await findByText("a.ts")).toBeInTheDocument();
     await waitFor(() => expect(container.textContent).toContain("const first = 1;"));
     expect(container.querySelector(".jd-diff .diff-stat")?.textContent).toBe("+2−1");
-    expect(container.querySelector(".jd-diff-pos")?.textContent).toBe("파일 2 중 1");
+    expect(container.querySelector(".jd-diff-pos")?.textContent).toBe("1/2");
     expect(container.querySelector(".jd-diff .dl.add")).not.toBeNull();
   });
 
   it("「다음 파일」 로 옮기고 끝에서는 처음으로 돌아온다", async () => {
     mocks.diffs = two;
-    const { container, getByText, findByText } = renderDetail(summary({ type: "bug" }));
-    await findByText("src/a.ts");
-    fireEvent.click(getByText("다음 파일"));
+    const { container, getByLabelText, findByText } = renderDetail(summary({ type: "bug" }));
+    await findByText("a.ts");
+    fireEvent.click(getByLabelText("다음 파일"));
     await waitFor(() => expect(container.querySelector(".jd-diff-name")?.textContent).toBe("src/b.ts"));
-    expect(container.querySelector(".jd-diff-pos")?.textContent).toBe("파일 2 중 2");
+    expect(container.querySelector(".jd-diff-pos")?.textContent).toBe("2/2");
     await waitFor(() => expect(container.textContent).toContain("let second = 0;"));
-    fireEvent.click(getByText("다음 파일"));
+    fireEvent.click(getByLabelText("다음 파일"));
     await waitFor(() => expect(container.querySelector(".jd-diff-name")?.textContent).toBe("src/a.ts"));
   });
 
   it("파일이 하나면 이동 버튼이 없고, 패치 없는 파일은 개수로만 말한다", async () => {
     mocks.diffs = [two[0]];
     mocks.filesTouched = [{ path: "src/a.ts" }, { path: "src/gone.ts" }, { path: "src/lost.ts" }];
-    const { container, queryByText, findByText } = renderDetail(summary({ type: "bug" }));
-    await findByText("src/a.ts");
-    expect(queryByText("다음 파일")).toBeNull();
+    const { container, queryByLabelText, findByText } = renderDetail(summary({ type: "bug" }));
+    await findByText("a.ts");
+    expect(queryByLabelText("다음 파일")).toBeNull();
     expect(await findByText("diff 가 기록되지 않은 파일 2개")).toBeInTheDocument();
-    expect(container.querySelector(".jd-diff-pos")?.textContent).toBe("파일 1 중 1");
+    expect(container.querySelector(".jd-diff-pos")?.textContent).toBe("1/1");
   });
 
   it("기록된 diff 가 없으면 그렇게 말하고 변경 화면으로 가는 길을 둔다", async () => {
