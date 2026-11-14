@@ -1,0 +1,21 @@
+/* 접기 손잡이 하나 (Disclosure.tsx, 11-15) — 일지 · 계획의 접는 자리 다섯이 같은 모양이다.
+   꺾쇠 11 · 이름 · tabular 숫자. 가리키면 면, 키보드 포커스는 안쪽 링(행을 꽉 채우는 손잡이라
+   바깥 링은 이웃 행에 가려진다). 여백은 자리마다 다르다 — 바깥 상자 클래스가 `.disc-h` 를 덮는다. */
+.disc-h {
+  display: flex; align-items: center; gap: var(--space-2);
+  width: 100%; min-width: 0; margin: 0; padding: var(--space-2) var(--space-3);
+  appearance: none; -webkit-appearance: none; border: 0; border-radius: var(--radius-s);
+  background: transparent; color: var(--text-2);
+  font: inherit; font-size: var(--fs-3); text-align: left; cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.disc-h:hover { background: var(--bg-hover); color: var(--text); }
+.disc-h:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+.disc-chev { flex: none; transition: transform var(--dur-1) var(--ease-out); }
+.disc[data-open] > .disc-h .disc-chev { transform: rotate(90deg); }
+.disc-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.disc-n { flex: none; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .disc-h, .disc-chev { transition: none; }
+}

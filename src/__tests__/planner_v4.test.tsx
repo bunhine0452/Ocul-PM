@@ -360,9 +360,9 @@ describe("레일", () => {
     expect(within(rail).getByText(t("plan.list.closed", { n: 1 }))).toBeInTheDocument();
     // 최신 갱신이 먼저 열린다 — 오늘 화면의 계획 카드와 같은 순서.
     expect(await screen.findByRole("heading", { level: 2, name: "4.0 덜어내기" })).toBeInTheDocument();
-    expect(within(rail).getAllByText(t("plan.list.noVerdict"))).toHaveLength(2);
+    expect(within(rail).getAllByText(t("plan.list.noVerdict"))).toHaveLength(1); // 끝난 계획은 접힌 채 — 안의 줄은 아직 없다
     expect(within(rail).getByText("✗")).toBeInTheDocument();
-    expect((container.querySelector(".plv-closed") as HTMLDetailsElement).open).toBe(false);
+    expect(container.querySelector(".plv-closed .disc-h")?.getAttribute("aria-expanded")).toBe("false");
 
     fireEvent.click(within(rail).getByRole("button", { name: /크로스플랫폼 포팅/ }));
     expect(await screen.findByRole("heading", { level: 2, name: "크로스플랫폼 포팅" })).toBeInTheDocument();

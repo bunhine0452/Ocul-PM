@@ -83,15 +83,31 @@ const TODAY: ShortcutGroup = {
   ],
 };
 
+// 일지 (11-15) — `JournalScreenV2` 의 컨테이너가 듣는 키. 예전 표는 j/k 를 「파일 이동」, / 를 「파일 필터」 라
+// 적었고 v(읽음)는 툴팁만 약속했다.
 const JOURNAL: ShortcutGroup = {
   id: "journal",
   titleKey: "keys.g.journal",
   rows: [
-    { keys: "⌘F", labelKey: "keys.journalFind" },
-    { keys: "⌘N", labelKey: "keys.journalNew" },
-    { keys: "Esc", labelKey: "keys.entryBack" },
     { keys: "j / k", labelKey: "keys.entryMove" },
-    { keys: "/", labelKey: "keys.entryFilter" },
+    { keys: "/ · ⌘F", labelKey: "keys.entryFilter" },
+    { keys: "v", labelKey: "keys.entryRead" },
+    { keys: "Enter", labelKey: "keys.entryOpen" },
+    { keys: "Esc", labelKey: "keys.entryBack" },
+    { keys: "[ / ]", labelKey: "keys.entryFiles" },
+    { keys: "⌘N", labelKey: "keys.journalNew" },
+  ],
+};
+
+// 계획 (11-15) — `PlannerScreenV2` 의 본문이 듣는 키. 예전엔 계획 화면에 단축키가 하나도 없었다.
+const PLAN: ShortcutGroup = {
+  id: "plan",
+  titleKey: "nav.planner",
+  rows: [
+    { keys: "j / k", labelKey: "keys.planItems" },
+    { keys: "[ / ]", labelKey: "keys.planSwitch" },
+    { keys: "Enter", labelKey: "keys.planStatus" },
+    { keys: "r", labelKey: "keys.planRun" },
   ],
 };
 
@@ -152,7 +168,7 @@ export function navShortcutGroup(): ShortcutGroup {
 
 /** 치트시트가 그리는 순서 — 전역과 화면 이동이 먼저, 화면별 로컬 키가 뒤. */
 export function buildShortcutGroups(): ShortcutGroup[] {
-  const groups = [navShortcutGroup(), GLOBAL, WINDOW, TODAY, JOURNAL, DIFF, TERMINAL, START];
+  const groups = [navShortcutGroup(), GLOBAL, WINDOW, TODAY, JOURNAL, PLAN, DIFF, TERMINAL, START];
   return groups.map(isMac() ? forMac : forOtherOs);
 }
 

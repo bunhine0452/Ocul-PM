@@ -1,13 +1,12 @@
-import type { Ref } from "react";
-import { ChevronRight } from "@/components/Icons";
+import { memo, type ReactNode, type Ref, type UIEvent } from "react";
+import { Disclosure } from "@/components/Disclosure";
 import { useT } from "@/i18n";
 import { shiftWorkday } from "@/lib/workday";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { JournalRow } from "./JournalRow";
-import type { JournalDay } from "./useJournalDays";
+import type { DayView } from "./journalOrder";
 
-/** 한 번에 그리는 행 수 — 하루 60건을 쓰는 사용자에게도 마운트 수가 건수에 비례하지 않게 한다. */
-export const ROW_LIMIT = 150;
+export { ROW_LIMIT } from "./journalOrder";
 
 /** 날짜 머리 — 「오늘 · 10월 28일」 · 「어제 · 10월 27일」 · 「10월 24일」 (올해가 아니면 연도 포함). */
 function dayHeading(
@@ -26,89 +25,108 @@ function dayHeading(
 }
 
 interface JournalListProps {
-  days: JournalDay[];
+  /** 화면 순서(`visibleOrder`)가 정한 날들 — 그리기와 j/k 가 같은 것을 본다. */
+  views: DayView[];
+  /** 관련도 순서 — 날짜 머리 없이 한 묶음, 줄의 오른쪽 칸은 날짜. */
+  ranked?: boolean;
   todayKey: string | null;
   selectedPath: string | null;
+  /** 줄을 눌렀다 — 화면이 고정된 함수를 준다(줄이 memo 다). */
   onSelect: (entry: JournalEntrySummary) => void;
-  /** 그릴 수 있는 행의 상한 — 넘으면 「더 보기」 행이 선다. */
-  limit: number;
-  onMore: () => void;
+  /** 사라진 코드의 일지 접힘을 사람이 열고 닫았다. */
+  onToggleDay: (workday: string, open: boolean) => void;
   listRef: Ref<HTMLDivElement>;
-  /** 목록 아래에 붙는 손잡이(전체 기간·다음 쪽) — 화면이 정한다. */
-  footer?: React.ReactNode;
-  /** 목록 위에 붙는 고지(상한에 걸렸다). */
-  notice?: React.ReactNode;
-  empty?: React.ReactNode;
-  /**
-   * 사라진 코드의 일지(건드린 파일이 지금 하나도 없는 것)의 경로 — 날마다 한 줄로 접는다.
-   * 주지 않으면 접지 않는다. 찾거나 거르는 중에는 화면이 주지 않는다: 그때 사람은 바로 그것을 찾는 중일 수 있다.
-   */
-  gone?: ReadonlySet<string>;
+  onScroll?: (e: UIEvent<HTMLDivElement>) => void;
+  showAgent: boolean;
+  /** 검색 발췌 (경로 → 한 줄). */
+  excerpts?: ReadonlyMap<string, string>;
+  query?: string;
+  /** 목록 아래 손잡이(더 보기) — 화면이 정한다. */
+  footer?: ReactNode;
+  /** 목록 위 고지(못 읽었다). */
+  notice?: ReactNode;
+  empty?: ReactNode;
 }
 
-export function JournalList({
-  days,
+/**
+ * 일지 목록 (4.0 → 11-15). 날마다 listbox 하나 — 날짜 묶음은 group 이고 그 안의 줄이 option 이다. 사라진
+ * 코드의 일지는 그날 끝의 접힘(`Disclosure`) 안에 따로 listbox 로 선다: 접는 손잡이는 단추라 listbox 안에
+ * 둘 수 없다(option 만 둔다).
+ *
+ * memo 다 — 검색칸에 글자를 칠 때 목록 전체가 다시 그려지지 않게. 화면은 고정된 콜백을 준다.
+ */
+export const JournalList = memo(function JournalList({
+  views,
+  ranked = false,
   todayKey,
   selectedPath,
   onSelect,
-  limit,
-  onMore,
+  onToggleDay,
   listRef,
+  onScroll,
+  showAgent,
+  excerpts,
+  query,
   footer,
   notice,
   empty,
-  gone,
 }: JournalListProps) {
   const { t } = useT();
-  let drawn = 0;
-  const total = days.reduce((s, d) => s + d.entries.length, 0);
-  const showAgent = new Set(days.flatMap((d) => d.entries.map((e) => e.agent_id))).size > 1;
-  // 전부가 사라진 코드의 일지면 접지 않는다 — 날짜 머리만 남은 목록은 목록이 아니다
-  // (경로를 다른 폴더 기준으로 적은 저장소가 그렇게 된다).
-  const fold = gone != null && gone.size > 0 && days.some((d) => d.entries.some((e) => !gone.has(e.relative_path)));
   const row = (e: JournalEntrySummary) => (
     <JournalRow
       key={e.relative_path}
       entry={e}
       selected={e.relative_path === selectedPath}
+      tabbable={e.relative_path === selectedPath}
       onSelect={onSelect}
       showAgent={showAgent}
+      excerpt={excerpts?.get(e.relative_path)}
+      query={query}
+      withDate={ranked}
     />
   );
   return (
-    <div className="jl-list" ref={listRef} role="region" aria-label={t("journal.listAria")}>
+    <div className="jl-list" ref={listRef} onScroll={onScroll}>
       {notice}
-      {days.length === 0 ? empty : null}
-      {days.map((day) => {
-        if (drawn >= limit) return null;
-        const room = limit - drawn;
-        const rows = day.entries.slice(0, room);
-        drawn += rows.length;
-        const folded = fold ? rows.filter((e) => gone.has(e.relative_path)) : [];
-        const shown = fold ? rows.filter((e) => !gone.has(e.relative_path)) : rows;
+      {views.length === 0 ? empty : null}
+      {views.map((v) => {
+        const heading = ranked ? t("journal.searchResults") : dayHeading(v.workday, todayKey, t);
+        const headId = `jl-day-${v.workday || "ranked"}`;
         return (
-          <section key={day.workday} aria-label={dayHeading(day.workday, todayKey, t)}>
-            <h3 className="jl-dayh">{dayHeading(day.workday, todayKey, t)}</h3>
-            {shown.map(row)}
-            {folded.length > 0 ? (
-              // 고른 일지가 접힌 쪽이면 펴 둔다 — 상세에 열린 것이 목록에 없으면 길을 잃는다.
-              <details className="jl-gone" open={folded.some((e) => e.relative_path === selectedPath) || undefined}>
-                <summary className="jl-gone-h" title={t("journal.goneFoldTitle")}>
-                  <ChevronRight size={11} className="jl-gone-chev" aria-hidden="true" />
-                  {t("journal.goneFold", { n: folded.length })}
-                </summary>
-                {folded.map(row)}
-              </details>
+          <section key={v.workday || "ranked"} className="jl-day" role="group" aria-labelledby={headId}>
+            <h3 className="jl-dayh" id={headId}>
+              <span>{heading}</span>
+              <span className="jl-dayn">
+                {v.count}
+                {v.missing > 0 ? (
+                  <>
+                    {" · "}
+                    {t("journal.evidence.missing")} <b className="jl-warn-n">{v.missing}</b>
+                  </>
+                ) : null}
+              </span>
+            </h3>
+            <div role="listbox" aria-label={t("journal.listAria")} className="jl-rows">
+              {v.shown.map(row)}
+            </div>
+            {v.folded.length > 0 ? (
+              <Disclosure
+                className="jl-gone"
+                label={t("journal.goneFoldLabel")}
+                count={v.folded.length}
+                title={t("journal.goneFoldTitle")}
+                open={v.open}
+                onToggle={(open) => onToggleDay(v.workday, open)}
+              >
+                <div role="listbox" aria-label={t("journal.goneFoldLabel")} className="jl-rows">
+                  {v.folded.map(row)}
+                </div>
+              </Disclosure>
             ) : null}
           </section>
         );
       })}
-      {total > limit ? (
-        <button type="button" className="btn sm jl-more" onClick={onMore}>
-          {t("journal.rowMore", { n: Math.min(ROW_LIMIT, total - limit) })}
-        </button>
-      ) : null}
       {footer}
     </div>
   );
-}
+});

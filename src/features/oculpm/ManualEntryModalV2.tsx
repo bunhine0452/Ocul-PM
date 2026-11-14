@@ -1,5 +1,7 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { oculpmApi } from "@/api/oculpm";
+import { toAppError } from "@/api/invoke";
+import { Disclosure } from "@/components/Disclosure";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { X, CheckMark } from "@/components/Icons";
 import type {
@@ -12,7 +14,9 @@ import type {
   ManualEntryDraft,
 } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 import { blocked } from "@/lib/blocked";
+import { isModChord } from "@/lib/kbd";
 
 // PR-R1 (A4) — 수동 일지 작성 모달 (ui_v2 토큰 셸).
 //
@@ -20,6 +24,10 @@ import { blocked } from "@/lib/blocked";
 // 못 끼움" 으로 보류했던 ⌘N 을 PR-UI 6 의 .set-modal 패턴으로 신규 구현. 로직은
 // legacy ManualEntryModal 과 동일(백엔드 oculpm_create_manual_entry 가 권위 —
 // slug 검증/session 해석/파일 네이밍 담당). 프론트 slug 검사는 인라인 에러용.
+//
+// 11-15: 처음 보이는 칸은 셋(종류 · 제목 · 본문)이다 — 칸 여덟이 한꺼번에 서 있으면 직접 쓰는 일지가
+// 서류가 됐다. 파일 이름 · 난이도 · 상태 · 태그 · 변경 파일은 「자세히」 안에 둔다(기본값이 이미 맞다).
+// ⌘↩ 로 쓴다. 오류는 내부 명령 이름이 아니라 사람의 문장으로 말한다.
 
 const ENTRY_TYPES: EntryType[] = ["bug", "feature", "error", "refactor", "chore"];
 const ENTRY_STATUSES: EntryStatus[] = ["planned", "in_progress", "done", "abandoned"];
@@ -73,11 +81,14 @@ export function ManualEntryModalV2({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
+  // 변경 파일을 미리 골라 연 모달(변경 화면의 「직접 기록」)은 「자세히」 가 열린 채 선다 — 고른 파일이 보여야 한다.
+  const [moreOpen, setMoreOpen] = useState(() => (seedFiles?.length ?? 0) > 0);
   // 파일 이름 — 고치기 전에는 제목을 따라간다.
   const slug = slugDraft ?? slugFromTitle(title);
 
   const [fileCandidates, setFileCandidates] = useState<string[]>(() => seedFiles ?? []);
   const [filesTouched, setFilesTouched] = useState<Set<string>>(() => new Set(seedFiles ?? []));
+  const typeRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Pre-fill candidates from today's tracked file changes (non-fatal).
   useEffect(() => {
@@ -103,6 +114,8 @@ export function ManualEntryModalV2({
       setSlugError(null);
     } else if (!SLUG_RE.test(slug)) {
       setSlugError(t("manual.slugError"));
+      // 고칠 칸이 「자세히」 안에 있다 — 숨긴 채 막지 않는다.
+      setMoreOpen(true);
     } else {
       setSlugError(null);
     }
@@ -163,15 +176,19 @@ export function ManualEntryModalV2({
       onCreated(entry);
       onClose();
     } catch (e) {
-      setError(
-        e instanceof OculpmApiError
-          ? t("manual.commandFailed", { command: e.command, message: e.message })
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
+      setError(t("journal.manualFailed", { error: tError(toAppError(e)) }));
       setSubmitting(false);
     }
+  };
+
+  // 종류는 radiogroup — 화살표가 칸을 옮기며 고른다. 고른 칸만 Tab 이 멈춘다.
+  const onTypeKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const dir = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (dir === 0) return;
+    e.preventDefault();
+    const i = (ENTRY_TYPES.indexOf(type) + dir + ENTRY_TYPES.length) % ENTRY_TYPES.length;
+    setType(ENTRY_TYPES[i]);
+    typeRefs.current[i]?.focus();
   };
 
   return (
@@ -186,16 +203,30 @@ export function ManualEntryModalV2({
             e.preventDefault();
             void submit();
           }}
+          onKeyDown={(e) => {
+            // ⌘↩ — 어느 칸에 있든 쓴다(본문 칸의 Enter 는 줄바꿈이다).
+            if (e.key === "Enter" && isModChord(e)) {
+              e.preventDefault();
+              void submit();
+            }
+          }}
         >
           {/* type */}
           <div className="entry-field">
-            <label className="entry-label">{t("manual.trigger")}</label>
-            <div className="entry-chips">
-              {ENTRY_TYPES.map((k) => (
+            <span className="entry-label" id={`${titleId}-type`}>
+              {t("manual.trigger")}
+            </span>
+            <div className="entry-chips" role="radiogroup" aria-labelledby={`${titleId}-type`} onKeyDown={onTypeKey}>
+              {ENTRY_TYPES.map((k, i) => (
                 <button
                   key={k}
+                  ref={(el) => {
+                    typeRefs.current[i] = el;
+                  }}
                   type="button"
-                  aria-pressed={type === k}
+                  role="radio"
+                  aria-checked={type === k}
+                  tabIndex={type === k ? 0 : -1}
                   className={"scope-chip" + (type === k ? " on" : "")}
                   onClick={() => setType(k)}
                 >
@@ -221,131 +252,6 @@ export function ManualEntryModalV2({
             />
           </div>
 
-          {/* slug */}
-          <div className="entry-field">
-            <label className="entry-label" htmlFor={`${titleId}-slug`}>
-              {t("manual.slugField")}
-              <span className="entry-hint">{t("manual.slugHint")}</span>
-            </label>
-            <input
-              id={`${titleId}-slug`}
-              className="set-modal-input"
-              value={slug}
-              maxLength={60}
-              aria-invalid={slugError != null}
-              placeholder="note"
-              onChange={(e) => setSlugDraft(e.target.value)}
-            />
-            {slugError ? <div className="entry-err">{slugError}</div> : null}
-          </div>
-
-          {/* difficulty + status */}
-          <div className="entry-row2">
-            <div className="entry-field">
-              <label className="entry-label" htmlFor={`${titleId}-diff`}>
-                {t("manual.difficulty")}
-              </label>
-              <span className="select-wrap">
-                <select
-                  id={`${titleId}-diff`}
-                  className="set-modal-input"
-                  value={difficulty ?? "_none"}
-                  onChange={(e) =>
-                    setDifficulty(e.target.value === "_none" ? null : (e.target.value as Difficulty))
-                  }
-                >
-                  <option value="_none">{t("manual.none")}</option>
-                  {DIFFICULTIES.map((d) => (
-                    <option key={d} value={d}>
-                      {t(`manual.diff.${d}`)}
-                    </option>
-                  ))}
-                </select>
-              </span>
-            </div>
-            <div className="entry-field">
-              <label className="entry-label" htmlFor={`${titleId}-status`}>
-                {t("manual.status")}
-              </label>
-              <span className="select-wrap">
-                <select
-                  id={`${titleId}-status`}
-                  className="set-modal-input"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as EntryStatus)}
-                >
-                  {ENTRY_STATUSES.map((st) => (
-                    <option key={st} value={st}>
-                      {t(`manual.st.${st}`)}
-                    </option>
-                  ))}
-                </select>
-              </span>
-            </div>
-          </div>
-
-          {/* tags */}
-          <div className="entry-field">
-            <label className="entry-label" htmlFor={`${titleId}-tags`}>
-              {t("manual.tags")}<span className="entry-hint">{t("manual.tagsHint")}</span>
-            </label>
-            {tags.length > 0 ? (
-              <div className="entry-chips">
-                {tags.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className="entry-tag"
-                    onClick={() => setTags((prev) => prev.filter((x) => x !== t))}
-                  >
-                    #{t} <X size={11} />
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <input
-              id={`${titleId}-tags`}
-              className="set-modal-input entry-input-text"
-              value={tagsInput}
-              placeholder={t("manual.tagsPlaceholder")}
-              onChange={(e) => setTagsInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === ",") {
-                  e.preventDefault();
-                  commitTag();
-                }
-              }}
-            />
-          </div>
-
-          {/* files_touched */}
-          <div className="entry-field">
-            <label className="entry-label">
-              {t("manual.files")}<span className="entry-hint">{t("manual.filesHint")}</span>
-            </label>
-            {fileCandidates.length === 0 ? (
-              <div className="entry-hint entry-hint-solo">{t("manual.noFiles")}</div>
-            ) : (
-              <div className="entry-files">
-                {fileCandidates.map((path) => {
-                  const checked = filesTouched.has(path);
-                  return (
-                    <button
-                      key={path}
-                      type="button"
-                      className={"scope-chip" + (checked ? " on" : "")}
-                      style={{ fontFamily: "var(--mono)" }}
-                      onClick={() => toggleFile(path)}
-                    >
-                      {checked ? <CheckMark size={11} strokeWidth={3} /> : null}
-                      {path}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {/* body */}
           <div className="entry-field">
             <label className="entry-label" htmlFor={`${titleId}-body`}>
@@ -359,6 +265,136 @@ export function ManualEntryModalV2({
               onChange={(e) => setBodyMarkdown(e.target.value)}
             />
           </div>
+
+          <Disclosure label={t("journal.manualMore")} open={moreOpen} onToggle={setMoreOpen}>
+            <div className="entry-form">
+              {/* slug */}
+              <div className="entry-field">
+                <label className="entry-label" htmlFor={`${titleId}-slug`}>
+                  {t("manual.slugField")}
+                  <span className="entry-hint">{t("manual.slugHint")}</span>
+                </label>
+                <input
+                  id={`${titleId}-slug`}
+                  className="set-modal-input"
+                  value={slug}
+                  maxLength={60}
+                  aria-invalid={slugError != null}
+                  placeholder="note"
+                  onChange={(e) => setSlugDraft(e.target.value)}
+                />
+                {slugError ? <div className="entry-err">{slugError}</div> : null}
+              </div>
+
+              {/* difficulty + status */}
+              <div className="entry-row2">
+                <div className="entry-field">
+                  <label className="entry-label" htmlFor={`${titleId}-diff`}>
+                    {t("manual.difficulty")}
+                  </label>
+                  <span className="select-wrap">
+                    <select
+                      id={`${titleId}-diff`}
+                      className="set-modal-input"
+                      value={difficulty ?? "_none"}
+                      onChange={(e) =>
+                        setDifficulty(e.target.value === "_none" ? null : (e.target.value as Difficulty))
+                      }
+                    >
+                      <option value="_none">{t("manual.none")}</option>
+                      {DIFFICULTIES.map((d) => (
+                        <option key={d} value={d}>
+                          {t(`manual.diff.${d}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </span>
+                </div>
+                <div className="entry-field">
+                  <label className="entry-label" htmlFor={`${titleId}-status`}>
+                    {t("manual.status")}
+                  </label>
+                  <span className="select-wrap">
+                    <select
+                      id={`${titleId}-status`}
+                      className="set-modal-input"
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as EntryStatus)}
+                    >
+                      {ENTRY_STATUSES.map((st) => (
+                        <option key={st} value={st}>
+                          {t(`manual.st.${st}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </span>
+                </div>
+              </div>
+
+              {/* tags */}
+              <div className="entry-field">
+                <label className="entry-label" htmlFor={`${titleId}-tags`}>
+                  {t("manual.tags")}<span className="entry-hint">{t("manual.tagsHint")}</span>
+                </label>
+                {tags.length > 0 ? (
+                  <div className="entry-chips">
+                    {tags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        className="entry-tag"
+                        onClick={() => setTags((prev) => prev.filter((x) => x !== tag))}
+                      >
+                        #{tag} <X size={11} />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                <input
+                  id={`${titleId}-tags`}
+                  className="set-modal-input entry-input-text"
+                  value={tagsInput}
+                  placeholder={t("manual.tagsPlaceholder")}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === ",") {
+                      e.preventDefault();
+                      commitTag();
+                    }
+                  }}
+                />
+              </div>
+
+              {/* files_touched */}
+              <div className="entry-field">
+                <span className="entry-label">
+                  {t("manual.files")}<span className="entry-hint">{t("manual.filesHint")}</span>
+                </span>
+                {fileCandidates.length === 0 ? (
+                  <div className="entry-hint entry-hint-solo">{t("manual.noFiles")}</div>
+                ) : (
+                  <div className="entry-files">
+                    {fileCandidates.map((path) => {
+                      const checked = filesTouched.has(path);
+                      return (
+                        <button
+                          key={path}
+                          type="button"
+                          aria-pressed={checked}
+                          className={"scope-chip" + (checked ? " on" : "")}
+                          style={{ fontFamily: "var(--mono)" }}
+                          onClick={() => toggleFile(path)}
+                        >
+                          {checked ? <CheckMark size={11} strokeWidth={3} /> : null}
+                          {path}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Disclosure>
 
           {error ? <div className="entry-err">{error}</div> : null}
         </form>

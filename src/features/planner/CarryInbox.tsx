@@ -1,18 +1,24 @@
 /**
- * 닫힌 플랜의 미완 — 받은함 (완성도 라운드 2026-10-27, 업그레이드 4).
+ * 닫힌 계획의 미완 — 받은함 (완성도 라운드 2026-10-27, 업그레이드 4).
  *
- * 실측: done·archived 플랜 20개 안에 `[ ]` 가 63건 남아 있었다. MCP `plan_status` 는
- * `locked_open` 으로 세어 주지만 화면에는 없었다 — 「이월은 살아 있는 플랜으로」 규칙을
- * 사람이 지킬 자리가 없었다. 잠긴 플랜은 **절대 고치지 않는다**: 옮기기는 고른 활성
- * 플랜의 「이월」 단계 끝에 `carry-<id>` 항목을 더하는 것이고, 백엔드는 그 id 가 있는
+ * 실측: done·archived 계획 20개 안에 `[ ]` 가 63건 남아 있었다. MCP `plan_status` 는
+ * `locked_open` 으로 세어 주지만 화면에는 없었다 — 「이월은 살아 있는 계획으로」 규칙을
+ * 사람이 지킬 자리가 없었다. 닫힌 계획은 **절대 고치지 않는다**: 옮기기는 고른 진행 중
+ * 계획의 「이월」 단계 끝에 `carry-<id>` 항목을 더하는 것이고, 백엔드는 그 id 가 있는
  * 항목을 이 목록에서 뺀다. 그것이 「처리됨」의 유일한 표식이다. 숨기기 버튼은 없다.
+ *
+ * 11-15: 디스크가 바뀌면 스스로 다시 읽는다(계획 수가 그대로면 놓치던 것) · 접기 손잡이는 `Disclosure`.
  */
 
 import { useCallback, useEffect, useState } from "react";
 
+import { toAppError } from "@/api/invoke";
 import { planApi } from "@/api/plan";
-import { ArrowRight, Inbox } from "@/components/Icons";
+import { Disclosure } from "@/components/Disclosure";
+import { ArrowRight } from "@/components/Icons";
+import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 import { blocked } from "@/lib/blocked";
 import type { LockedOpenItem } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -25,21 +31,22 @@ const STATUS_KEY = {
 
 interface CarryInboxProps {
   projectId: number;
-  /** 지금 고른 플랜 — 활성이 아니면 옮기기는 막힌다. */
+  /** 지금 고른 계획 — 진행 중이 아니면 옮기기는 막힌다. */
   selectedId: string | null;
   selectedLocked: boolean;
-  /** 옮긴 뒤 고른 플랜을 다시 읽게 한다. */
+  /** 옮긴 뒤 고른 계획을 다시 읽게 한다. */
   onMoved: () => void;
-  /** 플랜 파일이 바뀐 신호 — 목록을 다시 읽는다. */
-  refreshKey: number;
 }
 
-export function CarryInbox({ projectId, selectedId, selectedLocked, onMoved, refreshKey }: CarryInboxProps) {
+export function CarryInbox({ projectId, selectedId, selectedLocked, onMoved }: CarryInboxProps) {
   const { t } = useT();
   const [items, setItems] = useState<LockedOpenItem[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const reload = useCallback(() => setTick((n) => n + 1), []);
+  useOculpmDataEvents("planner", projectId, true, reload);
 
-  const load = useCallback(() => {
+  useEffect(() => {
     let alive = true;
     void planApi
       .lockedOpen(projectId)
@@ -52,9 +59,7 @@ export function CarryInbox({ projectId, selectedId, selectedLocked, onMoved, ref
     return () => {
       alive = false;
     };
-  }, [projectId]);
-
-  useEffect(() => load(), [load, refreshKey]);
+  }, [projectId, tick]);
 
   if (!items || items.length === 0) return null;
   const canMove = selectedId != null && !selectedLocked;
@@ -77,21 +82,16 @@ export function CarryInbox({ projectId, selectedId, selectedLocked, onMoved, ref
       );
       toast.info(t("plan.carry.moved", { plan: selectedId }));
       onMoved();
-      load();
+      reload();
     } catch (e) {
-      toast.destructive(t("plan.carry.moveFailed", { error: e instanceof Error ? e.message : String(e) }));
+      toast.destructive(t("plan.carry.moveFailed", { error: tError(toAppError(e)) }));
     } finally {
       setBusy(null);
     }
   };
 
   return (
-    <details className="plv-carry" open={false}>
-      <summary className="plv-carry-head">
-        <Inbox size={13} />
-        <span className="plv-carry-title">{t("plan.carry.title")}</span>
-        <span className="plv-meta">{t("plan.carry.count", { n: items.length })}</span>
-      </summary>
+    <Disclosure className="plv-carry" label={t("plan.carry.title")} count={items.length}>
       <p className="plv-carry-hint">{t("plan.carry.hint")}</p>
       {items.map((item) => {
         const key = `${item.plan_id}#${item.item_id}`;
@@ -118,6 +118,6 @@ export function CarryInbox({ projectId, selectedId, selectedLocked, onMoved, ref
           </div>
         );
       })}
-    </details>
+    </Disclosure>
   );
 }

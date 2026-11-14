@@ -1,18 +1,22 @@
 /* ============================================================
-   계획 (4.0 {#ui-planner}) — 레일 260px + 한 장의 문서.
+   계획 (4.0 {#ui-planner}) — 레일 + 한 장의 문서.
    큰 활자는 문서 제목 하나뿐(20px). 값은 전부 토큰, 강조는 면으로만.
    `.plv-main`(문서 칸)이 컨테이너다 — 단계 격자는 레일을 뺀 폭에 반응한다.
    10-30: 컨테이너가 레일까지 품은 `.plv-body` 였을 때는 960px 창(125% 면 768px)에서도
    640 접힘이 걸리지 않아 단계가 두 칸 215~310px 로 꺾였고, `.plv-body` 자신을 바꾸던
    규칙은 컨테이너 질의가 자기 자신에게 안 걸려 한 번도 적용되지 않았다(걷었다).
+
+   일지 화면과 같은 뼈대다(11-15): 목록 칸 폭 `--panel-w`, 문서 여백 24, 고른 줄은 면만(굵기 고정),
+   문서 안 상자는 테두리만(그림자 카드를 걷었다). 램프 밖 값(22 · 28 · 18 · 14 · 9 · 60 · 260)을 접었다.
    ============================================================ */
 
-.plv-body { flex: 1; min-height: 0; display: flex; align-items: stretch; }
+.plv-body { flex: 1; min-height: 0; display: flex; align-items: stretch; outline: none; }
+/* 조용한 갱신이 실패했을 때의 한 줄 — 문서는 그대로 두고 위에만. */
+.plv-stale { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-5); }
 .plv-main {
   flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden;
-  padding: 22px 28px 60px;
+  padding: var(--space-8) var(--space-8) 48px;
   background: var(--bg-card);
-  scrollbar-gutter: stable;
   container-type: inline-size; container-name: plan;
 }
 
@@ -23,9 +27,14 @@
 
 /* ── 레일 ──────────────────────────────────────────────────── */
 .plv-rail {
-  width: 260px; flex: none; overflow-y: auto;
+  width: var(--panel-w); max-width: 45%; flex: none; overflow-y: auto;
   border-right: 1px solid var(--sep);
   background: var(--bg-window);
+}
+/* 목록 칸 손잡이는 가리킬 때만 — 일지 목록과 같은 규칙(journal.css `.jl-list` 주석). */
+.plv-rail::-webkit-scrollbar-thumb { background: transparent; }
+.plv-rail:is(:hover, :focus-within)::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-2) 32%, transparent); background-clip: padding-box;
 }
 .plv-rail-h {
   display: flex; align-items: center; gap: var(--space-2);
@@ -36,91 +45,115 @@
 .plv-li {
   display: flex; flex-direction: column; gap: var(--space-1);
   width: 100%; padding: var(--space-3) var(--space-6);
-  border: 0; border-bottom: 1px solid var(--border-card);
+  border: 0;
   background: transparent; color: var(--text);
   font: inherit; font-size: var(--fs-4); text-align: left;
   cursor: pointer;
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .plv-li:hover { background: var(--bg-hover); }
+/* 고른 줄은 면만 — 굵기를 바꾸면 줄이 다시 꺾여 높이가 뛴다(일지 목록과 같은 규칙). */
 .plv-li[aria-current="true"] { background: var(--bg-active); }
-.plv-li[aria-current="true"] .plv-li-title { font-weight: var(--fw-strong); }
-.plv-li-r1 { display: flex; align-items: center; gap: var(--space-3); }
-.plv-li-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plv-closed > summary { cursor: pointer; list-style: none; }
-.plv-closed > summary::-webkit-details-marker { display: none; }
-.plv-closed-chev { transition: transform var(--dur-1) var(--ease-out); }
-.plv-closed[open] .plv-closed-chev { transform: rotate(90deg); }
+.plv-li:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+.plv-li-r1 { display: flex; align-items: flex-start; gap: var(--space-3); }
+/* 제목은 두 줄까지 — 전부는 title 에. */
+.plv-li-title {
+  flex: 1; min-width: 0; line-height: var(--lh-snug);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+}
+/* 끝난 계획 — 접힘 하나(`Disclosure`), 펼치면 달마다 수. */
+.plv-closed > .disc-h { padding: var(--space-5) var(--space-6) var(--space-2); border-radius: 0; font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; }
+.plv-month-h {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  padding: var(--space-3) var(--space-6) var(--space-1);
+  font-size: var(--fs-3); color: var(--text-2);
+}
 
 /* ── 문서 ──────────────────────────────────────────────────── */
-.plv-doc { display: flex; flex-direction: column; gap: 18px; max-width: var(--read-wide); }
+.plv-doc { display: flex; flex-direction: column; gap: var(--space-7); max-width: var(--read-wide); }
 .plv-head { display: flex; flex-direction: column; gap: var(--space-1); }
 /* 문서 제목 — 이 화면에서 유일한 큰 활자. */
 .plv-title { margin: 0; font-size: var(--fs-8); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
+.plv-time { font-family: var(--mono); font-variant-numeric: tabular-nums; font-variant-ligatures: none; }
 
-.plv-judge { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5) 14px; border-radius: var(--radius-m); }
+/* 읽지 못한 줄 — warn 칩 하나, 펼치면 줄 목록 · 파일로 열기 (일지 상세의 파싱 경고와 같은 꼴). */
+.plv-warn { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.plv-warn-btn { border: 0; cursor: pointer; font-family: var(--font); }
+.plv-warn-btn:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+.plv-warn-list { margin: 0; padding: var(--space-3) var(--space-5); border: 1px solid var(--sep); border-radius: var(--radius-m); font-size: var(--fs-3); color: var(--text-2); }
+.plv-warn-list ul { margin: 0 0 var(--space-3); padding-left: var(--space-6); }
+.plv-warn-list li { font-family: var(--mono); overflow-wrap: anywhere; }
+
+/* 판정 카드 — 문서 안 상자는 테두리만. 완료 조건 · 확인 명령 · 마지막 결과가 위에서 아래로 한 칸씩. */
+.plv-judge {
+  display: flex; flex-direction: column; gap: var(--space-4);
+  padding: var(--space-5); border: 1px solid var(--border-card); border-radius: var(--radius-m);
+  background: var(--bg-card);
+}
 .plv-judge p { margin: 0; }
 .plv-judge-text { max-width: var(--read-narrow); }
-.plv-judge-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
-.plv-judge-check { flex: 1; min-width: 260px; }
-.plv-judge-last { width: 260px; }
+/* 확인 명령 — 낱말 한가운데서 끊지 않는다(`car` / `go`). 보일 때만 && · ; 뒤에서 줄을 나눈다. */
 .plv-code {
-  display: block; padding: var(--space-2) 9px;
+  display: block; padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-s); background: var(--bg-inset);
   font-size: var(--fs-3); color: var(--text);
-  white-space: pre-wrap; word-break: break-all;
+  white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
+  font-variant-ligatures: none;
 }
+/* 마지막 결과 — 확인 명령 아래 전체 폭, 끝 줄을 자르지 않고 다 보인다. 사람이 판단할 뒷부분(「설치본 눈
+   확인은 안 함」)이 260px 칸 끝에서 사라졌다. VerdictLine 은 오늘 화면의 것이라 여기서 꼬리만 덮는다. */
+.plv-judge-last .vl-out { white-space: pre-wrap; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.plv-judge-last .vl-sub { white-space: normal; overflow: visible; }
 
 .plv-next { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); }
 .plv-next-label { flex: none; font-weight: var(--fw-strong); }
 /* 제목은 줄을 바꿔 끝까지 보인다 — 잘린 제목으로는 무엇을 실행하는지 모른다 (#plan-head). */
 .plv-next-title { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
 
-.plv-phases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) 22px; }
+.plv-phases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) var(--space-8); }
 @container plan (max-width: 640px) {
   .plv-phases { grid-template-columns: minmax(0, 1fr); }
 }
-/* 단계 = 카드 한 장(10-30) — 테두리 · 머리 띠 · 항목 사이 줄. 문서 바탕(--bg-card) 위에서 경계가 보이게
-   머리 띠는 --bg-window, 가리킨 항목은 --bg-hover. 「보내기」 는 그 항목 줄의 오른쪽 끝(카드 안)에 선다. */
+/* 단계 = 테두리 상자 한 장(10-30) — 머리 띠 · 항목 사이 줄. 그림자는 걷었다(문서 안 상자는 테두리만).
+   머리 띠는 바탕과 한 단 갈린 --bg-inset — 밝은 테마에서 --bg-window 는 바탕과 1.02:1 이었다. */
+/* `overflow: hidden` 을 두지 않는다 — 상태 메뉴(절대 위치)가 상자 끝에서 잘려 여섯 중 넷만 보였다. 모서리는
+   머리 띠와 끝 줄이 안쪽 곡률(동심원)로 직접 둥근다. */
 .plv-phase {
-  min-width: 0; align-self: start; overflow: hidden;
+  min-width: 0; align-self: start;
   border: 1px solid var(--border-card); border-radius: var(--radius-m); background: var(--bg-card);
-  box-shadow: var(--shadow-card);
 }
 .plv-phase > .plv-sec-h {
   display: flex; align-items: center; gap: var(--space-3); margin: 0;
   padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border-card);
-  background: var(--bg-window); color: var(--text);
+  border-radius: calc(var(--radius-m) - 1px) calc(var(--radius-m) - 1px) 0 0;
+  background: var(--bg-inset); color: var(--text);
 }
+.plv-phase > .plv-item:last-child, .plv-done-items > .plv-item:last-child { border-radius: 0 0 calc(var(--radius-m) - 1px) calc(var(--radius-m) - 1px); }
 .plv-sec-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plv-phase > .plv-item {
-  padding: var(--space-3) var(--space-5) var(--space-3) calc(var(--space-5) + var(--plv-depth, 0) * 18px);
+.plv-phase > .plv-item, .plv-done-items > .plv-item {
+  padding: var(--space-3) var(--space-5) var(--space-3) calc(var(--space-5) + var(--plv-depth, 0) * 20px);
   border-top: 1px solid var(--sep);
 }
 .plv-phase > .plv-sec-h + .plv-item { border-top: 0; }
-.plv-phase > .plv-item:hover { background: var(--bg-hover); }
+.plv-phase > .plv-item:hover, .plv-done-items > .plv-item:hover { background: var(--bg-hover); }
 /* 남은 단계가 하나면 반쪽에 서지 않는다 — 옆 칸이 비는데 글만 좁게 꺾였다. */
 .plv-phase:only-of-type { grid-column: 1 / -1; }
-/* 끝난 단계 — 남은 단계 아래 한 줄에 모은다(이름 · n/n · ✓), 누르면 그 단계가 격자로 펼쳐진다. */
-.plv-done-row { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin-left: calc(-1 * var(--space-3)); }
-.plv-phase-done {
-  display: flex; align-items: center; gap: var(--space-3); min-width: 0; align-self: start;
-  padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius-s);
-  background: transparent; color: var(--text-2);
-  font: inherit; font-size: var(--fs-3); text-align: left; cursor: pointer;
-}
-.plv-phase-done:hover { background: var(--bg-hover); color: var(--text); }
-.plv-phase-done .plv-item-t { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plv-phase-ok { flex: none; color: var(--text-2); }
+/* 끝난 단계 — 남은 단계 아래 세로로 한 줄씩(이름 · n/n). 펼치면 그 자리에서 항목이 선다(`Disclosure`). */
+.plv-done-row { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--space-1); margin-left: calc(-1 * var(--space-3)); }
+.plv-done-items { margin-left: var(--space-3); border: 1px solid var(--border-card); border-radius: var(--radius-m); }
+.plv-done-items > .plv-item:first-child { border-top: 0; }
 .plv-item { display: flex; align-items: baseline; gap: var(--space-4); padding: var(--space-1) 0; font-size: var(--fs-4); }
 .plv-item.is-parent .plv-item-t { font-weight: var(--fw-strong); }
 .plv-item.is-dropped .plv-item-t { color: var(--text-2); text-decoration: line-through; }
 .plv-item.is-deferred .plv-item-t { color: var(--text-2); }
-/* 항목 제목은 줄을 바꿔 끝까지 (#plan-head) — 접힌 끝난 단계의 한 줄(.plv-phase-done)만 말줄임. */
+/* 항목 제목은 줄을 바꿔 끝까지 (#plan-head). */
 .plv-item-t { min-width: 0; overflow-wrap: anywhere; }
 .plv-item-t > .chip { margin-left: var(--space-3); vertical-align: 1px; }
 .plv-item-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 누가 언제 잡았나 — 「Claude · 3시간 전」(시각은 기계 글씨). 24시간을 넘기면 warn 칩 「오래 잡힘」. */
+.plv-held { flex: none; display: inline-flex; align-items: baseline; gap: var(--space-2); font-size: var(--fs-3); color: var(--text-2); white-space: nowrap; }
 .plv-item-j { margin-left: auto; }
+.plv-held + .plv-item-j { margin-left: 0; }
 /* 「보내기」는 줄을 가리킬 때만 — 계획이 단추로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */
 .plv-item-send { margin-left: auto; opacity: 0; }
 .plv-item-send + .plv-item-j { margin-left: 0; }
@@ -132,19 +165,21 @@
   display: inline-grid; place-items: center; padding: 2px;
   border: 0; border-radius: var(--radius-xs); background: transparent; cursor: pointer;
 }
-.plv-box-btn:hover:not(:disabled) { background: var(--bg-hover); }
-.plv-box-btn:disabled { cursor: default; }
+.plv-box-btn:hover:not(:disabled, [aria-disabled="true"]) { background: var(--bg-hover); }
+.plv-box-btn:is(:disabled, [aria-disabled="true"]) { cursor: default; }
+.plv-box-btn:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
 
-/* 상태 상자 — 완료=채움 · 진행=반 · 막힘=붉은 테두리 · 이월=점선 · 폐기=흐림. */
+/* 상태 상자 — 완료=회색 채움 · 진행=반 · 막힘=붉은 테두리 · 이월=점선 · 폐기=흐림. 영수증 규칙 1 — 끝난 것은
+   조용하다: 완료 · 진행 상자가 초록으로 채워져 계획 전체가 「다 됐습니다」 를 외쳤다(11-15). */
 .plv-box {
   display: inline-grid; place-items: center; flex: none;
   width: 15px; height: 15px; box-sizing: border-box;
-  /* 빈 상자의 테두리는 글자 회색의 반 — 머리카락 선(--sep-strong)으로는 밝은 테마에서 상자가 거의 안 보였다. */
-  border: 1.5px solid color-mix(in srgb, var(--text-2) 55%, transparent); border-radius: var(--radius-2xs);
-  color: var(--text-on-accent);
+  /* 빈 상자의 테두리는 글자 회색의 70%(약 3.4:1) — 55% 일 때 밝은 테마에서 2.3:1 로 상자가 거의 안 보였다. */
+  border: 1.5px solid color-mix(in srgb, var(--text-2) 70%, transparent); border-radius: var(--radius-2xs);
+  color: var(--bg-card);
 }
-.plv-box.is-done { background: var(--accent); border-color: var(--accent); }
-.plv-box.is-in_progress { border-color: var(--accent); background: linear-gradient(90deg, var(--accent) 50%, transparent 50%); }
+.plv-box.is-done { background: var(--text-2); border-color: var(--text-2); }
+.plv-box.is-in_progress { border-color: var(--text-2); background: linear-gradient(90deg, var(--text-2) 50%, transparent 50%); }
 .plv-box.is-blocked { border-color: var(--danger); }
 .plv-box.is-deferred { border-style: dashed; }
 .plv-box.is-dropped { opacity: var(--dim-disabled); }
@@ -161,45 +196,46 @@
   font-family: var(--font); font-size: var(--fs-3); cursor: pointer; white-space: nowrap;
 }
 .plv-status-item:hover { background: var(--bg-hover); }
-.plv-status-item[aria-checked="true"] { background: var(--accent-soft); color: var(--accent-text); }
+.plv-status-item:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+/* 지금 상태 — 면 + ✓ (액센트 글자를 걷었다: 메뉴의 고른 줄은 예외가 아니다). */
+.plv-status-item[aria-checked="true"] { background: var(--bg-active); }
+.plv-status-check { margin-left: auto; color: var(--text-2); }
+.plv-status-key { margin-left: auto; font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.plv-status-check + .plv-status-key { margin-left: 0; }
 
-/* ── 갱신 기록 · 결정 ──────────────────────────────────────── */
-.plv-log > summary {
-  display: flex; align-items: center; gap: var(--space-2);
-  cursor: pointer; list-style: none;
-  font-size: var(--fs-3); color: var(--text-2);
-}
-.plv-log > summary::-webkit-details-marker { display: none; }
-.plv-log-chev { transition: transform var(--dur-1) var(--ease-out); }
-.plv-log[open] .plv-log-chev { transform: rotate(90deg); }
+/* ── 계획 기록 · 결정 ──────────────────────────────────────── */
+.plv-log > .disc-h { width: auto; margin-left: calc(-1 * var(--space-3)); }
 .plv-log-sec { margin-top: var(--space-4); }
 .plv-log-sec h3 { margin: 0 0 var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); }
 .plv-decisions { margin: 0; padding-left: var(--space-6); font-size: var(--fs-4); }
 .plv-decisions p { margin: var(--space-1) 0 var(--space-3); color: var(--text-2); white-space: pre-wrap; }
-.plv-log-table { width: 100%; margin-top: var(--space-4); border-collapse: collapse; font-size: var(--fs-3); }
-.plv-log-table td { padding: var(--space-1) var(--space-3) var(--space-1) 0; border-bottom: 1px solid var(--border-card); vertical-align: top; color: var(--text-2); white-space: nowrap; }
-.plv-log-table td.plv-log-note { white-space: normal; color: var(--text); }
+/* 기록 한 줄 = 두 줄 — 상자 · 상태 이름(할 일 → 완료) · 항목 제목 / 시각(기계 글씨) · 누가 · 메모. 표였을 때는
+   좁은 창에서 오른쪽이 잘렸고 in_progress · #id · ISO 시각이 날것으로 섰다. */
+.plv-log-list { margin: var(--space-4) 0 0; padding: 0; list-style: none; }
+.plv-log-row { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) 0; border-bottom: 1px solid var(--border-card); min-width: 0; }
+.plv-log-r1 { display: flex; align-items: center; gap: var(--space-3); min-width: 0; font-size: var(--fs-4); }
+.plv-log-move { flex: none; color: var(--text-2); font-size: var(--fs-3); white-space: nowrap; }
+.plv-log-title { min-width: 0; overflow-wrap: anywhere; }
+.plv-log-r2 { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font-size: var(--fs-3); color: var(--text-2); min-width: 0; }
+.plv-log-note { color: var(--text); overflow-wrap: anywhere; }
 .plv-log-empty { margin: var(--space-3) 0 0; font-size: var(--fs-3); color: var(--text-2); }
 
 /* ── 닫힌 계획의 미완 (CarryInbox) ─────────────────────────── */
-.plv-carry { margin-top: var(--space-7); padding: var(--space-3) var(--space-5); border: 1px dashed var(--sep-strong); border-radius: var(--radius-m); background: var(--bg-inset); max-width: var(--read-wide); }
-.plv-carry-head { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; list-style: none; color: var(--text-2); }
-.plv-carry-head::-webkit-details-marker { display: none; }
-.plv-carry[open] .plv-carry-head { margin-bottom: var(--space-2); }
-.plv-carry-title { font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text); }
-.plv-carry-hint { margin: 0 0 var(--space-2); font-size: var(--fs-3); color: var(--text-2); }
-.plv-carry-row { display: flex; align-items: center; gap: var(--space-2); padding: 2px 0; }
+.plv-carry { margin-top: var(--space-7); padding: var(--space-2) var(--space-3); border: 1px solid var(--border-card); border-radius: var(--radius-m); max-width: var(--read-wide); }
+.plv-carry > .disc-h { color: var(--text); font-weight: var(--fw-strong); }
+.plv-carry-hint { margin: var(--space-2) var(--space-3); font-size: var(--fs-3); color: var(--text-2); }
+.plv-carry-row { display: flex; align-items: center; gap: var(--space-2); padding: 2px var(--space-3); }
 .plv-carry-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-4); }
 .plv-carry-from { flex: none; max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── 완료 확인 대화상자 ────────────────────────────────────── */
-.plv-confirm { display: flex; gap: var(--space-4); padding: 18px 20px 4px; font-size: var(--fs-4); line-height: var(--lh-prose); }
+.plv-confirm { display: flex; gap: var(--space-4); padding: var(--space-7) var(--space-7) var(--space-1); font-size: var(--fs-4); line-height: var(--lh-prose); }
 .plv-confirm-ico { flex: none; margin-top: 2px; color: var(--warn-text); }
-.plv-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); padding: var(--space-5) 20px var(--space-6); }
+.plv-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); padding: var(--space-5) var(--space-7) var(--space-6); }
 
 /* 좁은 창(≤640, 10-30) — 레일이 위(높이 36%), 문서가 아래. */
 @media (max-width: 640px) {
   .plv-body { flex-direction: column; }
-  .plv-rail { width: auto; max-height: 36%; border-right: 0; border-bottom: 1px solid var(--sep); }
+  .plv-rail { width: auto; max-width: none; max-height: 36%; border-right: 0; border-bottom: 1px solid var(--sep); }
   .plv-main { padding: var(--space-5) var(--space-4) 48px; }
 }

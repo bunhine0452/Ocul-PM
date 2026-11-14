@@ -135,7 +135,7 @@ vi.mock("@/api/oculpm", () => {
       getJournalEntry: (_pid: number, relativePath: string) =>
         Promise.resolve({
           relative_path: relativePath,
-          title: "제목",
+          title: all().find((e) => e.relative_path === relativePath)?.title ?? "제목",
           body_markdown: "[x] 제목\n\n## 동작 흐름\n무언가를 변경했다\n\n## 검증\n- `pnpm test` → 3 passed\n",
           evidence: 2,
           frontmatter: { files_touched: [], related: [], agent: { id: "claude-code", version: "Opus 5.5" } },
@@ -201,7 +201,7 @@ vi.mock("@/lib/bindings", async (importOriginal) => {
   };
 });
 
-import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
+import { JournalScreenV2, __resetJournalMemory } from "@/features/oculpm/JournalScreenV2";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { t } from "@/i18n";
 
@@ -228,7 +228,7 @@ const rowTitles = (c: HTMLElement) => Array.from(c.querySelectorAll(".jl-item .j
 const detailTitle = (c: HTMLElement) => c.querySelector(".jd-title")?.textContent;
 
 beforeEach(() => {
-  localStorage.clear();
+  localStorage.clear(); __resetJournalMemory(); // 고른 일지는 앱이 켜 있는 동안 모듈에 남는다(11-15)
   fixtures.byWorkday = {};
   fixtures.allPeriod = [];
   fixtures.allPeriodTotal = null;
@@ -260,11 +260,11 @@ describe("작업 일지 — 목록", () => {
     expect(await findByText("기능 작업")).toBeInTheDocument();
     expect(getByText("오늘 · 5월 31일")).toBeInTheDocument();
     expect(rowTitles(container)).toEqual(["기능 작업", "버그 작업"]);
-    // 메타 줄: 종류 · 시각 · 파일 수. 에이전트가 하나뿐이면 이름은 줄마다 쓰지 않는다 (화면 검사 {#journal-list}).
-    expect(container.querySelector(".jl-item .jl-meta")?.textContent).toBe("기능 추가 · 10:00 · 파일 2");
+    // 증거가 선 일지는 한 줄 — 제목과 오른쪽 고정 칸의 시각뿐이다 (11-15, 예외만 두 줄).
+    expect(container.querySelector(".jl-item.is-one .jl-when")?.textContent).toBe("10:00");
     // 가장 위 줄이 자동으로 골라져 상세가 선다.
     await waitFor(() => expect(detailTitle(container)).toBe("기능 작업"));
-    expect(container.querySelector('.jl-item[aria-current="true"] .jl-ti')?.textContent).toBe("기능 작업");
+    expect(container.querySelector('.jl-item[aria-selected="true"] .jl-ti')?.textContent).toBe("기능 작업");
   });
 
   it("「N건 · 전체 M건 중」 은 거를 때만 목록 머리에 — 안 거를 때는 탭 옆 수가 같은 말을 한다", async () => {
@@ -290,7 +290,7 @@ describe("작업 일지 — 목록", () => {
     ];
     const { findByText, getByRole, container } = renderJournal();
     await findByText("기능 작업");
-    fireEvent.click(getByRole("tab", { name: "버그·에러" }));
+    fireEvent.click(getByRole("radio", { name: "버그·에러" }));
     await waitFor(() => expect(rowTitles(container)).toEqual(["버그 작업", "에러 작업"]));
     expect(calls.page[calls.page.length - 1]?.filters).toMatchObject({ types: ["bug", "error"] });
     // 고른 줄이 목록에서 사라졌으니 새 목록의 첫 줄이 상세에 열린다.
@@ -333,7 +333,7 @@ describe("작업 일지 — 목록", () => {
     const { findByText, getByText } = renderJournal();
     // 문장 하나 · 버튼 하나 (화면 검사 #empty-one).
     expect(await findByText(t("journal.empty"))).toBeInTheDocument();
-    expect(getByText("git 히스토리에서 가져오기")).toBeInTheDocument();
+    expect(getByText("커밋에서 일지 만들기")).toBeInTheDocument();
   });
 
   it("최근 창이 비어도 '이전 기록 더 보기' 로 전체 기간에 닿는다", async () => {
@@ -350,12 +350,12 @@ describe("작업 일지 — 목록", () => {
       summary({ relative_path: `old-${i}`, workday: "20260401", title: `예전 일지 ${i}` }),
     );
     fixtures.allPeriodTotal = 250;
-    const { findByText, getByText, queryByText } = renderJournal();
+    const { findByText, getByText, queryByText, getByRole } = renderJournal();
     await findByText("최근");
-    fireEvent.click(getByText(/이전 기록 더 보기/));
-    expect(await findByText("전체 250건 중 200건 표시")).toBeInTheDocument();
-    fireEvent.click(getByText("50건 더 불러오기"));
-    await waitFor(() => expect(queryByText(/전체 250건 중 \d+건 표시/)).toBeNull());
+    fireEvent.click(getByRole("radio", { name: "전체 기간" }));
+    expect(await findByText("조건에 맞는 250 · 표시 150")).toBeInTheDocument();
+    fireEvent.click(getByText("50건 더 보기"));
+    await waitFor(() => expect(queryByText(/조건에 맞는 250/)).toBeNull());
   });
 
   it("한 번에 150줄만 그리고 나머지는 「더 보기」 뒤에 둔다 — 하루 60건 사용자에게도 마운트 수가 건수에 비례하지 않게", async () => {
@@ -382,28 +382,28 @@ describe("작업 일지 — 사라진 코드의 일지는 날마다 한 줄로 �
 
   it("접힌 줄이 건수를 말하고, 일지는 그 안에 그대로 있다", async () => {
     seed();
-    const { findByText, container } = renderJournal();
-    const fold = (await findByText("사라진 코드의 일지 1건")).closest("details") as HTMLDetailsElement;
-    expect(fold.open).toBe(false);
-    expect(Array.from(fold.querySelectorAll(".jl-ti")).map((e) => e.textContent)).toEqual(["걷어낸 화면"]);
+    const { findByRole, container } = renderJournal();
+    const fold = await findByRole("button", { name: "사라진 코드의 일지 1" });
+    expect(fold.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(fold); expect(Array.from(container.querySelectorAll(".jl-gone .jl-ti")).map((e) => e.textContent)).toEqual(["걷어낸 화면"]);
     // 접힌 것 밖에는 지금 코드의 일지만.
-    expect(Array.from(container.querySelectorAll("section > .jl-item .jl-ti")).map((e) => e.textContent)).toEqual(["지금 코드"]);
+    expect(Array.from(container.querySelectorAll(".jl-day > .jl-rows .jl-ti")).map((e) => e.textContent)).toEqual(["지금 코드"]);
   });
 
   it("거르는 중에는 접지 않는다 — 그때 사람은 바로 그 일지를 찾는 중일 수 있다", async () => {
     seed();
-    const { findByText, findByRole, container } = renderJournal();
-    await findByText("사라진 코드의 일지 1건");
-    fireEvent.click(await findByRole("tab", { name: "버그·에러" }));
+    const { findByRole, container } = renderJournal();
+    await findByRole("button", { name: "사라진 코드의 일지 1" });
+    fireEvent.click(await findByRole("radio", { name: "버그·에러" }));
     await waitFor(() => expect(rowTitles(container)).toEqual(["걷어낸 화면"]));
     expect(container.querySelector(".jl-gone")).toBeNull();
   });
 
   it("고른 일지가 접힌 쪽이면 펴 둔다", async () => {
     seed();
-    const { findByText } = renderJournal({ focusPath: "20260531/B/0900_b.md" });
-    const fold = (await findByText("사라진 코드의 일지 1건")).closest("details") as HTMLDetailsElement;
-    await waitFor(() => expect(fold.open).toBe(true));
+    const { findByRole } = renderJournal({ focusPath: "20260531/B/0900_b.md" });
+    const fold = await findByRole("button", { name: "사라진 코드의 일지 1" });
+    await waitFor(() => expect(fold.getAttribute("aria-expanded")).toBe("true"));
   });
 
   it("전부가 그런 일지면 접지 않는다", async () => {
@@ -430,7 +430,7 @@ describe("작업 일지 — 검색 (이 화면이 일지 검색의 집이다)", 
     // 히트의 날짜들을 한 번에 요약으로 푼다.
     expect(calls.workdayEntries[calls.workdayEntries.length - 1]).toEqual(["20260531"]);
     await waitFor(() => expect(rowTitles(container)).toEqual(["워처 경합"]));
-    expect(await findByText("1건 · 전체 3건 중")).toBeInTheDocument();
+    expect(await findByText("조건에 맞는 1")).toBeInTheDocument();
   });
 
   it("검색 결과도 같은 종류 필터를 탄다 — 파일 이름으로 찾은 일지가 목록에 선다", async () => {
@@ -440,7 +440,7 @@ describe("작업 일지 — 검색 (이 화면이 일지 검색의 집이다)", 
     fixtures.hits = [{ relative_path: hit.relative_path, workday: "20260401" }];
     const { findByText, getByLabelText, getByRole, container } = renderJournal();
     await findByText("최근");
-    fireEvent.click(getByRole("tab", { name: "버그·에러" }));
+    fireEvent.click(getByRole("radio", { name: "버그·에러" }));
     fireEvent.change(getByLabelText("일지 검색"), { target: { value: "watcher.rs" } });
     await waitFor(() => expect(calls.search.length).toBeGreaterThan(0), { timeout: 2000 });
     expect(calls.search[calls.search.length - 1]?.filters).toEqual({ types: ["bug", "error"] });
@@ -530,7 +530,7 @@ describe("작업 일지 — 키보드와 열기 경로", () => {
     });
     await waitFor(() => expect(detailTitle(container)).toBe("아주 옛 일지"));
     await waitFor(() => expect(onOpenEntryConsumed).toHaveBeenCalled());
-    fireEvent.click(await findByLabelText("목록으로"));
+    fireEvent.click(await findByLabelText("계획으로 돌아가기"));
     expect(onReturnToOrigin).toHaveBeenCalled();
   });
 
@@ -572,7 +572,7 @@ describe("작업 일지 — 수동 일지 (사람이 직접 남기는 기록)", 
     const { findByText, getByText, getByLabelText, queryByText } = renderJournal();
     await findByText("기존 작업");
     fireEvent.click(getByText("새 일지"));
-    expect(getByText("일지 직접 쓰기")).toBeInTheDocument();
+    expect(getByText("일지 직접 쓰기")).toBeInTheDocument(); fireEvent.click(getByText("자세히")); // 파일 이름은 「자세히」 안 (11-15)
     fireEvent.change(getByLabelText(/제목/), { target: { value: "수동으로 적은 일" } });
     fireEvent.change(getByLabelText(/파일 이름/), { target: { value: "manual-note" } });
     fireEvent.click(getByText("작성"));
@@ -586,7 +586,7 @@ describe("작업 일지 — 수동 일지 (사람이 직접 남기는 기록)", 
     fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "기존 작업" })];
     const { findByText, getByText, getByLabelText } = renderJournal();
     await findByText("기존 작업");
-    fireEvent.click(getByText("새 일지"));
+    fireEvent.click(getByText("새 일지")); fireEvent.click(getByText("자세히"));
     fireEvent.change(getByLabelText(/제목/), { target: { value: "제목 있음" } });
     fireEvent.change(getByLabelText(/파일 이름/), { target: { value: "Bad Slug!" } });
     expect(await findByText(/영문 소문자 · 숫자 · - 만/)).toBeInTheDocument();
