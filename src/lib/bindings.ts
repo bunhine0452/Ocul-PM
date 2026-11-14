@@ -827,6 +827,12 @@ export const commands = {
 	 *  놓쳐도 무해(안내가 안 뜰 뿐), 오탐만 없으면 된다.
 	 */
 	claudePluginStatus: (projectId: number | null) => typedError<ClaudePluginStatus, string>(__TAURI_INVOKE("claude_plugin_status", { projectId })),
+	/**
+	 *  Claude Code 테마 파일을 앱 테마에 맞춘다 (11-15, `claude_theme`) — `~/.claude/themes/ocul.json` 하나만
+	 *  쓴다. `~/.claude` 가 없으면 아무것도 만들지 않고, 내용이 같으면 쓰지 않는다. 테마는 프런트가 터미널
+	 *  색에서 만든다(`features/theme/claudeTheme.ts`). 끄기(설정 `claude_theme`)는 프런트가 부르지 않는 것으로 한다.
+	 */
+	claudeThemeWrite: (theme: ClaudeTheme) => typedError<ClaudeThemeOutcome, string>(__TAURI_INVOKE("claude_theme_write", { theme })),
 	newWindow: () => typedError<null, string>(__TAURI_INVOKE("new_window")),
 	/**  이 실행 파일의 설치 형식 (업데이터의 키 선택과 같은 규칙). */
 	installKind: () => __TAURI_INVOKE<InstallKind>("install_kind"),
@@ -1077,6 +1083,27 @@ export type ClaudeQuestion = {
 export type ClaudeQuestionsChanged = {
 	project_id: number,
 };
+
+/**  Claude Code 의 사용자 테마 — 내장 테마 하나 위에 색 몇 개를 덮는다. */
+export type ClaudeTheme = {
+	/**  `/theme` 목록에 보이는 이름. */
+	name: string,
+	base: ClaudeThemeBase,
+	/**  Claude 의 색 키 → `#rrggbb`. 파일에는 키 이름 순으로 적는다 — 같은 내용이면 같은 바이트. */
+	overrides: { [key in string]: string },
+};
+
+/**  덮을 바탕 — Claude Code 의 내장 테마 이름(앱 테마의 가족과 같은 둘). */
+export type ClaudeThemeBase = "light" | "dark";
+
+/**  쓴 결과 — 설정의 줄이 무엇을 보여 줄지 가른다. */
+export type ClaudeThemeOutcome = 
+/**  새 내용을 썼다. */
+{ state: "written"; path: string } | 
+/**  같은 내용이라 손대지 않았다. */
+{ state: "unchanged"; path: string } | 
+/**  `~/.claude` 가 없다 — 아무것도 만들지 않았다. `dir` 은 찾아본 자리. */
+{ state: "no_claude"; dir: string };
 
 /**
  *  바깥(또는 앱 안) 터미널의 Claude 가 사람을 기다린다 — 플러그인 Notification 훅 (ocul-next

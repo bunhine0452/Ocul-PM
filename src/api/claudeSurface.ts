@@ -17,6 +17,8 @@ import type {
   ClaudeWaiting,
   JournalMissingSignal,
   ClaudePluginStatus,
+  ClaudeTheme,
+  ClaudeThemeOutcome,
 } from "@/lib/bindings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -74,4 +76,13 @@ export const claudeInstallApi = {
       .then(() => unwrap<ClaudePluginStatus>("claude_plugin_status", commands.claudePluginStatus(projectId)))
       .catch(() => null),
 
+};
+
+/**
+ * Claude Code 테마 파일 `~/.claude/themes/ocul.json` (11-15, `features/theme/claudeTheme.ts`). `~/.claude` 가
+ * 없으면 아무것도 만들지 않고(`no_claude`), 내용이 같으면 쓰지 않는다(`unchanged`). 실패는 `ApiError`.
+ */
+export const claudeThemeApi = {
+  write: (theme: ClaudeTheme): Promise<ClaudeThemeOutcome> =>
+    unwrap<ClaudeThemeOutcome>("claude_theme_write", commands.claudeThemeWrite(theme)),
 };
