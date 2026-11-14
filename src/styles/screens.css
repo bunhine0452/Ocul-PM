@@ -108,10 +108,6 @@
 }
 .scope-chip.on { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
 
-/* 라디오 묶음 세그먼트(`RadioSeg`, 11-15) — 고른 칸은 `.seg-item[aria-selected="true"]`(primitives.css)와
-   같은 모양이다. 프리미티브 셀렉터가 `aria-checked` 를 받으면 이 짝은 걷는다(그쪽 값이 바뀌면 같이 바뀌게). */
-.seg-item[aria-checked="true"] { background: var(--bg-card); color: var(--text); box-shadow: var(--shadow-card); }
-
 /* --- Terminal — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 톤) ---
    2026-07-30: 하드코딩 다크(#101014/#16161c/#26262e)를 전부 걷어내고 테마
    토큰으로 옮겼다. 예전엔 라이트/Solarized/Sepia 를 골라도 터미널 화면만

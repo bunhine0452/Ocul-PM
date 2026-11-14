@@ -3,15 +3,8 @@
    걷으며(밀도는 하나 — 촘촘한 쪽) 이름을 내용대로 바꿨다: 토글·밀도 갈래 규칙·시작 탭·
    설정 밀도 카드·터미널 열은 걷었고, 전문 밀도의 행 높이는 이제 기본값이다.
    ⌘K 팔레트의 규칙은 11-15 에 `components/palette.css` 로 옮겼다 — 시작 창도 같은 팔레트를 쓰는데
-   이 파일은 셸의 늦은 청크라 시작 창에 오지 않는다. */
+   이 파일은 셸의 늦은 청크라 시작 창에 오지 않는다.
+   변경 화면 바닥줄(`.diff-entry-foot` · `.def-*`)의 정본은 `features/diff/changes.css` 다 (11-15). 여기 남아 있던 옛
+   사본이 뒤에 실려 꺾임 간격(padding · row-gap)과 선 색을 덮었다 — 다시 적지 않는다. */
 
-.diff-entry-foot {
-  display: flex; align-items: center; gap: var(--space-3); min-height: var(--ctl-5); padding: 0 var(--space-4);
-  border-top: 1px solid var(--border-card); background: var(--bg-inset); font-size: var(--fs-3); color: var(--text-2);
-}
-.diff-entry-foot[data-evidence="on"] > svg { color: var(--text-2); }
-.diff-entry-foot[data-evidence="off"] > svg { color: var(--warn-text); }
-.def-label { font-weight: var(--fw-bold); white-space: nowrap; }
-.def-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
-.def-fill { flex: 1; }
 .diff-entry-foot .btn.ok { color: var(--ok-text); border-color: var(--ok); }
