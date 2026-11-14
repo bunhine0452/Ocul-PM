@@ -42,8 +42,8 @@ describe("a question reads like a letter", () => {
     expect(title.getAttribute("title")).toBeNull();
     expect(css).toMatch(/\.tdy-rows\.is-ex > \.tdy-row\[data-kind="question"\] > \.tdy-row-t \{ grid-column: 2 \/ -1; \}/);
     expect(css).toMatch(/\.tdy-row \.tdy-wrap \{[^}]*white-space: normal;[^}]*text-wrap: pretty/);
-    // 고를 답이 길면 단추 안에서 줄을 바꾼다 — 단추가 칸 밖으로 나가지 않게.
-    expect(css).toMatch(/\.tdy-option \{[^}]*max-width: 100%;[^}]*white-space: normal;[^}]*text-align: start/);
+    // 고를 답이 길면 단추 안에서 줄을 바꾼다 — 단추가 칸 밖으로 나가지 않게. `.btn.sm`(높이 26 고정)을 이기는 명시도로.
+    expect(css).toMatch(/\.btn\.sm\.tdy-option \{[^}]*height: auto;[^}]*max-width: 100%;[^}]*white-space: normal;[^}]*text-align: start/);
     expect(css).toMatch(/\.tdy-rows\.is-ex > \.tdy-row > \.chip \{[^}]*align-self: start/);
   });
 });
@@ -72,10 +72,22 @@ describe("one filled button on the screen", () => {
     const box = within(row).getByRole("textbox") as HTMLInputElement;
     fireEvent.change(box, { target: { value: "next version please" } });
     fireEvent.keyDown(box, { key: "Enter" });
-    expect(box.value).toBe("");
-    await waitFor(() => expect(fx.answers).toEqual([["q1", "next version please"]]));
+    await waitFor(() => expect(box.value).toBe(""));
+    expect(fx.answers).toEqual([["q1", "next version please"]]);
     await waitFor(() => expect(row.querySelector(".tdy-sent")?.textContent).toContain(t("today.check.sent")));
     expect(row.querySelector(".tdy-sent .mono")?.textContent).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it("keeps what was typed when the answer could not be sent", async () => {
+    fx.fail.add("claudeQuestionAnswer");
+    const row = await questionRow();
+    const box = within(row).getByRole("textbox") as HTMLInputElement;
+    fireEvent.change(box, { target: { value: "next version please" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await waitFor(() => expect(fx.calls.claudeQuestionAnswer).toBe(1));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(box.value).toBe("next version please");
+    expect(row.querySelector(".tdy-sent")).toBeNull();
   });
 });
 

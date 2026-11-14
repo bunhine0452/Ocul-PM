@@ -20,10 +20,14 @@ import { Num } from "./todayFormat";
 import type { LiveSession } from "./useLiveSessions";
 import { QUIET_MINUTES } from "./useLiveSessions";
 
-/** 「지금 일하는 중」 이 조용해졌을 때 보낼 터미널 세션 — 일하는 것이 먼저, 없으면 살아 있는 첫 세션. */
+/**
+ * 「지금 일하는 중」 이 조용해졌을 때 보낼 터미널 세션 — 이 창에서 무언가 돌고 있는 세션이 **하나**일 때만.
+ * 작업 세션(워처)과 터미널 세션은 이어져 있지 않다: 에이전트가 바깥 터미널에서 돌고 앱 안에는 빈 셸만 있거나,
+ * 돌고 있는 세션이 둘이면 어느 것이 그 에이전트인지 모른다 — 엉뚱한 곳을 보여 주느니 단추를 세우지 않는다.
+ */
 export function liveTerm(terms: readonly TermInfo[]): TermInfo | null {
-  const alive = terms.filter((x) => x.alive);
-  return alive.find((x) => x.busy) ?? alive[0] ?? null;
+  const running = terms.filter((x) => x.alive && x.busy);
+  return running.length === 1 ? running[0] : null;
 }
 
 export function LiveCard({
@@ -105,9 +109,11 @@ function NumLink({ k, n, title, onClick }: { k: I18nKey; n: number; title: strin
 /**
  * 날짜 줄 오른쪽의 수 한 줄 (11-15) — 「내 차례 3 · 닫을 계획 1 · 받아 온 일지 2 · 이 기기에만 4」.
  *
- * 0 인 수는 그리지 않는다. 「이 기기에만」 은 아직 커밋하지 않은 일지 · 계획 파일이 있을 때만이다 — 커밋 안 한
- * 코드는 일하는 내내 있어 그것까지 세면 이 수가 하루 종일 섰다. 올리지 않은 일지는 다른 기기의 Claude 에게
- * 없는 일이라 「올리기 맡기기」 를 그 곁에 둔다(앱 안 터미널의 Claude 에게 맡긴다 — 앱은 git 을 읽기만 한다).
+ * 0 인 수는 그리지 않는다. 「이 기기에만」 은 다른 기기에 없는 일지 · 계획 파일 수다 — 커밋 안 한 것과, 커밋했지만
+ * 안 올린 커밋에 든 것(백엔드가 겹치는 파일은 한 번만 센다). 기록은 없고 안 올린 커밋만 있으면 그 커밋 수를
+ * 「안 올린 커밋 N」 으로 말한다. 커밋 안 한 **코드만** 있을 때는 서지 않는다 — 일하는 내내 있어 그것까지 세면
+ * 이 수가 하루 종일 섰다. 안 올린 것은 다른 기기의 Claude 에게 없는 일이라 「올리기 맡기기」 를 그 곁에 둔다(앱 안
+ * 터미널의 Claude 에게 맡긴다 — 앱은 git 을 읽기만 한다).
  * 받아 온 일지가 없으면 주고받은 지 하루가 넘었을 때만 그 날수를 말한다(다른 곳의 기록을 받은 적이 없는
  * 저장소에는 말하지 않는다 — `synced_at` 이 없다).
  */
@@ -169,12 +175,25 @@ export function TodayNumbers({
       );
     }
   }
-  if (local && local.records > 0) {
-    const detail = [t("today.local.files", { n: local.uncommitted, r: local.records })];
-    if (local.unpushed > 0) detail.push(t("today.local.unpushed", { n: local.unpushed }));
+  const here = local ? local.records + local.unpushed_records : 0;
+  if (local && (here > 0 || local.unpushed > 0)) {
+    const detail: string[] = [];
+    if (local.uncommitted > 0) detail.push(t("today.local.files", { n: local.uncommitted, r: local.records }));
+    if (local.unpushed > 0) {
+      detail.push(
+        local.unpushed_records > 0
+          ? t("today.local.unpushedRecords", { n: local.unpushed, r: local.unpushed_records })
+          : t("today.local.unpushed", { n: local.unpushed }),
+      );
+    }
     items.push(
       <span key="local" className="tdy-num-group">
-        <NumLink k="today.nums.local" n={local.records} title={[detail.join(" · "), t("today.local.hint")].join(" ")} onClick={onOpenDiff} />
+        <NumLink
+          k={here > 0 ? "today.nums.local" : "today.local.unpushed"}
+          n={here > 0 ? here : local.unpushed}
+          title={[detail.join(" · "), t("today.local.hint")].join(" ")}
+          onClick={onOpenDiff}
+        />
         <button type="button" className="tdy-link" title={t("today.local.handoffHint")} disabled={opening} onClick={onHandOff}>
           {t("today.local.handoff")}
         </button>

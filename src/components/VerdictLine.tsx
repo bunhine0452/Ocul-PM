@@ -22,6 +22,7 @@ export function VerdictLine({
   summary,
   when,
   sub,
+  subTitle,
   compact = false,
   bare = false,
 }: {
@@ -32,6 +33,8 @@ export function VerdictLine({
   when?: string;
   /** 아래 한 줄 — 명령 · 계획 · 바뀐 파일. compact 면 그리지 않는다. */
   sub?: ReactNode;
+  /** 아래 줄의 전문 — 한 줄로 잘리니 툴팁으로 다 보인다. */
+  subTitle?: string;
   /** 목록 한 줄 — 아래 줄 없이 작게. */
   compact?: boolean;
   /** 표시(✓/✗)를 그리지 않는다 — 앞에 같은 뜻의 상태 칩이 이미 선 행. 읽기 낱말은 남긴다. */
@@ -50,7 +53,11 @@ export function VerdictLine({
         {summary || <span className="vl-empty">{t("today.check.noSummary")}</span>}
       </span>
       {when ? <span className="vl-when">{when}</span> : null}
-      {sub && !compact ? <div className="vl-sub">{sub}</div> : null}
+      {sub && !compact ? (
+        <div className="vl-sub" title={subTitle}>
+          {sub}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -126,8 +126,12 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   const [active, setActive] = useState(-1);
   const activeRef = useRef(active);
   activeRef.current = active;
-  /** 포커스가 행 안에 있다 — 그 행이 빠지면 옆 행으로 옮긴다. 사람이 다른 곳으로 옮겼으면 거짓. */
-  const rowFocus = useRef(false);
+  /**
+   * 이 화면 안에서 마지막으로 포커스를 가진 것 — 그것이 화면에서 빠지면(행 · 「모두 읽음」 · 「다시 시도」) 포커스가
+   * body 로 떨어져 루트의 키가 죽는다. `land` 는 행 밖 컨트롤이 「빠지면 여기로」 라고 적어 둔 행 자리(`data-land`).
+   * 사람이 포커스를 화면 밖으로 옮겼으면 `null` — 그때는 아무것도 되찾지 않는다.
+   */
+  const lastFocus = useRef<{ el: HTMLElement; land: number | null } | null>(null);
 
   // 화면에 들어오면 키보드가 바로 닿게 — 입력칸에 있던 포커스는 빼앗지 않는다.
   useEffect(() => {
@@ -176,16 +180,19 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
     [busy, projectId, markVerified, reloadEntries, t],
   );
 
-  // 「되돌리기」 — 방금 모두 읽음으로 표시한 일지를 다시 검증 없음으로.
+  // 「되돌리기」 — 방금 모두 읽음으로 표시한 일지를 다시 검증 없음으로. 토스트 단추를 두 번 눌러도 한 번만 쓴다.
   const undoVerified = useCallback(
-    (paths: string[]) => {
-      for (const p of paths) markVerified(p, false);
-      void oculpmApi
-        .setJournalVerifiedBulk(projectId, paths, false)
-        .then(() => reloadEntries())
-        .catch((e: unknown) => toast.destructive(t("today.unread.undoFailed", { error: tError(toAppError(e)) })));
-    },
-    [projectId, markVerified, reloadEntries, t],
+    (paths: string[]) =>
+      void busy.run("undoVerified", async () => {
+        for (const p of paths) markVerified(p, false);
+        try {
+          await oculpmApi.setJournalVerifiedBulk(projectId, paths, false);
+          reloadEntries();
+        } catch (e) {
+          toast.destructive(t("today.unread.undoFailed", { error: tError(toAppError(e)) }));
+        }
+      }),
+    [busy, projectId, markVerified, reloadEntries, t],
   );
 
   // 「모두 읽음」 — 한 번에 (`oculpm_set_journal_verified_bulk`). 못 한 것(skipped)은 행으로 돌아오고 수로 말한다.
@@ -215,17 +222,22 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
     [busy, projectId, markVerified, reloadEntries, undoVerified, t],
   );
 
-  // 같은 답을 두 번 누르면 한 번만 간다(열쇠에 답을 담는다). 다른 답은 막지 않는다.
+  // 같은 답을 두 번 누르면 한 번만 간다(열쇠에 답을 담는다). 다른 답은 막지 않는다. 갔는지를 돌려준다 — 답 칸은
+  // 간 뒤에만 비운다(못 보냈으면 쓴 글이 남는다).
   const answer = useCallback(
-    (id: string, text: string) =>
-      void busy.run(`answer:${id}:${text}`, async () => {
+    async (id: string, text: string): Promise<boolean> => {
+      let ok = false;
+      await busy.run(`answer:${id}:${text}`, async () => {
         try {
           await hooksApi.answerQuestion(projectId, id, text);
           setSent((prev) => ({ ...prev, [id]: clockOf(new Date().toISOString()) }));
+          ok = true;
         } catch (e) {
           toast.destructive(t("send.failed", { error: tError(toAppError(e)) }));
         }
-      }),
+      });
+      return ok;
+    },
     [busy, projectId, t],
   );
 
@@ -246,11 +258,20 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
     [busy, next, projectId, t],
   );
 
-  const copyPluginUpdate = useCallback(() => {
-    void navigator.clipboard
-      ?.writeText("/plugin update oculpm@oculpm")
-      .then(() => toast.info(t("today.pluginDrift.copied")));
-  }, [t]);
+  // 복사가 거절되면(클립보드 권한 · 포커스 없음) 한 문장으로 말한다 — 조용히 삼키면 붙여 넣을 것이 없다.
+  const copyPluginUpdate = useCallback(
+    () =>
+      void busy.run("copyPlugin", async () => {
+        try {
+          if (!navigator.clipboard) throw new Error("clipboard unavailable");
+          await navigator.clipboard.writeText("/plugin update oculpm@oculpm");
+          toast.info(t("today.pluginDrift.copied"));
+        } catch {
+          toast.destructive(t("op.copyFailed"));
+        }
+      }),
+    [busy, t],
+  );
 
   /** 확인 명령을 이 기기 · 지금 코드에서 다시 돌려 달라는 프롬프트 — 앱이 대신 ✓ 를 적지 않는다. */
   const recheckPrompt = useCallback(
@@ -333,11 +354,18 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
       case "decision":
         return [{ id: "plan", label: t("today.check.openPlan"), run: () => openPlan(ex.planId) }];
       case "plugin":
-        return [{ id: "copy", label: t("today.pluginDrift.copy"), run: copyPluginUpdate }];
+        return [{ id: "copy", label: t("today.pluginDrift.copy"), busy: busy.has("copyPlugin"), run: copyPluginUpdate }];
     }
   };
 
-  const unreadShown = split ? (unreadOpen ? split.unread : split.unread.slice(0, UNREAD_LIMIT)) : [];
+  // 「N건 더」 는 제자리에서 펼치고 같은 단추가 「접기」 가 된다. 읽어서 `UNREAD_LIMIT` 아래로 줄면 저절로 접힌다 —
+  // 나중에 다시 쌓인 일지가 상한 없이 펼쳐진 채로 서지 않게. (명세는 일지 화면의 검증 없음 거르기로 보내는
+  // 것인데, 그 거르기는 일지 화면의 지역 상태라 이 화면이 열 수 없다 — 일지 · 계획 레인과 맞출 일이다.)
+  const expanded = unreadOpen && split != null && split.unread.length > UNREAD_LIMIT;
+  const unreadShown = split ? (expanded ? split.unread : split.unread.slice(0, UNREAD_LIMIT)) : [];
+  useEffect(() => {
+    if (unreadOpen && split != null && split.unread.length <= UNREAD_LIMIT) setUnreadOpen(false);
+  }, [unreadOpen, split]);
   const navRows: NavRow[] = split ? [...split.first, ...(next ? [NEXT_ROW] : []), ...unreadShown] : [];
   const navSig = navRows.map((r) => r.key).join("\n");
   const focusIndex = navRows.length === 0 ? -1 : Math.min(Math.max(active, 0), navRows.length - 1);
@@ -349,46 +377,54 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
     rowRef: (el) => {
       rowRefs.current[i] = el;
     },
-    onFocus: () => setActive(i),
   });
 
   const focusRow = (i: number) => {
     setActive(i);
-    rowFocus.current = true;
     rowRefs.current[i]?.focus();
   };
 
-  // 행이 빠지면(읽음 · 알았어요 · 모두 읽음) 포커스가 body 로 떨어진다 — 같은 자리(없으면 앞) 행으로 옮겨
-  // v 를 연달아 누르는 흐름이 첫 v 에서 끊기지 않게. 행이 하나도 안 남으면 화면으로.
+  // 행 수가 바뀌면 지금 행을 범위 안으로. 포커스가 남은 행의 자리가 바뀌었으면(위에 행이 끼거나 빠짐) 따라 옮긴다.
   useLayoutEffect(() => {
     const len = navRows.length;
     rowRefs.current.length = len;
-    if (activeRef.current >= len) setActive(len - 1);
-    if (!rowFocus.current) return;
-    const ae = document.activeElement;
-    if (ae && ae !== document.body) {
-      // 포커스가 남은 행의 자리가 바뀌었으면(위에 행이 끼거나 빠짐) 「지금 행」 을 따라 옮긴다.
-      const host = ae.closest<HTMLElement>("[data-row]");
-      const at = host ? Number(host.dataset.row) : -1;
-      if (at >= 0 && at !== activeRef.current) setActive(at);
-      return;
-    }
-    const i = Math.min(Math.max(activeRef.current, 0), len - 1);
-    const el = i >= 0 ? rowRefs.current[i] : null;
-    if (el) {
-      setActive(i);
-      el.focus({ preventScroll: true });
-    } else {
-      rowFocus.current = false;
-      rootRef.current?.focus({ preventScroll: true });
+    const host = document.activeElement?.closest<HTMLElement>("[data-row]");
+    const at = host && rootRef.current?.contains(host) ? Number(host.dataset.row) : -1;
+    if (at >= 0) {
+      if (at !== activeRef.current) setActive(at);
+    } else if (activeRef.current >= len) {
+      setActive(len - 1);
     }
   }, [navSig, navRows.length]);
 
+  // 포커스를 가진 것이 빠지면(v · 읽음 · 알았어요 · 모두 읽음 · 다시 시도 · 보낸 뒤의 보내기) 포커스가 body 로
+  // 떨어진다 — 그 자리로 되돌려 v 를 연달아 누르는 흐름이 끊기지 않게: 행 안이었으면 같은 자리(없으면 앞) 행,
+  // 행 밖 컨트롤이면 그것이 적어 둔 자리(`data-land`), 그것도 없으면 지금 행, 행이 하나도 없으면 화면. 무엇이
+  // 빠지게 했는지(저장소 · 단추의 지역 상태)와 상관없이 그린 뒤마다 본다 — 빠진 것이 없으면 첫 줄에서 돌아간다.
+  useLayoutEffect(() => {
+    const last = lastFocus.current;
+    if (!last || last.el.isConnected) return;
+    const ae = document.activeElement;
+    if (ae && ae !== document.body) return; // 포커스가 이미 어딘가에 있다 — 빼앗지 않는다.
+    const len = navRows.length;
+    const want = last.land ?? activeRef.current;
+    const i = want >= 0 && len > 0 ? Math.min(want, len - 1) : -1;
+    // 「지금 행」 은 포커스가 들면서 `onFocusCapture` 가 맞춘다 — 여기서 상태를 바꾸지 않는다(그린 뒤마다 도는 이펙트다).
+    (rowRefs.current[i] ?? rootRef.current)?.focus({ preventScroll: true });
+  });
+
   const onFocusCapture = (e: FocusEvent<HTMLDivElement>) => {
-    rowFocus.current = e.target instanceof Element && e.target.closest("[data-row]") != null;
+    if (!(e.target instanceof HTMLElement)) return;
+    const landAt = e.target.closest<HTMLElement>("[data-land]")?.dataset.land;
+    lastFocus.current = { el: e.target, land: landAt != null ? Number(landAt) : null };
+    // 행 안 어디든(행 자신이든 그 안의 단추든) 포커스가 들면 그 행이 「지금 행」 이다 — 단추에서 행을 빼도
+    // 낡은 자리로 튀지 않게.
+    const host = e.target.closest<HTMLElement>("[data-row]");
+    if (host) setActive(Number(host.dataset.row));
   };
   const onBlurCapture = (e: FocusEvent<HTMLDivElement>) => {
-    if (e.relatedTarget instanceof Node && !e.currentTarget.contains(e.relatedTarget)) rowFocus.current = false;
+    // 화면 밖의 무언가로 옮겼다 — 사람이 고른 것이다. (빠지면서 잃은 포커스는 옮겨 갈 곳이 없어 `null` 이다.)
+    if (e.relatedTarget instanceof Node && !e.currentTarget.contains(e.relatedTarget)) lastFocus.current = null;
   };
 
   /** 행에서 누른 ↩ — 질문은 답 칸으로, 일지는 그 일지로, 그 밖은 첫 동작. */
@@ -429,7 +465,6 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
       case "Escape":
         if (!inList) return;
         e.preventDefault();
-        rowFocus.current = false;
         return rootRef.current?.focus({ preventScroll: true });
       case "Enter":
         // 행 안의 단추에서 누른 Enter 는 그 단추의 것이다.
@@ -493,6 +528,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
         <TodayUnread
           split={split}
           shown={unreadShown}
+          expanded={expanded}
           offset={(split?.first.length ?? 0) + (next ? 1 : 0)}
           navFor={navFor}
           showAgent={multiAgent}
@@ -500,7 +536,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
           onOpen={openEntry}
           onVerify={(entry) => void verify(entry)}
           onVerifyAll={(list) => void verifyAll(list)}
-          onMore={() => setUnreadOpen(true)}
+          onToggleMore={() => setUnreadOpen(!expanded)}
           isBusy={busy.has}
         />
         <LiveCard

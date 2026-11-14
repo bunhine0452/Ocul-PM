@@ -75,12 +75,44 @@ fn counts_what_the_other_machine_cannot_see() {
         Some(LocalOnly {
             uncommitted: 3,
             records: 2,
-            unpushed: 2
+            unpushed: 2,
+            unpushed_records: 1,
         })
     );
 
     // 다른 가지 이름으로 올라가 있어도 리모트에 있는 것이다.
     let head = git(r, &["rev-parse", "HEAD"]);
     git(r, &["update-ref", "refs/remotes/origin/feat", &head]);
-    assert_eq!(local_only(r).unwrap().unpushed, 0);
+    let now = local_only(r).unwrap();
+    assert_eq!((now.unpushed, now.unpushed_records), (0, 0));
+}
+
+/// 일지를 커밋하고 아직 안 올린 흔한 상태 (11-15) — 커밋 안 한 기록이 0 이어도 다른 기기에는 없는 일지다.
+#[test]
+fn counts_journals_committed_but_not_pushed_once() {
+    let dir = repo();
+    let r = dir.path();
+    git(r, &["remote", "add", "origin", "../nowhere.git"]);
+    commit(r, "a.txt");
+    let pushed = git(r, &["rev-parse", "HEAD"]);
+    git(r, &["update-ref", "refs/remotes/origin/main", &pushed]);
+
+    commit(r, ".oculpm/journal/20261115/Bugs/0900_bug_a.md");
+    commit(r, ".oculpm/planner/p.md");
+    commit(r, "code-only.txt");
+    let only_commits = local_only(r).unwrap();
+    assert_eq!(
+        (
+            only_commits.records,
+            only_commits.unpushed,
+            only_commits.unpushed_records
+        ),
+        (0, 3, 2),
+        "커밋 안 한 기록은 없지만 안 올린 커밋 안에 일지와 계획이 있다 · 코드만 바꾼 커밋은 기록이 아니다"
+    );
+
+    // 안 올린 커밋에 든 계획을 다시 고쳤다 — 한 파일이라 한 번만 센다(커밋 안 한 기록 쪽에서).
+    std::fs::write(r.join(".oculpm/planner/p.md"), "y\n").unwrap();
+    let both = local_only(r).unwrap();
+    assert_eq!((both.records, both.unpushed_records), (1, 1));
 }

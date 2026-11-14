@@ -168,6 +168,11 @@ export const commands = {
 	records: number,
 	/**  어느 리모트 가지에도 없는 커밋 (`rev-list HEAD --not --remotes`). */
 	unpushed: number,
+	/**
+	 *  그 커밋들이 바꾼 기록 파일 — 커밋 안 한 기록(`records`)과 같은 파일은 뺀다. 둘을 더하면 다른 기기에
+	 *  없는 일지 · 계획 파일 수다(11-15). 일지를 커밋하고 아직 올리지 않은 흔한 상태를 `records` 만으로는 놓쳤다.
+	 */
+	unpushed_records: number,
 } | null, string>(__TAURI_INVOKE("today_local_only", { projectId })),
 	/**  그날 일지 중 동료가 git 으로 더한 것과 그 사람 (`git::authors`). 기록을 안 올리는 저장소면 빈 목록. */
 	todayTeammates: (projectId: number, workday: string) => typedError<TeamJournal[], string>(__TAURI_INVOKE("today_teammates", { projectId, workday })),
@@ -1705,6 +1710,11 @@ export type LocalOnly = {
 	records: number,
 	/**  어느 리모트 가지에도 없는 커밋 (`rev-list HEAD --not --remotes`). */
 	unpushed: number,
+	/**
+	 *  그 커밋들이 바꾼 기록 파일 — 커밋 안 한 기록(`records`)과 같은 파일은 뺀다. 둘을 더하면 다른 기기에
+	 *  없는 일지 · 계획 파일 수다(11-15). 일지를 커밋하고 아직 올리지 않은 흔한 상태를 `records` 만으로는 놓쳤다.
+	 */
+	unpushed_records: number,
 };
 
 export type LockStateView = "healthy" | "held_by_other" | "recovered" | "uninitialized";

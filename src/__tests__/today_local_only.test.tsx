@@ -14,22 +14,31 @@ const nums = (local: LocalOnly | null, arrived: Arrived | null, on = fns()) =>
   render(<TodayNumbers mine={[]} plans={[]} arrived={arrived} local={local} now={NOW} opening={false} {...on} />);
 
 describe("이 기기에만", () => {
-  it("커밋 안 한 일지 · 계획 파일 수를 말하고, 누르면 변경 화면 · 곁의 「올리기 맡기기」 는 Claude 에게", () => {
+  it("다른 기기에 없는 일지 · 계획 파일(커밋 안 한 것 + 안 올린 커밋 안의 것)을 세고, 누르면 변경 화면 · 곁의 「올리기 맡기기」 는 Claude 에게", () => {
     const on = fns();
-    nums({ uncommitted: 5, records: 2, unpushed: 3 }, null, on);
-    const n = screen.getByRole("button", { name: "이 기기에만 2" });
-    expect(n.title).toContain("커밋 안 한 파일 5 · 그중 일지와 계획 2 · 안 올린 커밋 3");
+    nums({ uncommitted: 5, records: 2, unpushed: 3, unpushed_records: 1 }, null, on);
+    const n = screen.getByRole("button", { name: "이 기기에만 3" });
+    expect(n.title).toContain("커밋 안 한 파일 5 · 그중 일지와 계획 2 · 안 올린 커밋 3 · 그 안의 일지와 계획 1");
     fireEvent.click(n);
     expect(on.onOpenDiff).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "올리기 맡기기" }));
     expect(on.onHandOff).toHaveBeenCalledTimes(1);
   });
 
-  it("커밋 안 한 코드나 안 올린 커밋만으로는 서지 않는다 — 일하는 내내 서 있던 줄이었다", () => {
-    const { container, rerender } = nums({ uncommitted: 4, records: 0, unpushed: 0 }, null);
-    expect(container.textContent).toBe("");
-    rerender(<TodayNumbers mine={[]} plans={[]} arrived={null} local={{ uncommitted: 0, records: 0, unpushed: 1 }} now={NOW} opening={false} {...fns()} />);
-    expect(container.textContent).toBe("");
+  it("일지를 커밋하고 아직 안 올렸으면(커밋 안 한 기록 0) 그 일지를 센다 — 올리기 맡기기도 곁에 선다", () => {
+    nums({ uncommitted: 0, records: 0, unpushed: 2, unpushed_records: 2 }, null);
+    expect(screen.getByRole("button", { name: "이 기기에만 2" }).title).toContain("안 올린 커밋 2 · 그 안의 일지와 계획 2");
+    expect(screen.getByRole("button", { name: "올리기 맡기기" })).toBeInTheDocument();
+  });
+
+  it("기록 없이 안 올린 커밋만 있으면 그 커밋 수를 말한다 — 다른 기기에 없는 것은 같다", () => {
+    nums({ uncommitted: 3, records: 0, unpushed: 1, unpushed_records: 0 }, null);
+    expect(screen.getByRole("button", { name: "안 올린 커밋 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "올리기 맡기기" })).toBeInTheDocument();
+  });
+
+  it("커밋 안 한 코드만으로는 서지 않는다 — 일하는 내내 서 있던 줄이었다", () => {
+    expect(nums({ uncommitted: 4, records: 0, unpushed: 0, unpushed_records: 0 }, null).container.textContent).toBe("");
   });
 
   it("리모트가 없으면(null) 그리지 않는다", () => {

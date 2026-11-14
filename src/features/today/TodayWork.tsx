@@ -1,7 +1,7 @@
 /**
  * 「오늘 한 일」 — 오른쪽 칸의 하나뿐인 카드. 계획별로 묶고, 하루가 길면 묶음을 머리 한 줄로 접는다.
  *
- * 하루 60건이면 묶음 머리만 서고(검증 없는 것은 왼쪽 칸이 보여 주고 머리는 「위에 N」 으로만 말한다), 3건이면
+ * 하루 60건이면 묶음 머리만 서고(검증 없는 것은 왼쪽 칸이 보여 주고 머리는 「검증 없음 N」 으로만 말한다), 3건이면
  * 셋 다 보인다 — 모드가 아니라 `todayModel.initialFold` 한 규칙이다. 묶음 머리를 누르면 펼치고 접는다.
  * 검증 표시는 일지 화면과 같은 모양이다(`JournalRow` 의 `EvidenceMark` — 영수증 규칙 4): 통과는 회색 ✓,
  * 검증 없음은 호박 칩, 검증을 요구하지 않는 종류는 아무것도 없다.
@@ -46,9 +46,10 @@ function GroupHead({ group, open, onToggle }: { group: WorkGroup; open: boolean;
       <Chevron size={13} aria-hidden="true" />
       <b>{group.title ?? t("today.work.outside")}</b>
       <span className="tdy-sp" />
-      {/* 예외는 왼쪽 「검증 없이 끝난 일지」 가 이미 세웠다 — 여기서는 그중 몇이 이 묶음인지만, 색 없이
-          (영수증 규칙 1). 「검증 41 · 없음 4」 는 검증 대상이 아닌 일지를 어디에도 안 세서 합이 안 맞았다. */}
-      {group.counts.missing > 0 ? <span className="tdy-meta">{t("today.work.above", { n: group.counts.missing })}</span> : null}
+      {/* 예외는 「검증 없이 끝난 일지」 카드가 이미 세웠다 — 여기서는 그중 몇이 이 묶음인지만, 색 없이
+          (영수증 규칙 1). 「검증 41 · 없음 4」 는 검증 대상이 아닌 일지를 어디에도 안 세서 합이 안 맞았다.
+          그 카드는 넓은 창에선 왼쪽, 접힌 창에선 위라 자리(「위에」)로 가리키지 않는다. */}
+      {group.counts.missing > 0 ? <span className="tdy-meta">{t("today.work.unverified", { n: group.counts.missing })}</span> : null}
       {/* 묶음 건수는 오른쪽 끝 한 칸 — 제목 길이를 따라 줄마다 다른 자리에 서지 않게. */}
       <span className="tdy-grp-n">{t("today.work.count", { n: group.entries.length })}</span>
     </button>

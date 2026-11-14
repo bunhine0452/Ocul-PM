@@ -58,20 +58,21 @@ describe("the date line carries one line of numbers", () => {
       ],
     });
     fx.arrived = { journals: ["20261112/Bugs/b.md"], synced_at: 1 };
-    fx.localOnly = { uncommitted: 12, records: 0, unpushed: 2 };
+    fx.localOnly = { uncommitted: 12, records: 0, unpushed: 2, unpushed_records: 1 };
     const { container, onNavigate } = renderToday();
     const mine = await screen.findByRole("button", { name: t("today.nums.mine", { n: 2 }) });
     expect(container.querySelectorAll(".tdy-mine")).toHaveLength(0);
     expect(container.querySelectorAll(".tdy-nums")).toHaveLength(1);
     const nums = container.querySelector(".tdy-nums") as HTMLElement;
     expect(nums.closest(".tdy-day")).not.toBeNull();
+    // 「이 기기에만」 은 다른 기기에 없는 기록 파일 — 커밋했지만 안 올린 일지도 센다. 커밋 안 한 코드(12)는 세지 않는다.
     expect(within(nums).getAllByRole("button").map((b) => b.textContent)).toEqual([
       t("today.nums.mine", { n: 2 }),
       t("today.nums.closable", { n: 1 }),
       t("today.nums.arrived", { n: 1 }),
+      t("today.nums.local", { n: 1 }),
+      t("today.local.handoff"),
     ]);
-    // 커밋 안 한 코드 · 안 올린 커밋만 있으면 「이 기기에만」 은 서지 않는다 — 일하는 내내 서 있던 줄이었다.
-    expect(nums.textContent).not.toContain(t("today.nums.local", { n: 12 }));
     fireEvent.click(mine);
     expect(onNavigate).toHaveBeenCalledWith("planner");
   });

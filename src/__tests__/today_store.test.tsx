@@ -77,16 +77,29 @@ describe("one read per event, however many instances", () => {
     expect(fx.calls.todayDigest).toBe(2);
   });
 
-  it("throttles window focus: five focus events inside ten seconds read 'only on this machine' once", async () => {
-    renderToday();
-    await waitFor(() => expect(unreadRows()).toHaveLength(2));
-    await settle();
-    const before = fx.calls.todayLocalOnly ?? 0;
-    act(() => {
-      for (let i = 0; i < 5; i++) window.dispatchEvent(new Event("focus"));
-    });
-    await settle();
-    expect((fx.calls.todayLocalOnly ?? 0) - before).toBe(1);
+  it("throttles window focus: five focus events inside ten seconds read 'only on this machine' once, the next after ten seconds again", async () => {
+    // 시계만 쥔다(타이머는 진짜) — 스로틀은 Date.now 로 잰다.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      renderToday();
+      await waitFor(() => expect(unreadRows()).toHaveLength(2));
+      await settle();
+      const before = fx.calls.todayLocalOnly ?? 0;
+      // 사이마다 틱을 둔다 — 같은 틱의 요청은 저장소가 한 번으로 접어서, 스로틀이 없어도 한 번으로 보였다.
+      for (let i = 0; i < 5; i++) {
+        act(() => void window.dispatchEvent(new Event("focus")));
+        await act(() => sleep(20));
+        vi.setSystemTime(Date.now() + 1_000);
+      }
+      await settle();
+      expect((fx.calls.todayLocalOnly ?? 0) - before).toBe(1);
+      vi.setSystemTime(Date.now() + 10_000);
+      act(() => void window.dispatchEvent(new Event("focus")));
+      await settle();
+      expect((fx.calls.todayLocalOnly ?? 0) - before).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
