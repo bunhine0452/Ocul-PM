@@ -40,11 +40,9 @@ function whenLabel(createdAt: string, t: ReturnType<typeof useT>["t"]): string {
   return `${t("journal.dayMd", { m: String(Number(m[2])), d: String(Number(m[3])) })} ${m[4]}`;
 }
 
-/** 시각 → 「11월 14일」 (로컬). 못 읽으면 `null`. */
-function dayOf(iso: string | null | undefined, t: ReturnType<typeof useT>["t"]): string | null {
-  const ms = iso ? Date.parse(iso) : Number.NaN;
-  if (Number.isNaN(ms)) return null;
-  const d = new Date(ms);
+/** 오늘 → 「11월 14일」 (로컬). */
+function todayLabel(t: ReturnType<typeof useT>["t"]): string {
+  const d = new Date();
   return t("journal.dayMd", { m: String(d.getMonth() + 1), d: String(d.getDate()) });
 }
 
@@ -83,7 +81,8 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
   const [verified, setVerified] = useState(entry.verified_by_user);
   const [stale, setStale] = useState(entry.verified_stale);
   const [verifying, setVerifying] = useState(false);
-  // 방금 이 화면에서 읽음을 눌렀다 — 그 날을 머리에 적는다(디스크의 시각보다 먼저 안다).
+  // 방금 이 화면에서 읽음을 눌렀다 — 그때만 그 날을 머리에 적는다. 디스크에는 읽은 시각이 없다: 파일 mtime 은
+  // pull · checkout · 에이전트의 다른 고침에도 바뀌어, 읽지 않은 날을 읽은 날로 적었다(11-15).
   const [readNow, setReadNow] = useState(false);
   useEffect(() => {
     setVerified(entry.verified_by_user);
@@ -165,7 +164,11 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
   const confirmed = isConfirmed({ verified_by_user: verified, verified_stale: stale });
   const evState = evidenceStateOf({ ...entry, evidence: level, verified_by_user: verified, verified_stale: stale });
   const warnings = detail?.parse_warnings ?? entry.parse_warnings;
-  const parseWarn = (detail?.parse_ok ?? entry.parse_ok) === false || warnings.length > 0;
+  // 목록 줄(`JournalRow`)과 같은 판정 — 못 읽은 파일만 예외다. 비치명 경고(빠진 칸을 기본값으로 채움)까지
+  // warn 칩으로 세우면 목록과 상세가 다른 말을 했다.
+  const parseWarn = (detail?.parse_ok ?? entry.parse_ok) === false;
+  // 검증 상자가 서는 일지 — 「읽음」 단추가 여기 있다. 없는 일지에서 v 는 아무것도 쓰지 않는다.
+  const showVerify = judged || level > 0;
 
   // 기록된 diff 가 있는 파일만 오간다. frontmatter 에는 있는데 패치가 없는 파일은 개수로만 말한다.
   const editor = useOpenInEditor(state.currentProjectRoot);
@@ -183,14 +186,15 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
     [files.length],
   );
 
-  // 화면의 키(v · [ ])가 부를 동작. 렌더마다 갈아 끼운다 — 늘 지금 상태의 함수다.
+  // 화면의 키(v · [ ])가 부를 동작. 렌더마다 갈아 끼운다 — 늘 지금 상태의 함수다. 「읽음」 단추가 없는
+  // 일지(잡일 · 증거 0)에서 v 는 아무것도 하지 않는다 — 단추도 없이 디스크에 읽음을 쓰지 않게.
   useEffect(() => {
     if (!actionsRef) return;
-    actionsRef.current = { toggleVerified: () => void toggleVerified(), stepFile };
+    actionsRef.current = { toggleVerified: showVerify ? () => void toggleVerified() : () => {}, stepFile };
     return () => {
       actionsRef.current = null;
     };
-  }, [actionsRef, toggleVerified, stepFile]);
+  }, [actionsRef, toggleVerified, stepFile, showVerify]);
 
   const planText =
     planLinks.length > 0
@@ -199,8 +203,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
         }`
       : null;
   const model = detail?.frontmatter.agent.version ?? entry.agent_version;
-  const readDay = confirmed ? (readNow ? dayOf(new Date().toISOString(), t) : dayOf(detail?.mtime, t)) : null;
-  const readText = confirmed ? (readDay ? t("journal.readOn", { date: readDay }) : t("entry.verified")) : null;
+  const readText = confirmed ? (readNow ? t("journal.readOn", { date: todayLabel(t) }) : t("entry.verified")) : null;
   const metaText = [whenLabel(entry.created_at, t), agentLabel(entry.agent_id), model, readText].filter(Boolean).join(" · ");
   // 이 일지가 갱신한 계획 — 누르면 그 계획으로 건너간다 (ocul-next #nav-links).
   const openPlan = () =>
@@ -287,7 +290,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
         </div>
       ) : null}
 
-      {judged || level > 0 ? (
+      {showVerify ? (
         <section className="jd-verify" aria-label={t("journal.verify.aria")}>
           <div className="jd-verify-hd">
             <b>{t("journal.verify.title")}</b>

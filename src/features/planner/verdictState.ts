@@ -28,11 +28,13 @@ export function verdictStateOf(p: VerdictInput): VerdictState | null {
 }
 
 /**
- * 결과 끝 줄의 첫 숫자 토큰 — 레일 한 줄에 서는 것. 계획 넷이 모두 「✓ pnpm test …」 로 같았다: 명령
- * 이름은 계획마다 같고, 다른 것은 숫자다. 숫자가 없으면 끝 줄 그대로.
+ * 레일 한 줄에 서는 결과 — 끝 줄의 「N passed」 · 「N failed」. 계획 넷이 모두 「✓ pnpm test …」 로 같았다:
+ * 명령 이름은 계획마다 같고, 다른 것은 통과 · 실패 수다. 그 꼴이 없으면 끝 줄 그대로(칸 끝에서 말줄임되고
+ * 전부는 툴팁에). 끝 줄 전체는 판정 카드에 늘 있다. 예전의 「첫 숫자 + 다음 낱말」 은 실제 끝 줄에서
+ * 「77 files」 · 「116 CI」 · 「0 (1146」 · 「40818745181 completed」 같은 뜻 없는 조각을 세웠다.
  */
 export function railSummary(summary: string): string {
-  const m = /\d[\d,.]*(?:\s+[^\s·,;]+)?/u.exec(summary);
+  const m = /\d[\d,]*\s+(?:passed|failed)\b/iu.exec(summary);
   return m ? m[0] : summary;
 }
 

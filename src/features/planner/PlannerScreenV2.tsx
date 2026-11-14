@@ -31,6 +31,7 @@ import { runGoalInTerminal, runPromptInTerminal } from "@/features/terminal/runP
 import { goalCommand } from "./goal";
 import { CarryInbox } from "./CarryInbox";
 import { PlanDoc } from "./PlanDoc";
+import { itemBoxes, refocusItem } from "./PlanItems";
 import { PlanRail } from "./PlanRail";
 import { railOrder } from "./planList";
 import { nextLeaf } from "./planMeta";
@@ -71,12 +72,24 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     }
     void plan.setStatus(item, status);
   };
+  // 확인 상자를 닫는다(취소 · Esc · 「검증 없이 완료」). 포커스는 그 항목의 상자로 — 상자가 그대로면 대화상자가
+  // 기억한 곳(상자)으로 돌아가고, 완료로 단계가 접혀 상자가 사라졌으면 같은 자리의 상자로(`refocusItem`).
+  const closeConfirm = (apply: boolean) => {
+    const item = confirmDone;
+    if (!item) return;
+    refocusItem(bodyRef.current, item.item_id);
+    setConfirmDone(null);
+    if (apply) void plan.setStatus(item, "done");
+  };
 
   // 다음 항목 넘기기 — 백엔드가 프롬프트를 조립하고, 앱 안 터미널의 새 세션이 claude 로 돌린다
   // (클립보드 경로는 터미널이 돌아오며 걷었다). 계획 id 는 **보이는 문서의 것** — 고른 id 는 다른 계획을
-  // 읽는 중일 수 있다(그동안 단추는 막혀 있다).
+  // 읽는 중일 수 있다(그동안 단추는 막혀 있다). 끝나기 전에 다시 부르면(r 을 누르고 있거나 두 번 침) 무시한다 —
+  // 터미널로 넘어가기 전에 claude 세션이 여러 개 열렸다.
+  const running = useRef(false);
   const runPrompt = async (item: PlanItemDto, untilDone: boolean) => {
-    if (detail == null || busy) return;
+    if (detail == null || busy || running.current) return;
+    running.current = true;
     const planId = detail.plan.plan_id;
     try {
       // 「끝까지」 — 완료 조건 · 확인 명령이 있으면 Claude Code 의 /goal 로 (ocul-next #goal).
@@ -93,6 +106,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       await runPromptInTerminal(projectId, text);
     } catch (e) {
       toast.destructive(t("plan.dispatchFailed", { error: tError(toAppError(e)) }));
+    } finally {
+      running.current = false;
     }
   };
 
@@ -122,7 +137,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     if (!root) return;
     if (key === "j" || key === "k") {
       // 항목 사이 — 보이는 상태 상자를 문서 순서대로(접힌 끝난 단계 안은 없다).
-      const boxes = Array.from(root.querySelectorAll<HTMLButtonElement>(".plv-doc .plv-box-btn:not(:disabled)"));
+      const boxes = itemBoxes(root);
       if (boxes.length === 0) return;
       e.preventDefault();
       const at = boxes.indexOf(document.activeElement as HTMLButtonElement);
@@ -144,6 +159,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       if (el.getAttribute("aria-disabled") === "true" || (el as HTMLButtonElement).disabled) return;
       el.click();
     } else if (key === "r") {
+      // 누르고 있으면 되풀이되는 키다 — 한 번만 돈다.
+      if (e.repeat) return;
       const next = detail && !locked ? nextLeaf(detail.items) : null;
       if (!next || busy) return;
       e.preventDefault();
@@ -187,6 +204,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     );
   }
 
+  // 「계획이 없다」 는 목록을 받아서 0 개일 때만 — 못 읽은 목록은 `plans` 가 null 로 남는다(usePlanDocument).
   const empty = !plan.error && plan.plans != null && plan.plans.length === 0;
 
   return (
@@ -220,7 +238,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         )}
       </div>
 
-      <AppDialog open={confirmDone != null} onClose={() => setConfirmDone(null)} label={t("plan.confirmDoneTitle")} width={480}>
+      <AppDialog open={confirmDone != null} onClose={() => closeConfirm(false)} label={t("plan.confirmDoneTitle")} width={480}>
         {confirmDone ? (
           <>
             <div className="plv-confirm">
@@ -232,18 +250,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               </div>
             </div>
             <div className="plv-confirm-actions">
-              <button type="button" className="btn sm" onClick={() => setConfirmDone(null)}>
+              <button type="button" className="btn sm" onClick={() => closeConfirm(false)}>
                 {t("common.cancel")}
               </button>
-              <button
-                type="button"
-                className="btn primary sm"
-                onClick={() => {
-                  const item = confirmDone;
-                  setConfirmDone(null);
-                  void plan.setStatus(item, "done");
-                }}
-              >
+              <button type="button" className="btn primary sm" onClick={() => closeConfirm(true)}>
                 {t("plan.confirmDoneAction")}
               </button>
             </div>

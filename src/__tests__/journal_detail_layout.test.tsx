@@ -75,11 +75,15 @@ describe("journal detail — evidence first, nothing squeezed", () => {
     expect(jfx.verified.map((v) => v.verified)).toEqual([true, false]);
   });
 
-  it("the header meta says when it was read", async () => {
-    const { container } = renderDetail(entry({ type: "bug", evidence: 2, verified_by_user: true }));
-    // 가짜 백엔드의 mtime(2026-05-31T12:00+09:00)을 이 기계의 시간대로 — 화면과 같은 계산.
-    const at = new Date(Date.parse("2026-05-31T12:00:00+09:00"));
-    const date = t("journal.dayMd", { m: String(at.getMonth() + 1), d: String(at.getDate()) });
+  it("the header meta says it was read, and the day only when it was read here — never the file's mtime", async () => {
+    const before = renderDetail(entry({ type: "bug", evidence: 2, verified_by_user: true }));
+    await waitFor(() => expect(before.container.querySelector(".jd-prose")).not.toBeNull());
+    expect(before.container.querySelector(".jd-meta")?.textContent?.endsWith(` · ${t("entry.verified")}`)).toBe(true);
+    before.unmount();
+    const { container, findByRole } = renderDetail(entry({ relative_path: "20260531/F/1000_n.md", type: "bug", evidence: 2 }));
+    fireEvent.click(await findByRole("button", { pressed: false, name: t("entry.verify") }));
+    const now = new Date();
+    const date = t("journal.dayMd", { m: String(now.getMonth() + 1), d: String(now.getDate()) });
     await waitFor(() => expect(container.querySelector(".jd-meta")?.textContent).toContain(t("journal.readOn", { date })));
   });
 });

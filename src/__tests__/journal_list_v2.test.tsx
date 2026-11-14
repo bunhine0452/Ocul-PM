@@ -27,6 +27,7 @@ vi.mock("@/features/oculpm/JournalRow", async (importOriginal) => {
 });
 
 import { JournalScreenV2, __resetJournalMemory } from "@/features/oculpm/JournalScreenV2";
+import { excerptOf } from "@/features/oculpm/useJournalSearch";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { t } from "@/i18n";
 import { entry, jfx, resetJournalFixtures } from "./journalHarness";
@@ -125,6 +126,14 @@ describe("journal list — search keeps why and order", () => {
     const want = `${t("journal.countShown", { total: 312, shown: 2 })} · ${t("journal.narrowSearch")}`;
     await waitFor(() => expect(container.querySelector(".jl-count")?.textContent).toBe(want), { timeout: 2000 });
     expect(container.querySelectorAll(".jl-count")).toHaveLength(1);
+  });
+
+  it("an excerpt the backend cut mid-word drops the broken first piece, and keeps an excerpt from the start", () => {
+    const hit = (snippet: string) => ({ snippet, matched_field: "body", why: "", title: "A title" });
+    expect(excerptOf(hit("…ject colour · ⌘W closes the session first…"))).toBe("…colour · ⌘W closes the session first…");
+    expect(excerptOf(hit("the watcher raced the scanner"))).toBe("the watcher raced the scanner");
+    // 긴 첫 조각(경로)은 맞은 낱말일 수 있다 — 그대로 둔다.
+    expect(excerptOf(hit("…src/features/oculpm/useJournalSearch.ts changed"))).toBe("…src/features/oculpm/useJournalSearch.ts changed");
   });
 
   it("typing five characters in the search box does not redraw the rows", async () => {

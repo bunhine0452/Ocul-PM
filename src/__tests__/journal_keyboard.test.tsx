@@ -110,6 +110,37 @@ describe("journal keyboard — v keeps the place", () => {
     await waitFor(() => expect(container.querySelectorAll(".jl-item")).toHaveLength(2));
     expect(selectedTitle(container)).toBe("Missing three");
   });
+
+  it("j → v → j: the focused row drops out, focus moves to the row in its place, and the next j still lands", async () => {
+    const rows = ["one", "two", "three", "four"].map((n, i) =>
+      entry({ relative_path: `20260531/F/130${i}_${n}.md`, title: `Missing ${n}`, evidence: 0, created_at: `2026-05-31T1${3 - i}:00:00+09:00` }),
+    );
+    jfx.byWorkday["20260531"] = rows;
+    jfx.allPeriod = rows;
+    const { container, getByRole } = renderJournal();
+    fireEvent.click(getByRole("button", { name: t("journal.filterNoEvidence") }));
+    await waitFor(() => expect(container.querySelectorAll(".jl-item")).toHaveLength(4));
+    await waitFor(() => expect(selectedTitle(container)).toBe("Missing one"));
+    fireEvent.keyDown(split(container), { key: "j" });
+    await waitFor(() => expect((document.activeElement as HTMLElement).dataset.path).toBe(rows[1].relative_path));
+    // 실제처럼 포커스를 쥔 줄에서 v — 그 줄이 목록에서 빠지면 포커스가 body 로 떨어지던 자리.
+    fireEvent.keyDown(document.activeElement!, { key: "v" });
+    await waitFor(() => expect(container.querySelectorAll(".jl-item")).toHaveLength(3));
+    await waitFor(() => expect((document.activeElement as HTMLElement).dataset.path).toBe(rows[2].relative_path));
+    expect(selectedTitle(container)).toBe("Missing three");
+    fireEvent.keyDown(document.activeElement!, { key: "j" });
+    await waitFor(() => expect(selectedTitle(container)).toBe("Missing four"));
+  });
+
+  it("v writes nothing on an entry that has no read button (a chore without evidence)", async () => {
+    jfx.byWorkday["20260531"] = [entry({ relative_path: "20260531/C/1000_c.md", title: "Chore", type: "chore", evidence: 0 })];
+    const { container } = renderJournal();
+    await waitFor(() => expect(container.querySelector(".jd-title")?.textContent).toBe("Chore"));
+    expect(container.querySelector(".jd-read")).toBeNull();
+    fireEvent.keyDown(split(container), { key: "v" });
+    await act(async () => {});
+    expect(jfx.verified).toEqual([]);
+  });
 });
 
 describe("journal keyboard — search box and memory", () => {

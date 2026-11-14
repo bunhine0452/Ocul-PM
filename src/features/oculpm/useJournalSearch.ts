@@ -19,7 +19,10 @@ interface JournalSearchState {
   ranked: JournalEntrySummary[] | null;
   /** 줄의 둘째 줄에 서는 발췌 — 왜 걸렸는지 (경로 → 한 줄). */
   excerpts: ReadonlyMap<string, string>;
+  /** 지금 검색어(와 종류)의 결과가 아직 안 왔다 — 렌더에서 정한다(effect 를 기다리지 않는다). */
   loading: boolean;
+  /** 지금 실린 결과가 어느 검색어의 것인가. 결과가 없으면 `null`. */
+  forQuery: string | null;
   error: string | null;
   /** 상한을 걸기 전 매치 건수. */
   total: number | null;
@@ -47,7 +50,10 @@ export function excerptOf(hit: Pick<JournalSearchHit, "snippet" | "matched_field
     .trim();
   const title = hit.title.replace(/\*\*|__|`/g, "").trim();
   if (title && s.startsWith(title)) s = s.slice(title.length).trim();
-  return s;
+  // 본문 앞머리가 아닌 곳에서 자른 발췌는 백엔드가 「…」 로 시작한다(`snippet_around`). 그 창은 글자 단위라 첫
+  // 낱말이 한가운데서 잘려 섰다(「…젝트 색 · ⌘W」) — 그 조각은 버리고 「…」 만 남긴다. 긴 조각(경로 같은 것)은
+  // 맞은 낱말일 수 있어 그대로 둔다.
+  return s.replace(/^…\S{1,20}\s+/u, "…");
 }
 
 /**
@@ -70,12 +76,16 @@ export function useJournalSearch(
   types: readonly string[],
 ): JournalSearchState {
   const [result, setResult] = useState<{
+    query: string;
     days: JournalDay[];
     ranked: JournalEntrySummary[];
     excerpts: ReadonlyMap<string, string>;
     total: number;
   } | null>(null);
-  const [loading, setLoading] = useState(false);
+  // 마지막으로 끝난 요청의 열쇠(검색어 · 종류 · 다시 읽기). 「읽는 중」 은 이 열쇠가 지금 것과 다른가로
+  // 렌더에서 정한다 — effect 가 loading 을 세우기 전 한 커밋 동안 옛 검색어의 결과가 지금 것처럼 보였고,
+  // 검색어를 고쳐 디바운스 전에 Enter 를 누르면 화면이 옛 결과의 첫 줄을 골랐다(11-15).
+  const [settled, setSettled] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((n) => n + 1), []);
@@ -84,16 +94,16 @@ export function useJournalSearch(
   useJournalEvents(projectId, active, refresh);
 
   const typesKey = useMemo(() => types.join(","), [types]);
+  const requestKey = `${q}\u0000${typesKey}\u0000${tick}`;
 
   useEffect(() => {
     if (!active || projectId == null || !todayKey) {
       setResult(null);
-      setLoading(false);
+      setSettled(null);
       setError(null);
       return;
     }
     let cancelled = false;
-    setLoading(true);
     setError(null);
     void (async () => {
       try {
@@ -117,25 +127,26 @@ export function useJournalSearch(
           const text = excerptOf(h);
           if (text) excerpts.set(e.relative_path, text);
         }
-        setResult({ days: groupByWorkday(ranked, todayKey), ranked, excerpts, total: page.total });
+        setResult({ query: q, days: groupByWorkday(ranked, todayKey), ranked, excerpts, total: page.total });
       } catch (e) {
         if (cancelled) return;
         setError(tError(toAppError(e)));
         setResult(null);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setSettled(requestKey);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [active, projectId, todayKey, q, typesKey, tick]);
+  }, [active, projectId, todayKey, q, typesKey, requestKey]);
 
   return {
     days: result?.days ?? null,
     ranked: result?.ranked ?? null,
     excerpts: result?.excerpts ?? NO_EXCERPTS,
-    loading,
+    loading: active && settled !== requestKey,
+    forQuery: result?.query ?? null,
     error,
     total: result?.total ?? null,
     loaded: result?.ranked.length ?? null,

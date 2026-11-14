@@ -228,7 +228,8 @@ const rowTitles = (c: HTMLElement) => Array.from(c.querySelectorAll(".jl-item .j
 const detailTitle = (c: HTMLElement) => c.querySelector(".jd-title")?.textContent;
 
 beforeEach(() => {
-  localStorage.clear(); __resetJournalMemory(); // 고른 일지는 앱이 켜 있는 동안 모듈에 남는다(11-15)
+  localStorage.clear();
+  __resetJournalMemory(); // 고른 일지는 앱이 켜 있는 동안 모듈에 남는다(11-15)
   fixtures.byWorkday = {};
   fixtures.allPeriod = [];
   fixtures.allPeriodTotal = null;
@@ -385,7 +386,8 @@ describe("작업 일지 — 사라진 코드의 일지는 날마다 한 줄로 �
     const { findByRole, container } = renderJournal();
     const fold = await findByRole("button", { name: "사라진 코드의 일지 1" });
     expect(fold.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(fold); expect(Array.from(container.querySelectorAll(".jl-gone .jl-ti")).map((e) => e.textContent)).toEqual(["걷어낸 화면"]);
+    fireEvent.click(fold);
+    expect(Array.from(container.querySelectorAll(".jl-gone .jl-ti")).map((e) => e.textContent)).toEqual(["걷어낸 화면"]);
     // 접힌 것 밖에는 지금 코드의 일지만.
     expect(Array.from(container.querySelectorAll(".jl-day > .jl-rows .jl-ti")).map((e) => e.textContent)).toEqual(["지금 코드"]);
   });
@@ -566,36 +568,7 @@ describe("작업 일지 — 키보드와 열기 경로", () => {
   });
 });
 
-describe("작업 일지 — 수동 일지 (사람이 직접 남기는 기록)", () => {
-  it("'새 일지' → 모달 작성 → createManualEntry 호출 + 모달 닫힘", async () => {
-    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "기존 작업" })];
-    const { findByText, getByText, getByLabelText, queryByText } = renderJournal();
-    await findByText("기존 작업");
-    fireEvent.click(getByText("새 일지"));
-    expect(getByText("일지 직접 쓰기")).toBeInTheDocument(); fireEvent.click(getByText("자세히")); // 파일 이름은 「자세히」 안 (11-15)
-    fireEvent.change(getByLabelText(/제목/), { target: { value: "수동으로 적은 일" } });
-    fireEvent.change(getByLabelText(/파일 이름/), { target: { value: "manual-note" } });
-    fireEvent.click(getByText("작성"));
-    await waitFor(() => expect(manualMock.calls).toBe(1));
-    expect(manualMock.lastDraft?.title).toBe("수동으로 적은 일");
-    expect(manualMock.lastDraft?.slug).toBe("manual-note");
-    await waitFor(() => expect(queryByText("일지 직접 쓰기")).toBeNull());
-  });
-
-  it("잘못된 slug 는 인라인 에러 + 작성 비활성", async () => {
-    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "기존 작업" })];
-    const { findByText, getByText, getByLabelText } = renderJournal();
-    await findByText("기존 작업");
-    fireEvent.click(getByText("새 일지")); fireEvent.click(getByText("자세히"));
-    fireEvent.change(getByLabelText(/제목/), { target: { value: "제목 있음" } });
-    fireEvent.change(getByLabelText(/파일 이름/), { target: { value: "Bad Slug!" } });
-    expect(await findByText(/영문 소문자 · 숫자 · - 만/)).toBeInTheDocument();
-    const submit = getByText("작성");
-    expect(submit).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(submit);
-    expect(manualMock.calls).toBe(0);
-  });
-});
+// 수동 일지의 작성 · 잘못된 파일 이름 시험은 journal_manual_entry.test.tsx 로 옮겼다(11-15, 폼이 「자세히」 를 얻으며).
 
 // ⌘N = 수동 일지. 비-mac 의 Ctrl+Shift+N 은 새 창이라 열지 않는다(mac 은 예전 그대로).
 describe("journal ⌘N — exact modifiers off the mac", () => {

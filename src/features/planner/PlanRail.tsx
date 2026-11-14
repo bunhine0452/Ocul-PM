@@ -2,8 +2,8 @@
  * 계획 레일 — 진행 중인 계획과 그 판정, 끝난 계획은 접힌 한 줄(펼치면 달마다).
  *
  * 폭은 일지 목록 칸과 같은 `--panel-w` 다(11-15) — 탭을 바꿀 때 문서 제목이 옆으로 뛰지 않게.
- * 판정 줄은 오늘 화면과 같은 네 모습(`verdictStateOf`)이고, 끝 줄은 첫 숫자 토큰만 — 계획 넷이 모두
- * 「✓ pnpm test …」 로 같은 줄을 세우던 것을 걷었다. 끝 줄 전체는 판정 카드에 있다.
+ * 판정 줄은 오늘 화면과 같은 네 모습(`verdictStateOf`)이고, 끝 줄은 「N passed」 · 「N failed」 만(`railSummary`)
+ * — 계획 넷이 모두 「✓ pnpm test …」 로 같은 줄을 세우던 것을 걷었다. 끝 줄 전체는 판정 카드에 있다.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -41,7 +41,10 @@ function RailRow({ plan, selected, onSelect }: { plan: PlanSummary; selected: bo
   );
 }
 
-/** 끝난 계획을 달마다 — 최신 달 먼저(레일 순서 그대로). 달은 frontmatter `updated`(사실상 만든 날)다. */
+/**
+ * 끝난 계획을 달마다 — 최신 달 먼저(레일 순서 그대로). 달은 frontmatter `updated` 다: 닫기가 그날로 다시
+ * 쓰므로(planner/lifecycle.rs) 끝난 계획에서는 닫은 달이다.
+ */
 function byMonth(plans: readonly PlanSummary[]): Array<{ key: string; label: string; plans: PlanSummary[] }> {
   const fmt = new Intl.DateTimeFormat(getLang(), { year: "numeric", month: "long" });
   const groups: Array<{ key: string; label: string; plans: PlanSummary[] }> = [];
