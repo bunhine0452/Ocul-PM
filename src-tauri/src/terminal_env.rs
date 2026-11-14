@@ -15,6 +15,11 @@
 //! **명령 인자**로 받는다 — `$SHELL -l -i -c 'claude "$OCULPM_PROMPT"; exec "$SHELL" -l -i'`. rc 의 질문은
 //! 질문대로 묻고, claude 가 끝나면 같은 자리(같은 pid)에 로그인 셸이 선다. 달라진 것 하나: claude 줄이 셸
 //! 기록(history)에 남지 않는다. 프롬프트는 여전히 환경 변수로 넘겨 셸 문법으로 이스케이프할 일이 없다.
+//!
+//! 맞바꾼 것 하나: rc 가 다른 프로그램을 `exec` 하면(oh-my-zsh tmux 플러그인의 `ZSH_TMUX_AUTOSTART`,
+//! `[ -z "$TMUX" ] && exec tmux` — Finder 로 띄운 앱에는 `TMUX` 가 없어 늘 참이다) `-c` 의 명령은 아예 돌지
+//! 않는다. 「다음」 은 claude 없이 tmux 안의 빈 셸로 조용히 끝나고, `launchCheck` 도 잡지 못한다. 쳐 넣던 때는
+//! tty 에 남은 줄을 tmux 가 받아 그대로 돌렸다. rc 의 질문이 첫 글자를 먹던 쪽이 훨씬 흔해 이쪽을 골랐다.
 
 use portable_pty::CommandBuilder;
 

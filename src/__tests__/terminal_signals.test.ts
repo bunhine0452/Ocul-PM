@@ -1,7 +1,10 @@
 // TE-06 — terminal OS alerts are for exceptions only: entering "waiting" or "error", or a long run (60s+)
 // that ended with no journal since the session started; plus bells and program notices (OSC 9 / 777) at most
 // once per 30s per session and the same text once per 10 minutes — all only while the window is in the back.
-// The title is "project · session name". A focus within 10s of an alert lands on that session.
+// The title is "project · session name", the body the program's line plus the state word (as on Today). One
+// event, one alert: a wait right after a notice of the same session stays quiet (and the other way round), and
+// the plugin hook's wait for the in-app claude is not alerted again. A focus within 10s of an alert lands on
+// that session — unless it was a wait that is already over.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TermInfo, TermStatus } from "@/api/terminal";
@@ -27,13 +30,16 @@ vi.mock("@/features/terminal/focusRequest", () => ({
 }));
 
 import {
+  ECHO_MS,
   LANDING_MS,
   SIGNAL_GAP_MS,
   alertIfWaiting,
   alertOnSignal,
+  coveredInApp,
   forgetAlerts,
   setAlertProjectName,
   shouldAlert,
+  trackSession,
 } from "@/features/terminal/attention";
 import { t } from "@/i18n";
 
@@ -68,7 +74,7 @@ beforeEach(() => {
   h.landed = [];
 });
 afterEach(() => {
-  for (let id = 1; id <= 9; id++) forgetAlerts(id);
+  for (let id = 1; id <= 12; id++) forgetAlerts(id);
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -92,7 +98,7 @@ describe("which status changes alert", () => {
   it("counts this session's journals before alerting about a run that ended without one", async () => {
     alertIfWaiting(working, info(1, idleAfter70s, "Fix login"));
     await vi.waitFor(() => expect(h.sent).toHaveLength(1));
-    expect(h.sent[0]).toEqual({ title: "ai-pm · Fix login", body: t("terminal.notify.noRecord") });
+    expect(h.sent[0]).toEqual({ title: "ai-pm · Fix login", body: `${t("terminal.state.done")} · ${t("terminal.noRecord")}` });
 
     // A journal written during the session — the run was recorded, so it is not an exception.
     h.entries = [{ created_at: at(40) }];
@@ -136,7 +142,20 @@ describe("bells and program notices", () => {
     alertOnSignal(info(6, null), { kind: "bell" });
     await vi.waitFor(() => expect(h.sent).toHaveLength(1));
     await new Promise((r) => setTimeout(r, 10));
-    expect(h.sent).toEqual([{ title: "ai-pm · claude", body: "approve Write: a.ts" }]);
+    expect(h.sent).toEqual([{ title: "ai-pm · claude", body: `approve Write: a.ts · ${t("terminal.state.blocked")}` }]);
+  });
+
+  it("and the other way round: a wait right after a notice of the same session stays quiet", async () => {
+    alertOnSignal(info(10, st("working", at(0))), { kind: "notice", title: "Claude", body: "needs your permission" });
+    alertIfWaiting(st("working", at(0)), info(10, st("blocked", at(5), "approve Write: a.ts")));
+    await vi.waitFor(() => expect(h.sent).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(h.sent.map((n) => n.body)).toEqual(["Claude · needs your permission"]);
+    // Past the echo window a new wait is news again, and an error says so next to the program's line.
+    vi.setSystemTime(Date.now() + ECHO_MS + 1);
+    alertIfWaiting(st("working", at(10)), info(10, st("error", at(20), "build failed")));
+    await vi.waitFor(() => expect(h.sent).toHaveLength(2));
+    expect(h.sent[1].body).toBe(`build failed · ${t("terminal.state.error")}`);
   });
 
   it("nothing while the window is in front", async () => {
@@ -161,5 +180,27 @@ describe("landing on the session after an alert", () => {
     vi.setSystemTime(Date.now() + LANDING_MS + 5_000);
     window.dispatchEvent(new Event("focus"));
     expect(h.landed).toEqual([8]);
+  });
+
+  it("a waiting alert does not land once the wait is over", async () => {
+    alertIfWaiting(st("working", at(0)), info(11, st("blocked", at(5))));
+    await vi.waitFor(() => expect(h.sent).toHaveLength(1));
+    alertIfWaiting(st("blocked", at(5)), info(11, st("working", at(8))));
+    window.dispatchEvent(new Event("focus"));
+    expect(h.landed).toEqual([]);
+  });
+});
+
+describe("the plugin hook's wait for the same claude", () => {
+  it("is covered while an in-app session waits or right after a session alert, and not otherwise", async () => {
+    expect(coveredInApp(Date.now())).toBe(false);
+    alertIfWaiting(st("working", at(0)), info(12, st("blocked", at(5))));
+    expect(coveredInApp(Date.now())).toBe(true);
+    await vi.waitFor(() => expect(h.sent).toHaveLength(1));
+    // Answered (or the session ended): the hook may still come in a beat later, then it is its own news.
+    trackSession({ ...info(12, st("blocked", at(5))), alive: false });
+    expect(coveredInApp(Date.now())).toBe(true);
+    vi.setSystemTime(Date.now() + ECHO_MS + 1);
+    expect(coveredInApp(Date.now())).toBe(false);
   });
 });

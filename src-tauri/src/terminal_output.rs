@@ -91,7 +91,7 @@ fn apply_message(
     let s = t.map.get_mut(&id)?;
     match msg {
         Message::Query => {
-            let _ = s.input.send(program_status::QUERY_REPLY.to_vec());
+            let _ = s.input.reply(program_status::QUERY_REPLY.to_vec());
             None
         }
         Message::Report(r) if r.id.is_none() => {
@@ -114,6 +114,11 @@ fn apply_message(
             s.program_title = next
                 .as_ref()
                 .and(reported.or_else(|| s.program_title.clone()));
+            // 지우기는 그 프로그램이 손을 뗐다는 뜻이다 — 그것이 OSC 0 · 2 로 붙인 제목도 함께 내린다. 끝날 때
+            // 제목을 되돌리지 않는 프로그램이 많아, 제목을 안 찍는 셸에서는 끝난 대화 주제가 탭 이름으로 남았다.
+            if next.is_none() {
+                s.osc_title = None;
+            }
             retitle(s, pace);
             if s.info.status == next {
                 return None;
@@ -161,14 +166,16 @@ fn emit_title<F: Fn(TermEvent)>(table: &Arc<Mutex<Inner>>, id: u32, pace: &mut P
 
 impl TermSessions {
     /// 그 프로젝트에서 내 손을 기다리는(OSC 7501 blocked) 살아 있는 세션 수 — 창 제목 · Dock 배지가 센다
-    /// (`commands/window/attention.rs`). 「도는 중」 을 재지 않는 가벼운 셈이다.
+    /// (`commands/window/attention.rs`). 셸이 다시 앞에 선 칸(claude 가 `state=clear` 없이 죽었다)의 낡은
+    /// 기다림은 세지 않는다 — 셸이 살아 있는 한 「기다림 1」 이 끝없이 섰다. 기다리는 칸만 ioctl 하나를 더 묻고,
+    /// 물을 수 없으면(Windows) 예전처럼 센다.
     pub fn waiting_in(&self, project_id: u32) -> u32 {
         let Ok(inner) = self.inner.lock() else {
             return 0;
         };
         let blocked = |s: &&Session| {
             let st = s.info.status.as_ref();
-            s.info.alive && st.is_some_and(|st| st.state == "blocked")
+            s.info.alive && st.is_some_and(|st| st.state == "blocked") && s.fg_busy() != Some(false)
         };
         inner
             .map
@@ -279,5 +286,48 @@ pub(super) fn pump_output<F: Fn(TermEvent)>(
     flush_output(emit, flow, &mut pending, &mut first_at);
     if pace.title_due {
         emit_title(table, id, &mut pace, emit);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::super::tests::{sh, spec, start_blocked, wait_until};
+    use super::*;
+
+    /// 기다리던 프로그램이 `state=clear` 없이 죽어 셸이 다시 앞에 서면 그 기다림은 세지 않는다(창 제목 · Dock
+    /// 배지). 표의 상태는 그대로 둔다 — 세지만 않는다.
+    #[test]
+    fn a_wait_left_behind_by_a_dead_program_is_not_counted() {
+        let sessions = TermSessions::default();
+        let info = start_blocked(&sessions, "w", 3);
+        sessions.write(info.id, "\x03").unwrap(); // Ctrl+C — 앞의 프로그램이 죽고 셸이 앞에 선다
+        wait_until(
+            || sessions.waiting_in(3) == 0,
+            "셸이 앞에 섰는데 낡은 기다림을 센다",
+        );
+        let status = sessions.list("w")[0].status.clone();
+        assert_eq!(status.map(|s| s.state).as_deref(), Some("blocked"));
+        sessions.close_all();
+    }
+
+    /// 상태를 지우면(`state=clear`) 그 프로그램이 OSC 0 · 2 로 붙인 제목도 내린다 — 제목을 안 찍는 셸에서는 끝난
+    /// 대화 주제가 탭 이름으로 남았다.
+    #[test]
+    fn clearing_the_status_takes_the_program_title_down_too() {
+        let sessions = TermSessions::default();
+        let info = sessions
+            .start(spec("w", 1), sh("sleep 10"), "sh".into(), None, |_| {})
+            .unwrap();
+        let pump = |bytes: &[u8]| {
+            let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(1);
+            tx.send(bytes.to_vec()).unwrap();
+            drop(tx);
+            pump_output(&rx, &sessions.inner, info.id, &|_| {}, &Flow::new(None));
+            sessions.list("w")[0].title.clone()
+        };
+        let working = pump(b"\x1b]0;login fix\x07\x1b]7501;state=working\x1b\\");
+        assert_eq!(working.as_deref(), Some("login fix"));
+        assert_eq!(pump(b"\x1b]7501;state=clear\x1b\\"), None);
+        sessions.close_all();
     }
 }

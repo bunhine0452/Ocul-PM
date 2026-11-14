@@ -11,7 +11,9 @@
 //! # 닫기 ([`reap`])
 //!
 //! portable-pty 의 `kill` 은 SIGHUP 뒤 최대 200ms 를 기다렸다가 SIGKILL 한다 — 그것을 메인 스레드에서 세션마다
-//! 잤다. 이제 표에서 빼자마자 돌아오고 죽이기 · 거두기는 따로 돈다(거두지 않던 좀비도 남기지 않는다).
+//! 잤다. 이제 표에서 빼자마자 돌아오고 죽이기 · 거두기는 따로 돈다(거두지 않던 좀비도 남기지 않는다). 쓰기 줄은
+//! 닫는 순간 남은 것을 버리고, writer 는 자식을 거둔 **뒤에** 놓는다 — 놓을 때 portable-pty 가 PTY 에 빈 줄과
+//! ^D 를 쓰기 때문이다(아래 [`reap`]).
 //!
 //! # 출력 흐름 ([`Flow`])
 //!
@@ -20,7 +22,7 @@
 //! [`HIGH`] 를 넘으면 [`LOW`] 까지 기다리고, 그동안 읽기가 서서 커널 PTY 버퍼가 생산자를 멈춘다.
 
 use std::io::Write;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -35,40 +37,63 @@ const KEY_BYTES: usize = 64;
 pub const BUSY: &str = "busy";
 
 /// 세션 하나의 쓰기 줄 — 보내는 쪽만 들고, writer 는 쓰기 스레드가 갖는다. 마지막 보내는 쪽이 사라지면
-/// (세션을 표에서 뺐다) 남은 것을 다 쓰고 스레드가 끝난다.
+/// (세션을 닫고 자식을 거둔 뒤, [`reap`]) 스레드가 writer 를 놓고 끝난다.
 pub(super) struct Input {
     tx: mpsc::Sender<Vec<u8>>,
     pending: Arc<AtomicUsize>,
+    /// 세션을 닫았다 — 쓰기 스레드는 남은 줄을 버린다(닫기 직전의 붙여넣기가 닫은 뒤에 흘러 들어가지 않게).
+    closed: Arc<AtomicBool>,
 }
 
 impl Input {
     pub(super) fn spawn(id: u32, mut writer: Box<dyn Write + Send>) -> Result<Input, String> {
         let (tx, rx) = mpsc::channel::<Vec<u8>>();
         let pending = Arc::new(AtomicUsize::new(0));
-        let left = pending.clone();
+        let closed = Arc::new(AtomicBool::new(false));
+        let (left, shut) = (pending.clone(), closed.clone());
         std::thread::Builder::new()
             .name(format!("term-{id}-write"))
             .spawn(move || {
                 for chunk in rx {
+                    if shut.load(Ordering::SeqCst) {
+                        left.fetch_sub(chunk.len(), Ordering::SeqCst);
+                        continue; // 닫은 세션 — 남은 줄은 버린다
+                    }
                     let ok = writer.write_all(&chunk).and_then(|()| writer.flush());
                     left.fetch_sub(chunk.len(), Ordering::SeqCst);
                     if ok.is_err() {
                         break; // PTY 가 닫혔다 — 남은 것은 쓸 곳이 없다
                     }
                 }
+                // 여기서 writer 를 놓는다 — portable-pty 는 그때 PTY 에 `\n` 과 VEOF(^D)를 쓴다
+                // (`UnixMasterWriter::drop`). 닫은 세션이면 [`reap`] 이 자식을 거둔 뒤에야 여기 닿는다.
             })
             .map_err(|e| format!("thread: {e}"))?;
-        Ok(Input { tx, pending })
+        Ok(Input {
+            tx,
+            pending,
+            closed,
+        })
     }
 
     /// 큐에 넣고 곧장 돌아온다. 대기가 [`MAX_PENDING`] 을 넘었으면 큰 쓰기는 [`BUSY`].
     pub(super) fn send(&self, bytes: Vec<u8>) -> Result<(), String> {
+        if bytes.len() > KEY_BYTES && self.pending.load(Ordering::SeqCst) > MAX_PENDING {
+            return Err(BUSY.to_string());
+        }
+        self.push(bytes)
+    }
+
+    /// 앱이 스스로 넣는 답(OSC 7501 탐침의 답, 80바이트) — 대기 상한을 보지 않는다. 대기가 넘친 순간의 답을
+    /// 버리면 그 claude 는 이 터미널이 신호를 못 받는다고 보고 끝까지 상태를 보내지 않았다. 줄 순서는 그대로다.
+    pub(super) fn reply(&self, bytes: Vec<u8>) -> Result<(), String> {
+        self.push(bytes)
+    }
+
+    fn push(&self, bytes: Vec<u8>) -> Result<(), String> {
         let n = bytes.len();
         if n == 0 {
             return Ok(());
-        }
-        if n > KEY_BYTES && self.pending.load(Ordering::SeqCst) > MAX_PENDING {
-            return Err(BUSY.to_string());
         }
         self.pending.fetch_add(n, Ordering::SeqCst);
         self.tx.send(bytes).map_err(|_| {
@@ -81,23 +106,31 @@ impl Input {
 /// 크기 바꾸기 · 포그라운드 그룹 묻기가 표 잠금 밖에서 쓰는 PTY 마스터.
 pub(super) type SharedMaster = Arc<Mutex<Box<dyn MasterPty + Send>>>;
 
-type Reaped = (Box<dyn Child + Send + Sync>, SharedMaster);
+type Reaped = (Box<dyn Child + Send + Sync>, SharedMaster, Input);
 
-/// 세션의 자식을 죽이고 거둔 뒤 PTY 를 닫는다 — 따로 도는 스레드에서. 스레드를 못 띄우면 여기서 한다.
+/// 세션의 자식을 죽이고 거둔 뒤 쓰기 줄과 PTY 를 놓는다 — 따로 도는 스레드에서. 스레드를 못 띄우면 여기서 한다.
+///
+/// 쓰기 줄은 곧장 닫고(남은 줄을 버린다) 놓기는 자식이 죽은 뒤다. 마지막 보내는 쪽이 사라지면 쓰기 스레드가
+/// writer 를 놓고, 그때 portable-pty 가 PTY 에 `\n` 과 ^D 를 쓴다. 표에서 빼며 곧장 놓던 때는 그 빈 줄이 SIGHUP
+/// 보다 먼저 닿기도 했다 — HUP 는 셸에게만 가고 앞의 프로그램은 셸이 죽은 뒤에야 받으니, `[Y/n]` 을 묻던 설치
+/// 스크립트가 닫기의 빈 줄을 기본값 Y 로 받았다(2026-11-15 리뷰).
 pub(super) fn reap(
     id: u32,
     child: Box<dyn Child + Send + Sync>,
     master: SharedMaster,
+    input: Input,
 ) -> Option<JoinHandle<()>> {
     fn finish(slot: &Mutex<Option<Reaped>>) {
         let taken = slot.lock().ok().and_then(|mut s| s.take());
-        if let Some((mut child, master)) = taken {
+        if let Some((mut child, master, input)) = taken {
             let _ = child.kill();
             let _ = child.wait();
+            drop(input);
             drop(master);
         }
     }
-    let slot = Arc::new(Mutex::new(Some((child, master))));
+    input.closed.store(true, Ordering::SeqCst);
+    let slot = Arc::new(Mutex::new(Some((child, master, input))));
     let theirs = slot.clone();
     let spawned = std::thread::Builder::new()
         .name(format!("term-{id}-reap"))
@@ -237,8 +270,24 @@ mod tests {
     use super::super::{Inner, TermEvent};
     use super::*;
 
+    /// `f` 를 세 번 재 가장 빠른 것 — 한 번의 스케줄링 흔들림은 봐준다(빌드 · 시험이 같은 기계에서 병렬로 돈다).
+    /// 한 번이라도 500ms 를 넘으면 그 자리에서 실패한다.
+    #[cfg(unix)]
+    fn best_of_3(mut f: impl FnMut()) -> Duration {
+        let mut best = Duration::MAX;
+        for _ in 0..3 {
+            let t = Instant::now();
+            f();
+            let took = t.elapsed();
+            assert!(took < Duration::from_millis(500), "{took:?}");
+            best = best.min(took);
+        }
+        best
+    }
+
     /// 읽지 않는 자식에 큰 붙여넣기를 해도 — 그 쓰기도, 다른 세션의 쓰기 · 목록도 곧장 돌아온다. 예전에는
-    /// 앱 전체의 표 잠금을 쥔 채 PTY 에 쓰다가 커널 버퍼가 차면 그 자리에서 섰다(메인 스레드째).
+    /// 앱 전체의 표 잠금을 쥔 채 PTY 에 쓰다가 커널 버퍼가 차면 그 자리에서 섰다(메인 스레드째) — 예전 길이었다면
+    /// 셋 중 가장 빠른 것도 자식이 끝날 때(5초)까지 섰다.
     #[cfg(unix)]
     #[test]
     fn a_session_that_does_not_read_does_not_stall_the_others() {
@@ -253,23 +302,12 @@ mod tests {
             .unwrap();
         std::thread::sleep(Duration::from_millis(300));
         let paste = "x".repeat(64 * 1024);
-        let t = Instant::now();
-        sessions.write(deaf.id, &paste).unwrap();
-        assert!(t.elapsed() < Duration::from_millis(10), "{:?}", t.elapsed());
-        // 한 번의 스케줄링 흔들림은 봐준다(빌드가 같은 기계에서 돈다) — 셋 중 가장 빠른 것이 10ms 안.
-        // 예전 길이었다면 셋 다 자식이 끝날 때(5초)까지 섰다.
-        let mut best = Duration::MAX;
-        for _ in 0..3 {
-            let t = Instant::now();
+        let best = best_of_3(|| sessions.write(deaf.id, &paste).unwrap());
+        assert!(best < Duration::from_millis(10), "{best:?}");
+        let best = best_of_3(|| {
             sessions.write(other.id, "abc\n").unwrap();
             assert_eq!(sessions.list("w").len(), 2);
-            best = best.min(t.elapsed());
-            assert!(
-                t.elapsed() < Duration::from_millis(500),
-                "{:?}",
-                t.elapsed()
-            );
-        }
+        });
         assert!(best < Duration::from_millis(10), "{best:?}");
         sessions.close_all();
     }
@@ -297,33 +335,77 @@ mod tests {
             Err(BUSY.to_string())
         );
         assert_eq!(sessions.write(deaf.id, "\x03"), Ok(()));
+        // 앱이 스스로 넣는 탐침의 답은 키 하나보다 길어도 받는다 — 버리면 그 claude 는 끝까지 상태를 안 보낸다.
+        let reply = crate::program_status::QUERY_REPLY;
+        assert!(reply.len() > KEY_BYTES);
+        let replied = sessions.inner.lock().unwrap().map[&deaf.id]
+            .input
+            .reply(reply.to_vec());
+        assert_eq!(replied, Ok(()));
         sessions.close_all();
     }
 
-    /// HUP 를 무시하는 자식 — 닫기는 곧장 돌아오고(예전에는 메인 스레드에서 200ms 를 잤다), 거두기 스레드가
-    /// 유예 뒤 SIGKILL 하고 거둔다.
+    /// 세션의 셸 pid — 닫은 뒤 그 자식이 끝내 죽는지 본다.
+    #[cfg(unix)]
+    fn shell_pid(sessions: &TermSessions, id: u32) -> i32 {
+        let inner = sessions.inner.lock().unwrap();
+        inner.map[&id].child.process_id().unwrap() as i32
+    }
+
+    /// 그 pid 가 사라질 때까지(거두기 전의 좀비도 아직 있는 것으로 본다).
+    #[cfg(unix)]
+    fn wait_gone(pid: i32) {
+        // SAFETY: 신호 0 은 보내지 않고 그 pid 가 아직 있는지만 묻는다.
+        wait_until(
+            || unsafe { libc::kill(pid, 0) } != 0,
+            "닫은 세션의 자식이 끝내 죽지 않았다",
+        );
+    }
+
+    /// HUP 를 무시하는 자식 — 닫기는 곧장 돌아오고(예전에는 메인 스레드에서 200ms 를 잤다 — 셋 중 가장 빠른
+    /// 것도 200ms 를 넘었을 것이다), 거두기 스레드가 유예 뒤 SIGKILL 하고 거둔다.
     #[cfg(unix)]
     #[test]
     fn closing_a_session_that_ignores_hangup_returns_at_once_and_still_ends_it() {
         let sessions = TermSessions::default();
-        let cmd = sh("trap '' HUP; exec sleep 30");
+        let ids: Vec<u32> = (0..3)
+            .map(|_| {
+                let cmd = sh("trap '' HUP; exec sleep 30");
+                let info = sessions.start(spec("w", 1), cmd, "sh".into(), None, |_| {});
+                info.unwrap().id
+            })
+            .collect();
+        let pids: Vec<i32> = ids.iter().map(|id| shell_pid(&sessions, *id)).collect();
+        std::thread::sleep(Duration::from_millis(300)); // trap 과 exec 가 자리를 잡게
+        let mut left = ids.into_iter();
+        let best = best_of_3(|| sessions.close(left.next().unwrap()));
+        assert!(best < Duration::from_millis(10), "{best:?}");
+        assert!(sessions.list("w").is_empty());
+        pids.into_iter().for_each(wait_gone);
+    }
+
+    /// 닫기는 살아 있는 프로그램에 빈 줄을 치지 않는다. writer 를 놓을 때 portable-pty 가 PTY 에 `\n` 과 ^D 를
+    /// 쓰는데, 예전에는 그것이 SIGHUP 과 순서 없이 닿아 `[Y/n]` 을 묻던 프로그램이 닫기의 빈 줄을 기본값 Y 로
+    /// 받았다. 앞의 프로그램은 셸이 죽은 뒤에야 HUP 를 받는다 — 그 틈을 HUP 를 무시하는 자식으로 굳힌다.
+    #[cfg(unix)]
+    #[test]
+    fn closing_does_not_type_a_newline_into_the_program() {
+        let dir = tempfile::tempdir().unwrap();
+        let mark = dir.path().join("answered");
+        let sessions = TermSessions::default();
+        let cmd = sh(&format!(
+            "trap '' HUP; read line; touch '{}'",
+            mark.display()
+        ));
         let info = sessions
             .start(spec("w", 1), cmd, "sh".into(), None, |_| {})
             .unwrap();
-        let pid = {
-            let inner = sessions.inner.lock().unwrap();
-            inner.map[&info.id].child.process_id().unwrap() as i32
-        };
-        std::thread::sleep(Duration::from_millis(300)); // trap 과 exec 가 자리를 잡게
-        let t = Instant::now();
+        let pid = shell_pid(&sessions, info.id);
+        std::thread::sleep(Duration::from_millis(300)); // trap 과 read 가 자리를 잡게
         sessions.close(info.id);
-        assert!(t.elapsed() < Duration::from_millis(10), "{:?}", t.elapsed());
-        assert!(sessions.list("w").is_empty());
-        // SAFETY: 신호 0 은 보내지 않고 그 pid 가 아직 있는지(거두기 전의 좀비 포함)만 묻는다.
-        wait_until(
-            || unsafe { libc::kill(pid, 0) } != 0,
-            "HUP 를 무시한 자식이 끝내 죽지 않았다",
-        );
+        wait_gone(pid);
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(!mark.exists(), "닫기가 읽던 프로그램에 빈 줄을 쳤다");
     }
 
     /// 쓰기 줄은 순서를 지킨다 — 천 번 쓴 줄이 cat 에게 그 차례대로 닿는다.

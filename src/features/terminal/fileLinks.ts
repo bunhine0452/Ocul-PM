@@ -31,8 +31,8 @@ export interface LinkTerm {
   modes: { mouseTrackingMode: "none" | "x10" | "vt200" | "drag" | "any" };
 }
 
-/** 전체 화면 프로그램(대체 화면)이 마우스를 쓰는 중인가. */
-function tracksMouse(term: LinkTerm | undefined): boolean {
+/** 전체 화면 프로그램(대체 화면)이 마우스를 쓰는 중인가 — 그동안은 누름의 뜻이 바뀐다(`clickKind`). */
+export function tracksMouse(term: LinkTerm | undefined): boolean {
   return term?.buffer.active.type === "alternate" && term.modes.mouseTrackingMode !== "none";
 }
 
@@ -52,10 +52,20 @@ export function isImagePath(path: string): boolean {
   return IMAGE_EXT.test(path);
 }
 
-/** 이미지 링크에서 일어난 일 — `imagePeek.ts` 가 받는다. */
+/**
+ * 이미지 링크에서 일어난 일 — `imagePeek.ts` 가 받는다. 올림(`hover`)이 마우스를 쓰는 전체 화면 프로그램 위면
+ * `tracking: true` — 그때는 맨 클릭이 그 프로그램의 것이고 ⌘ 누름이 Finder 라, 미리보기 안내가 그 뜻을 말할 수
+ * 있게 싣는다.
+ */
 export type ImageLinkEvent =
-  | { kind: "hover" | "open" | "reveal"; path: string; x: number; y: number }
+  | { kind: "hover" | "open" | "reveal"; path: string; x: number; y: number; tracking?: boolean }
   | { kind: "leave" };
+
+/** 올림 사건 — 마우스를 쓰는 전체 화면 프로그램 위면 `tracking` 을 단다. */
+function hoverEvent(event: MouseEvent, path: string, term?: LinkTerm): ImageLinkEvent {
+  const hover = { kind: "hover" as const, path, x: event.clientX, y: event.clientY };
+  return tracksMouse(term) ? { ...hover, tracking: true } : hover;
+}
 
 /**
  * 누름의 뜻 — 그냥 누르면 Finder 에서(경로로 이동), ⌘(Ctrl) 를 누른 채면 크게. 마우스를 쓰는 전체 화면
@@ -127,7 +137,7 @@ export function createOscLinkHandler(deps: LinkDeps): ILinkHandler {
     },
     hover: (event, uri) => {
       const path = imageOf(uri);
-      if (path) deps.onImage({ kind: "hover", path, x: event.clientX, y: event.clientY });
+      if (path) deps.onImage(hoverEvent(event, path, deps.term));
     },
     leave: () => deps.onImage({ kind: "leave" }),
     // `file://` 를 받으려면 켜야 한다 — 그 밖의 스킴을 막는 일은 위 세 함수가 한다.
@@ -291,7 +301,7 @@ export function createImagePathProvider(
             if (kind) onImage({ kind, path, x: event.clientX, y: event.clientY });
             else onPassedThrough?.();
           },
-          hover: (event) => onImage({ kind: "hover", path, x: event.clientX, y: event.clientY }),
+          hover: (event) => onImage(hoverEvent(event, path, term)),
           leave: () => onImage({ kind: "leave" }),
         });
       }

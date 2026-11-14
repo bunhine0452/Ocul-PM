@@ -7,8 +7,13 @@
  * 있으면 탭 · 오늘의 줄로 충분하다(Orca 의 알림 규칙). 같은 기다림이 이어지며 한 줄만 바뀌면 다시 울리지
  * 않는다. 종 · 알림은 세션마다 30초에 한 번, 같은 글은 10분에 한 번. 권한은 처음 울릴 때 한 번 묻는다.
  *
- * 제목은 「프로젝트 · 세션 이름」(세션 이름은 프로그램이 붙인 제목, 없으면 셸 이름). 알림을 눌러 창이
+ * 제목은 「프로젝트 · 세션 이름」(세션 이름은 프로그램이 붙인 제목, 없으면 셸 이름), 본문은 오늘 화면의 같은 줄과
+ * 같은 모양 — 프로그램이 붙인 한 줄과 상태 말(「approve Write: a.ts · 허락을 기다려요」). 알림을 눌러 창이
  * 앞에 오면(10초 안) 그 세션을 고른다 — 「어느 세션이었지」를 사람이 찾지 않게(`requestTermFocus`).
+ *
+ * 한 일에 알림 하나: 같은 세션의 종 · 알림 바로 뒤(5초)의 기다림 · 오류는 울리지 않고(그 반대 순서는 종 쪽의
+ * 30초 간격이 막는다), 바깥 터미널 기다림(훅)은 이 창의 앱 안 세션이 기다리는 동안이나 방금 세션 알림을
+ * 보냈으면 울리지 않는다 — 훅은 앱 안 터미널의 claude 도 적는다(오늘 화면과 같은 규칙).
  */
 import { useEffect } from "react";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
@@ -29,6 +34,11 @@ export const SIGNAL_GAP_MS = 30_000;
 export const SAME_TEXT_MS = 10 * 60_000;
 /** 알림 뒤 이 안에 창이 앞에 오면 알림을 누른 것으로 보고 그 세션을 고른다. */
 export const LANDING_MS = 10_000;
+/**
+ * 같은 일을 두 신호로 말하는 틈 — 종 · 알림 바로 뒤의 기다림 · 오류, 세션 알림 바로 뒤의 훅 기다림은 울리지
+ * 않는다.
+ */
+export const ECHO_MS = 5_000;
 
 let permission: Promise<boolean> | null = null;
 let projectName = "";
@@ -36,8 +46,10 @@ let projectName = "";
 const lastAlertAt = new Map<number, number>();
 /** 세션마다 마지막 종 · 알림의 글 — 같은 글을 거른다. */
 const lastSignal = new Map<number, { text: string; at: number }>();
-/** 마지막 알림 — 창이 앞에 오면 그 세션으로 간다. */
-let landing: { sessionId: number; at: number } | null = null;
+/** 이 창의 앱 안 세션 가운데 지금 내 손을 기다리는 것 — termStore 가 상태 · 끝마다 알린다(`trackSession`). */
+const waitingHere = new Set<number>();
+/** 마지막 알림 — 창이 앞에 오면 그 세션으로 간다. 기다림 알림이면 그 사이 풀렸는지 본다. */
+let landing: { sessionId: number; at: number; waiting: boolean } | null = null;
 let landingWatched = false;
 
 /** 이 창의 프로젝트 이름 — 알림 제목에 싣는다(창 하나 = 프로젝트 하나). */
@@ -84,6 +96,28 @@ export function shouldSignal(id: number, text: string, now: number, windowFocuse
   return !(same && same.text === text && now - same.at < SAME_TEXT_MS);
 }
 
+/** 세션의 지금 모양을 적는다 — 살아서 내 손을 기다리는 세션만 남긴다. termStore 가 상태 · 끝마다 부른다. */
+export function trackSession(info: TermInfo): void {
+  if (info.alive && needsMe(info.status)) waitingHere.add(info.id);
+  else waitingHere.delete(info.id);
+}
+
+/**
+ * 바깥 터미널 기다림(훅)을 앱 안 세션이 이미 말했나 — 플러그인 훅은 앱 안 터미널의 claude 도 적는다. 오늘 화면과
+ * 같은 규칙(`todayModel.ts` 의 buildExceptions: 앱 안 기다림이 있으면 훅 줄을 뺀다)에, 방금(`ECHO_MS`) 이 창이
+ * 세션 알림을 보냈으면 그것도 같은 claude 다.
+ */
+export function coveredInApp(now: number): boolean {
+  if (waitingHere.size > 0) return true;
+  return [...lastAlertAt.values()].some((at) => now - at < ECHO_MS);
+}
+
+/** 같은 세션의 종 · 프로그램 알림을 방금(`ECHO_MS`) 울렸다 — 그 뒤의 기다림 · 오류는 같은 일이다. */
+function echoesSignal(id: number, now: number): boolean {
+  const last = lastSignal.get(id);
+  return last !== undefined && now - last.at < ECHO_MS;
+}
+
 /** 그 세션이 시작된 뒤 이 프로젝트에 남은 일지 수 — 오늘(날은 백엔드가 정한다)의 일지에서. 못 세면 `null`. */
 async function recordsSince(info: TermInfo): Promise<number | null> {
   try {
@@ -103,12 +137,15 @@ function watchLanding(): void {
   window.addEventListener("focus", () => {
     const last = landing;
     landing = null;
-    if (last && Date.now() - last.at <= LANDING_MS) requestTermFocus(last.sessionId);
+    if (!last || Date.now() - last.at > LANDING_MS) return;
+    // 기다림 알림이었는데 그 사이 기다림이 풀렸으면 옮기지 않는다 — 가 볼 것이 없다.
+    if (last.waiting && !waitingHere.has(last.sessionId)) return;
+    requestTermFocus(last.sessionId);
   });
 }
 
 /** 「프로젝트 · 세션 이름」 으로 OS 알림을 띄운다. 실패는 조용히 버린다(화면 표시가 남는다). */
-function notifySession(info: TermInfo, body: string): void {
+function notifySession(info: TermInfo, body: string, waiting = false): void {
   const title = [projectName, info.title || info.label].filter(Boolean).join(" · ");
   lastAlertAt.set(info.id, Date.now());
   watchLanding();
@@ -116,23 +153,28 @@ function notifySession(info: TermInfo, body: string): void {
     .then((ok) => {
       if (!ok) return;
       sendNotification({ title, body });
-      landing = { sessionId: info.id, at: Date.now() };
+      landing = { sessionId: info.id, at: Date.now(), waiting };
     })
     .catch(() => {});
 }
 
 /** 세션 상태가 바뀌었다 — 알림감이면 OS 알림을 띄운다(일지 없이 끝냄은 일지를 센 뒤에). */
 export function alertIfWaiting(prev: TermStatus | null, info: TermInfo): void {
+  trackSession(info);
   const next = info.status;
   if (document.hasFocus()) return;
   if (finishedLong(prev, next)) {
     void recordsSince(info).then((records) => {
-      if (shouldAlert(prev, next, document.hasFocus(), records)) notifySession(info, t("terminal.notify.noRecord"));
+      if (!shouldAlert(prev, next, document.hasFocus(), records)) return;
+      // 탭 · 오늘 화면이 쓰는 두 말 그대로(「끝냈어요 · 일지 없음」).
+      notifySession(info, [t("terminal.state.done"), t("terminal.noRecord")].join(" · "));
     });
     return;
   }
-  if (!shouldAlert(prev, next, false)) return;
-  notifySession(info, next?.msg || sessionWord(t, info));
+  if (!shouldAlert(prev, next, false) || echoesSignal(info.id, Date.now())) return;
+  // 무엇인지(프로그램이 붙인 한 줄)와 상태 말을 함께 — 한 줄만 두면 영어 원문 한 줄만 남았다. 상태 말은 Claude 에
+  // 묶이지 않아 Codex 칸에도 맞는다.
+  notifySession(info, [next?.msg, sessionWord(t, info)].filter(Boolean).join(" · "), needsMe(next));
 }
 
 /** 종(BEL) · 프로그램 알림(OSC 9 · 777)이 왔다 — 알림감이면 OS 알림을 띄운다. */
@@ -148,6 +190,7 @@ export function alertOnSignal(info: TermInfo, ev: Extract<TermEvent, { kind: "be
 export function forgetAlerts(id: number): void {
   lastAlertAt.delete(id);
   lastSignal.delete(id);
+  waitingHere.delete(id);
   if (landing?.sessionId === id) landing = null;
 }
 
@@ -167,7 +210,8 @@ export function newWaitings(seen: Set<string>, list: readonly ClaudeWaiting[]): 
 
 /**
  * 바깥 터미널의 Claude 기다림(플러그인 Notification 훅, #notify-hook)도 창이 뒤에 있을 때만 OS 알림으로.
- * 프로젝트 창마다 하나 — 처음 읽은 것은 알리지 않는다(앱을 켜기 전부터 있던 기다림).
+ * 프로젝트 창마다 하나 — 처음 읽은 것은 알리지 않는다(앱을 켜기 전부터 있던 기다림). 앱 안 세션이 이미 말한
+ * 기다림이면 울리지 않는다(`coveredInApp`).
  */
 export function useHookWaitingAlerts(projectId: number): void {
   useEffect(() => {
@@ -184,7 +228,7 @@ export function useHookWaitingAlerts(projectId: number): void {
         .then((list) => {
           if (!alive) return;
           const fresh = newWaitings(seen, list);
-          if (fresh.length === 0 || document.hasFocus()) return;
+          if (fresh.length === 0 || document.hasFocus() || coveredInApp(Date.now())) return;
           const w = fresh[0];
           const word = w.kind === "permission" ? t("terminal.state.permission") : t("terminal.state.idle");
           void allowed().then((ok) => {

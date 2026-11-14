@@ -1,8 +1,9 @@
 // TE-07 — the WebGL renderer heals itself and a new session opens at the right size: a lost context is
 // re-attached at most once a minute (it used to stay on the DOM renderer for good after the second loss), the
 // glyph atlas is cleared every 32 pages (truecolor shimmer grew it without bound), a released renderer gives
-// its GL context back at once, a new session is sized from the pane and the last measured cell instead of
-// 80x24, and a display-scale change refits the visible sessions.
+// its GL context back at once (the WebGL canvas's, not the 2D link layer addon-webgl 0.18 puts in front of it),
+// a new session is sized from the pane and the last measured cell instead of 80x24, and a display-scale change
+// refits the visible sessions.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Webgl = {
@@ -12,8 +13,12 @@ type Webgl = {
   clears: number;
 };
 
+type Cell = { width: number; height: number };
+type FakeTerm = { cols: number; element: HTMLElement; _core: { _renderService: { dimensions: { css: { cell: Cell } } } } };
+
 const h = vi.hoisted(() => ({
   webgls: [] as Webgl[],
+  terms: [] as FakeTerm[],
   opens: [] as Array<[number, number]>,
   fits: 0,
   loseContext: 0,
@@ -36,8 +41,8 @@ vi.mock("@xterm/xterm", () => ({
       this.element = document.createElement("div");
       const screen = document.createElement("div");
       screen.className = "xterm-screen";
-      screen.appendChild(document.createElement("canvas"));
       this.element.appendChild(screen);
+      h.terms.push(this);
     }
     loadAddon(a: { activate?: (t: unknown) => void }) {
       a.activate?.(this);
@@ -75,8 +80,17 @@ vi.mock("@xterm/addon-web-links", () => ({ WebLinksAddon: class {} }));
 vi.mock("@xterm/addon-webgl", () => ({
   WebglAddon: class {
     rec: Webgl = { disposed: false, loss: null, page: null, clears: 0 };
+    canvases: HTMLCanvasElement[] = [];
     constructor() {
       h.webgls.push(this.rec);
+    }
+    // As addon-webgl 0.18 does it: the 2D link layer goes into .xterm-screen before the WebGL canvas, and
+    // disposing takes both out of the page.
+    activate(term: { element: HTMLElement }) {
+      const link = document.createElement("canvas");
+      link.className = "xterm-link-layer";
+      this.canvases = [link, document.createElement("canvas")];
+      for (const c of this.canvases) term.element.querySelector(".xterm-screen")!.appendChild(c);
     }
     onContextLoss(cb: () => void) {
       this.rec.loss = cb;
@@ -89,6 +103,7 @@ vi.mock("@xterm/addon-webgl", () => ({
     }
     dispose() {
       this.rec.disposed = true;
+      for (const c of this.canvases) c.remove();
     }
   },
 }));
@@ -119,7 +134,14 @@ vi.mock("@/api/terminal", () => ({
   },
 }));
 
-import { ATLAS_CLEAR_EVERY, WEBGL_RETRY_MS, closeTerm, mountTerm, openTerm } from "@/features/terminal/termStore";
+import {
+  ATLAS_CLEAR_EVERY,
+  WEBGL_RETRY_MS,
+  closeTerm,
+  mountTerm,
+  openTerm,
+  setTermFontSize,
+} from "@/features/terminal/termStore";
 
 const opened: number[] = [];
 let size = { width: 800, height: 600 };
@@ -140,9 +162,14 @@ beforeEach(() => {
   }));
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => size.width });
   Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => size.height });
-  HTMLCanvasElement.prototype.getContext = (() => ({
+  // Like a browser: a canvas that already has a 2D context (the link layer) answers null to "webgl2".
+  const gl = {
     getExtension: (name: string) => (name === "WEBGL_lose_context" ? { loseContext: () => void (h.loseContext += 1) } : null),
-  })) as unknown as HTMLCanvasElement["getContext"];
+  };
+  HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, id: string) {
+    if (this.classList.contains("xterm-link-layer")) return id === "2d" ? {} : null;
+    return id === "webgl2" ? gl : null;
+  } as unknown as HTMLCanvasElement["getContext"];
 });
 
 afterEach(() => {
@@ -234,5 +261,18 @@ describe("first size of a new session", () => {
     h.dprChange[h.dprChange.length - 1]?.();
     vi.advanceTimersByTime(16);
     expect(h.fits).toBe(1);
+  });
+});
+
+describe("font size", () => {
+  it("re-centres the grid with the new cell — fit alone kept the old cell's margin", async () => {
+    mountTerm(await open(), pane());
+    const term = h.terms[h.terms.length - 1];
+    term.cols = 80;
+    term._core._renderService.dimensions.css.cell = { width: 8, height: 18 };
+    setTermFontSize(15);
+    const screen = term.element.querySelector<HTMLElement>(".xterm-screen")!;
+    expect(screen.style.marginLeft).toBe("80px"); // (800 - 80 × 8) / 2
+    setTermFontSize(13);
   });
 });
