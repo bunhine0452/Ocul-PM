@@ -7,6 +7,55 @@ use std::path::{Path, PathBuf};
 
 use super::{repo_relative, repo_root_for, run_git};
 
+/// 바이트 예산에서 잘린 자리 — 보인 바이트 · 원래 바이트.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PatchCut {
+    pub shown: usize,
+    pub total: usize,
+}
+
+/// 바이트 예산으로 자른 패치 (11-15 #diff-receipt). 자른 자리는 줄 끝이고, 잘렸으면 `cut` 이
+/// 보인 것 · 원래 크기를 말한다. 변경 화면은 그 둘로 끝에 「64 KB / 212 KB 만 보여요」 를 단다 —
+/// 예전엔 영어 문장(`... (truncated, N bytes total)`)을 줄 중간에서 자른 본문 끝에 붙여, 그 문장이
+/// 코드 줄처럼 번호를 달고 그려졌다. 문장이 붙은 꼴([`CappedPatch::with_marker`])은 저장되는
+/// 일지 사이드카만 쓴다 — 이미 저장된 사이드카가 그 꼴이라 읽는 쪽(`diffParse.splitLegacyCut`)이
+/// 같은 영수증 줄로 바꾼다.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CappedPatch {
+    pub text: String,
+    pub cut: Option<PatchCut>,
+}
+
+impl CappedPatch {
+    /// `max_bytes` 안으로 — 넘으면 마지막 줄바꿈까지만 남긴다(줄 중간에서 끊지 않는다). 한 줄이
+    /// 예산보다 길면 그 줄을 글자 경계에서 자른다 — 빈 패치보다 낫다.
+    pub fn cap(text: String, max_bytes: usize) -> Self {
+        if text.len() <= max_bytes {
+            return Self { text, cut: None };
+        }
+        let total = text.len();
+        let head = truncate_at_char_boundary(&text, max_bytes);
+        let kept = head.rfind('\n').map_or(head, |i| &head[..=i]).to_string();
+        let shown = kept.len();
+        Self {
+            text: kept,
+            cut: Some(PatchCut { shown, total }),
+        }
+    }
+
+    /// 일지 사이드카의 옛 꼴 — 잘렸으면 끝에 표지 문장을 붙인다.
+    pub fn with_marker(self) -> String {
+        match self.cut {
+            Some(cut) => format!(
+                "{}\n\n... (truncated, {} bytes total)",
+                self.text.trim_end_matches('\n'),
+                cut.total
+            ),
+            None => self.text,
+        }
+    }
+}
+
 /// Unified-diff for a single tracked path. `from`/`to` are commit-ish refs;
 /// defaulting both to `None` returns the working tree vs `HEAD` diff. Output
 /// is truncated (suffix marker appended) once it exceeds `max_bytes`.
@@ -20,6 +69,20 @@ pub fn diff_patch(
     to: Option<&str>,
     max_bytes: usize,
 ) -> Result<String, String> {
+    diff_patch_capped(root, file_path, from, to, max_bytes, false).map(CappedPatch::with_marker)
+}
+
+/// [`diff_patch`] 의 변경 화면 판 — 자른 자리를 문장 대신 [`PatchCut`] 으로 돌려주고,
+/// `ignore_whitespace` 면 공백만 바뀐 줄을 빼고 비교한다(`git diff -w`, 포매터가 낸 소음).
+/// 같은 git 실행 자리에 인자 하나가 더 붙을 뿐이다.
+pub fn diff_patch_capped(
+    root: &Path,
+    file_path: &str,
+    from: Option<&str>,
+    to: Option<&str>,
+    max_bytes: usize,
+    ignore_whitespace: bool,
+) -> Result<CappedPatch, String> {
     // Resolve the repo that actually contains the file — it may be nested below
     // `root` (the .oculpm folder can sit above the git repo). Run git there with
     // the path made relative to that repo.
@@ -28,6 +91,9 @@ pub fn diff_patch(
     let rel = repo_relative(&repo, &abs).unwrap_or_else(|| file_path.to_string());
 
     let mut args = vec!["diff", "--unified=3"];
+    if ignore_whitespace {
+        args.push("-w");
+    }
     match (from, to) {
         (Some(f), Some(t)) => {
             args.push(f);
@@ -45,7 +111,7 @@ pub fn diff_patch(
 
     let text = run_git(&repo, &args)?;
 
-    Ok(truncate_patch(text, max_bytes))
+    Ok(CappedPatch::cap(text, max_bytes))
 }
 
 /// 여러 파일의 working-tree-vs-HEAD 패치를 **git 한 번**으로 (완성도 라운드
@@ -147,6 +213,16 @@ pub(crate) fn split_multi_diff(text: &str) -> Vec<(String, String)> {
 /// The header mirrors `git diff --no-prefix` style with `a/` `b/` prefixes
 /// to keep line classification consistent.
 pub fn render_unified_diff(path: &str, prev: &str, next: &str, max_bytes: usize) -> String {
+    render_unified_diff_capped(path, prev, next, max_bytes).with_marker()
+}
+
+/// [`render_unified_diff`] 의 변경 화면 판 — 자른 자리를 문장 대신 [`PatchCut`] 으로.
+pub fn render_unified_diff_capped(
+    path: &str,
+    prev: &str,
+    next: &str,
+    max_bytes: usize,
+) -> CappedPatch {
     use similar::TextDiff;
 
     let diff = TextDiff::from_lines(prev, next);
@@ -157,16 +233,44 @@ pub fn render_unified_diff(path: &str, prev: &str, next: &str, max_bytes: usize)
         .to_string();
 
     let header = format!("diff --git a/{path} b/{path}\n");
-    let text = format!("{header}{body}");
+    CappedPatch::cap(format!("{header}{body}"), max_bytes)
+}
 
-    if text.len() > max_bytes {
-        format!(
-            "{}\n\n... (truncated, {} bytes total)",
-            crate::git::truncate_at_char_boundary(&text, max_bytes),
-            text.len()
-        )
+/// 기준본이 없는 새 파일을 통째로 더한 줄로 (11-15 #diff-receipt) — 앞에서 읽은 `head` 와 파일
+/// 전체 크기 `total`. 예전엔 프런트가 파일을 크기 제한 없이 통째로 읽어(10MB 로그면 웹뷰가
+/// 멈췄다) 줄마다 `+` 를 붙였고, 끝 줄바꿈 뒤의 빈 조각까지 `+` 줄 하나로 세웠다. 이제 자른
+/// 자리는 줄 끝이고, 끝에 줄바꿈이 없으면 git 처럼 표식 줄을 단다.
+pub fn new_file_patch(path: &str, head: &[u8], total: usize) -> CappedPatch {
+    let partial = head.len() < total;
+    let text = String::from_utf8_lossy(head);
+    let body: &str = if partial {
+        text.rfind('\n').map_or(&text, |i| &text[..=i])
     } else {
-        text
+        &text
+    };
+    let mut lines: Vec<&str> = body.split('\n').collect();
+    let ends_with_newline = body.ends_with('\n');
+    if ends_with_newline || body.is_empty() {
+        lines.pop();
+    }
+    let mut out = format!("diff --git a/{path} b/{path}\n--- /dev/null\n+++ b/{path}\n");
+    if !lines.is_empty() {
+        out.push_str(&format!("@@ -0,0 +1,{} @@\n", lines.len()));
+        for line in &lines {
+            out.push('+');
+            out.push_str(line);
+            out.push('\n');
+        }
+        if !ends_with_newline && !partial {
+            out.push_str("\\ No newline at end of file\n");
+        }
+    }
+    CappedPatch {
+        text: out,
+        cut: partial.then_some(PatchCut {
+            shown: body.len(),
+            total,
+        }),
     }
 }
 
@@ -375,15 +479,7 @@ fn parse_name_log(listing: &str) -> Vec<(String, i64, Vec<String>)> {
 /// Cap a unified-diff blob at `max_bytes`, appending a truncation marker. Keeps
 /// a runaway generated file from bloating callers (sidecars, IPC payloads).
 fn truncate_patch(text: String, max_bytes: usize) -> String {
-    if text.len() > max_bytes {
-        format!(
-            "{}\n\n... (truncated, {} bytes total)",
-            truncate_at_char_boundary(&text, max_bytes),
-            text.len()
-        )
-    } else {
-        text
-    }
+    CappedPatch::cap(text, max_bytes).with_marker()
 }
 
 /// Longest prefix of `text` that fits in `max_bytes` *bytes* without splitting
@@ -398,4 +494,97 @@ pub(crate) fn truncate_at_char_boundary(text: &str, max_bytes: usize) -> &str {
         end -= 1;
     }
     &text[..end]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let ok = crate::proc::std_cmd("git")
+            .args([
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+            .current_dir(dir)
+            .output()
+            .unwrap()
+            .status
+            .success();
+        assert!(ok, "git {args:?}");
+    }
+
+    /// 70KB 패치는 줄 끝에서 64KB 안으로 잘리고, 잘린 자리는 문장이 아니라 숫자로 남는다.
+    #[test]
+    fn a_long_patch_is_cut_at_a_line_end_without_a_sentence() {
+        let text: String = (0..3_000)
+            .map(|i| format!("+line {i:05} padding padding\n"))
+            .collect();
+        assert!(text.len() > 70_000);
+        let capped = CappedPatch::cap(text.clone(), 64 * 1024);
+        let cut = capped.cut.expect("cut");
+        assert!(cut.shown <= 64 * 1024);
+        assert_eq!(cut.total, text.len());
+        assert_eq!(capped.text.len(), cut.shown);
+        assert!(capped.text.ends_with('\n'), "줄 중간에서 잘렸다");
+        assert!(!capped.text.contains("truncated"));
+        // 사이드카의 옛 꼴은 표지 문장을 그대로 단다 — 읽는 쪽이 같은 영수증 줄로 바꾼다.
+        assert!(capped
+            .with_marker()
+            .ends_with(&format!("\n\n... (truncated, {} bytes total)", text.len())));
+        let small = CappedPatch::cap("+a\n".into(), 64);
+        assert_eq!(small.cut, None);
+    }
+
+    /// 새 파일은 앞부분만 더한 줄로 — 끝 줄바꿈 뒤 빈 조각은 줄이 아니고, 줄바꿈이 없으면 표식.
+    #[test]
+    fn a_new_file_patch_counts_real_lines() {
+        let p = new_file_patch("a.txt", b"one\ntwo\n", 8);
+        assert_eq!(
+            p.text,
+            "diff --git a/a.txt b/a.txt\n--- /dev/null\n+++ b/a.txt\n@@ -0,0 +1,2 @@\n+one\n+two\n"
+        );
+        assert_eq!(p.cut, None);
+        let p = new_file_patch("a.txt", b"one\ntwo", 7);
+        assert!(
+            p.text.ends_with("+two\n\\ No newline at end of file\n"),
+            "{}",
+            p.text
+        );
+        // 큰 파일 — 읽은 앞부분의 마지막 줄 끝까지만, 숫자는 파일 크기.
+        let p = new_file_patch("big.log", b"one\ntwo\nthr", 10_000_000);
+        assert!(p.text.ends_with("+one\n+two\n"), "{}", p.text);
+        assert_eq!(
+            p.cut,
+            Some(PatchCut {
+                shown: 8,
+                total: 10_000_000
+            })
+        );
+        let empty = new_file_patch("e.txt", b"", 0);
+        assert!(!empty.text.contains("@@"));
+    }
+
+    /// 공백 무시 — 들여쓰기만 바뀐 파일은 `-w` 로 빈 패치, 없이는 그대로 보인다.
+    #[test]
+    fn ignore_whitespace_empties_a_whitespace_only_patch() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        git(root, &["init", "-q", "-b", "main"]);
+        git(root, &["config", "core.autocrlf", "false"]);
+        std::fs::write(root.join("a.ts"), "if (x) {\n  run();\n}\n").unwrap();
+        git(root, &["add", "-A"]);
+        git(root, &["commit", "-qm", "base"]);
+        std::fs::write(root.join("a.ts"), "if (x) {\n      run();\n}\n").unwrap();
+
+        let plain = diff_patch_capped(root, "a.ts", None, None, 65_536, false).unwrap();
+        assert!(plain.text.contains("+      run();"), "{}", plain.text);
+        let quiet = diff_patch_capped(root, "a.ts", None, None, 65_536, true).unwrap();
+        assert!(quiet.text.trim().is_empty(), "{}", quiet.text);
+    }
 }

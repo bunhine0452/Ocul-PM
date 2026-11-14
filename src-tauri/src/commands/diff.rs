@@ -7,6 +7,7 @@
 //!     "(snapshots arrive in 1.1)" hint instead of a generic failure.
 
 use std::fs;
+use std::io::Read;
 use std::path::PathBuf;
 
 use serde::Serialize;
@@ -14,7 +15,7 @@ use tauri::State;
 
 use super::blocking;
 use crate::db::Db;
-use crate::git::{self, render_unified_diff};
+use crate::git::{self, render_unified_diff_capped, CappedPatch};
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(tag = "source", rename_all = "snake_case")]
@@ -25,6 +26,9 @@ pub enum DiffSource {
     /// serve a baseline: fresh repo (HEAD-less), non-git project, or git
     /// returned an empty patch but the file changed on disk after indexing.
     Snapshot { patch: String },
+    /// 기준본도 스냅샷도 없는 새 파일 — 앞 `max_bytes` 만 읽어 통째로 더한 줄로 만든 패치
+    /// (11-15). 예전엔 `SnapshotsUnavailable` 를 받은 프런트가 파일을 크기 제한 없이 읽었다.
+    NewFile { patch: String },
     /// 이미지/기타 바이너리 파일 — 텍스트 diff 는 의미가 없어(깨진 문자 나열)
     /// 파일 카드(이미지는 이전/현재 프리뷰 포함)로 렌더한다. 사이즈는 선택한
     /// baseline 기준 이전/현재 바이트 수; `None` 쪽은 존재하지 않음(신규/삭제).
@@ -38,10 +42,46 @@ pub enum DiffSource {
     SnapshotsUnavailable,
 }
 
+/// 패치가 바이트 예산에서 잘렸다 — 보인 바이트 · 원래 바이트 (새 파일이면 파일 크기). 화면이
+/// 끝에 「64 KB / 212 KB 만 보여요」 를 달고, +N/−M 을 「이상」 으로 읽는다.
+#[derive(Debug, Clone, Copy, Serialize, specta::Type)]
+pub struct DiffTruncated {
+    pub shown: u32,
+    pub total: u32,
+}
+
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct DiffResult {
     pub path: String,
     pub source: DiffSource,
+    /// 잘렸으면 — 본문 끝에 영어 문장을 붙이던 것을 숫자로 따로 (11-15 #diff-receipt).
+    pub truncated: Option<DiffTruncated>,
+}
+
+impl DiffResult {
+    fn new(path: String, source: DiffSource) -> Self {
+        Self {
+            path,
+            source,
+            truncated: None,
+        }
+    }
+
+    /// 자른 패치 하나로 — `source` 가 패치를 감싼다.
+    fn capped(path: String, capped: CappedPatch, source: fn(String) -> DiffSource) -> Self {
+        Self {
+            path,
+            truncated: capped.cut.map(|c| DiffTruncated {
+                shown: clamp_u32(c.shown as u64),
+                total: clamp_u32(c.total as u64),
+            }),
+            source: source(capped.text),
+        }
+    }
+}
+
+fn git_source(patch: String) -> DiffSource {
+    DiffSource::Git { patch }
 }
 
 /// Hybrid diff: tries git first, falls back to the captured snapshot when git
@@ -59,6 +99,8 @@ pub async fn compute_diff(
     // `HEAD` (with snapshot fallback) — the default. `"last_commit"` = the most
     // recent commit (`HEAD~1..HEAD`), shown when the working tree is clean.
     baseline: Option<String>,
+    // 공백 무시 (`git diff -w`) — git 갈래에만 걸린다. 스냅샷 · 새 파일 갈래는 그대로.
+    ignore_whitespace: Option<bool>,
 ) -> Result<DiffResult, String> {
     let project = db
         .list_projects()
@@ -75,51 +117,79 @@ pub async fn compute_diff(
     crate::path_guard::secure_join_entry(&root, &path)?;
     let max_bytes = max_bytes as usize;
     let is_last_commit = baseline.as_deref() == Some("last_commit");
+    let ignore_ws = ignore_whitespace.unwrap_or(false);
 
     // 이미지 확장자는 diff 출력과 무관하게 항상 파일 카드로 — untracked 이미지는
     // git diff 가 빈 패치를 내놓아 "Binary files …" 감지에 걸리지 않는다.
     if image_mime(&path).is_some() {
         let source = binary_source(&db, project_id, &root, &path, true, is_last_commit).await;
-        return Ok(DiffResult { path, source });
+        return Ok(DiffResult::new(path, source));
     }
 
     // git·디스크는 전부 blocking 풀에서 — DB 조회(스냅샷)만 여기서 기다린다.
     if is_last_commit {
         let r = root.clone();
-        let result = blocking(move || committed_diff(&r, path, max_bytes)).await?;
+        let result = blocking(move || committed_diff(&r, path, max_bytes, ignore_ws)).await?;
         if let DiffSource::Git { patch } = &result.source {
             if patch_reports_binary(patch) {
                 let source = binary_source(&db, project_id, &root, &result.path, false, true).await;
-                return Ok(DiffResult {
-                    path: result.path,
-                    source,
-                });
+                return Ok(DiffResult::new(result.path, source));
             }
         }
         return Ok(result);
     }
 
     let (r, p) = (root.clone(), path.clone());
-    let patch = blocking(move || Ok(git::diff_patch(&r, &p, None, None, max_bytes))).await?;
+    let patch = blocking(move || Ok(working_patch(&r, &p, max_bytes, ignore_ws))).await?;
     match patch {
         // git 이 직접 바이너리라고 판정한 경우 (tracked 바이너리의 수정/삭제/스테이지된 추가).
-        Ok(patch) if patch_reports_binary(&patch) => {
+        Ok(Working::Patch(capped)) if patch_reports_binary(&capped.text) => {
             let source = binary_source(&db, project_id, &root, &path, false, false).await;
-            Ok(DiffResult { path, source })
+            Ok(DiffResult::new(path, source))
         }
-        Ok(patch) if !patch.trim().is_empty() => Ok(DiffResult {
-            path,
-            source: DiffSource::Git { patch },
-        }),
+        Ok(Working::Patch(capped)) => Ok(DiffResult::capped(path, capped, git_source)),
+        Ok(Working::WhitespaceOnly) => Ok(DiffResult::new(path, git_source(String::new()))),
         // git succeeded but produced an empty patch — for tracked files
         // that's the truth (HEAD == disk); for untracked files git silently
         // returns empty. Try the snapshot to disambiguate.
-        Ok(_) => snapshot_diff(&db, project_id, &root, path, max_bytes).await,
+        Ok(Working::Empty) => snapshot_diff(&db, project_id, &root, path, max_bytes).await,
         Err(e) if is_recoverable_git_failure(&e) => {
             snapshot_diff(&db, project_id, &root, path, max_bytes).await
         }
         Err(e) => Err(e),
     }
+}
+
+/// 작업 트리 대 `HEAD` 의 답 셋.
+enum Working {
+    Patch(CappedPatch),
+    /// 공백 무시로 비었지만 공백까지 보면 바뀐, 추적 중인 파일 — 답은 빈 git 패치다.
+    WhitespaceOnly,
+    /// git 이 아무것도 안 냈다 — 같거나(추적) git 이 모르는 파일(미추적).
+    Empty,
+}
+
+/// 공백 무시로 빈 패치가 나오면 공백 없이 한 번 더 묻는다 — 그대로 비우면 공백만 고친 추적 파일이
+/// 미추적 파일로 읽혀 스냅샷 · 새 파일 갈래로 넘어간다. 두 번째 실행은 이 드문 경우에만 돈다.
+fn working_patch(
+    root: &std::path::Path,
+    path: &str,
+    max_bytes: usize,
+    ignore_ws: bool,
+) -> Result<Working, String> {
+    let patch = git::diff_patch_capped(root, path, None, None, max_bytes, ignore_ws)?;
+    if !patch.text.trim().is_empty() {
+        return Ok(Working::Patch(patch));
+    }
+    if ignore_ws
+        && !git::diff_patch_capped(root, path, None, None, max_bytes, false)?
+            .text
+            .trim()
+            .is_empty()
+    {
+        return Ok(Working::WhitespaceOnly);
+    }
+    Ok(Working::Empty)
 }
 
 /// Binary variant 의 이전/현재 사이즈 채우기.
@@ -183,18 +253,16 @@ fn committed_diff(
     root: &std::path::Path,
     path: String,
     max_bytes: usize,
+    ignore_ws: bool,
 ) -> Result<DiffResult, String> {
-    let patch = match git::diff_patch(root, &path, Some("HEAD~1"), Some("HEAD"), max_bytes) {
+    let range =
+        |from| git::diff_patch_capped(root, &path, Some(from), Some("HEAD"), max_bytes, ignore_ws);
+    let patch = match range("HEAD~1") {
         Ok(p) => p,
-        Err(e) if is_recoverable_git_failure(&e) => {
-            git::diff_patch(root, &path, Some(git::EMPTY_TREE), Some("HEAD"), max_bytes)?
-        }
+        Err(e) if is_recoverable_git_failure(&e) => range(git::EMPTY_TREE)?,
         Err(e) => return Err(e),
     };
-    Ok(DiffResult {
-        path,
-        source: DiffSource::Git { patch },
-    })
+    Ok(DiffResult::capped(path, patch, git_source))
 }
 
 /// Files changed by the most recent commit, with its sha/subject. The 변경 diff
@@ -366,7 +434,6 @@ fn is_binary_bytes(bytes: &[u8]) -> bool {
 /// 디스크 파일의 앞 8KB 만 읽어 바이너리 여부 판별. 읽기 실패는 "텍스트"로
 /// 취급해 기존 경로의 (더 구체적인) 에러 메시지가 유지되게 한다.
 fn is_binary_on_disk(abs: &std::path::Path) -> bool {
-    use std::io::Read;
     let Ok(mut f) = fs::File::open(abs) else {
         return false;
     };
@@ -409,27 +476,34 @@ fn diff_against_snapshot(
     max_bytes: usize,
 ) -> Result<DiffResult, String> {
     let Some(snapshot) = snapshot else {
-        // 스냅샷도 git baseline 도 없는 신규 파일. 바이너리면 프론트가 통짜
-        // additions 로 읽으려다 실패(read_project_file 은 UTF-8 전용)하고
-        // "읽는 중…" 에 갇히므로, 여기서 파일 카드로 강등한다.
+        // 스냅샷도 git baseline 도 없는 신규 파일. 바이너리면 깨진 문자 나열 대신 파일 카드로.
         if is_binary_on_disk(abs) {
             let new_size = fs::metadata(abs)
                 .ok()
                 .filter(|m| m.is_file())
                 .map(|m| m.len());
-            return Ok(DiffResult {
+            return Ok(DiffResult::new(
                 path,
-                source: DiffSource::Binary {
+                DiffSource::Binary {
                     is_image: false,
                     old_size: None,
                     new_size: new_size.map(clamp_u32),
                 },
-            });
+            ));
         }
-        return Ok(DiffResult {
-            path,
-            source: DiffSource::SnapshotsUnavailable,
-        });
+        // 텍스트면 앞 `max_bytes` 만 읽어 통째로 더한 줄로. 디스크에 없으면(지워진 신규 파일)
+        // 보여 줄 것이 없다 — 화면이 「삭제됨」 을 말한다.
+        return match read_head(abs, max_bytes) {
+            Ok((head, total)) => Ok(DiffResult::capped(
+                path.clone(),
+                git::new_file_patch(&path, &head, total),
+                |patch| DiffSource::NewFile { patch },
+            )),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Ok(DiffResult::new(path, DiffSource::SnapshotsUnavailable))
+            }
+            Err(e) => Err(format!("Failed to read {}: {}", path, e)),
+        };
     };
 
     // A deleted file (no longer on disk) is not an error: render it as an
@@ -445,33 +519,82 @@ fn diff_against_snapshot(
     // 어느 한쪽이라도 바이너리면 lossy 텍스트 diff(깨진 문자 나열) 대신 파일
     // 카드로. 삭제된 파일(disk `None`)은 new_size = None 으로 내려간다.
     if is_binary_bytes(&snapshot) || disk_content.as_deref().is_some_and(is_binary_bytes) {
-        return Ok(DiffResult {
+        return Ok(DiffResult::new(
             path,
-            source: DiffSource::Binary {
+            DiffSource::Binary {
                 is_image: false,
                 old_size: Some(clamp_u32(snapshot.len() as u64)),
                 new_size: disk_content.map(|c| clamp_u32(c.len() as u64)),
             },
-        });
+        ));
     }
 
     let disk_content = disk_content.unwrap_or_default();
     if disk_content == snapshot {
-        return Ok(DiffResult {
+        return Ok(DiffResult::new(
             path,
-            source: DiffSource::Snapshot {
+            DiffSource::Snapshot {
                 patch: String::new(),
             },
-        });
+        ));
     }
 
     let prev_text = String::from_utf8_lossy(&snapshot);
     let next_text = String::from_utf8_lossy(&disk_content);
-    let patch = render_unified_diff(&path, &prev_text, &next_text, max_bytes);
+    let patch = render_unified_diff_capped(&path, &prev_text, &next_text, max_bytes);
+    Ok(DiffResult::capped(path, patch, |patch| {
+        DiffSource::Snapshot { patch }
+    }))
+}
 
-    Ok(DiffResult {
-        path,
-        source: DiffSource::Snapshot { patch },
+/// 파일의 앞 `max_bytes` 와 전체 크기 — 큰 로그를 통째로 읽지 않는다.
+fn read_head(abs: &std::path::Path, max_bytes: usize) -> std::io::Result<(Vec<u8>, usize)> {
+    let file = fs::File::open(abs)?;
+    let total = file.metadata()?.len() as usize;
+    let mut head = Vec::with_capacity(total.min(max_bytes));
+    file.take(max_bytes as u64).read_to_end(&mut head)?;
+    let total = total.max(head.len());
+    Ok((head, total))
+}
+
+/// 바뀐 파일 가운데 **생성된 파일** — 맨 위 열 줄(앞 2KB) 안에 `@generated` · `generated by`
+/// 표지가 든 것 (11-15 #diff-basics). 변경 목록이 끝의 「생성된 파일 N개」 한 줄로 접는다 —
+/// 이 저장소의 `bindings.ts` 처럼 매번 목록을 차지하던 것. 잠금 파일(`Cargo.lock` …)은 이름만으로
+/// 알 수 있어 프런트가 가른다. 읽기만 하고, 루트 밖 · 읽지 못하는 파일은 생성된 파일이 아니다.
+#[tauri::command]
+#[specta::specta]
+pub async fn diff_generated_files(
+    db: State<'_, Db>,
+    project_id: u32,
+    paths: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let project = db
+        .list_projects()
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|p| p.id == project_id)
+        .ok_or_else(|| format!("project {project_id} not found"))?;
+    let root = PathBuf::from(&project.root_path);
+    blocking(move || {
+        Ok(paths
+            .into_iter()
+            .filter(|p| head_says_generated(&root, p))
+            .collect())
+    })
+    .await
+}
+
+fn head_says_generated(root: &std::path::Path, rel: &str) -> bool {
+    let Ok(abs) = crate::path_guard::secure_join(root, rel) else {
+        return false;
+    };
+    let Ok((head, _)) = read_head(&abs, 2048) else {
+        return false;
+    };
+    String::from_utf8_lossy(&head).lines().take(10).any(|line| {
+        let line = line.to_ascii_lowercase();
+        line.contains("@generated") || line.contains("generated by")
     })
 }
 
@@ -513,6 +636,58 @@ mod tests {
         let mut tail_nul = vec![b'a'; 9000];
         tail_nul[8500] = 0;
         assert!(!is_binary_bytes(&tail_nul));
+    }
+
+    /// 기준본 없는 큰 새 파일 — 앞 64KB 만 읽어 더한 줄로, 잘린 자리는 숫자로 (11-15).
+    #[test]
+    fn a_big_new_file_reads_only_its_head() {
+        let dir = tempfile::tempdir().unwrap();
+        let abs = dir.path().join("big.log");
+        let body: String = (0..20_000).map(|i| format!("log line {i:06}\n")).collect();
+        std::fs::write(&abs, &body).unwrap();
+        let r = diff_against_snapshot(&abs, "big.log".into(), None, 64 * 1024).unwrap();
+        let DiffSource::NewFile { patch } = &r.source else {
+            panic!("expected new_file, got {:?}", r.source);
+        };
+        let cut = r.truncated.expect("truncated");
+        assert!(cut.shown <= 64 * 1024, "{}", cut.shown);
+        assert_eq!(cut.total as usize, body.len());
+        assert!(patch.starts_with("diff --git a/big.log b/big.log\n"));
+        assert!(!patch.contains("truncated"));
+        // 작은 새 파일은 통째로, 끝 줄바꿈 뒤 빈 조각 없이.
+        std::fs::write(&abs, "a\nb\n").unwrap();
+        let r = diff_against_snapshot(&abs, "big.log".into(), None, 64 * 1024).unwrap();
+        assert!(r.truncated.is_none());
+        assert!(
+            matches!(&r.source, DiffSource::NewFile { patch } if patch.ends_with("@@ -0,0 +1,2 @@\n+a\n+b\n"))
+        );
+        // 디스크에 없으면(지워진 신규 파일) 보여 줄 것이 없다.
+        let gone = diff_against_snapshot(&dir.path().join("gone.txt"), "gone.txt".into(), None, 64)
+            .unwrap();
+        assert!(matches!(gone.source, DiffSource::SnapshotsUnavailable));
+    }
+
+    /// 생성된 파일 — 맨 위의 표지로만 가린다. 본문 깊은 곳의 「generated by」 는 아니다.
+    #[test]
+    fn generated_files_are_known_by_their_header() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::write(
+            root.join("bindings.ts"),
+            "// This file was generated by [tauri-specta]. Do not edit.\nexport {};\n",
+        )
+        .unwrap();
+        std::fs::write(root.join("schema.rs"), "// @generated\npub struct A;\n").unwrap();
+        let deep: String =
+            (0..30).map(|i| format!("line {i}\n")).collect::<String>() + "// generated by hand\n";
+        std::fs::write(root.join("deep.ts"), deep).unwrap();
+        std::fs::write(root.join("app.ts"), "export const a = 1;\n").unwrap();
+        assert!(head_says_generated(root, "bindings.ts"));
+        assert!(head_says_generated(root, "schema.rs"));
+        assert!(!head_says_generated(root, "deep.ts"));
+        assert!(!head_says_generated(root, "app.ts"));
+        assert!(!head_says_generated(root, "missing.ts"));
+        assert!(!head_says_generated(root, "../outside.ts"));
     }
 
     #[test]
