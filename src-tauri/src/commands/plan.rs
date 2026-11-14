@@ -529,23 +529,27 @@ mod tests {
         std::fs::create_dir_all(&planner).unwrap();
         let other = if HERE == "mac" { "windows" } else { "mac" };
         // 판정 시각은 먼 옛날 — 지금 저장한 파일은 무엇이든 그 뒤에 바뀐 것이다.
-        let plan = |id: &str, note: &str| {
+        let plan = |id: &str, status: &str, note: &str| {
             format!(
-                "---\noculpm_plan: v1\nid: {id}\ntitle: \"{id}\"\nstatus: active\nowner: claude-code\nupdated: 2026-11-14\n---\n\n\
+                "---\noculpm_plan: v1\nid: {id}\ntitle: \"{id}\"\nstatus: {status}\nowner: claude-code\nupdated: 2026-11-14\n---\n\n\
                  ## A\n- [x] 끝 {{#a}}\n\n<!-- oculpm:plan-log begin v1 -->\n\
                  | ts | item | agent | change | journal | note |\n|---|---|---|---|---|---|\n\
                  | 2020-01-02T10:00:00+09:00 | #a | claude-code | ~→x | .oculpm/journal/20200102/Bugs/1000_bug_{id}.md | {note} |\n\
                  <!-- oculpm:plan-log end -->\n"
             )
         };
-        std::fs::write(planner.join("here.md"), plan("here", "판정 ✓ 3 passed")).unwrap();
-        std::fs::write(
-            planner.join("away.md"),
-            plan("away", &format!("판정 ✓ 3 passed · {other}")),
-        )
-        .unwrap();
+        let away_note = format!("판정 ✓ 3 passed · {other}");
+        for (id, status, note) in [
+            ("here", "active", "판정 ✓ 3 passed"),
+            ("away", "active", away_note.as_str()),
+            // 닫힌 계획 — 같은 사정이어도 묻지 않는다(오늘 화면과 같은 범위).
+            ("closed", "done", "판정 ✓ 3 passed"),
+            ("closed-away", "archived", away_note.as_str()),
+        ] {
+            std::fs::write(planner.join(format!("{id}.md")), plan(id, status, note)).unwrap();
+        }
         let journal = root.join(".oculpm").join("journal");
-        for id in ["here", "away"] {
+        for id in ["here", "away", "closed", "closed-away"] {
             let p = journal.join(format!("20200102/Bugs/1000_bug_{id}.md"));
             std::fs::create_dir_all(p.parent().unwrap()).unwrap();
             let fm = format!(
@@ -578,10 +582,20 @@ mod tests {
             "「여기선 아직」에 「통과 뒤 바뀜」을 겹치지 않는다"
         );
 
+        // 닫힌 계획은 기록된 판정 그대로다 — 할 일이 없는(잠긴) 계획이 예외 색을 받지 않는다.
+        for id in ["closed", "closed-away"] {
+            let p = list.iter().find(|p| p.plan_id == id).unwrap();
+            assert!(p.last_verdict.as_ref().is_some_and(|v| v.passed), "{id}");
+            assert!(p.stale_files.is_empty(), "{id}");
+            assert_eq!(p.verdict_from, None, "{id}");
+        }
+
         // 상세도 같은 두 칸 — 판정 카드가 레일과 다른 상태를 그리지 않는다.
         let d = plan_detail(&db, pid, "here").await.unwrap().unwrap();
         assert_eq!(d.plan.stale_files, ["src/here.rs"]);
         let d = plan_detail(&db, pid, "away").await.unwrap().unwrap();
         assert_eq!(d.plan.verdict_from.as_deref(), Some(other));
+        let d = plan_detail(&db, pid, "closed").await.unwrap().unwrap();
+        assert!(d.plan.stale_files.is_empty());
     }
 }

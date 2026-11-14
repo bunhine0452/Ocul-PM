@@ -253,13 +253,30 @@ pub async fn mark_stale(
 
 /// 계획 화면의 판정 두 칸(`PlanSummary::stale_files` · `verdict_from`)을 오늘 화면과 같은 계산으로
 /// 채운다 — 계획 명령(`plan_list` · `plan_get` · 상태 바꾸기 · 닫기)이 내보내기 전에 부른다.
+///
+/// 진행 중(`active`) 계획만 묻는다 — 오늘 화면(`build`)과 같은 범위. 닫힌(done · archived) 계획은 잠겨서
+/// 할 일이 없는데, 묻기 시작하면 그 파일이 한 번만 다시 저장돼도 끝난 계획 전부가 호박색 ✓ 를 받는다
+/// (예외만 보인다는 규칙 · 영수증 규칙 1). 계획 목록을 읽을 때마다 끝난 계획 전부의 파일을 stat 하지도 않는다.
+/// 닫힌 계획의 판정은 기록된 그대로다(회색 통과 · 빨강 실패).
 pub async fn verdict_now(db: &Db, project_id: u32, details: &mut [PlanDetail]) {
-    let mut plans: Vec<DigestPlan> = details.iter().map(plan_of).collect();
-    let links: Vec<JournalPlanLink> = details.iter().flat_map(links_of).collect();
+    let open: Vec<&PlanDetail> = details
+        .iter()
+        .filter(|d| d.plan.status == "active")
+        .collect();
+    let mut plans: Vec<DigestPlan> = open.iter().map(|d| plan_of(d)).collect();
+    let links: Vec<JournalPlanLink> = open.iter().flat_map(|d| links_of(d)).collect();
     mark_stale(db, project_id, &mut plans, &links).await;
-    for (d, p) in details.iter_mut().zip(plans) {
-        d.plan.stale_files = p.stale_files;
-        d.plan.verdict_from = p.verdict_from;
+    let mut plans = plans.into_iter();
+    for d in details.iter_mut() {
+        let now = if d.plan.status == "active" {
+            plans.next()
+        } else {
+            None
+        };
+        (d.plan.stale_files, d.plan.verdict_from) = match now {
+            Some(p) => (p.stale_files, p.verdict_from),
+            None => (Vec::new(), None),
+        };
     }
 }
 
