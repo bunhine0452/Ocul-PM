@@ -17,6 +17,7 @@ use tauri::State;
 use crate::app_error::AppError;
 use crate::db::Db;
 use crate::oculpm::cache::JournalCache;
+use crate::oculpm::journal_search::alive::{gone_entries, gone_last};
 use crate::oculpm::journal_search::cache::SqlFilters;
 use crate::oculpm::journal_search::{rank, tokenize};
 
@@ -105,12 +106,14 @@ pub async fn oculpm_search_journal(
         until: filters.until.filter(|s| !s.is_empty()),
     };
     let rows = JournalCache::new(&db).search_rows(project_id, sql).await?;
-    let scored = rank(rows, &tokenize(Some(query.as_str())));
+    let root = db.project_root(project_id).await?;
+    // 에이전트의 `journal_search` 와 같은 순서 — 건드린 파일이 하나도 남지 않은 일지는 뒤로.
+    let (scored, _gone) = gone_last(&root, rank(rows, &tokenize(Some(query.as_str()))));
     let total = scored.len() as u32;
     let hits = scored
         .iter()
         .take(limit)
-        .map(|hit| JournalSearchHit {
+        .map(|(hit, _alive)| JournalSearchHit {
             relative_path: hit.row.relative_path.clone(),
             workday: hit.row.workday.clone(),
             entry_type: hit.row.type_token.clone(),
@@ -123,4 +126,17 @@ pub async fn oculpm_search_journal(
         })
         .collect();
     Ok(JournalSearchPage { hits, total })
+}
+
+/// 건드린 파일이 지금 프로젝트에 하나도 없는 일지의 경로 — 일지 화면이 한 줄로 접는다.
+/// 일지는 지우지 않는다. 판정은 `journal_search::alive` (파일이 있는가, LLM 0 · git 0).
+#[tauri::command]
+#[specta::specta]
+pub async fn oculpm_gone_journals(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Vec<String>, AppError> {
+    let touches = JournalCache::new(&db).file_touches(project_id).await?;
+    let root = db.project_root(project_id).await?;
+    Ok(gone_entries(&root, touches))
 }

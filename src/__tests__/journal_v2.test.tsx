@@ -61,6 +61,8 @@ const fixtures: {
   hitsTotal: number | null;
   entryDiffs: typeof DEFAULT_DIFFS;
   planLinks: Array<{ journal_ref: string; plan_id: string; plan_title: string; item_id: string }>;
+  /** 사라진 코드의 일지 — 건드린 파일이 지금 하나도 없는 일지의 경로. */
+  gone: string[];
 } = {
   byWorkday: {},
   allPeriod: [],
@@ -69,6 +71,7 @@ const fixtures: {
   hitsTotal: null,
   entryDiffs: DEFAULT_DIFFS,
   planLinks: [],
+  gone: [],
 };
 
 /** 워처 이벤트를 테스트가 직접 쏘기 위한 최소 버스 (채널명 → 리스너). */
@@ -138,6 +141,7 @@ vi.mock("@/api/oculpm", () => {
           frontmatter: { files_touched: [], related: [], agent: { id: "claude-code", version: "Opus 5.5" } },
         }),
       getFileChanges: () => Promise.resolve([]),
+      goneJournals: () => Promise.resolve(fixtures.gone),
       createManualEntry: (_pid: number, draft: Record<string, unknown>) => {
         manualMock.calls += 1;
         manualMock.lastDraft = draft;
@@ -232,6 +236,7 @@ beforeEach(() => {
   fixtures.hitsTotal = null;
   fixtures.entryDiffs = DEFAULT_DIFFS;
   fixtures.planLinks = [];
+  fixtures.gone = [];
   for (const k of Object.keys(eventBus)) delete eventBus[k];
   manualMock.calls = 0;
   manualMock.lastDraft = null;
@@ -362,6 +367,51 @@ describe("작업 일지 — 목록", () => {
     expect(container.querySelectorAll(".jl-item")).toHaveLength(150);
     fireEvent.click(getByText("10건 더 보기"));
     await waitFor(() => expect(container.querySelectorAll(".jl-item")).toHaveLength(160));
+  });
+});
+
+describe("작업 일지 — 사라진 코드의 일지는 날마다 한 줄로 접힌다", () => {
+  const seed = () => {
+    fixtures.byWorkday["20260531"] = [
+      summary({ relative_path: "20260531/F/1000_a.md", title: "지금 코드", created_at: "2026-05-31T10:00:00+09:00" }),
+      summary({ relative_path: "20260531/B/0900_b.md", title: "걷어낸 화면", type: "bug", created_at: "2026-05-31T09:00:00+09:00" }),
+    ];
+    fixtures.allPeriod = fixtures.byWorkday["20260531"];
+    fixtures.gone = ["20260531/B/0900_b.md"];
+  };
+
+  it("접힌 줄이 건수를 말하고, 일지는 그 안에 그대로 있다", async () => {
+    seed();
+    const { findByText, container } = renderJournal();
+    const fold = (await findByText("사라진 코드의 일지 1건")).closest("details") as HTMLDetailsElement;
+    expect(fold.open).toBe(false);
+    expect(Array.from(fold.querySelectorAll(".jl-ti")).map((e) => e.textContent)).toEqual(["걷어낸 화면"]);
+    // 접힌 것 밖에는 지금 코드의 일지만.
+    expect(Array.from(container.querySelectorAll("section > .jl-item .jl-ti")).map((e) => e.textContent)).toEqual(["지금 코드"]);
+  });
+
+  it("거르는 중에는 접지 않는다 — 그때 사람은 바로 그 일지를 찾는 중일 수 있다", async () => {
+    seed();
+    const { findByText, findByRole, container } = renderJournal();
+    await findByText("사라진 코드의 일지 1건");
+    fireEvent.click(await findByRole("tab", { name: "버그·에러" }));
+    await waitFor(() => expect(rowTitles(container)).toEqual(["걷어낸 화면"]));
+    expect(container.querySelector(".jl-gone")).toBeNull();
+  });
+
+  it("고른 일지가 접힌 쪽이면 펴 둔다", async () => {
+    seed();
+    const { findByText } = renderJournal({ focusPath: "20260531/B/0900_b.md" });
+    const fold = (await findByText("사라진 코드의 일지 1건")).closest("details") as HTMLDetailsElement;
+    await waitFor(() => expect(fold.open).toBe(true));
+  });
+
+  it("전부가 그런 일지면 접지 않는다", async () => {
+    seed();
+    fixtures.gone = ["20260531/B/0900_b.md", "20260531/F/1000_a.md"];
+    const { findByText, container } = renderJournal();
+    await findByText("지금 코드");
+    expect(container.querySelector(".jl-gone")).toBeNull();
   });
 });
 

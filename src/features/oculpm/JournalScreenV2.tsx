@@ -17,6 +17,7 @@ import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { isEvidenceMissing } from "./evidenceState";
 import { JOURNAL_PAGE_SIZE, useJournalDays, type JournalDay } from "./useJournalDays";
 import { normalizeJournalRef, useJournalPlanLinks } from "./useJournalPlanLinks";
+import { useGoneJournals } from "./useGoneJournals";
 import { useJournalSearch } from "./useJournalSearch";
 import { useJournalTotal } from "./useJournalTotal";
 import "./journal.css";
@@ -126,6 +127,7 @@ export function JournalScreenV2({
   const found = useJournalSearch(projectId, todayKey, oculpmReady && searching, query, typeStrings);
   const total = useJournalTotal(projectId, oculpmReady);
   const planLinks = useJournalPlanLinks(projectId, oculpmReady);
+  const gone = useGoneJournals(projectId, oculpmReady);
 
   const rawDays: JournalDay[] | null = searching ? found.days : feed.days;
   const loading = searching ? found.loading : feed.loading;
@@ -476,6 +478,7 @@ export function JournalScreenV2({
               limit={rowLimit}
               onMore={() => setRowLimit((n) => n + ROW_LIMIT)}
               listRef={listRef}
+              gone={filtered ? undefined : gone}
               notice={
                 <>
                   {error ? <ErrorCard title={t("journal.loadFailed")} error={error} onRetry={refresh} style={{ margin: 12 }} /> : null}

@@ -19,6 +19,8 @@ const fx = vi.hoisted(() => ({
   details: {} as Record<string, unknown>,
   edits: [] as Array<{ planId: string; op: unknown }>,
   dispatch: [] as Array<[string, string]>,
+  closed: [] as string[],
+  reopened: [] as string[],
 }));
 
 // 「다음」 은 앱 안 터미널에서 실행된다 — 터미널(xterm)은 띄우지 않고 넘긴 프롬프트만 본다.
@@ -51,6 +53,17 @@ vi.mock("@/lib/bindings", () => {
                 fx.edits.push({ planId, op });
                 return ok(fx.details[planId]);
               };
+            case "planClose":
+              return (_p: number, planId: string) => {
+                fx.closed.push(planId);
+                const d = fx.details[planId] as { plan: object } | undefined;
+                return ok(d ? { ...d, plan: { ...d.plan, status: "done" } } : null);
+              };
+            case "planReopen":
+              return (_p: number, planId: string) => {
+                fx.reopened.push(planId);
+                return ok(fx.details[planId] ?? null);
+              };
             case "planLog":
               return () => ok([]);
             case "planLockedOpen":
@@ -76,6 +89,7 @@ import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { t } from "@/i18n";
+import { dismissToast, getToasts } from "@/lib/toast";
 
 const summarize = (r: AxeResults) =>
   r.violations.map((v: Result) => ({ id: v.id, help: v.help, nodes: v.nodes.length }));
@@ -150,6 +164,9 @@ beforeEach(() => {
   fx.details = {};
   fx.edits = [];
   fx.dispatch = [];
+  fx.closed = [];
+  fx.reopened = [];
+  for (const toast of getToasts()) dismissToast(toast.id);
   Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true });
 });
 afterEach(() => cleanup());
@@ -254,6 +271,30 @@ describe("다음 · 터미널에서 실행", () => {
     stage([p], [detail(p, [it_("a", "done", 0), it_("b", "dropped", 1)])]);
     renderPlanner();
     expect(await screen.findByText(t("plan.nextRow.allClosed"))).toBeInTheDocument();
+  });
+});
+
+describe("계획 닫기 — 남은 항목이 0 일 때만 (11-14)", () => {
+  it("닫으면 끝난 계획이 되고, 알림의 「되돌리기」 가 다시 연다", async () => {
+    const p = summary("finished");
+    stage([p], [detail(p, [it_("a", "done", 0), it_("b", "dropped", 1)])]);
+    renderPlanner();
+    fireEvent.click(await screen.findByRole("button", { name: t("plan.close") }));
+    await waitFor(() => expect(fx.closed).toEqual(["finished"]));
+    // 닫힌 계획은 잠긴다 — 다음 줄도 닫기 단추도 사라진다.
+    await waitFor(() => expect(screen.queryByRole("button", { name: t("plan.close") })).toBeNull());
+    const note = getToasts().find((x) => x.message === t("plan.closed", { title: p.title }));
+    expect(note?.actions?.[0].label).toBe(t("plan.closeUndo"));
+    note?.actions?.[0].onClick();
+    await waitFor(() => expect(fx.reopened).toEqual(["finished"]));
+  });
+
+  it("남은 항목이 있으면 단추가 없다 — 막힘도 남은 것이다", async () => {
+    const p = summary("stuck");
+    stage([p], [detail(p, [it_("a", "done", 0), it_("b", "blocked", 1)])]);
+    renderPlanner();
+    await screen.findByText(t("plan.nextRow.none"));
+    expect(screen.queryByRole("button", { name: t("plan.close") })).toBeNull();
   });
 });
 

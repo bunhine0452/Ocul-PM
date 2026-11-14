@@ -12,6 +12,7 @@ mod plan;
 mod plan_anchor;
 mod plan_goal;
 mod search;
+mod search_alive;
 mod tags;
 mod title;
 

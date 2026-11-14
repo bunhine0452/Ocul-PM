@@ -32,7 +32,7 @@ pub fn changed_after(root: &Path, files: &[String], verdict_ts: &str) -> Vec<Str
 }
 
 /// 일지가 적은 경로가 프로젝트 안 · 기록 폴더 밖인가.
-fn inside_project(rel: &str) -> bool {
+pub(crate) fn inside_project(rel: &str) -> bool {
     let p = Path::new(rel);
     !rel.is_empty()
         && !rel.starts_with(".oculpm/")

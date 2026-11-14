@@ -67,6 +67,19 @@
 .jl-meta { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jl-ok { display: inline-flex; align-items: center; flex: none; color: var(--text-2); }
 /* `<i>` 는 인라인이라 flex 밖에서는 크기가 죽는다 — 블록으로. */
+/* 사라진 코드의 일지 — 날마다 한 줄로 접힌다. 계획 목록의 「끝난 계획」 과 같은 손잡이. */
+.jl-gone > summary { cursor: pointer; list-style: none; }
+.jl-gone > summary::-webkit-details-marker { display: none; }
+.jl-gone-h {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  border-bottom: 1px solid var(--sep);
+  font-size: var(--fs-3); color: var(--text-2);
+}
+.jl-gone-h:hover { background: var(--bg-hover); }
+.jl-gone-h:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+.jl-gone-chev { flex: none; transition: transform var(--dur-1) var(--ease-out); }
+.jl-gone[open] .jl-gone-chev { transform: rotate(90deg); }
 .jl-more { margin: var(--space-5) var(--space-6); align-self: flex-start; }
 .jl-empty { padding: var(--space-6); font-size: var(--fs-3); color: var(--text-2); }
 

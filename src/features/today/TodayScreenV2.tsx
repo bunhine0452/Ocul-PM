@@ -33,7 +33,7 @@ import { toast } from "@/lib/toast";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
 import { TodayExceptions } from "./TodayExceptions";
-import { ArrivedLine, LiveCard, LocalOnlyLine, MineLine, NextCard } from "./TodaySide";
+import { ArrivedLine, ClosableLine, LiveCard, LocalOnlyLine, MineLine, NextCard } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
 import { Num } from "./todayFormat";
 import { firstNext, osLabel, splitExceptions, type TodayException } from "./todayModel";
@@ -299,6 +299,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                   <TodayExceptions part="first" {...exceptionProps} />
                   {data.digest && data.digest.plans.length > 0 ? <NextCard next={next} onRun={() => void runNext()} /> : null}
                   {split && split.mine.length > 0 ? <MineLine mine={split.mine} onOpen={openPlan} /> : null}
+                  {data.digest ? <ClosableLine plans={data.digest.plans} onOpen={openPlan} /> : null}
                   <ArrivedLine arrived={data.arrived} now={now} onOpen={(p) => openEntry({ relative_path: p })} />
                   <LocalOnlyLine
                     local={data.localOnly}

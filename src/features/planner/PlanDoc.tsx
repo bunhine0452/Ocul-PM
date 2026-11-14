@@ -69,10 +69,12 @@ function NextRow({
   items,
   onRun,
   onRunUntilDone,
+  onClose,
 }: {
   items: PlanItemDto[];
   onRun: (item: PlanItemDto) => void;
   onRunUntilDone: (item: PlanItemDto) => void;
+  onClose: () => void;
 }) {
   const { t } = useT();
   const next = nextLeaf(items);
@@ -94,8 +96,21 @@ function NextRow({
             {t("plan.nextRow.untilDone")}
           </button>
         </>
+      ) : hasOpenLeaves(items) ? (
+        <span className="plv-meta">{t("plan.nextRow.none")}</span>
       ) : (
-        <span className="plv-meta">{hasOpenLeaves(items) ? t("plan.nextRow.none") : t("plan.nextRow.allClosed")}</span>
+        <>
+          <span className="plv-meta">{t("plan.nextRow.allClosed")}</span>
+          {/* 닫기는 사람의 결정이다 — 남은 항목이 0 일 때만 선다. 닫지 않으면 「진행 중」 으로 쌓인다(11-14). */}
+          {items.length > 0 ? (
+            <>
+              <span className="plv-grow" />
+              <button type="button" className="btn sm" title={t("plan.closeTitle")} onClick={onClose}>
+                {t("plan.close")}
+              </button>
+            </>
+          ) : null}
+        </>
       )}
     </div>
   );
@@ -108,6 +123,7 @@ export function PlanDoc({
   onSetStatus,
   onRun,
   onRunUntilDone,
+  onClose,
   onOpenJournal,
 }: {
   projectId: number;
@@ -116,6 +132,8 @@ export function PlanDoc({
   onSetStatus: (item: PlanItemDto, status: string) => void;
   onRun: (item: PlanItemDto) => void;
   onRunUntilDone: (item: PlanItemDto) => void;
+  /** 이 계획을 닫는다 — 남은 항목이 0 일 때만 단추가 선다. */
+  onClose: () => void;
   onOpenJournal: (ref: string) => void;
 }) {
   const { t } = useT();
@@ -130,7 +148,7 @@ export function PlanDoc({
         <h2 className="plv-title">{p.title}</h2>
       </header>
       <JudgeCard detail={detail} />
-      {locked ? null : <NextRow items={detail.items} onRun={onRun} onRunUntilDone={onRunUntilDone} />}
+      {locked ? null : <NextRow items={detail.items} onRun={onRun} onRunUntilDone={onRunUntilDone} onClose={onClose} />}
       <PlanItems
         items={detail.items}
         locked={locked}

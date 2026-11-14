@@ -18,6 +18,7 @@ fn row(path: &str, workday: &str, title: &str, body: &str) -> SearchRow {
         slug: "slug".to_string(),
         tags: Vec::new(),
         files: Vec::new(),
+        files_dropped: Vec::new(),
         body: body.to_string(),
         file_hit: None,
     }

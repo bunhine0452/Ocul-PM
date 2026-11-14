@@ -189,6 +189,13 @@ export const oculpmApi = {
     ),
 
   /**
+   * 건드린 파일이 지금 프로젝트에 하나도 없는 일지의 경로 — 일지 화면이 한 줄로 접는다.
+   * 일지는 지우지 않는다. 지우거나 옮긴 파일은 세지 않으므로 「걷어냈다」는 일지는 들어오지 않는다.
+   */
+  goneJournals: (projectId: number) =>
+    unwrap<string[]>("oculpm_gone_journals", commands.oculpmGoneJournals(projectId)),
+
+  /**
    * 여러 workday 의 일지 요약을 한 번에 (최대 62일). 일지 검색이 히트(경로)를 요약 행으로
    * 푸는 데 쓴다 — 요약에는 증거 등급·에이전트·시각이 있고 검색 히트에는 없다.
    */

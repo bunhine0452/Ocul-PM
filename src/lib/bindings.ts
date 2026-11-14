@@ -100,6 +100,41 @@ export const commands = {
 	check: string | null,
 } | null, string>(__TAURI_INVOKE("plan_apply_edit", { projectId, planId, op, agentId })),
 	/**
+	 *  계획을 닫는다(`active → done`) — 남은 항목이 0 일 때만. 미완이 남았으면
+	 *  `plan_has_open_items` 로 거부한다 (`planner/lifecycle.rs` 의 문지기).
+	 */
+	planClose: (projectId: number, planId: string) => typedError<{
+	plan: PlanSummary,
+	items: PlanItemDto[],
+	phases: PlanPhaseDto[],
+	decisions: PlanDecisionDto[],
+	/**
+	 *  Non-fatal parse warnings (broken glyphs, missing ids, …). Surfaced so
+	 *  the UI never fails silently on a malformed plan.
+	 */
+	warnings: string[],
+	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
+	done_when: string | null,
+	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
+	check: string | null,
+} | null, AppError>(__TAURI_INVOKE("plan_close", { projectId, planId })),
+	/**  닫기를 되돌린다(`done → active`) — 닫은 직후 알림의 「되돌리기」 가 부른다. */
+	planReopen: (projectId: number, planId: string) => typedError<{
+	plan: PlanSummary,
+	items: PlanItemDto[],
+	phases: PlanPhaseDto[],
+	decisions: PlanDecisionDto[],
+	/**
+	 *  Non-fatal parse warnings (broken glyphs, missing ids, …). Surfaced so
+	 *  the UI never fails silently on a malformed plan.
+	 */
+	warnings: string[],
+	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
+	done_when: string | null,
+	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
+	check: string | null,
+} | null, AppError>(__TAURI_INVOKE("plan_reopen", { projectId, planId })),
+	/**
 	 *  IN2 (#in2-dispatch) — 항목 실행 프롬프트를 조립해 `.oculpm/index/dispatch/`
 	 *  (앱 관리·gitignore 영역)에 쓰고, 터미널 프리필용 한 줄 명령을 돌려준다.
 	 */
@@ -574,6 +609,11 @@ export const commands = {
 	/**  `YYYYMMDD` 이하. */
 	until?: string | null,
 } | null, limit: number | null) => typedError<JournalSearchPage, AppError>(__TAURI_INVOKE("oculpm_search_journal", { projectId, query, filters, limit })),
+	/**
+	 *  건드린 파일이 지금 프로젝트에 하나도 없는 일지의 경로 — 일지 화면이 한 줄로 접는다.
+	 *  일지는 지우지 않는다. 판정은 `journal_search::alive` (파일이 있는가, LLM 0 · git 0).
+	 */
+	oculpmGoneJournals: (projectId: number) => typedError<string[], AppError>(__TAURI_INVOKE("oculpm_gone_journals", { projectId })),
 	/**
 	 *  이 프로젝트의 태그 어휘 — 빈도 내림차순, 동점은 사전순(결정적).
 	 * 
@@ -1163,6 +1203,11 @@ export type DigestPlan = {
 	progress: number | null,
 	done_count: number,
 	item_count: number,
+	/**
+	 *  닫을 수 있다 — 항목이 있고 남은 것(할 일 · 진행 · 막힘)이 0 이다
+	 *  (`lifecycle::close_plan` 이 받아 주는 조건과 같다).
+	 */
+	closable: boolean,
 	updated_at: string,
 	done_when: string | null,
 	check: string | null,

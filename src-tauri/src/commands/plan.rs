@@ -9,12 +9,14 @@ use std::path::{Path, PathBuf};
 
 use tauri::State;
 
+use crate::app_error::AppError;
 use crate::db::Db;
 use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::planner::dispatch::{
     build_dispatch_prompt, project_redact_patterns, shell_command_for,
 };
+use crate::oculpm::planner::lifecycle::{close_plan, reopen_plan};
 use crate::oculpm::planner::log_archive::archive_overflow;
 use crate::oculpm::planner::log_query::plan_log_rows;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
@@ -149,6 +151,59 @@ pub async fn plan_create(
         .into_iter()
         .find(|s| s.plan_id == id)
         .ok_or_else(|| "plan created but missing from projection".to_string())
+}
+
+/// 계획을 닫는다(`active → done`) — 남은 항목이 0 일 때만. 미완이 남았으면
+/// `plan_has_open_items` 로 거부한다 (`planner/lifecycle.rs` 의 문지기).
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_close(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    plan_id: String,
+) -> Result<Option<PlanDetail>, AppError> {
+    rewrite_plan(&db, &manager, project_id, &plan_id, |md, date| {
+        close_plan(md, date).map_err(AppError::from)
+    })
+    .await
+}
+
+/// 닫기를 되돌린다(`done → active`) — 닫은 직후 알림의 「되돌리기」 가 부른다.
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_reopen(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    plan_id: String,
+) -> Result<Option<PlanDetail>, AppError> {
+    rewrite_plan(&db, &manager, project_id, &plan_id, |md, date| {
+        Ok(reopen_plan(md, date))
+    })
+    .await
+}
+
+/// 계획 파일 하나를 잠금 아래에서 읽고 → 고치고 → 원자적으로 쓴 뒤 다시 투영한다.
+async fn rewrite_plan(
+    db: &Db,
+    manager: &OculpmManager,
+    project_id: u32,
+    plan_id: &str,
+    edit: impl FnOnce(&str, &str) -> Result<String, AppError>,
+) -> Result<Option<PlanDetail>, AppError> {
+    let plan_lock = manager.plan_write_lock(project_id).await;
+    let _guard = plan_lock.lock().await;
+    let root = planner_root_of(db, project_id).await?;
+    let path =
+        find_plan_path(&root, plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
+    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let new_md = edit(&md, &date)?;
+    if new_md != md {
+        write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
+    }
+    Ok(PlanCache::new(db).get(project_id, &root, plan_id).await?)
 }
 
 /// Apply an edit to a plan's `.md` SSOT: mutate the body (glyph / new item) and
