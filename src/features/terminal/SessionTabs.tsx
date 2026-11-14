@@ -4,6 +4,8 @@
  * 탭 폭의 2/3 를 「실행 중 · 일지 1건」 같은 평상 낱말이 먹고 살아 있는 세션마다 초록 점이 섰다. 이제 평상
  * 낱말과 일지 수는 툴팁으로 가고, 보이는 낱말은 기다림 사유 · 끝남 코드 · 일지 없음 · 최근 소식 없음뿐이다.
  * 점은 살아 있음 회색, 기다림 앰버 + 고리, 끝남 빈 고리, 실패 빨강 — 색만이 아니라 모양으로도 갈린다.
+ * 낱말은 모두 낱말일 뿐이다 — 「일지 없음」 을 눌러도 그 탭을 고를 뿐, 기록 부탁은 칸 위 띠의 단추 하나가 한다
+ * (같은 앰버 낱말 가운데 하나만 몰래 일을 시키면 영수증 규칙 4 — 같은 모양 같은 뜻 — 에 어긋난다).
  *
  * 키보드는 탭 목록의 관례 — 고른 탭만 Tab 이 멈추고(roving), ←/→/Home/End 로 옮기며 고른다. Delete 는 닫기.
  * 닫기 ×는 점 자리에 겹친 마우스 표적이다: 탭 목록 안의 단추는 목록이 탭만 품는다는 약속을 깬다
@@ -11,13 +13,13 @@
  *
  * 넘치면 스크롤바 없이 끝에 「+3」 — 숨은 세션 목록이 뜬다. 숨은 쪽에 기다리는 세션이 있으면 앰버로 말한다.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import type { TermInfo } from "@/api/terminal";
 import { X } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { useMenuKeys } from "./menuKeys";
-import { sessionLabel, sessionName, sessionNumber, type SessionView } from "./status";
+import { oscTitle, sessionLabel, sessionName, sessionNumber, type SessionView } from "./status";
 
 export interface SessionTabsProps {
   sessions: TermInfo[];
@@ -29,8 +31,6 @@ export interface SessionTabsProps {
   /** `keepFocus` — 키보드로 옮길 때는 입력을 터미널로 넘기지 않는다(다음 화살표도 탭 줄이 받게). */
   onPick: (id: number, keepFocus?: boolean) => void;
   onClose: (id: number) => void;
-  /** 「일지 없음」 을 눌렀다 — 기록을 부탁하고 그 세션을 보인다. */
-  onAskRecord: (id: number) => void;
 }
 
 /** 점 — 탭 · 칸 머리 · 숨은 목록 · 레인 띠가 같은 모양을 쓴다 (영수증 규칙 4). */
@@ -44,15 +44,20 @@ export function SessionWord({ view }: { view: SessionView }) {
   return <span className={"tm-meta" + (view.tone ? " is-" + view.tone : "")}>{view.word}</span>;
 }
 
-/** 툴팁 — 이름(제목이 잘렸을 때) · 평상 낱말 · 일지 수 · 기다리는 까닭. */
+/**
+ * 툴팁 — 이름(제목이 잘렸을 때) · 안의 프로그램이 붙인 제목(이름이 「시도 n」 이라 제목이 안 보일 때) · 평상
+ * 낱말 · 일지 수 · 기다리는 까닭.
+ */
 function tooltip(t: ReturnType<typeof useT>["t"], s: TermInfo, view: SessionView, records: number): string {
-  const parts = [sessionName(t, s), view.plain];
+  const name = sessionName(t, s);
+  const title = oscTitle(s);
+  const parts = title && title !== name ? [name, title, view.plain] : [name, view.plain];
   if (records > 0) parts.push(t("terminal.records", { n: records }));
   if (s.status?.msg && view.mark === "wait") parts.push(s.status.msg);
   return parts.join(" · ");
 }
 
-export function SessionTabs({ sessions, active, shown, viewOf, recordsOf, onPick, onClose, onAskRecord }: SessionTabsProps) {
+export function SessionTabs({ sessions, active, shown, viewOf, recordsOf, onPick, onClose }: SessionTabsProps) {
   const { t } = useT();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [hidden, setHidden] = useState<number[]>([]);
@@ -72,13 +77,16 @@ export function SessionTabs({ sessions, active, shown, viewOf, recordsOf, onPick
     setHidden((prev) => (prev.length === out.length && prev.every((id, i) => id === out[i]) ? prev : out));
   }, []);
 
-  // 고른 탭이 바뀌면(⇧⌘] · 숨은 목록) 보이게 — 예전엔 넘친 탭을 골라도 화면 밖에 남았다.
+  // 고른 탭이 바뀌면(⇧⌘] · 숨은 목록) 보이게 — 예전엔 넘친 탭을 골라도 화면 밖에 남았다. 고른 탭이 바뀔 때만:
+  // 세션 목록은 상태 신호마다 새로 오니, 거기 걸면 사람이 옆으로 굴려 보던 탭 줄이 신호마다 되돌아갔다.
   useLayoutEffect(() => {
     scrollRef.current
       ?.querySelector<HTMLElement>(".tm-tab.is-active")
       ?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     measure();
-  }, [active, sessions, measure]);
+  }, [active, measure]);
+  // 넘친 탭은 목록이 바뀔 때마다 다시 잰다(이름 · 낱말이 바뀌면 폭도 바뀐다).
+  useLayoutEffect(() => measure(), [sessions, measure]);
 
   useEffect(() => {
     const box = scrollRef.current;
@@ -132,9 +140,6 @@ export function SessionTabs({ sessions, active, shown, viewOf, recordsOf, onPick
           const records = recordsOf(s);
           const isActive = s.id === active;
           const label = sessionLabel(t, s);
-          // 「일지 없음」 을 누르면 기록을 부탁한다 — 띠의 단추와 같은 일(부르는 쪽이 이 세션도 보이게 고른다).
-          const pick = (e: MouseEvent) =>
-            (e.target as Element).closest(".tm-norec") ? onAskRecord(s.id) : onPick(s.id);
           return (
             <div
               key={s.id}
@@ -155,7 +160,7 @@ export function SessionTabs({ sessions, active, shown, viewOf, recordsOf, onPick
                 tabIndex={isActive || (active == null && s === sessions[0]) ? 0 : -1}
                 aria-keyshortcuts="Delete"
                 title={tooltip(t, s, view, records)}
-                onClick={pick}
+                onClick={() => onPick(s.id)}
               >
                 <SessionDot view={view} />{" "}
                 <span className="tm-num">{sessionNumber(s.id)}</span>{" "}

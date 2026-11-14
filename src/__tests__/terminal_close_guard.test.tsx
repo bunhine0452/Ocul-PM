@@ -86,8 +86,8 @@ describe("창 닫기 확인", () => {
     await waitFor(() => expect(api.ask).not.toBeNull());
     await act(async () => api.ask?.({ alive: 1, quit: false }));
     expect(await screen.findByText(t("terminal.closeAsk.title", { n: 1 }))).toBeInTheDocument();
-    // 끝난 세션 · 빈 셸은 걸린 것이 아니다 — 무언가 도는 것만 낱개로 보인다.
-    expect(screen.getByText(`claude · ${t("terminal.state.permission")}`)).toBeInTheDocument();
+    // 끝난 세션 · 빈 셸은 걸린 것이 아니다 — 무언가 도는 것만 낱개로, 탭과 같은 번호 · 이름으로 보인다.
+    expect(screen.getByText(`1 claude · ${t("terminal.state.permission")}`)).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: t("terminal.closeAsk.confirm") }));

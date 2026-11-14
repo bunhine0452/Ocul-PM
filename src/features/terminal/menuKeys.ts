@@ -2,7 +2,9 @@
  * 터미널 화면의 팝오버 메뉴 셋 — 숨은 세션(「+3」) · 「새 세션 ▾」 · 경로의 「이 파일로 할 일」 — 이 같은 키를 쓴다.
  *
  * 열면 첫 항목에 포커스, ↑ ↓ · Home · End 로 옮기고, Esc 는 닫고 연 자리로 돌아가며, Tab 도 닫는다(포커스가
- * 메뉴 밖으로 새지 않게). 바깥을 누르면 닫는다. 키는 캡처 단계에서 받는다 — 터미널(xterm)이 먼저 삼키지 않게.
+ * 메뉴 밖으로 새지 않게). 바깥을 누르거나 포커스가 메뉴 밖으로 나가면 닫는다. 키는 캡처 단계에서 받는다 —
+ * 터미널(xterm)이 먼저 삼키지 않게. 대신 포커스가 메뉴 안에 있을 때만 받는다: 그러지 않으면 메뉴가 열린 채
+ * 포커스가 터미널로 간 뒤 ↑(셸 기록)는 메뉴로 끌려가고 Esc(Claude 중단)는 삼켜졌다.
  */
 import { useEffect, useRef, type RefObject } from "react";
 
@@ -27,7 +29,15 @@ export function useMenuKeys(
       if (box.current?.contains(target) || keep?.current?.contains(target)) return;
       closeRef.current(false);
     };
+    // 포커스가 메뉴 밖의 다른 곳(다른 칸의 터미널 등)으로 갔다. 연 단추로 돌아간 것은 그대로 둔다(누르면 토글한다).
+    // 갈 곳이 없는 것(메뉴의 빈 틈을 누름 · 창이 뒤로 감)도 둔다 — 바깥 클릭은 `onDown` 이 닫는다.
+    const onFocusOut = (e: FocusEvent) => {
+      const next = e.relatedTarget as Node | null;
+      if (!next || box.current?.contains(next) || keep?.current?.contains(next)) return;
+      closeRef.current(false);
+    };
     const onKey = (e: KeyboardEvent) => {
+      if (!box.current?.contains(document.activeElement)) return;
       if (e.key === "Escape" || e.key === "Tab") {
         e.preventDefault();
         e.stopPropagation();
@@ -52,11 +62,14 @@ export function useMenuKeys(
       e.stopPropagation();
       list[to].focus();
     };
+    const el = box.current;
     window.addEventListener("mousedown", onDown, true);
     window.addEventListener("keydown", onKey, true);
+    el?.addEventListener("focusout", onFocusOut);
     return () => {
       window.removeEventListener("mousedown", onDown, true);
       window.removeEventListener("keydown", onKey, true);
+      el?.removeEventListener("focusout", onFocusOut);
     };
   }, [open, box, keep]);
 }

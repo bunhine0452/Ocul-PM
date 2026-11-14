@@ -9,13 +9,13 @@
 import { useEffect, type ReactNode } from "react";
 import { exit } from "@tauri-apps/plugin-process";
 
-import { terminalApi, type TermCloseAsked } from "@/api/terminal";
+import { terminalApi, type TermCloseAsked, type TermInfo } from "@/api/terminal";
 import { windowApi } from "@/api/window";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useT } from "@/i18n";
 import type { Project } from "@/lib/bindings";
 import { kbd } from "@/lib/kbd";
-import { sessionWord } from "./status";
+import { numberSessions, sessionLabel, sessionName, sessionWord } from "./status";
 
 export function useTermCloseGuard(projects: Project[]): ReactNode {
   const { t } = useT();
@@ -28,11 +28,15 @@ export function useTermCloseGuard(projects: Project[]): ReactNode {
       const running = all.filter((s) => s.busy);
       const nameOf = (id: number) => projects.find((p) => p.id === id)?.name ?? "";
       const n = running.length || ask.alive;
+      // 이 창이면 탭과 같은 번호 · 이름(나란히 돌린 시도 셋이 「claude · 작업 중」 으로 똑같지 않게). 끄기는 여러 창의
+      // 세션이라 번호가 창마다 따로다 — 이름만.
+      if (!ask.quit) numberSessions(all);
+      const who = (s: TermInfo) => (ask.quit ? sessionName(t, s) : sessionLabel(t, s));
       const ok = await confirm({
         title: ask.quit ? t("terminal.quitAsk.title", { n }) : t("terminal.closeAsk.title", { n }),
         message: ask.quit ? t("terminal.quitAsk.body", { key: kbd("⌘Q") }) : t("terminal.closeAsk.body"),
         items: running.map((s) => ({
-          text: [ask.quit ? nameOf(s.project_id) : "", s.label, sessionWord(t, s)].filter(Boolean).join(" · "),
+          text: [ask.quit ? nameOf(s.project_id) : "", who(s), sessionWord(t, s)].filter(Boolean).join(" · "),
         })),
         confirmLabel: ask.quit ? t("terminal.quitAsk.confirm") : t("terminal.closeAsk.confirm"),
         danger: true,

@@ -76,8 +76,10 @@ describe("toolbar", () => {
     const { container } = render(<TerminalScreen projectId={1} workday={null} />);
     const actions = container.querySelector(".toolbar-actions")!;
     expect(actions.querySelectorAll(".btn:not(.ghost), .tm-new")).toHaveLength(1);
-    // 출력 찾기 ⌘F 가 이제 화면에 있다(이름 있는 아이콘).
-    expect(screen.getByRole("button", { name: t("terminal.find.placeholder") })).toBeInTheDocument();
+    // 출력 찾기 ⌘F 가 이제 화면에 있다 — 글자 단추. 돋보기면 바로 옆 팔레트 단추(「찾기 ⌘K」)와 모양이 같았다.
+    const find = screen.getByRole("button", { name: t("terminal.find.placeholder") });
+    expect(find.querySelector("svg")).toBeNull();
+    expect(find.querySelector("kbd")?.textContent).toBe("⌘F");
     fireEvent.click(screen.getByRole("button", { name: t("terminal.newMenu") }));
     const items = screen.getAllByRole("menuitem").map((m) => m.textContent ?? "");
     expect(items).toHaveLength(4);
@@ -85,8 +87,9 @@ describe("toolbar", () => {
     expect(items[1]).toContain(t("terminal.splitDown"));
     expect(items[2]).toContain(t("terminal.unsplit"));
     expect(items[3]).toContain(t("race.button"));
-    // 칸이 하나면 「나누기 풀기」 는 미리 이유를 단다(누른 뒤 알림이 아니라).
+    // 칸이 하나면 「나누기 풀기」 는 미리 이유를 단다(누른 뒤 알림이 아니라). 막히지 않은 항목은 하는 일을 말한다.
     expect(screen.getAllByRole("menuitem")[2]).toHaveAttribute("title", t("terminal.unsplitNone"));
+    expect(screen.getAllByRole("menuitem")[3]).toHaveAttribute("title", t("race.buttonTitle"));
   });
 
   it("shows the expand-pane icon only when there are two or more panes", async () => {

@@ -121,14 +121,27 @@ describe("race strip folds to one line", () => {
     expect(rows[0].querySelector(".tm-meta")).toBeNull();
   });
 
-  it("with no runs, five status changes read the lanes at most once (on entering the screen)", async () => {
-    store.set([info(1, "zsh")]);
-    render(<RaceStrip projectId={1} />);
-    for (const state of ["working", "idle", "working", "done", "idle"]) {
-      act(() => store.set([info(1, "zsh", { status: { state, kind: null, msg: null, since: "" } })]));
+  it("with no runs, status changes never re-read the lanes — once on entering, again only when runs appear", async () => {
+    vi.useFakeTimers();
+    try {
+      store.set([info(1, "zsh")]);
+      render(<RaceStrip projectId={1} />);
+      await act(() => vi.advanceTimersByTimeAsync(700));
+      expect(h.lanesCalls).toBe(1);
+      // 모아 읽는 600ms 보다 띄엄띄엄 바꾼다 — 상태마다 읽던 옛 효과라면 여기서 여섯 번이 된다.
+      for (const state of ["working", "idle", "working", "done", "idle"]) {
+        act(() => store.set([info(1, "zsh", { status: { state, kind: null, msg: null, since: "" } })]));
+        await act(() => vi.advanceTimersByTimeAsync(700));
+      }
+      expect(h.lanesCalls).toBe(1);
+      // 시도가 생기면(나란히 돌리기 직후) 다시 읽는다.
+      h.lanes = [lane(1)];
+      act(() => __setRaceForTests(h.lanes as never, new Map()));
+      await act(() => vi.advanceTimersByTimeAsync(700));
+      expect(h.lanesCalls).toBe(2);
+    } finally {
+      vi.useRealTimers();
     }
-    await new Promise((r) => setTimeout(r, 750));
-    expect(h.lanesCalls).toBeLessThanOrEqual(1);
   });
 
   it("the run's name opens its changes; the dialog has close buttons and 'bring these changes' through the confirm", async () => {

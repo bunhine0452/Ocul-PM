@@ -48,6 +48,8 @@
 .tm-dot.is-fail { background: var(--danger); }
 .tm-dot.is-norec { background: var(--warn); }
 .tm-dot.is-ended.is-norec { background: transparent; box-shadow: inset 0 0 0 1.5px var(--warn); }
+/* 실패가 이긴다 — 일하고 일지 없이 코드 ≠ 0 으로 끝난 세션이 살아 있는 「일지 없음」 과 같은 앰버 점이 되지 않게. */
+.tm-dot.is-fail.is-norec { background: var(--danger); }
 .tm-dot.is-none { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
 /* 번호는 기계 글씨 — 닫기 확인 · 보내기 대화상자 · 알림이 같은 번호를 부른다 (영수증 규칙 2). */
 .tm-num {
@@ -58,9 +60,9 @@
 .tm-meta { min-width: 0; font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tm-meta.is-warn { color: var(--warn-text); }
 .tm-meta.is-danger { color: var(--danger-text); }
-/* Claude 가 일했는데 시작 뒤 일지 0 (11-02) — 실패가 아니라 확인해 볼 것이라 경고 글자색만. 누르면 기록을 부탁한다. */
+/* Claude 가 일했는데 시작 뒤 일지 0 (11-02) — 실패가 아니라 확인해 볼 것이라 경고 글자색만. 다른 앰버 낱말처럼
+   낱말일 뿐이다(누르면 탭을 고른다) — 기록 부탁은 칸 위 띠의 단추가 한다. */
 .tm-norec { flex: none; font-size: var(--fs-3); color: var(--warn-text); }
-.tm-norec:hover { text-decoration: underline; }
 /* 닫기 — 점 자리에 겹친다. 가리킬 때 · 고른 탭 · 탭 안에 포커스가 있을 때만(탭 줄이 × 로 줄무늬지지 않게). */
 .tm-close {
   position: absolute; left: var(--space-1); top: 50%; translate: 0 -50%;
@@ -190,14 +192,14 @@
 .tm-find-case { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); }
 .tm-find-case[aria-pressed="true"] { background: var(--bg-active); color: var(--text); }
 .tm-find-up svg { transform: rotate(180deg); }
-/* 대체 화면(전체 화면 TUI)에는 스크롤백이 없다 — 그 사실 한 줄과 「Claude 에서 찾기」. */
+/* 대체 화면(전체 화면 TUI)에는 스크롤백이 없다 — 그 사실과 지난 대화를 보는 길 한 줄(앱은 키를 치지 않는다). */
 .tm-find-alt {
-  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-1) 0;
+  margin: 0; padding: var(--space-1) var(--space-2) var(--space-1) 0;
   border-top: 1px solid var(--sep); font-size: var(--fs-3); color: var(--text-2);
 }
-.tm-find-alt-text { flex: 1; min-width: 0; }
+/* 좁은 칸은 개수 · Aa 만 접는다 — 정규식 토글은 남긴다(켠 채 접히면 왜 못 찾는지 알 길이 없었다). */
 @container tm-leaf (max-width: 279px) {
-  .tm-find-count, .tm-find-case { display: none; }
+  .tm-find-count, .tm-find-case:not(.tm-find-regex) { display: none; }
 }
 
 /* 터미널 면 — xterm 이 이 칸을 채운다(FitAddon). 여백은 칸 안쪽에 두어 글자가 테두리에 붙지 않게. */

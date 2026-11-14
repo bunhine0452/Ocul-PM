@@ -46,7 +46,7 @@ vi.mock("@/api/race", () => ({ raceApi: { lanes: async () => [] } }));
 
 import { t } from "@/i18n";
 import { TerminalScreen, __resetTermLayoutForTests } from "@/features/terminal/TerminalScreen";
-import { sessionNumber, sessionView } from "@/features/terminal/status";
+import { noteTermActivity, sessionNumber, sessionView } from "@/features/terminal/status";
 
 type Titled = TermInfo & { title?: string | null };
 
@@ -133,16 +133,27 @@ describe("terminal tabs say only the exceptions", () => {
     expect(sessionNumber(14)).toBe(4);
   });
 
-  it("'working' with no change for over 30 minutes reads as no recent news; a fresh one says nothing", () => {
-    store.set([
-      info(1, "claude", { status: { state: "working", kind: null, msg: null, since: minutesAgo(31) } }),
-      info(2, "claude", { status: { state: "working", kind: null, msg: null, since: minutesAgo(2) } }),
-      info(3, "zsh"),
-    ]);
+  it("'working' with no output or status for over 30 minutes reads as no recent news — measured from the last activity", () => {
+    const working = { state: "working", kind: null, msg: null, since: minutesAgo(31) };
+    store.set([info(1, "claude", { status: working }), info(2, "claude", { status: working }), info(3, "claude", { status: working })]);
+    noteTermActivity(1, Date.now() - 31 * 60_000);
+    // 31분째 working 이어도 1분 전에 출력했으면 일하는 중이다(`since` 는 그 상태로 들어선 시각일 뿐).
+    noteTermActivity(2, Date.now() - 60_000);
     render(<TerminalScreen projectId={1} workday={null} />);
     expect(pickOf(1).textContent).toContain(t("terminal.state.quiet"));
     expect(pickOf(2).querySelector(".tm-meta")).toBeNull();
     expect(pickOf(2).title).toContain(t("terminal.state.working"));
+    // 활동을 모르면(엔진이 아직 안 적었으면) 「소식 없음」 이라 말하지 않는다.
+    expect(pickOf(3).querySelector(".tm-meta")).toBeNull();
+  });
+
+  it("a session that worked, wrote no journal and ended with a non-zero code keeps the red dot (failure wins over amber)", () => {
+    store.worked.add(1);
+    store.set([info(1, "claude", { alive: false, exit_code: 1 }), info(2, "zsh")]);
+    render(<TerminalScreen projectId={1} workday={null} />);
+    expect(pickOf(1).querySelector(".tm-dot")?.className).toBe("tm-dot is-fail is-norec");
+    const css = readFileSync(join(__dirname, "..", "features", "terminal", "terminal.css"), "utf8");
+    expect(css).toMatch(/\.tm-dot\.is-fail\.is-norec \{ background: var\(--danger\); \}/);
   });
 
   it("a session that worked and went idle with no journal shows 'no journal' with an amber dot", () => {
