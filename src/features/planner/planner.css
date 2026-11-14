@@ -102,6 +102,10 @@
   white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
   font-variant-ligatures: none;
 }
+/* 「셸에서 돌리기」 — 확인 명령 바로 아래 보통 단추 한 줄. 막혔으면 이유가 옆에 선다(좁으면 아래로 꺾인다). */
+.plv-check-run { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+/* 묻는 창의 돌릴 줄 — 셸이 받을 글 그대로라 공백도 접지 않는다(`"a  b"` 의 두 칸). */
+.plv-check-line { white-space: pre-wrap; }
 /* 마지막 결과 — 확인 명령 아래 전체 폭, 끝 줄을 자르지 않고 다 보인다. 사람이 판단할 뒷부분(「설치본 눈
    확인은 안 함」)이 260px 칸 끝에서 사라졌다. VerdictLine 은 오늘 화면의 것이라 여기서 꼬리만 덮는다. */
 .plv-judge-last .vl-out { white-space: pre-wrap; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }

@@ -7,9 +7,12 @@
  *
  * 판정은 오늘 화면과 같은 네 모습이다(11-15, `verdictStateOf`): 통과 · 실패 · 통과 뒤 바뀜 · 여기선 아직.
  * 계획 화면만 앞의 둘을 알아, 오늘이 호박색 ✓ 로 짚는 계획을 회색 통과로 그렸다.
+ *
+ * 확인 명령 아래 「셸에서 돌리기」(11-15 사용자 결정, X-02) — 묻는 창은 `PlannerScreenV2` 가 띄운다
+ * (`CheckRunDialog` 머리말).
  */
 
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { SquareTerminal } from "@/components/Icons";
 import { VerdictLine } from "@/components/VerdictLine";
@@ -17,6 +20,7 @@ import { agentLabel } from "@/features/today/agentColor";
 import { osLabel } from "@/features/today/todayModel";
 import { useOpenInEditor } from "@/features/shell/useOpenInEditor";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { blocked } from "@/lib/blocked";
 import { relativeTime } from "@/lib/format";
 import { whenLabel } from "@/lib/whenLabel";
 import { getLang, useT } from "@/i18n";
@@ -25,6 +29,7 @@ import { PlanItems } from "./PlanItems";
 import { PlanLog } from "./PlanLog";
 import { hasOpenLeaves, lastLogAt, nextLeaf, stripUserTag } from "./planMeta";
 import { checkLines, verdictStateOf } from "./verdictState";
+import { prepareCheck } from "@/features/terminal/runCheck";
 import { requestSendToClaude } from "@/features/terminal/sendToClaude";
 
 function dateOf(iso: string): string {
@@ -60,7 +65,41 @@ function WarnLines({ warnings, filePath }: { warnings: string[]; filePath: strin
   );
 }
 
-function JudgeCard({ detail }: { detail: PlanDetail }) {
+/**
+ * 확인 명령 아래 「셸에서 돌리기」 — 보통 단추(채운 단추는 「다음」 하나, 영수증 규칙 3). 누르면 거른 한 줄을 넘기고
+ * 부른 쪽이 묻는다. 여러 줄이면 단추를 막고(`blocked` — 포커스는 남아 이유가 읽힌다) 이유를 옆에 문장으로 둔다.
+ * 거르고 나니 돌릴 글자가 없으면 단추가 없다.
+ */
+function CheckRunRow({ check, onRun }: { check: string; onRun: (line: string) => void }) {
+  const { t } = useT();
+  const reasonId = useId();
+  const prep = prepareCheck(check);
+  if (prep.kind === "empty") return null;
+  const reason = prep.kind === "multiline" ? t("plan.check.multiline") : null;
+  return (
+    <div className="plv-check-run">
+      <button
+        type="button"
+        className="btn sm"
+        {...blocked(reason)}
+        aria-describedby={reason ? reasonId : undefined}
+        onClick={() => {
+          if (prep.kind === "ok") onRun(prep.line);
+        }}
+      >
+        <SquareTerminal size={13} aria-hidden="true" />
+        {t("plan.check.run")}
+      </button>
+      {reason ? (
+        <span id={reasonId} className="plv-meta">
+          {reason}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function JudgeCard({ detail, onRunCheck }: { detail: PlanDetail; onRunCheck: (line: string) => void }) {
   const { t } = useT();
   const v = detail.plan.last_verdict;
   const state = verdictStateOf(detail.plan);
@@ -86,18 +125,21 @@ function JudgeCard({ detail }: { detail: PlanDetail }) {
         <div>
           <h3 className="plv-sec-h">{t("plan.judge.check")}</h3>
           {detail.check ? (
-            // 보일 때만 && · ; 뒤에서 줄을 나눈다 — 복사하면 한 줄 원문으로 돌아간다.
-            <code
-              className="plv-code mono"
-              onCopy={(e) => {
-                const text = window.getSelection()?.toString() ?? "";
-                if (!text.includes("\n")) return;
-                e.preventDefault();
-                e.clipboardData.setData("text/plain", text.replace(/\s*\n\s*/g, " "));
-              }}
-            >
-              {checkLines(detail.check).join("\n")}
-            </code>
+            <>
+              {/* 보일 때만 && · ; 뒤에서 줄을 나눈다 — 복사하면 한 줄 원문으로 돌아간다. */}
+              <code
+                className="plv-code mono"
+                onCopy={(e) => {
+                  const text = window.getSelection()?.toString() ?? "";
+                  if (!text.includes("\n")) return;
+                  e.preventDefault();
+                  e.clipboardData.setData("text/plain", text.replace(/\s*\n\s*/g, " "));
+                }}
+              >
+                {checkLines(detail.check).join("\n")}
+              </code>
+              <CheckRunRow check={detail.check} onRun={onRunCheck} />
+            </>
           ) : (
             <p className="plv-meta">{t("plan.judge.noCheck")}</p>
           )}
@@ -191,6 +233,7 @@ export function PlanDoc({
   onRunUntilDone,
   onClose,
   onOpenJournal,
+  onRunCheck,
 }: {
   projectId: number;
   detail: PlanDetail;
@@ -203,6 +246,8 @@ export function PlanDoc({
   /** 이 계획을 닫는다 — 남은 항목이 0 일 때만 단추가 선다. */
   onClose: () => void;
   onOpenJournal: (ref: string) => void;
+  /** 확인 명령의 「셸에서 돌리기」 — 거른 한 줄. 묻는 창은 부른 쪽이 띄운다. */
+  onRunCheck: (line: string) => void;
 }) {
   const { t } = useT();
   const p = detail.plan;
@@ -225,7 +270,7 @@ export function PlanDoc({
         <h2 className="plv-title">{p.title}</h2>
       </header>
       {detail.warnings.length > 0 ? <WarnLines warnings={detail.warnings} filePath={p.file_path} /> : null}
-      <JudgeCard detail={detail} />
+      <JudgeCard detail={detail} onRunCheck={onRunCheck} />
       {locked ? null : (
         <NextRow
           items={detail.items}

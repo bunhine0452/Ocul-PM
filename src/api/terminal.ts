@@ -5,6 +5,7 @@ import {
   commands,
   events,
   type TermBusy,
+  type TermCheck,
   type TermCloseAsked,
   type TermEvent,
   type TermImage,
@@ -14,12 +15,13 @@ import {
 } from "@/lib/bindings";
 import { call, subscribe, subscribeHere } from "./invoke";
 
-export type { TermBusy, TermCloseAsked, TermEvent, TermInfo, TermResume, TermStatus };
+export type { TermBusy, TermCheck, TermCloseAsked, TermEvent, TermInfo, TermResume, TermStatus };
 
 export const terminalApi = {
   /**
    * 프로젝트 루트에서 로그인 셸을 연다. `prompt` 가 있으면 그것으로 `claude` 를 바로 실행.
    * `cwd` 는 이 프로젝트의 레인(worktree 여럿에서)일 때만 — 백엔드가 아니면 거절한다.
+   * `check` 는 계획의 확인 명령 한 줄 — 사람이 확인 창에서 누른 뒤에만(`features/terminal/runCheck.ts`).
    */
   open: (
     projectId: number,
@@ -29,10 +31,11 @@ export const terminalApi = {
     onEvent: (ev: TermEvent) => void,
     cwd: string | null = null,
     resume = false,
+    check: TermCheck | null = null,
   ) => {
     const channel = new Channel<TermEvent>();
     channel.onmessage = onEvent;
-    return call("term_open", commands.termOpen(projectId, cols, rows, prompt, cwd, resume, channel));
+    return call("term_open", commands.termOpen(projectId, cols, rows, prompt, cwd, resume, check, channel));
   },
   write: (id: number, data: string) => call("term_write", commands.termWrite(id, data)),
   /**

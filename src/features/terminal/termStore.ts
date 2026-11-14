@@ -17,7 +17,7 @@ import "@xterm/xterm/css/xterm.css";
 
 import { fileOpenApi } from "@/api/fileOpen";
 import { ApiError } from "@/api/invoke";
-import { terminalApi, type TermEvent, type TermInfo } from "@/api/terminal";
+import { terminalApi, type TermCheck, type TermEvent, type TermInfo } from "@/api/terminal";
 import { kbd } from "@/lib/kbd";
 import { isMac } from "@/lib/platform";
 import { t } from "@/i18n";
@@ -222,13 +222,15 @@ function warnIfBusy(e: unknown) {
 
 /**
  * 새 세션 — 프로젝트 루트의 로그인 셸. `prompt` 가 있으면 그 프롬프트로 `claude` 를 바로 친다
- * (오늘·계획의 「다음」 실행). 돌려주는 것은 세션 id.
+ * (오늘·계획의 「다음」 실행). `check` 면 계획의 확인 명령 한 줄을 셸이 명령 인자로 받아 돌린다
+ * (`runCheck.ts` — 사람이 확인 창에서 누른 뒤에만). 돌려주는 것은 세션 id.
  */
 export async function openTerm(
   projectId: number,
   prompt: string | null = null,
   cwd: string | null = null,
   resume = false,
+  check: TermCheck | null = null,
 ): Promise<number> {
   await Promise.all([sweepOrphans(), loadHangulFont()]);
   watchTheme();
@@ -360,7 +362,7 @@ export async function openTerm(
   };
   let info: TermInfo;
   try {
-    info = await terminalApi.open(projectId, term.cols, term.rows, prompt, onEvent, cwd, resume);
+    info = await terminalApi.open(projectId, term.cols, term.rows, prompt, onEvent, cwd, resume, check);
   } catch (e) {
     term.dispose();
     throw e;

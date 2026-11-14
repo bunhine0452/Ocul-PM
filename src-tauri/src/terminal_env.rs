@@ -1,4 +1,4 @@
-//! 앱 안 터미널 셸의 환경과 「다음」 실행 줄 — `terminal.rs` 가 800줄을 넘지 않게 떼어 냈다(2026-11-15).
+//! 앱 안 터미널 셸의 환경과 「다음」 · 확인 명령 실행 줄 — `terminal.rs` 가 800줄을 넘지 않게 떼어 냈다(2026-11-15).
 //!
 //! # 환경 ([`apply_env`])
 //!
@@ -12,13 +12,21 @@
 //!
 //! 「다음」 은 예전에 셸이 rc 를 읽기도 전에 `claude "$OCULPM_PROMPT"` 를 tty 에 쳐 넣었다. oh-my-zsh 업데이트
 //! `[Y/n]` · p10k 마법사 · conda 질문이 앞 글자를 먹으면 나머지(`laude …`)가 명령으로 돌았다. 이제 셸이 그 줄을
-//! **명령 인자**로 받는다 — `$SHELL -l -i -c 'claude "$OCULPM_PROMPT"; exec "$SHELL" -l -i'`. rc 의 질문은
+//! **명령 인자**로 받는다 — `$SHELL -l -i -c 'claude "$OCULPM_PROMPT"⏎⏎exec "$SHELL" -l -i'`. rc 의 질문은
 //! 질문대로 묻고, claude 가 끝나면 같은 자리(같은 pid)에 로그인 셸이 선다. 달라진 것 하나: claude 줄이 셸
 //! 기록(history)에 남지 않는다. 프롬프트는 여전히 환경 변수로 넘겨 셸 문법으로 이스케이프할 일이 없다.
 //!
+//! 계획의 확인 명령(11-15 사용자 결정 「누를 때만 돌리기」, [`Launch::Check`])도 같은 길로 간다. 사람이 확인 창에서
+//! 전문을 본 한 줄을 argv 원소 그대로 `-c` 에 싣는다 — 셸을 한 번 더 거치지 않으니 따옴표를 이스케이프할 일도,
+//! 환경 변수 + `eval` 로 감출 일도 없다. tty 에 쳐 넣으면 rc 의 질문이 첫 글자를 먹어 `pnpm test` 가 `npm test`
+//! 로, 사람이 본 것과 다른 명령이 돌 수 있었다. 맞바꾼 것은 「다음」 과 같다: 그 줄도 셸 기록에 남지 않는다 — 사람이
+//! 보는 자리는 확인 창의 전문과 탭 이름 「확인 명령」 이다. 줄과 `exec` 사이는 `;` 가 아니라 빈 줄이다. 사람이 쓴 줄
+//! 끝의 `# 메모` 가 `;` 뒤의 `exec` 까지 주석으로 삼키거나 끝의 `\` 가 `exec` 를 줄 잇기로 끌어당기면, 명령이
+//! 끝나자마자 세션이 닫히거나 명령에 엉뚱한 인자가 붙었다.
+//!
 //! 맞바꾼 것 하나: rc 가 다른 프로그램을 `exec` 하면(oh-my-zsh tmux 플러그인의 `ZSH_TMUX_AUTOSTART`,
 //! `[ -z "$TMUX" ] && exec tmux` — Finder 로 띄운 앱에는 `TMUX` 가 없어 늘 참이다) `-c` 의 명령은 아예 돌지
-//! 않는다. 「다음」 은 claude 없이 tmux 안의 빈 셸로 조용히 끝나고, `launchCheck` 도 잡지 못한다. 쳐 넣던 때는
+//! 않는다. 「다음」 은 claude 없이 tmux 안의 빈 셸로 조용히 끝나고(확인 명령도 돌지 않는다), `launchCheck` 도 잡지 못한다. 쳐 넣던 때는
 //! tty 에 남은 줄을 tmux 가 받아 그대로 돌렸다. rc 의 질문이 첫 글자를 먹던 쪽이 훨씬 흔해 이쪽을 골랐다.
 
 use portable_pty::CommandBuilder;
@@ -108,35 +116,56 @@ pub(super) fn apply_env(cmd: &mut CommandBuilder) {
     cmd.env("FORCE_HYPERLINK", "1");
 }
 
-/// 「다음」 · 잇기 — 셸이 무엇을 돌리고 남을지.
+/// 「다음」 · 잇기 · 확인 명령 — 셸이 무엇을 돌리고 남을지.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Launch {
+pub(super) enum Launch<'a> {
     /// `claude "$OCULPM_PROMPT"`. 프롬프트가 비면 그냥 `claude` — 「끝까지」가 띄운 뒤 입력 대기 신호를
     /// 받고 `/goal …` 을 넣는다(시작 인자로 넘기는 슬래시 명령은 문서에 없다).
     Run { prompt_empty: bool },
     /// 업데이트 전 대화를 잇는다 — 그 폴더의 가장 최근 대화(`claude --continue`).
     Resume,
+    /// 계획의 확인 명령 한 줄 — 확인 창에 보인 그대로(`OpenSpec::check`). 부르는 쪽이 [`is_one_line`] 을 지났다.
+    Check(&'a str),
 }
 
-impl Launch {
-    pub(super) fn of(prompt: Option<&str>, resume: bool) -> Option<Launch> {
+impl<'a> Launch<'a> {
+    pub(super) fn of(
+        prompt: Option<&str>,
+        resume: bool,
+        check: Option<&'a str>,
+    ) -> Option<Launch<'a>> {
         if resume {
             return Some(Launch::Resume);
+        }
+        if let Some(line) = check {
+            return Some(Launch::Check(line));
         }
         prompt.map(|p| Launch::Run {
             prompt_empty: p.is_empty(),
         })
     }
 
-    /// claude 를 띄우는 명령 — `powershell` 이면 PowerShell 문법, 아니면 POSIX 셸 · fish 공통 문법.
-    fn claude(self, powershell: bool) -> String {
+    /// 셸이 돌릴 줄 — `powershell` 이면 PowerShell 문법, 아니면 POSIX 셸 · fish 공통 문법. 확인 명령은 어느
+    /// 셸에서든 사람이 본 글 그대로다.
+    fn command(self, powershell: bool) -> String {
         match self {
             Launch::Resume => "claude --continue".to_string(),
             Launch::Run { prompt_empty: true } => "claude".to_string(),
             Launch::Run { .. } if powershell => format!("claude $env:{PROMPT_ENV}"),
             Launch::Run { .. } => format!("claude \"${PROMPT_ENV}\""),
+            Launch::Check(line) => line.to_string(),
         }
     }
+}
+
+/// 확인 명령으로 받을 한 줄인가 — 비지 않고, 줄을 나누거나 터미널을 움직이는 글자(제어 문자 · U+2028 · U+2029)가
+/// 없다. 웹뷰가 먼저 거르고 막지만(`features/terminal/runCheck.ts`) 셸 인자를 만드는 이 자리가 마지막 문이다 — 확인
+/// 창에 한 줄로 보인 것과 셸이 읽는 것이 같아야 한다. 탭도 막는다: 쳐 넣는 셸(nushell 등)에서는 자동 완성 키다.
+pub(super) fn is_one_line(line: &str) -> bool {
+    !line.trim().is_empty()
+        && !line
+            .chars()
+            .any(|c| c.is_control() || matches!(c, '\u{2028}' | '\u{2029}'))
 }
 
 /// `-l -i -c` 를 같은 뜻으로 읽는 셸 — POSIX 셸들과 fish.
@@ -145,28 +174,29 @@ const ARGV_SHELLS: [&str; 7] = ["zsh", "bash", "fish", "sh", "dash", "ksh", "mks
 /// 셸 이름(`zsh` · `pwsh` …)에 맞는 실행 인자. `None` 이면 그 셸은 줄을 인자로 받지 못한다 — 문법이 다른
 /// nushell · 로그인 깃발을 홀로만 받는 csh 계열 등은 예전처럼 줄을 쳐 넣는다([`typed_line`]).
 ///
-/// unix 는 `exec "$SHELL" -l -i` 로 같은 셸에 돌아온다 — 부르는 쪽이 `SHELL` 을 그 셸로 둔다. PowerShell 은
-/// `-NoExit` 이 같은 일을 한다(프로필은 한 번만 읽는다).
-pub(super) fn launch_args(shell: &str, launch: Launch) -> Option<Vec<String>> {
+/// unix 는 `exec "$SHELL" -l -i` 로 같은 셸에 돌아온다 — 부르는 쪽이 `SHELL` 을 그 셸로 둔다. 줄과 그 사이는
+/// 빈 줄이다(위 머리말 — 끝의 `# 메모` · `\` 가 `exec` 를 먹지 않게). PowerShell 은 `-NoExit` 이 같은 일을 한다
+/// (프로필은 한 번만 읽는다).
+pub(super) fn launch_args(shell: &str, launch: Launch<'_>) -> Option<Vec<String>> {
     match shell {
         "pwsh" | "powershell" => Some(vec![
             "-NoExit".to_string(),
             "-Command".to_string(),
-            launch.claude(true),
+            launch.command(true),
         ]),
         name if ARGV_SHELLS.contains(&name) => Some(vec![
             "-l".to_string(),
             "-i".to_string(),
             "-c".to_string(),
-            format!("{}; exec \"$SHELL\" -l -i", launch.claude(false)),
+            format!("{}\n\nexec \"$SHELL\" -l -i", launch.command(false)),
         ]),
         _ => None,
     }
 }
 
 /// 인자로 못 받는 셸에 쳐 넣는 한 줄 — 셸이 아직 프롬프트를 그리기 전이어도 tty 가 받아 둔다.
-pub(super) fn typed_line(launch: Launch) -> String {
-    format!("{}\r", launch.claude(cfg!(windows)))
+pub(super) fn typed_line(launch: Launch<'_>) -> String {
+    format!("{}\r", launch.command(cfg!(windows)))
 }
 
 /// 셸 명령에 실행 줄을 붙인다 — 받는 셸이면 인자로, 아니면 `plain`(줄이 없을 때의 인자)만 붙이고 쳐 넣을
@@ -174,7 +204,7 @@ pub(super) fn typed_line(launch: Launch) -> String {
 pub(super) fn attach_launch(
     cmd: &mut CommandBuilder,
     shell: &str,
-    launch: Option<Launch>,
+    launch: Option<Launch<'_>>,
     plain: &[&str],
 ) -> Option<String> {
     let args = launch.and_then(|l| launch_args(shell, l));
@@ -277,12 +307,12 @@ mod tests {
     /// 예전 `run_line` 시험을 대신한다 — 「다음」 줄은 셸이 인자로 받고, 받지 못하는 셸만 쳐 넣는다.
     #[test]
     fn launch_lines_go_in_as_arguments_where_the_shell_can_take_them() {
-        let run = Launch::of(Some("다음 항목"), false).unwrap();
+        let run = Launch::of(Some("다음 항목"), false, None).unwrap();
         let args = launch_args("zsh", run).unwrap();
         assert_eq!(&args[..3], ["-l", "-i", "-c"]);
         assert_eq!(
             args[3],
-            format!("claude \"${PROMPT_ENV}\"; exec \"$SHELL\" -l -i")
+            format!("claude \"${PROMPT_ENV}\"\n\nexec \"$SHELL\" -l -i")
         );
         for shell in ["bash", "fish", "sh", "dash", "ksh"] {
             assert_eq!(
@@ -293,12 +323,12 @@ mod tests {
         }
         assert_eq!(
             launch_args("zsh", Launch::Resume).unwrap()[3],
-            "claude --continue; exec \"$SHELL\" -l -i"
+            "claude --continue\n\nexec \"$SHELL\" -l -i"
         );
-        let empty = Launch::of(Some(""), false).unwrap();
+        let empty = Launch::of(Some(""), false, None).unwrap();
         assert_eq!(
             launch_args("bash", empty).unwrap()[3],
-            "claude; exec \"$SHELL\" -l -i"
+            "claude\n\nexec \"$SHELL\" -l -i"
         );
         assert_eq!(
             launch_args("pwsh", run).unwrap(),
@@ -317,8 +347,73 @@ mod tests {
         assert!(typed_line(run).ends_with('\r'));
         assert_eq!(typed_line(empty), "claude\r");
         assert_eq!(typed_line(Launch::Resume), "claude --continue\r");
-        assert_eq!(Launch::of(None, false), None);
-        assert_eq!(Launch::of(Some("x"), true), Some(Launch::Resume));
+        assert_eq!(Launch::of(None, false, None), None);
+        assert_eq!(Launch::of(Some("x"), true, None), Some(Launch::Resume));
+    }
+
+    /// 확인 명령은 사람이 본 글 그대로 셸 인자가 된다 — 셸마다 바꾸지 않고, 이스케이프도 감싸기도 없다.
+    /// 인자를 못 받는 셸만 그 한 줄을 쳐 넣는다.
+    #[test]
+    fn a_check_line_goes_in_as_written() {
+        let line = r#"pnpm test && cd src-tauri && cargo test -- "a b" $HOME # 메모 \"#;
+        let check = Launch::of(None, false, Some(line)).unwrap();
+        assert_eq!(check, Launch::Check(line));
+        let joined = format!("{line}\n\nexec \"$SHELL\" -l -i");
+        assert_eq!(
+            launch_args("zsh", check).unwrap(),
+            ["-l", "-i", "-c", joined.as_str()]
+        );
+        assert_eq!(
+            launch_args("pwsh", check).unwrap(),
+            ["-NoExit", "-Command", line]
+        );
+        assert_eq!(launch_args("nu", check), None);
+        assert_eq!(typed_line(check), format!("{line}\r"));
+        // 잇기가 먼저다 — 확인 명령과 함께 오지 않지만, 와도 `claude --continue` 자리를 빼앗지 않는다.
+        assert_eq!(Launch::of(None, true, Some(line)), Some(Launch::Resume));
+        assert_eq!(
+            Launch::of(Some("p"), false, Some(line)),
+            Some(Launch::Check(line))
+        );
+    }
+
+    /// 한 줄의 문 — 줄을 나누거나 터미널을 움직이는 글자가 하나라도 있으면 열지 않는다.
+    #[test]
+    fn only_a_single_printable_line_passes() {
+        assert!(is_one_line("pnpm test && cargo test --locked"));
+        assert!(is_one_line(r#"echo "a  b" '$x' # 메모 ␛"#));
+        for bad in [
+            "",
+            "   ",
+            "a\nb",
+            "a\rb",
+            "a\tb",
+            "a\u{1b}[31mb",
+            "a\u{85}b",
+            "a\u{2028}b",
+            "a\u{2029}b",
+            "a\u{7f}",
+            "a\u{9b}31m",
+        ] {
+            assert!(!is_one_line(bad), "{bad:?}");
+        }
+    }
+
+    /// 한 줄이 아니면 세션을 열지 않는다 — 셸을 띄우기 전에 돌아온다.
+    #[test]
+    fn open_refuses_a_check_that_is_not_one_line() {
+        use super::super::tests::spec;
+        use super::super::{OpenSpec, TermCheck, TermSessions};
+        let sessions = TermSessions::default();
+        let spec = OpenSpec {
+            check: Some(TermCheck {
+                line: "pnpm test\nrm -rf ~".into(),
+                label: "check".into(),
+            }),
+            ..spec("w", 1)
+        };
+        assert!(sessions.open(spec, |_| {}).is_err());
+        assert!(sessions.list("w").is_empty(), "세션이 생기지 않는다");
     }
 
     /// 진짜 PTY 로 — 로캘 없는 부모(Finder 로 띄운 앱)에서도 셸은 UTF-8 로캘을 받고, 부모 터미널의 신원
@@ -428,6 +523,53 @@ mod tests {
         assert!(
             sessions.list("w")[0].alive,
             "claude 가 끝난 뒤에도 셸이 남는다"
+        );
+        sessions.close_all();
+    }
+
+    /// 확인 명령도 rc 의 질문에 먹히지 않고 사람이 쓴 그대로 돈다 — 따옴표 · `$((…))` · `&&` · 끝의 `# 메모`.
+    /// 메모가 뒤의 `exec` 를 주석으로 삼켰다면 명령이 끝나자마자 세션이 닫혔다(메모 안의 `exit 7` 이 돌았어도
+    /// 그렇다). 끝나면 같은 자리에 로그인 셸이 다시 서서 — rc 의 질문도 다시 묻는다 — 사람이 치는 다음 줄을 받는다.
+    #[cfg(unix)]
+    #[test]
+    fn a_check_line_runs_as_written_and_a_shell_stays() {
+        use super::super::tests::{spec, wait_until};
+        use super::super::TermSessions;
+        let zsh = std::path::Path::new("/bin/zsh");
+        if !zsh.exists() {
+            eprintln!("zsh 가 없다 — 건너뛴다");
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let zdot = dir.path().join("zdot");
+        std::fs::create_dir_all(&zdot).unwrap();
+        std::fs::write(zdot.join(".zshrc"), "read -k 1 answer\n").unwrap();
+        let (got, after) = (dir.path().join("got"), dir.path().join("after"));
+        let line = format!(
+            "printf '%s|' 'a b' \"$((1 + 2))\" > '{0}' && printf done >> '{0}' # 메모 ; exit 7",
+            got.display()
+        );
+        assert!(is_one_line(&line));
+        let mut cmd = CommandBuilder::new(zsh);
+        cmd.args(launch_args("zsh", Launch::Check(&line)).unwrap());
+        cmd.env("ZDOTDIR", &zdot);
+        cmd.env("SHELL", zsh);
+        let sessions = TermSessions::default();
+        let info = sessions
+            .start(spec("w", 1), cmd, "check".into(), None, |_| {})
+            .unwrap();
+        // 사람이 rc 의 질문에 답한다 — 명령 줄은 그 답과 섞이지 않는다.
+        sessions.write(info.id, "y").unwrap();
+        wait_until(
+            || std::fs::read_to_string(&got).is_ok_and(|s| s == "a b|3|done"),
+            "확인 명령이 쓴 그대로 돌지 않았다",
+        );
+        // 다시 선 로그인 셸 — rc 의 질문에 한 번 더 답하고 다음 줄을 친다.
+        let next = format!("yprint -n ok > '{}'\r", after.display());
+        sessions.write(info.id, &next).unwrap();
+        wait_until(
+            || std::fs::read_to_string(&after).is_ok_and(|s| s == "ok"),
+            "확인 명령 뒤에 셸이 남지 않았다",
         );
         sessions.close_all();
     }

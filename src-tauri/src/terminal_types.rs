@@ -59,6 +59,16 @@ pub struct TermResume {
     pub lane: Option<String>,
 }
 
+/// 계획의 확인 명령을 돌릴 세션 (11-15 사용자 결정 「누를 때만 돌리기」) — 사람이 확인 창에서 전문을 보고 누른
+/// 한 줄과 탭 이름. 셸은 줄을 명령 인자로 받는다(`terminal_env.rs` 의 `Launch::Check`).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, specta::Type)]
+pub struct TermCheck {
+    /// 웹뷰가 거른 한 줄 — 확인 창에 보인 그대로다. 한 줄이 아니면 열지 않는다(`terminal_env::is_one_line`).
+    pub line: String,
+    /// 탭 이름(「확인 명령」) — 웹뷰가 제 언어로 정한다. `claude` 가 아니라 업데이트 뒤 잇기 대상이 아니다.
+    pub label: String,
+}
+
 /// 앱 전체에서 도는 세션 수 — 업데이트가 재시작 전에 묻는다.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, specta::Type)]
 pub struct TermBusy {
@@ -73,7 +83,7 @@ pub struct TermBusy {
 pub struct TermInfo {
     pub id: u32,
     pub project_id: u32,
-    /// 셸 이름 또는 `claude` (「다음」 실행).
+    /// 셸 이름 또는 `claude` (「다음」 실행), 확인 명령이면 그 탭 이름(`TermCheck.label`).
     pub label: String,
     /// 시작 시각 (RFC 3339).
     pub started_at: String,
