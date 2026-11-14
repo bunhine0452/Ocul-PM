@@ -5,14 +5,15 @@
  * 화면 어디서든 `requestSendToClaude(맥락)` 만 부르고, 대화상자는 창마다 하나(`SendToClaudeHost`).
  * xterm 을 들이지 않는다 — 넣는 일은 백엔드(`term_write`)가 한다.
  */
-import { terminalApi, type TermInfo } from "@/api/terminal";
-import type { I18nKey, TVars } from "@/i18n";
+import { terminalApi, type TermInfo, type TermStatus } from "@/api/terminal";
+import { t, type I18nKey, type TVars } from "@/i18n";
 import { createIntentSlot, createStore } from "@/lib/createStore";
 import { toast } from "@/lib/toast";
+import { sanitizePaste } from "./pasteSafe";
 
 export interface SendContext {
-  kind: "journal" | "plan" | "file" | "notes";
-  /** 사람이 읽는 이름 — 일지 제목 · 항목 제목 · 파일 경로. */
+  kind: "journal" | "plan" | "file" | "notes" | "terminal";
+  /** 사람이 읽는 이름 — 일지 제목 · 항목 제목 · 파일 경로 · 고른 줄 수. */
   label: string;
   /** Claude 가 찾아 읽을 자리 — `.oculpm/journal/…md` · `plan-id#item` · 파일 경로. */
   ref: string;
@@ -20,6 +21,8 @@ export interface SendContext {
   note?: string;
   /** 할 말 칸을 미리 채운다 — 변경 줄 메모 묶음. 보내기 전에 고칠 수 있다. */
   prefill?: string;
+  /** 터미널에서 고른 출력(`terminal` 만) — 맥락 머리 뒤에 코드 울타리로 붙는다. */
+  body?: string;
   /** 보낸 뒤 — 변경 메모는 보내면 비운다. */
   onSent?: () => void;
 }
@@ -28,6 +31,15 @@ const slot = createIntentSlot<SendContext>("oculpm:send-to-claude");
 export const requestSendToClaude = (ctx: SendContext) => slot.request(ctx);
 export const onSendToClaude = (fn: (ctx: SendContext) => void) => slot.subscribe(fn);
 
+/**
+ * 터미널에서 고른 출력을 Claude 에게 (⌘L, 업그레이드 라운드 TI-08) — 셸 칸의 실패 출력을 같은 창의
+ * Claude 에게 넘기는 데 복사 → 대화상자 → 붙여넣기가 들었다. 이제 고르고 한 키.
+ */
+export function requestSendSelection(text: string) {
+  const n = text.split("\n").length;
+  requestSendToClaude({ kind: "terminal", label: t("send.ctx.terminal", { n }), ref: "", body: text });
+}
+
 type Tr = (key: I18nKey, vars?: TVars) => string;
 
 const HEAD: Record<SendContext["kind"], I18nKey> = {
@@ -35,18 +47,48 @@ const HEAD: Record<SendContext["kind"], I18nKey> = {
   plan: "send.msg.plan",
   file: "send.msg.file",
   notes: "send.msg.notes",
+  terminal: "send.msg.terminal",
 };
 
-/** Claude 에게 갈 글 — 맥락 한 줄, 빈 줄, 사람이 쓴 말. */
+/** 고른 출력의 상한 — 넘으면 끝 쪽을 남긴다(실패한 명령은 끝에 요약과 오류가 있다). */
+export const BODY_MAX = 4000;
+
+/** 고른 출력 → 코드 울타리. 글 안의 가장 긴 ``` 보다 긴 울타리를 쓴다 — 글이 울타리를 닫지 못하게. */
+function fenced(body: string): string {
+  let text = sanitizePaste(body).replace(/\n+$/, "");
+  if (text.length > BODY_MAX) {
+    let tail = text.slice(-BODY_MAX);
+    // 잘린 자리가 서로게이트 쌍 가운데면 반쪽을 버린다.
+    const first = tail.charCodeAt(0);
+    if (first >= 0xdc00 && first <= 0xdfff) tail = tail.slice(1);
+    text = `\u{2026}\n${tail}`;
+  }
+  const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = "`".repeat(Math.max(3, longest + 1));
+  return `${fence}\n${text}\n${fence}`;
+}
+
+/** Claude 에게 갈 글 — 맥락 한 줄, (고른 출력), 빈 줄, 사람이 쓴 말. */
 export function composeMessage(tr: Tr, ctx: SendContext, text: string): string {
   const head = tr(HEAD[ctx.kind], { ref: ctx.ref, label: ctx.label });
   const note = ctx.note ? ` (${ctx.note})` : "";
-  return `${head}${note}\n\n${text.trim()}`;
+  const body = ctx.body ? `\n\n${fenced(ctx.body)}` : "";
+  return `${head}${note}${body}\n\n${text.trim()}`;
+}
+
+/**
+ * 안의 프로그램이 Claude 인가 — 엔진이 알린 이름(`status.app`, OSC 7501)이 있으면 그것으로 가린다.
+ * 상태 신호만 보면 Codex 세션도 끼어 Claude 에게 쓴 지시가 Codex 로 갈 수 있었다. 이름을 안 알리는
+ * 프로그램(엔진 합류 전 · 옛 판)은 예전처럼 믿는다.
+ */
+function isClaudeApp(s: TermInfo): boolean {
+  const app = (s.status as (TermStatus & { app?: string | null }) | null)?.app;
+  return app == null || /claude/i.test(app);
 }
 
 /** 받을 수 있는 세션 — 셸 위에서 claude 가 돈다(상태 신호를 보냈거나 「다음」으로 띄운 것). */
 export function receiversOf(list: readonly TermInfo[]): TermInfo[] {
-  return list.filter((s) => s.alive && s.busy && (s.status != null || s.label === "claude"));
+  return list.filter((s) => s.alive && s.busy && (s.status != null || s.label === "claude") && isClaudeApp(s));
 }
 
 /** 먼저 고를 받는 곳 — 쉬는(입력 대기 · 끝냄) 세션, 없으면 첫 세션. */
@@ -61,9 +103,13 @@ const PASTE_END = "\x1b[201~";
 /**
  * 도는 세션에 넣는다 — 붙여넣기(bracketed paste)로 감싸 여러 줄이 한 번에 입력칸에 들어가게 하고,
  * 잠깐 뒤 Enter. 쉬는지는 보지 않는다 — 부르는 쪽이 `sendOrQueue` 로 가린다.
+ *
+ * 넣기 전에 거른다(`pasteSafe`) — 일지 · 계획 제목은 동료가 커밋한 글이라 `ESC[201~` 이 들어 있으면
+ * 붙여넣기가 일찍 닫히고 뒤의 `!명령` 이 셸 모드로 돈다. 줄 세운 말(`flushQueue`) · 「끝까지」(/goal)도
+ * 모두 여기를 지난다.
  */
 export async function deliverToSession(id: number, message: string, settleMs = 60): Promise<void> {
-  await terminalApi.write(id, PASTE_START + message + PASTE_END);
+  await terminalApi.write(id, PASTE_START + sanitizePaste(message) + PASTE_END);
   await new Promise((r) => setTimeout(r, settleMs));
   await terminalApi.write(id, "\r");
 }

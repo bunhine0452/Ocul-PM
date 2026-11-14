@@ -9,21 +9,37 @@
  * 경로와 위치를 준다. 받을 세션은 커서 아래 칸(`data-term-id`)이고, 못 찾으면 고른 세션.
  */
 import { useEffect, useState } from "react";
+import { sanitizePaste } from "./pasteSafe";
 
 /** 셸에서 그대로 한 낱말이 되는 글자만 있으면 따옴표 없이. */
 const BARE = /^[A-Za-z0-9_\-.,/:@%+=~]+$/;
+/**
+ * PowerShell 판 — 쉼표(배열) · `@`(펼치기) · `=` · `%`(ForEach 별칭)는 맨 낱말을 깨므로 뺀다
+ * (업그레이드 라운드 TI-03).
+ */
+const BARE_PS = /^[A-Za-z0-9_\-./:+~]+$/;
 const SQ = "'";
-const DQ = '"';
+/** PowerShell 은 굽은 작은따옴표(‘ ’ ‚ ‛)도 작은따옴표로 읽는다 — 이것들도 두 번 써서 닫히지 않게. */
+const PS_QUOTES = /['\u{2018}\u{2019}\u{201a}\u{201b}]/gu;
 
-/** 경로 하나를 셸 낱말로 — POSIX 는 작은따옴표(안의 `'` 는 `'\''`), Windows 는 큰따옴표. */
+/**
+ * 경로 하나를 셸 낱말로 — POSIX 는 작은따옴표(안의 `'` 는 `'\''`), Windows(PowerShell)도 작은따옴표
+ * (안의 작은따옴표는 둘로). 예전 Windows 의 큰따옴표는 안의 `$` · 백틱을 펼치고 쉼표를 배열로 만들었다.
+ */
 export function shellQuote(path: string, windows: boolean): string {
-  if (windows) return BARE.test(path.replace(/\\/g, "/")) ? path : DQ + path.split(DQ).join(DQ + DQ) + DQ;
+  if (windows) return BARE_PS.test(path.replace(/\\/g, "/")) ? path : SQ + path.replace(PS_QUOTES, (q) => q + q) + SQ;
   return BARE.test(path) ? path : SQ + path.split(SQ).join(SQ + "\\" + SQ + SQ) + SQ;
 }
 
-/** 놓인 경로들 → 입력에 붙일 글 (끝에 빈칸 하나 — 이어 쓰기 쉽게). */
+/**
+ * 놓인 경로들 → 입력에 붙일 글 (끝에 빈칸 하나 — 이어 쓰기 쉽게). 파일 이름에 든 제어 바이트는
+ * 붙이기 전에 거른다(`pasteSafe`) — 이름의 `ESC[201~` 가 붙여넣기를 일찍 닫지 못하게.
+ */
 export function dropText(paths: readonly string[], windows: boolean): string {
-  const words = paths.filter((p) => p.length > 0).map((p) => shellQuote(p, windows));
+  const words = paths
+    .map((p) => sanitizePaste(p))
+    .filter((p) => p.length > 0)
+    .map((p) => shellQuote(p, windows));
   return words.length > 0 ? `${words.join(" ")} ` : "";
 }
 

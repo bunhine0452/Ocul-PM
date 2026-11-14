@@ -7,10 +7,15 @@
 // xterm 은 무겁다 — 오늘·계획 화면의 첫 청크에 싣지 않게 저장소를 여기서 지연 로드한다.
 
 import { NAV_BUS } from "@/lib/navRegistry";
+import { sanitizePaste } from "./pasteSafe";
 
+/**
+ * 프롬프트는 셸이 치는 줄이 아니라 환경 변수(`$OCULPM_PROMPT`)로 claude 에게 가지만, 일지 · 계획 제목을
+ * 담은 글이라 같은 정화기를 지난다(`pasteSafe`) — 제어 바이트가 claude 의 첫 입력에 실리지 않게.
+ */
 export async function runPromptInTerminal(projectId: number, prompt: string): Promise<void> {
   const { openTerm } = await import("./termStore");
-  await openTerm(projectId, prompt);
+  await openTerm(projectId, sanitizePaste(prompt));
   window.dispatchEvent(new CustomEvent(NAV_BUS.setView, { detail: "terminal" }));
 }
 
@@ -31,6 +36,7 @@ export async function runGoalInTerminal(projectId: number, goal: string): Promis
   window.dispatchEvent(new CustomEvent(NAV_BUS.setView, { detail: "terminal" }));
   const ready = await waitForTermStatus(id, (s) => s?.state === "idle", GOAL_READY_MS);
   if (!ready) return false;
+  // 조건 글(계획의 확인 명령 · 제목)도 넣기 전에 거른다 — `deliverToSession` 이 정화기를 지난다.
   await deliverToSession(id, goal);
   return true;
 }

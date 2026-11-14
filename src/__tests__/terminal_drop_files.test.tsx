@@ -27,9 +27,9 @@ describe("shellQuote", () => {
     expect(shellQuote("/tmp/스크린숏.png", false)).toBe("'/tmp/스크린숏.png'");
   });
 
-  it("uses double quotes on Windows", () => {
+  it("uses single quotes on Windows (PowerShell — terminal_drop_quote.test.ts)", () => {
     expect(shellQuote("C:\\shots\\a.png", true)).toBe("C:\\shots\\a.png");
-    expect(shellQuote("C:\\My Shots\\a.png", true)).toBe('"C:\\My Shots\\a.png"');
+    expect(shellQuote("C:\\My Shots\\a.png", true)).toBe("'C:\\My Shots\\a.png'");
   });
 
   it("joins several paths with a trailing space", () => {
