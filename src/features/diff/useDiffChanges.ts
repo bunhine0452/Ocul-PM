@@ -49,6 +49,8 @@ export interface DiffChanges {
   /** 곁들이(일지 묶음)의 실패 — 목록 자체는 멀쩡하므로 가리지 않는다. */
   enrichError: string | null;
   retryEnrich: () => void;
+  /** 맨 위에 생성 표지가 든 파일 — 못 물으면 빈 집합(잠금 파일은 이름으로 따로 안다). */
+  marked: ReadonlySet<string>;
 
   toggleVerified: (relativePath: string, next: boolean) => Promise<void>;
 }
@@ -164,9 +166,11 @@ export function useDiffChanges(projectId: number): DiffChanges {
   const changesRef = useRef(changes);
   changesRef.current = changes;
 
+  const [marked, setMarked] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
     if (changesRef.current.length === 0) {
       setGroups(null);
+      setMarked(new Set());
       return;
     }
     let cancelled = false;
@@ -182,6 +186,11 @@ export function useDiffChanges(projectId: number): DiffChanges {
         setGroups(null);
         setEnrichError(tError(toAppError(e)));
       });
+    // 생성 표지 — 접기만 바꾸는 곁들이라 실패해도 말하지 않는다(잠금 파일은 이름으로 접힌다).
+    diffApi
+      .generatedFiles(projectId, paths)
+      .then((data) => !cancelled && setMarked(new Set(Array.isArray(data) ? data : [])))
+      .catch(() => !cancelled && setMarked(new Set()));
     return () => {
       cancelled = true;
     };
@@ -226,6 +235,7 @@ export function useDiffChanges(projectId: number): DiffChanges {
     groups,
     enrichError,
     retryEnrich,
+    marked,
     toggleVerified,
   };
 }

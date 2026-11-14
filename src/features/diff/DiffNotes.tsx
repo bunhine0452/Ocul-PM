@@ -107,7 +107,8 @@ function NoteEditor({ projectId, initial }: { projectId: number; initial: string
         <button type="button" className="btn ghost sm" onClick={() => cancelNote(projectId)}>
           {t("diff.notes.cancel")}
         </button>
-        <button type="button" className="btn primary sm" onClick={() => saveNote(projectId, text)}>
+        {/* 보통 단추 — 화면의 채운 단추는 「메모 N개 맡기기」 · 「Claude 에게 맡기기」 하나다 (영수증 규칙 3). */}
+        <button type="button" className="btn sm" onClick={() => saveNote(projectId, text)}>
           {t("diff.notes.save")}
           <kbd className="kbd">{kbd("⌘↩")}</kbd>
         </button>

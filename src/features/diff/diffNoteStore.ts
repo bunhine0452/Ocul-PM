@@ -82,8 +82,19 @@ export function removeNote(projectId: number, anchor: Pick<NoteAnchor, "file" | 
   update(projectId, (s) => ({ ...s, notes: s.notes.filter((n) => anchorKey(n) !== key) }));
 }
 
-export function clearNotes(projectId: number): void {
+/** 다 지운다 — 지운 메모를 돌려준다(「되돌리기」 가 `restoreNotes` 로 다시 싣는다). */
+export function clearNotes(projectId: number): DiffNote[] {
+  const removed = byProject.get(projectId)?.notes ?? [];
   update(projectId, () => EMPTY);
+  return [...removed];
+}
+
+/** 지운 메모를 되살린다 — 그사이 새로 단 메모는 그대로 두고, 같은 줄이면 새것이 이긴다. */
+export function restoreNotes(projectId: number, notes: readonly DiffNote[]): void {
+  update(projectId, (s) => {
+    const taken = new Set(s.notes.map(anchorKey));
+    return { ...s, notes: [...notes.filter((n) => !taken.has(anchorKey(n))), ...s.notes] };
+  });
 }
 
 /** 보낼 것(아직 안 보낸 메모)을 보냄으로 — 「Claude 에게 보내기」 가 성공한 뒤. */
@@ -100,7 +111,15 @@ export function hydrateNotes(projectId: number, notes: readonly DiffNote[]): voi
 }
 
 /**
- * 보낸 메모의 판정 — 파일의 지금 내용(`null` = 읽지 못함 · 지워짐)과 견준다. 순수 함수.
+ * 파일 읽기 실패가 「없다」 인가 — 그때만 메모의 줄이 사라진 것이다. 권한 · 잠금 같은 다른 오류에
+ * 「바뀜」 을 세우면 거짓말이다(11-15 #diff-receipt): 그런 파일은 판정 지도에서 빼 직전 값을 둔다.
+ */
+export function isNotFoundError(detail: string): boolean {
+  return /\(os error [23]\)|No such file|cannot find the (file|path)/i.test(detail);
+}
+
+/**
+ * 보낸 메모의 판정 — 파일의 지금 내용(`null` = 지워짐, 지도에 없음 = 못 읽음 → 그대로)과 견준다. 순수 함수.
  * 그 줄에 같은 코드가 있으면 아직. 제자리를 떠났을 때, 알아볼 만한 줄이면 가장 가까운 같은 줄로 따라가고
  * 아직 · 어디에도 없으면 고쳐짐. 흔한 줄(`}` · `</div>` · 빈 줄)은 따라가지 않고 「가릴 수 없음」 —
  * 따라가던 때는 지워진 `</div>` 의 메모가 다른 `</div>` 로 옮겨 「아직」 에 남았다(레드팀 10-31).

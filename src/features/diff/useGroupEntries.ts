@@ -13,8 +13,10 @@ import { useJournalEvents } from "@/features/oculpm/useOculpmLive";
 export function useGroupEntries(
   projectId: number,
   groups: readonly ChangeGroup[] | null,
-): ReadonlyMap<string, JournalEntrySummary> {
+): { entries: ReadonlyMap<string, JournalEntrySummary>; ready: boolean } {
   const [entries, setEntries] = useState<ReadonlyMap<string, JournalEntrySummary>>(() => new Map());
+  // 이 묶음들의 요약을 한 번이라도 받았나 — 처음 고를 파일(검증 없는 묶음)이 이것을 기다린다.
+  const [ready, setReady] = useState(false);
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((n) => n + 1), []);
   // 에이전트가 일지를 고치면(검증 칸 보강) 증거 등급이 바뀐다.
@@ -39,15 +41,17 @@ export function useGroupEntries(
     void Promise.resolve()
       .then(() => oculpmApi.workdayEntries(projectId, workdaysKey.split(",")))
       .then((rows) => {
-        if (!cancelled) setEntries(new Map(rows.map((e) => [e.relative_path, e])));
+        if (!cancelled) setEntries(new Map((Array.isArray(rows) ? rows : []).map((e) => [e.relative_path, e])));
       })
       .catch(() => {
         if (!cancelled) setEntries(new Map());
-      });
+      })
+      .finally(() => !cancelled && setReady(true));
     return () => {
       cancelled = true;
     };
   }, [projectId, workdaysKey, tick]);
 
-  return entries;
+  // 일지 묶음이 하나도 없으면 물을 것이 없다 — 묶음을 알기만 하면 다 받은 것이다.
+  return { entries, ready: workdaysKey ? ready : groups != null };
 }

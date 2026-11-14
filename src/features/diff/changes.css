@@ -1,19 +1,30 @@
 /* ============================================================
-   changes.css — 변경 화면 (4.0): 왼쪽 340px 목록 + 오른쪽 diff
+   changes.css — 변경 화면 (4.0): 왼쪽 목록 + 오른쪽 diff
 
-   목록은 예외부터다: 「기록 없음」(어느 일지에도 없는 변경)이 먼저 서고, 그다음 「일지에 있음」이
-   일지별로 묶인다. 오른쪽은 기록 없는 파일을 골랐을 때만 배너가 diff 위에 선다.
+   목록은 예외부터다: 「일지 없음」(어느 일지에도 없는 변경)이 먼저 서고, 그다음 「일지에 있음」이
+   일지별로 묶인다(검증 없는 묶음이 앞). 오른쪽은 일지 없는 파일을 골랐을 때만 띠가 diff 위에 선다.
    diff 렌더러(PatchView)와 +N/−M(.diff-stat)은 일지 상세와 같은 것을 쓴다.
    ============================================================ */
 
 .chg-split { flex: 1; min-height: 0; display: flex; outline: none; }
 
+/* 목록 칸의 폭은 일지 · 계획 목록과 한 토큰(--panel-w) — 탭을 옮기면 경계가 같은 자리에 선다. */
 .chg-list {
-  width: 340px; max-width: 45%; flex: none; min-height: 0;
+  width: var(--panel-w); max-width: 45%; flex: none; min-height: 0;
   display: flex; flex-direction: column;
   overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
   border-right: 1px solid var(--sep); background: var(--bg-window);
 }
+/* 목록 머리 — 최근 커밋이면 「a1b2c3d · 제목」, 하나라도 봤으면 「본 것 4/12」. */
+.chg-lh {
+  display: flex; align-items: baseline; gap: var(--space-4);
+  padding: var(--space-4) var(--space-6) 0;
+  font-size: var(--fs-3); color: var(--text-2);
+}
+.chg-commit { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chg-commit .mono { color: var(--text); font-variant-numeric: tabular-nums; }
+.chg-viewed { flex: none; margin-left: auto; white-space: nowrap; }
+.chg-viewed .mono { color: var(--text); font-variant-numeric: tabular-nums; }
 /* 묶음 머리 — 칩 하나 + 개수. 스크롤 중 붙는다 (불투명이 아니면 행이 비친다). */
 .chg-bh {
   position: sticky; top: 0; z-index: var(--z-sticky);
@@ -37,15 +48,24 @@
 .chg-item.nested { padding-left: var(--space-8); background: var(--bg-content); }
 .chg-item.nested:hover { background: var(--bg-hover); }
 .chg-item.nested[aria-current="true"] { background: var(--bg-active); }
+/* 본 파일 — 흐리게 한 줄로 선다. 고르면 다시 또렷하다. */
+.chg-item.is-viewed:not([aria-current="true"]) .chg-r1 { opacity: 0.55; }
 .chg-r1 { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .chg-ti { flex: 1; min-width: 0; font-size: var(--fs-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chg-count { flex: none; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .chg-meta { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 파일 행 한 줄 — 바뀐 종류는 한 글자(M · A · D), 시각은 오른쪽 끝. */
+/* 묶음 메타는 제목선에서 시작한다 — 꺾쇠(11px) + 사이 만큼. 칸 왼쪽에서 시작하던 때 제목보다 19px 왼쪽이었다. */
+.chg-grp .chg-meta { padding-left: calc(11px + var(--space-3)); }
+/* 파일 행 한 줄 — 바뀐 종류는 한 글자(M · A · D), 메모 수 · 본 뒤 바뀜 · 시각은 오른쪽 끝. */
 .chg-op { flex: none; width: 1.2em; font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); text-align: center; }
 .chg-op[data-op="A"] { color: var(--ok-text); }
 .chg-op[data-op="D"] { color: var(--danger-text); }
-.chg-when { flex: none; margin-left: auto; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* 행 끝 — 메모 수(mono) · 본 뒤 바뀜 점 · 시각. */
+.chg-end { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-3); }
+.chg-notes { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* 본 뒤 바뀜 — 중립 회색 점 하나(색은 예외에만, 영수증 규칙 1). */
+.chg-changed { width: 6px; height: 6px; border-radius: 50%; background: var(--text-2); }
+.chg-when { font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .chg-ok { color: var(--text-2); } /* 통과는 조용히 — 영수증 규칙 1 */
 .chg-warn { color: var(--warn-text); font-weight: var(--fw-strong); }
 /* 경로 — 디렉터리부터 줄어들고 파일명은 온전히 남는다. */
@@ -58,22 +78,38 @@
 .chg-base { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 이름은 줄지 않고(폴더가 0 까지 먼저 준다), 이름만으로 칸을 넘을 때만 말줄임. 줄어드는 비율(100:1)로
    두던 때는 폴더와 이름이 같이 잘려 「src/features/she… ProjectSwitcher.t…」 처럼 두 번 끊겼다(11-04). */
+/* 키 안내 한 줄 — 목록 끝. */
+.chg-keys { margin: auto 0 0; padding: var(--space-5) var(--space-6); font-size: var(--fs-3); color: var(--text-2); }
 
 /* ── 오른쪽 ───────────────────────────────────────────────────────────────── */
 .chg-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-card); outline: none; }
+/* 일지 없음 띠 (11-15 #diff-primary) — 두 테마 같은 모양: 옅은 경고색 테 하나 + 아주 옅은 바탕. 바탕을
+   --warn-soft 한 겹으로 두던 때 다크에서 탁한 올리브(카드와 1.37:1), 라이트에서 거의 안 보였다(1.11:1). */
 .chg-banner {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4);
-  margin: var(--space-5) var(--space-6) 0; padding: var(--space-4) var(--space-5);
-  border-radius: var(--radius-m); background: var(--warn-soft);
+  margin: var(--space-5) var(--space-6) 0; padding: var(--space-3) var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--warn) 5%, var(--bg-card));
 }
-.chg-banner-text { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.chg-banner-text b { font-weight: var(--fw-strong); }
+/* 맡긴 뒤 — 머리카락 선 하나, 바탕 없음. 일지가 오면 사라진다. */
+.chg-banner.is-asked { border-color: var(--sep-strong); background: transparent; }
+.chg-banner-n { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; color: var(--text); }
+.chg-banner-text { flex: 1 1 200px; min-width: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
 .chg-fh {
   display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--sep);
 }
-.chg-fname { min-width: 0; font-family: var(--mono); font-size: var(--fs-4); font-weight: var(--fw-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 머리줄 경로 — 폴더 · 파일 두 조각. 폴더가 먼저 줄어 파일 이름이 끝까지 남는다. */
+.chg-fname { display: flex; align-items: baseline; min-width: 0; font-family: var(--mono); font-size: var(--fs-4); font-weight: var(--fw-strong); }
+.chg-fdir { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-weight: var(--fw-label); direction: rtl; text-align: left; }
+.chg-fbase { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chg-again { flex: none; font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chg-fh .chg-fh-wait { flex: none; padding: 0; }
 .chg-sp { flex: 1; }
+/* 눌린 토글(봤음 · 공백 무시 · 읽음) — ✓ 와 한 단 짙은 면. 초록은 쓰지 않는다(영수증 규칙 1). */
+.chg-fh .btn[aria-pressed="true"], .diff-entry-foot .btn[aria-pressed="true"] { background: var(--bg-active); border-color: var(--sep-strong); }
+/* 파일을 넘기는 동안 150ms 넘게 걸리면 이전 본문을 흐리게 — 다른 파일의 diff 를 읽지 않게. */
+.diff-code.is-stale { opacity: 0.5; }
 
 /* 바닥줄 — 이 파일을 적은 일지의 검증 (DiffEntryFooter). 일지가 말한 것과 바뀐 것을 한 화면에서 붙여 본다. */
 .diff-entry-foot {
@@ -83,9 +119,11 @@
 .diff-entry-foot[data-evidence="on"] > svg { color: var(--text-2); }
 .diff-entry-foot[data-evidence="off"] > svg { color: var(--warn-text); }
 .def-label { font-weight: var(--fw-bold); white-space: nowrap; }
-.def-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+/* 검증 줄은 끝(결과)을 남기고 앞을 줄인다 — 앞 조각만 말줄임, 끝 조각은 그대로. */
+.def-line { display: flex; min-width: 0; color: var(--text); white-space: nowrap; }
+.def-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.def-tail { flex: none; white-space: pre; }
 .def-fill { flex: 1; }
-.diff-entry-foot .btn.ok { color: var(--ok-text); border-color: var(--ok); }
 
 /* 좁은 창(≤640, 10-30) — 파일 목록이 위, diff 가 아래. 띠는 글이 먼저 한 줄을 갖고 단추는 아래로 내려간다
    (옆으로 서면 글이 한 글자씩 세로로 꺾였다). 파일 머리줄도 줄을 바꾼다. */
@@ -94,4 +132,5 @@
   .chg-list { width: auto; max-width: none; max-height: 38%; border-right: 0; border-bottom: 1px solid var(--sep); }
   .chg-banner { margin: var(--space-4) var(--space-4) 0; }
   .chg-fh { flex-wrap: wrap; padding: var(--space-3) var(--space-4); }
+  .chg-keys { display: none; }
 }
