@@ -240,8 +240,8 @@ describe("shortcut sheet — the current screen first, flowing in columns", () =
     fakeTopbar("today");
     const dialog = await openCheatsheet();
     expect(groupTitles(dialog)).not.toContain(t("keys.g.start"));
-    // 오늘은 자기 묶음이 없다 — 순서는 레지스트리 그대로.
-    expect(groupTitles(dialog)[0]).toBe(t("keys.g.nav"));
+    // 오늘도 자기 묶음이 생겼다(11-15 오늘 레인) — 지금 화면의 묶음이 맨 앞.
+    expect(groupTitles(dialog)[0]).toBe(t("keys.todayGroup"));
   });
 
   it("the start window (no top bar) puts the start-screen group first", async () => {

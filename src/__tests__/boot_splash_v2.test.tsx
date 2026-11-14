@@ -94,7 +94,7 @@ describe("splash — only when the first window is slow", () => {
   it("the first-content selector names real roots — TopBar · StartWindow · ErrorCard (other lanes' markup)", () => {
     // 이 이름들이 바뀌면 콜드 스타트마다 스플래시(fixed · 불투명)가 10초 give-up 까지 창을 덮는다 — 조용히.
     expect(BOOT_FIRST_CONTENT).toBe(".topbar, .start, .err-card");
-    expect(read("features/shell/TopBar.tsx"), "BOOT_FIRST_CONTENT .topbar").toMatch(/<header className="topbar"/);
+    expect(read("features/shell/TopBar.tsx"), "BOOT_FIRST_CONTENT .topbar").toMatch(/<header\s+className="topbar"/);
     expect(read("features/start/StartWindow.tsx"), "BOOT_FIRST_CONTENT .start").toMatch(/className=\{"start"/);
     expect(read("components/ErrorCard.tsx"), "BOOT_FIRST_CONTENT .err-card").toMatch(/"card err-card"/);
   });

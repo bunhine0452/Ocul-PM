@@ -108,7 +108,7 @@ describe("journal keyboard — v keeps the place", () => {
     fireEvent.keyDown(split(container), { key: "v" });
     await waitFor(() => expect(jfx.verified).toEqual([{ relativePath: "20260531/F/1200_m2.md", verified: true }]));
     await waitFor(() => expect(container.querySelectorAll(".jl-item")).toHaveLength(2));
-    expect(selectedTitle(container)).toBe("Missing three");
+    await waitFor(() => expect(selectedTitle(container)).toBe("Missing three")); // 줄이 빠진 다음 렌더에 선택이 옮긴다
   });
 
   it("j → v → j: the focused row drops out, focus moves to the row in its place, and the next j still lands", async () => {
