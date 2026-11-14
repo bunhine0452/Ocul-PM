@@ -61,18 +61,36 @@ fn extract_title(body: &str) -> (Option<bool>, String) {
             let after = &rest[close + 1..];
             if matches!(marker, " " | "x" | "X") && after.starts_with(' ') {
                 let checked = matches!(marker, "x" | "X");
-                return (Some(checked), after.trim_start().trim_end().to_string());
+                return (Some(checked), clean_title(after.trim_start()));
             }
         }
     }
 
     // Form 2: "# Title" (any heading level)
     if let Some(after_hashes) = strip_heading_prefix(trimmed) {
-        return (None, after_hashes.trim_end().to_string());
+        return (None, clean_title(after_hashes));
     }
 
     // Form 3: raw first line
-    (None, trimmed.trim_end().to_string())
+    (None, clean_title(trimmed))
+}
+
+/// 제목 한 줄을 다듬는다 — 제어 문자를 걷고(탭은 빈칸으로) 끝 공백을 자른다.
+///
+/// 일지 제목은 동료가 커밋한 글이고, 「Claude 에게 보내기」 · 「끝까지」 를 거쳐 터미널 입력(대괄호
+/// 붙여넣기)으로 들어간다. 제목에 `ESC[201~ CR !명령` 이 남아 있으면 붙여넣기가 일찍 닫히고 뒤의
+/// 글자가 명령으로 돈다(업그레이드 라운드 TI-04). 목록 · 검색 · 보내기가 모두 같은 제목을 보게 여기서
+/// 한 번 걷는다 — 프런트(`features/terminal/pasteSafe.ts`)는 넣기 직전에 한 번 더 거른다.
+fn clean_title(raw: &str) -> String {
+    let kept: String = raw
+        .chars()
+        .filter_map(|c| match c {
+            '\t' => Some(' '),
+            c if c.is_control() => None,
+            c => Some(c),
+        })
+        .collect();
+    kept.trim_end().to_string()
 }
 
 fn strip_heading_prefix(line: &str) -> Option<&str> {
@@ -232,5 +250,27 @@ mod tests {
         let body = "[x] T\n\nrandom\n\n```\nx\n```\n";
         let pb = parse_body(body);
         assert_eq!(pb.raw, body);
+    }
+
+    #[test]
+    fn control_characters_are_stripped_from_title() {
+        // 붙여넣기를 일찍 닫고 셸 명령을 돌리려는 제목 — ESC · CR · BEL · DEL · C1(CSI) 가 걸러진다.
+        let body = "[x] 제목\u{1b}[201~\r!rm -rf ~\r\u{7}\u{7f}\u{9b}끝\n\n본문\n";
+        let pb = parse_body(body);
+        assert_eq!(pb.checkbox, Some(true));
+        assert_eq!(pb.title, "제목[201~!rm -rf ~끝");
+        assert!(!pb.title.chars().any(char::is_control));
+        // 원문은 그대로 — 걷는 것은 제목뿐이다.
+        assert_eq!(pb.raw, body);
+    }
+
+    #[test]
+    fn title_tabs_become_spaces_and_every_form_is_cleaned() {
+        assert_eq!(parse_body("# 머리\t제목\u{1b}\n").title, "머리 제목");
+        assert_eq!(
+            parse_body("그냥 \u{1b}[31m빨강\u{1b}[0m\n").title,
+            "그냥 [31m빨강[0m"
+        );
+        assert_eq!(parse_body("[ ] 끝 공백 \u{1b}\n").title, "끝 공백");
     }
 }
