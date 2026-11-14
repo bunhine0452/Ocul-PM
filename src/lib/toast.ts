@@ -6,9 +6,11 @@
  * `useSyncExternalStore` so React 18 renders stay consistent, and only the
  * `<Toaster />` mounted in `App.tsx` subscribes. Anyone else calls `toast.*`.
  *
- * Dedup: callers can pass `dedupKey` + `dedupWindowMs` to drop repeats of the
- * same key inside the window (used by `integrity_warning` and `agent_drift`
- * so a single bad file doesn't spam 30 toasts).
+ * Dedup (11-15 — 접기): 같은 `dedupKey` 의 토스트가 **떠 있으면** 새로 띄우지 않고 그 토스트의 글을
+ * 바꾸고 수를 하나 올린다(「읽음 5 · 되돌리기」). 예전엔 버리기만 해서, 떠 있는 동안 온 소식이 사라지거나
+ * (경고) 열쇠가 없는 자리에서는 같은 토스트가 다섯 장 쌓였다(읽음 다섯 번). 이미 닫힌 뒤
+ * `dedupWindowMs`(기본 30초) 안에 다시 온 것은 예전처럼 버린다 — 사람이 방금 치운 것을 되살리지 않는다
+ * (`integrity_warning` · `agent_drift` 가 그 창에 기댄다).
  *
  * Cooldown: `agent_drift` also uses sessionStorage for the [무시] action
  * — see `DriftCooldown` below.
@@ -34,9 +36,13 @@ export interface Toast {
    * **액션이 달렸으면 최소 15초** 다 (아래 ACTION_MIN_MS).
    */
   durationMs?: number;
+  /** 같은 열쇠로 접힌 수 — 1 이면 접힌 것이 없다(영수증 규칙 5: 접힌 것은 숫자로). */
+  count: number;
+  /** 접기 열쇠 (`dedupKey`). */
+  key?: string;
 }
 
-export interface ToastOpts extends Omit<Toast, "id"> {
+export interface ToastOpts extends Omit<Toast, "id" | "count" | "key"> {
   dedupKey?: string;
   dedupWindowMs?: number;
 }
@@ -123,18 +129,53 @@ function defaultDurationFor(kind: ToastKind): number {
   }
 }
 
-function push(opts: Omit<Toast, "id"> & { dedupKey?: string; dedupWindowMs?: number }): number | null {
-  if (opts.dedupKey) {
-    const last = recentByKey.get(opts.dedupKey) ?? 0;
-    const window = opts.dedupWindowMs ?? 30_000;
-    if (Date.now() - last < window) return null;
-    recentByKey.set(opts.dedupKey, Date.now());
-  }
-  const id = nextId++;
+function durationFor(opts: ToastOpts): number {
   const hasActions = (opts.actions?.length ?? 0) > 0;
   const requested = opts.durationMs ?? (hasActions ? ACTION_MIN_MS : defaultDurationFor(opts.kind));
   // 0 은 "사용자가 닫을 때까지" 라는 뜻이므로 하한을 씌우지 않는다.
-  const durationMs = hasActions && requested > 0 ? Math.max(requested, ACTION_MIN_MS) : requested;
+  return hasActions && requested > 0 ? Math.max(requested, ACTION_MIN_MS) : requested;
+}
+
+/** 시계를 처음부터 다시 — 접혀 들어온 소식은 방금 일어난 일이다. 0(고정)이면 시계를 걷는다. */
+function rearm(id: number, durationMs: number) {
+  const old = timers.get(id);
+  if (old?.handle) clearTimeout(old.handle);
+  timers.delete(id);
+  if (durationMs <= 0) return;
+  const timer: Timer = { remaining: durationMs, startedAt: 0, handle: null };
+  timers.set(id, timer);
+  // 읽는 중(호버 · 포커스로 멈춤)이었으면 멈춘 채로 둔다 — 떼는 순간 새 시간부터 간다.
+  if (old && !old.handle) return;
+  arm(id, timer);
+}
+
+function push(opts: ToastOpts): number | null {
+  const key = opts.dedupKey;
+  if (key) {
+    const live = toasts.find((t) => t.key === key);
+    if (live) {
+      const durationMs = durationFor(opts);
+      const folded: Toast = {
+        ...live,
+        kind: opts.kind,
+        message: opts.message,
+        title: opts.title,
+        actions: opts.actions,
+        durationMs,
+        count: live.count + 1,
+      };
+      toasts = toasts.map((t) => (t.id === live.id ? folded : t));
+      rearm(live.id, durationMs);
+      emit();
+      return live.id;
+    }
+    const last = recentByKey.get(key) ?? 0;
+    const window = opts.dedupWindowMs ?? 30_000;
+    if (Date.now() - last < window) return null;
+    recentByKey.set(key, Date.now());
+  }
+  const id = nextId++;
+  const durationMs = durationFor(opts);
   const t: Toast = {
     id,
     kind: opts.kind,
@@ -142,14 +183,12 @@ function push(opts: Omit<Toast, "id"> & { dedupKey?: string; dedupWindowMs?: num
     title: opts.title,
     actions: opts.actions,
     durationMs,
+    count: 1,
+    key,
   };
   toasts = [...toasts, t];
   emit();
-  if (durationMs > 0) {
-    const timer: Timer = { remaining: durationMs, startedAt: 0, handle: null };
-    timers.set(id, timer);
-    arm(id, timer);
-  }
+  rearm(id, durationMs);
   return id;
 }
 

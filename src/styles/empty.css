@@ -32,16 +32,24 @@
   padding: var(--space-6);
 }
 
-/* 화면 전체 — 문장 하나 · 버튼 하나, 여백만 넓다 (화면 검사 #empty-one). */
+/* 화면 전체 — 문장 하나 · 버튼 하나 (화면 검사 #empty-one).
+   **그 화면 본문의 왼쪽 선과 위 여백에 선다** (11-15). 예전엔 자기 여백(위 52 · 옆 24)을 따로 들고 있어
+   일지에서는 본문보다 24px 들어가 52px 내려앉았고, 계획에서는 같은 문장이 다른 자리에 섰다. 이제 안쪽
+   여백이 없다 — 칸(.page · 계획 문서 칸)이 이미 그 화면의 여백을 갖고 있다. */
 .es--rich {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-4);
-  max-width: 460px;
+  max-width: var(--read-narrow);
   margin: 0 auto;
-  padding: 52px var(--space-8);
+  padding: 0;
   text-align: center;
+}
+/* 빈 화면은 어느 칸에 서든 본문 바탕 위에 선다 — 계획의 문서 칸(카드 바탕)에서만 빈 화면이 밝은 판으로
+   떴다. 빈 상태가 바로 들어 있는 칸 하나만 칠한다(명시도 0,2,0 — 칸의 자기 바탕 규칙을 이긴다). */
+:has(> .es.es--rich) {
+  background-color: var(--bg-content);
 }
 
 .es--start {
@@ -58,7 +66,15 @@
   line-height: var(--lh-body);
   color: var(--text-2);
 }
+/* 화면 전체의 문장은 읽을 문장이다 — 13px 본문색. 둘째 문장(설명)은 12px 보조 회색. */
 .es--rich .es-desc {
+  font-size: var(--fs-4);
+  color: var(--text);
+}
+.es-sub {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--fs-3);
   color: var(--text-2);
 }
 

@@ -10,12 +10,12 @@ import { t } from "@/i18n";
 // 사용자: "닫으려고 하면 뜨는 모달이 아마추어 같고, 뜬 뒤에 Enter 를 쳐도 안
 // 닫힌다." 뒤쪽은 첫 포커서블이 「취소」라서였다 — Enter 가 취소 버튼을 눌러
 // 아무 일도 안 일어난 것처럼 보였다. 이제 확인 버튼이 포커스를 받고, 패널
-// 어디서든 Enter 는 확인, Esc 는 취소다. (3.x 의 탭 닫기 문지기는 4.0 에서 탭과
+// 어디서든 Enter 는 확인, Esc 는 취소다 — 위험 질문은 다르다(confirm_danger.test). (3.x 탭 문지기는 4.0 에서 탭과
 // 함께 걷혔다 — 지금은 시작 창의 「목록에서 빼기」 같은 자리가 쓴다.)
 
 const CONFIRM = () => t("start.forget");
 
-function Harness({ onAnswer }: { onAnswer: (ok: boolean) => void }) {
+function Harness({ onAnswer, danger = true }: { onAnswer: (ok: boolean) => void; danger?: boolean }) {
   const { confirm, confirmDialog } = useConfirm();
   const [asked, setAsked] = useState(false);
   return (
@@ -33,7 +33,7 @@ function Harness({ onAnswer }: { onAnswer: (ok: boolean) => void }) {
               { text: t("start.forgetBody") },
             ],
             confirmLabel: CONFIRM(),
-            danger: true,
+            danger,
           }).then(onAnswer);
         }}
       >
@@ -49,7 +49,7 @@ afterEach(() => cleanup());
 describe("useConfirm", () => {
   it("focuses the confirm button on open, and a single Enter answers", async () => {
     const answers: boolean[] = [];
-    render(<Harness onAnswer={(ok) => answers.push(ok)} />);
+    render(<Harness onAnswer={(ok) => answers.push(ok)} danger={false} />);
     fireEvent.click(screen.getByTestId("trigger"));
 
     const confirmBtn = (await screen.findByText(CONFIRM())).closest("button");

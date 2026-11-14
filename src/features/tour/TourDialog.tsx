@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { CopyCommand } from "@/components/CopyCommand";
-import { AppDialog } from "@/components/ui/AppDialog";
+import { AppDialog, DialogBody, DialogFoot, DialogHead, DialogKey } from "@/components/ui/AppDialog";
 import type { UiV2View } from "@/contexts/uiV2View";
 import { projectSlotLabel } from "@/features/shell/projectKeys";
 import { useT, type I18nKey } from "@/i18n";
@@ -107,32 +107,34 @@ export function TourDialog({ open, onClose }: { open: boolean; onClose: () => vo
     </>,
   ];
 
+  // 판은 위쪽에 서 있어(AppDialog 18vh) 쪽마다 길이가 달라도 아래만 자란다 — 예전의 min-height 290 은
+  // 가운데 정렬 판이 위아래로 튀지 않게 하려던 것이었고, 1쪽 아래에 175px 빈칸을 남겼다(11-15).
   return (
     <AppDialog open={open} onClose={onClose} label={t("tour.title")} width={520} initialFocusRef={nextRef} onKeyDown={onKeyDown}>
       <div className="tour">
-        <div className="tour-head">
-          <span className="tour-kicker">{t("tour.title")}</span>
-          <span className="tour-count" aria-live="polite">
-            {t("tour.page", { n: page + 1, total: PAGES })}
-          </span>
-        </div>
-        <div className="tour-body">{pages[page]}</div>
-        <div className="tour-foot">
+        <DialogHead
+          title={t("tour.title")}
+          aside={<span aria-live="polite">{t("tour.page", { n: page + 1, total: PAGES })}</span>}
+        />
+        <DialogBody>{pages[page]}</DialogBody>
+        <DialogFoot>
           {last ? null : (
             <button type="button" className="btn ghost sm" onClick={onClose}>
-              {t("tour.skip")}
+              <span>{t("tour.skip")}</span>
+              <DialogKey>esc</DialogKey>
             </button>
           )}
-          <span className="tour-spacer" />
+          <span className="dlg-spacer" />
           {page > 0 ? (
             <button type="button" className="btn sm" onClick={back}>
               {t("tour.prev")}
             </button>
           ) : null}
           <button ref={nextRef} type="button" className="btn primary sm" onClick={forward}>
-            {last ? t("tour.done") : t("tour.next")}
+            <span>{last ? t("tour.done") : t("tour.next")}</span>
+            {last ? null : <DialogKey>→</DialogKey>}
           </button>
-        </div>
+        </DialogFoot>
       </div>
     </AppDialog>
   );

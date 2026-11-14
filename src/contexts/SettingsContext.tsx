@@ -28,6 +28,32 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
+/**
+ * 부팅 때 한 번 — 설정 조회 결과로 `<html>` 의 data-theme · data-accent 를 **첫 렌더 전에** 단다 (11-15).
+ * 프로바이더의 테마 효과(`loaded` 뒤)를 기다리면, 설정이 어둡게 · OS 가 밝게일 때 밝은 판이 먼저
+ * 그려졌다가 뒤집혔다(public/boot.css 는 data-theme 이 없으면 OS 를 따른다). 계산은 프로바이더와 같은
+ * `resolveThemeAttrs` 다. 프로젝트 색(강조색 · 바탕 물들임)은 창이 프로젝트를 안 뒤에 프로바이더가 얹는다.
+ */
+export function applyBootTheme(
+  entries: Array<[string, string]>,
+  root: HTMLElement = document.documentElement,
+  prefersDark: boolean = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false,
+): void {
+  const s = entriesToSettings(entries);
+  applyThemeAttrs(root, resolveThemeAttrs({ themeSetting: s.theme, colorTheme: s.colorTheme, prefersDark }));
+}
+
+/**
+ * `main.tsx` 의 부팅 로더 — 설정을 **한 번** 읽어 테마를 달고 화면 언어를 돌려준다(`bootI18n` 이 그 사전을
+ * 받은 뒤 그린다). 읽지 못하면 `null` — OS 로케일 · OS 밝기로 시작한다.
+ */
+export async function bootSettings(): Promise<string | null> {
+  const res = await commands.settingsGetAll();
+  if (res.status !== "ok") return null;
+  applyBootTheme(res.data);
+  return res.data.find(([key]) => key === "language")?.[1] ?? null;
+}
+
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
   const [loaded, setLoaded] = useState(false);

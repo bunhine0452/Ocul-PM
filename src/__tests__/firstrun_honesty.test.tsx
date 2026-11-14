@@ -29,23 +29,23 @@ describe("LoadingState — same slot, different signal", () => {
     expect(root.className).toContain("ls");
   });
 
-  it("differs from empty by the spinner and the status role", () => {
+  it("differs from empty by the status role — no spinner (receipt rule 6)", () => {
     const { container } = render(<LoadingState />);
     const root = container.firstElementChild!;
     // 상태 변화를 보조기술에 알리는 것은 이 쪽만이다 (EmptyState 는 role 없음).
     expect(root.getAttribute("role")).toBe("status");
-    // 스피너는 aria-hidden — OculSpinner 가 자기 aria-label("불러오는 중")을
-    // 갖고 있어서, 감싸지 않으면 같은 말을 두 번 읽는다.
-    const spin = root.querySelector(".ls-spin")!;
-    expect(spin.getAttribute("aria-hidden")).toBe("true");
-    expect(spin.querySelector("svg")).not.toBeNull();
+    // 11-15 — 도는 브랜드 스피너는 걷었다. 300ms 뒤의 정지 글자 하나가 신호다
+    // (states_v2.test.tsx 가 그 시계를 문다).
+    expect(root.querySelector("svg")).toBeNull();
+    expect(root.querySelector(".ls-spin")).toBeNull();
+    expect(root.className).toContain("ls--start");
   });
 
-  it("falls back to common.loading, the caller may say more", () => {
-    const { container, rerender } = render(<LoadingState />);
-    expect(container.textContent).toContain(t("common.loading"));
+  it("falls back to common.loading, the caller may say more", async () => {
+    const { rerender } = render(<LoadingState />);
+    expect(await screen.findByText(t("common.loading"))).toBeInTheDocument();
     rerender(<LoadingState>{t("diff.previewLoading")}</LoadingState>);
-    expect(container.textContent).toContain(t("diff.previewLoading"));
+    expect(await screen.findByText(t("diff.previewLoading"))).toBeInTheDocument();
   });
 });
 

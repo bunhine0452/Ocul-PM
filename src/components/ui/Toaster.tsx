@@ -1,11 +1,17 @@
 /**
- * Toaster — render `useSyncExternalStore`-driven toasts in a fixed corner.
+ * Toaster — 알림 기둥 하나 (11-15). `useSyncExternalStore` 로 토스트를 그리고, 맨 아래에는 업데이트 배너의
+ * 고정 줄이 선다.
  *
  * Mounted once at the App root so any module that calls `toast.info(...)`
  * surfaces a notification without further wiring. See `src/lib/toast.ts`.
+ *
+ * 예전엔 토스트(bottom 16 · right 16)와 업데이트 배너(bottom · right 18)가 같은 모서리에 따로 떠 서로를
+ * 가렸다. 배너는 창마다 하나 떠 있는 `UpdateBanner` 가 내용과 동작을 갖고, **자리는 여기**다 — 배너가
+ * `toasterPinnedSlot` 으로 이 기둥의 고정 줄에 그린다. 모양은 primitives.css 「알림 기둥」.
  */
 
 import { useSyncExternalStore } from "react";
+import { createStore } from "@/lib/createStore";
 import {
   dismissToast,
   getToasts,
@@ -14,8 +20,13 @@ import {
   subscribeToasts,
   type Toast,
 } from "@/lib/toast";
-import { AlertTriangle, Check, X } from "@/components/Icons";
+import { AlertTriangle, X } from "@/components/Icons";
 import { useT } from "@/i18n";
+
+/** 업데이트 배너가 그릴 자리 — 기둥이 붙으면 그 요소, 없으면(시험 · 기둥 없는 표면) `null`. */
+export const toasterPinnedSlot = createStore<HTMLElement | null>(null);
+/** 모듈 하나의 ref 콜백 — 렌더마다 새 함수면 React 가 null → 요소를 매번 다시 불러 배너가 깜빡인다. */
+const pinSlot = (el: HTMLDivElement | null) => toasterPinnedSlot.set(el);
 
 export function Toaster() {
   const toasts = useSyncExternalStore(subscribeToasts, getToasts, getToasts);
@@ -31,41 +42,31 @@ export function Toaster() {
   const alerts = toasts.filter((t) => t.kind !== "info");
   const infos = toasts.filter((t) => t.kind === "info");
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-top flex w-full max-w-sm flex-col">
-      <div role="alert" aria-live="assertive" className="mb-2 flex flex-col-reverse gap-2">
+    <div className="toaster" data-toaster="">
+      <div role="alert" aria-live="assertive" className="toaster-region">
         {alerts.map((t) => (
           <ToastItem key={t.id} toast={t} />
         ))}
       </div>
-      <div role="status" aria-live="polite" className="flex flex-col-reverse gap-2">
+      <div role="status" aria-live="polite" className="toaster-region">
         {infos.map((t) => (
           <ToastItem key={t.id} toast={t} />
         ))}
       </div>
+      {/* 업데이트 배너의 고정 줄 — 기둥의 맨 아래(모서리에 가장 가까운 자리). */}
+      <div className="toaster-pinned" ref={pinSlot} />
     </div>
   );
 }
 
 function ToastItem({ toast }: { toast: Toast }) {
   const { t } = useT();
-  // v2 U2 — 다크 하드코딩(zinc 계열 등) 제거: 카드 표면 토큰 + 종류별 틴트
-  // 보더/아이콘으로 라이트·다크·프리셋 전 테마에서 주변 UI 와 일관되게.
-  const tone =
-    toast.kind === "info"
-      ? "border-border bg-card text-foreground"
-      : toast.kind === "warning"
-        ? "border-(--warn)/40 bg-card text-foreground"
-        : "border-(--danger)/40 bg-card text-foreground";
-  const iconTone =
-    toast.kind === "info"
-      ? "text-(--ok-text)"
-      : toast.kind === "warning"
-        ? "text-(--warn-text)"
-        : "text-(--danger-text)";
-  const Icon = toast.kind === "info" ? Check : AlertTriangle;
+  // 색은 예외에만 (영수증 규칙 1) — 경고 · 실패만 표식과 테가 물든다. 알림(info)은 표식이 없다: 늘
+  // 초록 ✓ 이던 때는 하지 못한 일을 알리는 토스트도 해낸 것처럼 읽혔다.
+  const exception = toast.kind !== "info";
   return (
     <div
-      className={`animate-in fade-in slide-in-from-bottom-2 pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2 text-xs shadow-lg duration-(--dur-2) ${tone}`}
+      className={`toast ${toast.kind} animate-in fade-in slide-in-from-bottom-2 pointer-events-auto duration-(--dur-2)`}
       // 읽는 동안·누르려는 동안 시계를 멈춘다. 액션이 달린 토스트에서는
       // 이게 없으면 [되돌리기] 를 누르러 가는 도중에 사라진다.
       onMouseEnter={() => pauseToast(toast.id)}
@@ -73,21 +74,32 @@ function ToastItem({ toast }: { toast: Toast }) {
       onFocusCapture={() => pauseToast(toast.id)}
       onBlurCapture={() => resumeToast(toast.id)}
     >
-      <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconTone}`} />
-      <div className="flex-1 space-y-1">
-        {toast.title && <div className="font-semibold">{toast.title}</div>}
-        <div className="whitespace-pre-wrap leading-snug">{toast.message}</div>
+      {exception ? (
+        <span className="toast-ico" aria-hidden="true">
+          <AlertTriangle size={15} />
+        </span>
+      ) : null}
+      <div className="toast-main">
+        {toast.title && <div className="toast-title">{toast.title}</div>}
+        <div className="toast-msg">
+          {toast.message}
+          {toast.count > 1 ? (
+            <span className="toast-count" aria-label={t("toast.repeat", { n: toast.count })}>
+              {toast.count}
+            </span>
+          ) : null}
+        </div>
         {toast.actions && toast.actions.length > 0 && (
-          <div className="flex gap-2 pt-1">
+          <div className="toast-actions">
             {toast.actions.map((a) => (
               <button
                 key={a.label}
                 type="button"
+                className="btn sm"
                 onClick={() => {
                   a.onClick();
                   dismissToast(toast.id);
                 }}
-                className="rounded border border-current/40 px-2 py-0.5 text-fs-3 hover:bg-current/10"
               >
                 {a.label}
               </button>
@@ -99,9 +111,9 @@ function ToastItem({ toast }: { toast: Toast }) {
         type="button"
         onClick={() => dismissToast(toast.id)}
         aria-label={t("common.close")}
-        className="ml-1 rounded p-0.5 opacity-60 hover:opacity-100"
+        className="iconbtn sm"
       >
-        <X className="h-3 w-3" />
+        <X size={13} />
       </button>
     </div>
   );

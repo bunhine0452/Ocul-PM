@@ -137,6 +137,14 @@
  *     **`animation:` 은 일부러 안 본다** — keyframe 주기(맥동 29개, 0.7~2.4s)는
  *     상호작용 램프가 아니라 별도 축이고, 그 램프는 아직 없다 (플랜의 {#ramp-pulse}).
  *
+ * 22. 액센트 후광(--accent-ring · --ring-soft)을 포커스 밖에서 그림자로 쓰기 (11-15) — 주 단추가
+ *     `box-shadow: 0 1px 2px var(--accent-ring)` 을 들고 있었고, 다크에서 단추 아래로 초록이 번졌다
+ *     (글로우 — 위 4 와 같은 관용구다). 그 후광은 키보드가 지금 어디 있는지 말하는 **포커스 테**에만
+ *     쓴다: 선택자에 `:focus` · `:focus-visible` · `:focus-within` 이 있어야 한다. 정의 자리
+ *     (tokens.css 의 `--ring-soft: 0 0 0 3px var(--accent-ring)`)는 선언이 아니라 값이라 안 본다.
+ *     **선택자와 여러 줄 선언을 봐야 해서 별도 패스다** (checkAccentRing). TSX 인라인 `boxShadow` 는
+ *     포커스를 알 길이 없어 그 자체로 위반이다.
+ *
  * 예외 주석:  // design-ignore -- 사유   (같은 줄, TS/TSX)
  *            /* design-ignore -- 사유 *​/ (같은 줄, CSS)
  *
@@ -387,6 +395,7 @@ for await (const file of walk(SRC)) {
   if (isCss) checkControlHeights(rel, src, rawLines);
   if (isCss) checkChipRadius(rel, src, rawLines);
   if (!isCss) checkInlineSelected(rel, src, rawLines);
+  checkAccentRing(rel, src, rawLines, isCss);
   for (const rule of RULES) {
     if (!rule.ext.test(file)) continue;
     if (ALLOW[rule.id]?.has(rel)) continue;
@@ -535,6 +544,43 @@ function checkInlineSelected(rel, src, rawLines) {
       `${rel}:${line}  [inline-selected] 선택 배경을 인라인 삼항으로 계산한다\n` +
         "      → '둘 중 하나' 는 .seg + .seg-item[aria-selected] 한 물체다 (primitives.css). role=\"tablist\"/\"tab\" 과 함께 쓴다",
     );
+  }
+}
+
+/**
+ * 규칙 22 — 액센트 후광은 포커스 테에만. CSS 는 선언이 어느 선택자 밑에 있는지를 알아야 해서 줄 단위가
+ * 아니다. `box-shadow` 값에 `--accent-ring` · `--ring-soft` 가 있으면 그 선택자(쉼표로 나뉜 조각 **모두**)에
+ * 포커스 의사 클래스가 있어야 한다 — 하나라도 빠지면 그 조각에서는 늘 켜진 후광이다.
+ */
+function checkAccentRing(rel, src, rawLines, isCss) {
+  const RING = /var\(\s*--(?:accent-ring|ring-soft)\b/;
+  const ignoredNear = (line) => {
+    for (let i = Math.max(1, line - 3); i <= line; i++) {
+      if (/design-ignore\s*--/.test(rawLines[i - 1] ?? "")) return true;
+    }
+    return false;
+  };
+  const report = (line, what) =>
+    violations.push(
+      `${rel}:${line}  [accent-ring] ${what}\n` +
+        "      → 액센트 후광은 :focus · :focus-visible · :focus-within 의 테에만. 그림자는 중립(--shadow-card) 이거나 없다",
+    );
+  if (!isCss) {
+    for (const m of src.matchAll(/boxShadow\s*:\s*[^,}\n]*var\(\s*--(?:accent-ring|ring-soft)\b/g)) {
+      const line = src.slice(0, m.index).split("\n").length;
+      if (!ignoredNear(line)) report(line, "인라인 boxShadow 가 액센트 후광을 쓴다");
+    }
+    return;
+  }
+  for (const m of src.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const [, selector, body] = m;
+    const decl = /(?:^|[;{\s])box-shadow\s*:\s*([^;}]+)/.exec(body);
+    if (!decl || !RING.test(decl[1])) continue;
+    const parts = selector.trim().split("\n").filter((l) => !l.trim().startsWith("@")).join(" ").split(",");
+    if (parts.every((p) => /:focus(?:-visible|-within)?\b/.test(p))) continue;
+    const line = src.slice(0, m.index + m[0].indexOf(decl[0])).split("\n").length;
+    if (ignoredNear(line)) continue;
+    report(line, `${selector.trim().split("\n").pop().trim()} { box-shadow: ${decl[1].trim().slice(0, 60)} }`);
   }
 }
 

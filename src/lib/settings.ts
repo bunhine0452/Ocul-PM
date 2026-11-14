@@ -34,6 +34,9 @@ export const KEYS = {
   tourSeen: "tour_seen",
   // 터미널 글자 크기 (⌘= / ⌘- / ⌘0, 2026-11-03) — 모든 창 · 세션이 같은 크기.
   terminalFontSize: "terminal_font_size",
+  // 업데이트 배너를 닫은 판 (11-15, `UpdateBanner`) — 그 판에 대해서만 닫힌다. 창마다 따로 닫던 것을
+  // 앱 전체(SQLite)로: 창 셋을 열어 두면 같은 배너를 세 번 닫아야 했다.
+  updateDismissed: "update_dismissed",
 } as const;
 
 export type SettingKey = (typeof KEYS)[keyof typeof KEYS];
@@ -71,6 +74,9 @@ export interface Settings {
 
   /** 터미널 글자 크기(px). ⌘= / ⌘- 로 1씩, ⌘0 은 기본(13). `termFontSize.ts` 가 범위를 지킨다. */
   terminalFontSize: number;
+
+  /** 업데이트 배너를 닫은 판(`"4.11.0"`). 더 새 판이 오면 배너가 다시 선다. 빈 문자열은 닫은 적 없음. */
+  updateDismissed: string;
 }
 
 export const DEFAULTS: Settings = {
@@ -84,6 +90,7 @@ export const DEFAULTS: Settings = {
   externalEditorCommand: "auto",
   tourSeen: "",
   terminalFontSize: 13,
+  updateDismissed: "",
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -96,6 +103,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.externalEditorCommand]: "externalEditorCommand",
   [KEYS.tourSeen]: "tourSeen",
   [KEYS.terminalFontSize]: "terminalFontSize",
+  [KEYS.updateDismissed]: "updateDismissed",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(

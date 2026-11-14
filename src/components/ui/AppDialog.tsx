@@ -1,5 +1,7 @@
-import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useRef, type KeyboardEvent, type ReactNode, type Ref } from "react";
+import { X } from "@/components/Icons";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
+import { useT } from "@/i18n";
 
 /**
  * AppDialog — 공유 모달 셸 (v2 U13, docs/20260706_v2/01-ux-spec.md §5).
@@ -7,6 +9,10 @@ import { useModalBehavior } from "@/hooks/useModalBehavior";
  * 포커스 트랩/복원·Esc·스크롤락은 `useModalBehavior` 훅이 담당한다 — 자기
  * 마크업(CSS)을 가진 기존 모달(set-modal, disc-modal, …)은 훅만 채택하고,
  * 새 모달은 이 셸을 쓴다. 백드롭 클릭 닫기 포함.
+ *
+ * 안쪽은 `DialogHead` · `DialogBody` · `DialogFoot` 한 벌이다 (11-15). 확인 · 딥링크 · 처음 쓰는 법 ·
+ * 단축키 표가 머리 · 발 · 단추를 저마다 들고 있었다. 판은 위쪽(18vh)에 서고, 넘치는 것은 본문만
+ * 스크롤한다 — 모양은 primitives.css 의 `.dlg-*` 가 갖는다.
  */
 
 interface AppDialogProps {
@@ -39,7 +45,7 @@ export function AppDialog({
 
   return (
     <div
-      className="scrim animate-in fade-in z-modal flex items-center justify-center p-6 duration-(--dur-2)"
+      className="scrim dlg-scrim animate-in fade-in duration-(--dur-2)"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -51,11 +57,99 @@ export function AppDialog({
         aria-label={label}
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className="animate-in fade-in zoom-in-95 slide-in-from-bottom-1 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl outline-none duration-(--dur-2)"
+        className="dlg-panel animate-in fade-in zoom-in-95 slide-in-from-bottom-1 duration-(--dur-2)"
         style={{ maxWidth: width }}
       >
         {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * 머리 — 14/600 제목 한 줄(+ 보조 줄). 오른쪽에는 `aside`(쪽수처럼 기계가 세는 것) 또는 `onClose` 의 ×.
+ * 발에 「취소」 가 있는 대화상자는 ×를 두지 않는다 — 닫는 길이 둘이면 어느 쪽이 기본인지 흐려진다.
+ */
+export function DialogHead({
+  title,
+  sub,
+  mark,
+  aside,
+  onClose,
+  className,
+}: {
+  title: ReactNode;
+  sub?: ReactNode;
+  /** 제목 앞의 표식(아이콘) — 장식이라 읽지 않는다. */
+  mark?: ReactNode;
+  aside?: ReactNode;
+  onClose?: () => void;
+  className?: string;
+}) {
+  const { t } = useT();
+  return (
+    <div className={"dlg-head" + (className ? ` ${className}` : "")}>
+      {mark ? (
+        <span className="dlg-mark" aria-hidden="true">
+          {mark}
+        </span>
+      ) : null}
+      <div className="dlg-titles">
+        <h2 className="dlg-title">{title}</h2>
+        {sub ? <div className="dlg-sub">{sub}</div> : null}
+      </div>
+      {aside ? <span className="dlg-aside">{aside}</span> : null}
+      {onClose ? (
+        <button
+          type="button"
+          className="iconbtn sm dlg-x"
+          onClick={onClose}
+          aria-label={t("common.close")}
+          title={`${t("common.close")} (Esc)`}
+        >
+          <X size={15} />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * 본문 — 판 안의 유일한 스크롤 칸. 넘치면 머리 · 발은 그대로 두고 여기만 흐른다.
+ * 읽기만 하는 대화상자(단축키 표)는 `ref` · `tabIndex={-1}` 로 첫 포커스를 여기 둔다 — 열자마자 화살표 ·
+ * PageDown 이 표를 내리고, × 에 포커스 테가 먼저 서지 않는다.
+ */
+export function DialogBody({
+  children,
+  className,
+  ref,
+  tabIndex,
+}: {
+  children: ReactNode;
+  className?: string;
+  ref?: Ref<HTMLDivElement>;
+  tabIndex?: number;
+}) {
+  return (
+    <div ref={ref} tabIndex={tabIndex} className={"dlg-body" + (className ? ` ${className}` : "")}>
+      {children}
+    </div>
+  );
+}
+
+/** 발 — 오른쪽 정렬, 채운 단추는 하나(영수증 규칙 3). 왼쪽으로 밀 단추 뒤에는 `<span className="dlg-spacer" />`. */
+export function DialogFoot({ children }: { children: ReactNode }) {
+  return <div className="dlg-foot">{children}</div>;
+}
+
+/**
+ * 단추 안의 키 표기 — 그 키가 **정말로** 그 단추를 누를 때만 붙인다(esc · ↩ · ⌘↩). 단추의 접근명에는
+ * 섞지 않는다 — 「취소 esc」 로 읽히면 이름이 아니다.
+ */
+export function DialogKey({ children }: { children: ReactNode }) {
+  return (
+    <kbd className="kbd dlg-key" aria-hidden="true">
+      {children}
+    </kbd>
   );
 }
