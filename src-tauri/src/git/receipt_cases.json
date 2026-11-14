@@ -14,7 +14,9 @@
     { "body": "[x] 편집기: code 명령 없이 연다\n\n## 발생 원인\n", "title": "편집기: code 명령 없이 연다" },
     { "body": "\n\n# 제목만 있는 일지\n본문", "title": "제목만 있는 일지" },
     { "body": "첫 줄이 제목\n둘째 줄", "title": "첫 줄이 제목" },
-    { "body": "[ ] 미완 일지\n", "title": "미완 일지" }
+    { "body": "[ ] 미완 일지\n", "title": "미완 일지" },
+    { "body": "# 머리\t제목\u001b[201~\r!x\n", "title": "머리 제목[201~!x" },
+    { "body": "[x] 편집기:\t열기\u009b31m \u0007\n", "title": "편집기: 열기31m" }
   ],
   "verdict": [
     { "note": "판정 ✓ 418 passed · exit 0", "passed": true, "summary": "418 passed · exit 0" },
