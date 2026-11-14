@@ -3,7 +3,6 @@ import { oculpmApi } from "@/api/oculpm";
 import { toAppError } from "@/api/invoke";
 import { commands, type EntryFilters, type JournalEntrySummary } from "@/lib/bindings";
 import { useJournalEvents } from "./useOculpmLive";
-import { t } from "@/i18n";
 import { shiftWorkday } from "@/lib/workday";
 import { tError } from "@/i18n/errors";
 import { compareIsoDesc } from "@/lib/format";
@@ -16,11 +15,10 @@ import { compareIsoDesc } from "@/lib/format";
 // search + filters reach the full history. The backend `EntryFilters` path was
 // already complete; this finally drives it.
 
+/** 날짜 머리의 글은 목록이 그릴 때 정한다(`JournalList` → `lib/workdayLabel`) — 여기는 날과 그날의 일지만. */
 export interface JournalDay {
   /** YYYYMMDD */
   workday: string;
-  /** "오늘 · 2026-05-31" style label. */
-  label: string;
   entries: JournalEntrySummary[];
 }
 
@@ -36,17 +34,9 @@ const DEFAULT_DAYS = 14;
 export const JOURNAL_PAGE_SIZE = 200;
 
 
-/** Human label: 오늘 / 어제 / N일 전 prefix + ISO date. */
-function dayLabel(workday: string, todayKey: string): string {
-  const iso = `${workday.slice(0, 4)}-${workday.slice(4, 6)}-${workday.slice(6, 8)}`;
-  if (workday === todayKey) return `${t("journal.day.today")} · ${iso}`;
-  if (workday === shiftWorkday(todayKey, -1)) return `${t("journal.day.yesterday")} · ${iso}`;
-  return iso;
-}
-
 /** Group a flat entry list (all-period query result) by workday, newest day
  *  first, newest entry first within a day. */
-export function groupByWorkday(list: JournalEntrySummary[], todayKey: string): JournalDay[] {
+export function groupByWorkday(list: JournalEntrySummary[]): JournalDay[] {
   const byDay = new Map<string, JournalEntrySummary[]>();
   for (const e of list) {
     const arr = byDay.get(e.workday);
@@ -56,7 +46,6 @@ export function groupByWorkday(list: JournalEntrySummary[], todayKey: string): J
   return [...byDay.entries()]
     .map(([wd, entries]) => ({
       workday: wd,
-      label: dayLabel(wd, todayKey),
       entries: entries.slice().sort((a, b) => compareIsoDesc(a.created_at, b.created_at)),
     }))
     .sort((a, b) => b.workday.localeCompare(a.workday));
@@ -163,7 +152,7 @@ export function useJournalDays(
             limit,
           );
           if (cancelled) return;
-          grouped = groupByWorkday(result.entries, todayKey);
+          grouped = groupByWorkday(result.entries);
           setPage({ entries: result.entries.length, total: result.total });
         } else {
           // v2 U12 — 워크데이당 1콜(×14) 대신 단일 workday brief 로.
@@ -176,7 +165,6 @@ export function useJournalDays(
           grouped = keys
             .map((wd) => ({
               workday: wd,
-              label: dayLabel(wd, todayKey),
               entries: (byKey.get(wd) ?? [])
                 .slice()
                 .sort((a, b) => compareIsoDesc(a.created_at, b.created_at)),

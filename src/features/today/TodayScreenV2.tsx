@@ -49,6 +49,7 @@ import { toast } from "@/lib/toast";
 import { clockOf } from "@/lib/whenLabel";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
+import { requestOnlyMissing } from "@/features/oculpm/onlyMissing";
 import { TodayExceptions, TodayUnread, type RowAction, type RowNav } from "./TodayExceptions";
 import { FirstSteps, LiveCard, TodayNumbers, liveTerm } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
@@ -118,7 +119,6 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   const { sessions } = useLiveSessions(projectId, workday, oculpmReady);
   const now = useMinuteTick(oculpmReady);
   const busy = useBusy();
-  const [unreadOpen, setUnreadOpen] = useState(false);
   const [sent, setSent] = useState<Record<string, string>>({});
 
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -358,14 +358,13 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
     }
   };
 
-  // 「N건 더」 는 제자리에서 펼치고 같은 단추가 「접기」 가 된다. 읽어서 `UNREAD_LIMIT` 아래로 줄면 저절로 접힌다 —
-  // 나중에 다시 쌓인 일지가 상한 없이 펼쳐진 채로 서지 않게. (명세는 일지 화면의 검증 없음 거르기로 보내는
-  // 것인데, 그 거르기는 일지 화면의 지역 상태라 이 화면이 열 수 없다 — 일지 · 계획 레인과 맞출 일이다.)
-  const expanded = unreadOpen && split != null && split.unread.length > UNREAD_LIMIT;
-  const unreadShown = split ? (expanded ? split.unread : split.unread.slice(0, UNREAD_LIMIT)) : [];
-  useEffect(() => {
-    if (unreadOpen && split != null && split.unread.length <= UNREAD_LIMIT) setUnreadOpen(false);
-  }, [unreadOpen, split]);
+  // 「N건 더」 는 일지 화면의 「검증 없는 것만」 으로 간다(합류 G-11) — 남은 줄은 그 거르기가 하는 일이다. 예전엔
+  // 제자리에서 펼쳐 이 화면이 둘째 일지 목록이 됐다. 거르기는 일지 화면의 지역 상태라 요청을 실어 보낸다.
+  const unreadShown = split ? split.unread.slice(0, UNREAD_LIMIT) : [];
+  const openUnverified = () => {
+    requestOnlyMissing();
+    onNavigate("journal");
+  };
   const navRows: NavRow[] = split ? [...split.first, ...(next ? [NEXT_ROW] : []), ...unreadShown] : [];
   const navSig = navRows.map((r) => r.key).join("\n");
   const focusIndex = navRows.length === 0 ? -1 : Math.min(Math.max(active, 0), navRows.length - 1);
@@ -528,7 +527,6 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
         <TodayUnread
           split={split}
           shown={unreadShown}
-          expanded={expanded}
           offset={(split?.first.length ?? 0) + (next ? 1 : 0)}
           navFor={navFor}
           showAgent={multiAgent}
@@ -536,7 +534,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
           onOpen={openEntry}
           onVerify={(entry) => void verify(entry)}
           onVerifyAll={(list) => void verifyAll(list)}
-          onToggleMore={() => setUnreadOpen(!expanded)}
+          onMore={openUnverified}
           isBusy={busy.has}
         />
         <LiveCard

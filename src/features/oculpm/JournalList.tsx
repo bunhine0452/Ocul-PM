@@ -1,27 +1,22 @@
 import { memo, type ReactNode, type Ref, type UIEvent } from "react";
 import { Disclosure } from "@/components/Disclosure";
-import { useT } from "@/i18n";
-import { shiftWorkday } from "@/lib/workday";
+import { useT, type Lang } from "@/i18n";
+import { dayWord, workdayDate } from "@/lib/workdayLabel";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { JournalRow } from "./JournalRow";
 import type { DayView } from "./journalOrder";
 
 export { ROW_LIMIT } from "./journalOrder";
 
-/** 날짜 머리 — 「오늘 · 10월 28일」 · 「어제 · 10월 27일」 · 「10월 24일」 (올해가 아니면 연도 포함). */
-function dayHeading(
-  workday: string,
-  todayKey: string | null,
-  t: ReturnType<typeof useT>["t"],
-): string {
-  const y = workday.slice(0, 4);
-  const m = String(Number(workday.slice(4, 6)));
-  const d = String(Number(workday.slice(6, 8)));
-  const sameYear = todayKey ? y === todayKey.slice(0, 4) : true;
-  const md = sameYear ? t("journal.dayMd", { m, d }) : t("journal.dayYmd", { y, m, d });
-  if (todayKey && workday === todayKey) return `${t("journal.day.today")} · ${md}`;
-  if (todayKey && workday === shiftWorkday(todayKey, -1)) return `${t("journal.day.yesterday")} · ${md}`;
-  return md;
+/**
+ * 날짜 머리 — 「오늘 · 11월 15일」 · 「어제 · 11월 14일」 · 「11월 13일」(올해가 아니면 연도). 날짜 말은 ⌘K 의 일지 줄 ·
+ * 시작 창과 같은 함수(`workdayLabel`)다 — 이 목록만 「11/13」 · 「2025-11-13」 처럼 따로 쓰던 때가 있었다.
+ */
+function dayHeading(workday: string, todayKey: string | null, lang: Lang, t: ReturnType<typeof useT>["t"]): string {
+  const today = todayKey ?? undefined;
+  const date = workdayDate(workday, lang, today);
+  const word = dayWord(workday, lang, t, today);
+  return word === date ? date : `${word} · ${date}`;
 }
 
 interface JournalListProps {
@@ -74,7 +69,7 @@ export const JournalList = memo(function JournalList({
   notice,
   empty,
 }: JournalListProps) {
-  const { t } = useT();
+  const { t, lang } = useT();
   // 로빙 tabindex — Tab 이 멈출 줄 하나. 고른 일지가 목록에 그려져 있지 않으면(계획에서 연 14일 밖 일지 ·
   // 닫힌 접힘 안 · 그린 줄 상한 밖) 화면 순서의 첫 줄이 받는다 — 안 그러면 Tab 으로 목록에 들어갈 수 없다.
   const drawn = views.flatMap((v) => (v.open ? [...v.shown, ...v.folded] : v.shown));
@@ -97,7 +92,7 @@ export const JournalList = memo(function JournalList({
       {notice}
       {views.length === 0 ? empty : null}
       {views.map((v) => {
-        const heading = ranked ? t("journal.searchResults") : dayHeading(v.workday, todayKey, t);
+        const heading = ranked ? t("journal.searchResults") : dayHeading(v.workday, todayKey, lang, t);
         const headId = `jl-day-${v.workday || "ranked"}`;
         // 머리의 수는 다른 곳이 말하지 않는 것만 — 관련도 묶음의 건수는 숫자 줄(「조건에 맞는 N」)이, 「검증 없는
         // 것만」 이 켜진 동안의 검증 없음 수는 그 단추가 이미 말한다.
