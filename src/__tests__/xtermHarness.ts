@@ -9,6 +9,7 @@
  */
 import { Terminal } from "@xterm/xterm";
 
+import { watchAgentScreen } from "@/features/terminal/agentScreen";
 import { attachImeBridge } from "@/features/terminal/imeBridge";
 
 export interface RealTerm {
@@ -28,8 +29,10 @@ export function openRealTerm(opts: { cols?: number; rows?: number } = {}): RealT
   const host = document.createElement("div");
   document.body.appendChild(host);
   const term = new Terminal({ cols: opts.cols ?? 40, rows: opts.rows ?? 6, allowProposedApi: true, macOptionIsMeta: true });
+  // 세션 저장소(`termStore`)와 같은 배선 — 에이전트 신호는 열 때부터 보고, 브리지가 그것을 묻는다.
+  const agent = watchAgentScreen(term);
   term.open(host);
-  const bridge = attachImeBridge(term, host);
+  const bridge = attachImeBridge(term, host, agent);
   const data: string[] = [];
   const sub = term.onData((d) => data.push(d));
   return {

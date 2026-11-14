@@ -5,9 +5,9 @@ import { translateKey, type KeyCtx, type KeyEventLike } from "@/features/termina
 import { __setPlatformForTests } from "@/lib/platform";
 import { fireKey, openRealTerm, type RealTerm } from "./xtermHarness";
 
-const MAC: KeyCtx = { platform: "mac", altScreen: false, hasSelection: false };
-const PC: KeyCtx = { platform: "windows", altScreen: false, hasSelection: false };
-const LINUX: KeyCtx = { platform: "linux", altScreen: false, hasSelection: false };
+const MAC: KeyCtx = { platform: "mac", altScreen: false, agent: false, hasSelection: false };
+const PC: KeyCtx = { platform: "windows", altScreen: false, agent: false, hasSelection: false };
+const LINUX: KeyCtx = { platform: "linux", altScreen: false, agent: false, hasSelection: false };
 
 function ev(init: Partial<KeyEventLike>): KeyEventLike {
   return {
@@ -27,14 +27,14 @@ function ev(init: Partial<KeyEventLike>): KeyEventLike {
 const shiftEnter = ev({ key: "Enter", code: "Enter", keyCode: 13, shiftKey: true });
 
 describe("Shift+Enter — the newline of Claude's input (TI-01)", () => {
-  it("sends ESC CR on the alternate screen, leaves the normal screen (shell) alone", () => {
-    expect(translateKey(shiftEnter, { ...MAC, altScreen: true })).toEqual({ kind: "send", seq: "\x1b\r" });
-    expect(translateKey(shiftEnter, { ...PC, altScreen: true })).toEqual({ kind: "send", seq: "\x1b\r" });
+  it("sends ESC CR on an agent's alternate screen, leaves the normal screen (shell) alone", () => {
+    expect(translateKey(shiftEnter, { ...MAC, altScreen: true, agent: true })).toEqual({ kind: "send", seq: "\x1b\r" });
+    expect(translateKey(shiftEnter, { ...PC, altScreen: true, agent: true })).toEqual({ kind: "send", seq: "\x1b\r" });
     expect(translateKey(shiftEnter, MAC)).toBeNull();
   });
 
   it("never while the IME is composing, and not with another modifier", () => {
-    const alt = { ...MAC, altScreen: true };
+    const alt = { ...MAC, altScreen: true, agent: true };
     expect(translateKey({ ...shiftEnter, isComposing: true }, alt)).toBeNull();
     expect(translateKey({ ...shiftEnter, keyCode: 229 }, alt)).toBeNull();
     expect(translateKey({ ...shiftEnter, ctrlKey: true }, alt)).toBeNull();
@@ -110,9 +110,9 @@ describe("the key layer inside the bridge (real xterm)", () => {
     rt = null;
   });
 
-  it("alternate screen: Shift+Enter reaches the PTY as one ESC CR and no CR", async () => {
+  it("an agent on the alternate screen: Shift+Enter reaches the PTY as one ESC CR and no CR", async () => {
     rt = openRealTerm();
-    await rt.write("\x1b[?1049h");
+    await rt.write("\x1b[?1049h\x1b]7501;state=idle:app=claude\x1b\\");
     expect(rt.term.buffer.active.type).toBe("alternate");
     const down = fireKey(rt, "keydown", { key: "Enter", code: "Enter", keyCode: 13, shiftKey: true });
     fireKey(rt, "keypress", { key: "Enter", code: "Enter", keyCode: 13, charCode: 13, shiftKey: true });

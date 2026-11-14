@@ -123,7 +123,6 @@ export function sendMock() {
     requestSendToClaude: (ctx: SentCtx) => {
       fx.sent.push(ctx);
     },
-    sendOrRun: async () => null,
     toastQueued: () => {},
   };
 }

@@ -11,9 +11,8 @@
  */
 import { useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { Maximize2, Minimize2 } from "lucide-react";
 
-import { ChevronDown, Plus } from "@/components/Icons";
+import { ChevronDown, Maximize2, Minimize2, Plus } from "@/components/Icons";
 import { Toolbar } from "@/components/Toolbar";
 import { useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";

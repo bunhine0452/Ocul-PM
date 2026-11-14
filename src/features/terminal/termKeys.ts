@@ -7,9 +7,10 @@
  *
  * ── 무엇을 ────────────────────────────────────────────────────────────────────
  *  Shift+Enter   xterm 은 Enter 에 Alt 만 본다(Keyboard.ts case 13) — Shift+Enter 도 CR 이라 반쯤 쓴
- *                프롬프트가 제출됐다. 대체 화면(Ocul 은 NO_FLICKER 라 Claude · Codex TUI 는 대체 화면)이면
- *                ESC CR — ⌥Enter 와 같은 바이트, Claude Code 의 줄바꿈이다. 보통 화면(셸)은 그대로 CR —
- *                bash readline 에서 ESC CR 은 vi 모드 전환이다.
+ *                프롬프트가 제출됐다. 에이전트가 대체 화면에 있으면(Ocul 은 NO_FLICKER 라 Claude · Codex TUI 는
+ *                대체 화면, 에이전트인지는 상태 신호로 — `agentScreen.ts`) ESC CR — ⌥Enter 와 같은 바이트, Claude
+ *                Code 의 줄바꿈이다. 그 밖은 그대로 CR — bash readline 에서 ESC CR 은 vi 모드 전환이고, vim 입력
+ *                모드에서는 ESC 로 노멀 모드에 빠진다(대체 화면만 보던 11-15 첫 판이 그랬다).
  *  맥 줄 편집     ⌘⌫ ⌃U · ⌘← ⌃A · ⌘→ ⌃E · ⌥← ESC b · ⌥→ ESC f (Ghostty · iTerm2 「Natural Text Editing」
  *                기본값). xterm 5.5 는 ⌘← → 에 아무것도 안 보내고 ⌘⌫ 는 한 글자만 지운다. ⌥← → 는 5.5 가
  *                흉내 내지만 xterm 6 이 그 흉내를 뺀다(#5346) — 여기서 못박는다. ⌥⌘+방향키(칸 이동)는
@@ -30,6 +31,8 @@ export interface KeyCtx {
   platform: Platform;
   /** 안의 프로그램이 대체 화면(`buffer.active.type === "alternate"`)을 쓰는 중. */
   altScreen: boolean;
+  /** 그 화면의 프로그램이 상태 신호(OSC 7501)를 보낸 에이전트다 — Claude Code · Codex (`agentScreen.ts`). */
+  agent: boolean;
   hasSelection: boolean;
 }
 
@@ -107,7 +110,7 @@ export function translateKey(e: KeyEventLike, ctx: KeyCtx): KeyAction | null {
   if (e.type !== "keydown" || isImeComposing(e)) return null;
 
   if (e.key === "Enter" && only(e, { shift: true })) {
-    return ctx.altScreen ? { kind: "send", seq: `${ESC}\r` } : null;
+    return ctx.altScreen && ctx.agent ? { kind: "send", seq: `${ESC}\r` } : null;
   }
 
   if (ctx.platform === "mac") {

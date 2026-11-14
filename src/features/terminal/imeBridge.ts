@@ -225,8 +225,10 @@ export interface ImeBridgeHandle {
  * `term` 은 이미 `open()` 된 상태여야 한다 (textarea 필요).
  * `container` 는 `term.open()` 에 넘긴 엘리먼트 — textarea 의 조상이어야 캡처
  * 단계에서 input 이벤트를 xterm 보다 먼저 받을 수 있다.
+ * `agent` 는 「지금 에이전트(Claude · Codex)가 이 화면에 있는가」 — 세션을 열 때 붙인 `watchAgentScreen` 이 답한다
+ * (키 층의 Shift+Enter). 브리지는 첫 마운트에 붙어 그 전의 출력을 못 보므로 세션 쪽이 넘긴다.
  */
-export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBridgeHandle {
+export function attachImeBridge(term: Terminal, container: HTMLElement, agent: () => boolean = () => false): ImeBridgeHandle {
   const textarea = term.textarea ?? null;
 
   /** 이번 조합 세션에서 셸 입력줄에 올려놓은 문자열 (우리가 보낸 것 기준). */
@@ -463,6 +465,7 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
   const keyCtx = (): KeyCtx => ({
     platform: getPlatform(),
     altScreen: term.buffer?.active?.type === "alternate",
+    agent: agent(),
     hasSelection: term.hasSelection?.() ?? false,
   });
 

@@ -7,8 +7,9 @@
  * 있으면 탭 · 오늘의 줄로 충분하다(Orca 의 알림 규칙). 같은 기다림이 이어지며 한 줄만 바뀌면 다시 울리지
  * 않는다. 종 · 알림은 세션마다 30초에 한 번, 같은 글은 10분에 한 번. 권한은 처음 울릴 때 한 번 묻는다.
  *
- * 제목은 「프로젝트 · 세션 이름」(세션 이름은 프로그램이 붙인 제목, 없으면 셸 이름), 본문은 오늘 화면의 같은 줄과
- * 같은 모양 — 프로그램이 붙인 한 줄과 상태 말(「approve Write: a.ts · 허락을 기다려요」). 알림을 눌러 창이
+ * 제목은 「프로젝트 · 세션 이름」 — 세션 이름은 탭과 같은 이름이다(`sessionName`: 시도 n · 프로그램이 붙인 제목 ·
+ * 프로그램 이름 · 셸 이름 순). 예전엔 탭이 「시도 2」 라 부르는 세션을 알림은 대화 주제로 불렀다. 본문은 오늘 화면의
+ * 같은 줄과 같은 모양 — 프로그램이 붙인 한 줄과 상태 말(「approve Write: a.ts · 허락을 기다려요」). 알림을 눌러 창이
  * 앞에 오면(10초 안) 그 세션을 고른다 — 「어느 세션이었지」를 사람이 찾지 않게(`requestTermFocus`).
  *
  * 한 일에 알림 하나: 같은 세션의 종 · 알림 바로 뒤(5초)의 기다림 · 오류는 울리지 않고(그 반대 순서는 종 쪽의
@@ -24,7 +25,7 @@ import type { TermEvent, TermInfo, TermStatus } from "@/api/terminal";
 import type { ClaudeQuestion, ClaudeWaiting } from "@/lib/bindings";
 import { t } from "@/i18n";
 import { requestTermFocus } from "./focusRequest";
-import { needsMe, sessionWord } from "./status";
+import { needsMe, sessionName, sessionWord } from "./status";
 
 /** 이만큼 넘게 일하고 끝냈을 때만 「일지 없이 끝냄」 을 센다 — 짧은 문답은 일지가 없어도 평상이다. */
 export const WORKED_MS = 60_000;
@@ -146,7 +147,7 @@ function watchLanding(): void {
 
 /** 「프로젝트 · 세션 이름」 으로 OS 알림을 띄운다. 실패는 조용히 버린다(화면 표시가 남는다). */
 function notifySession(info: TermInfo, body: string, waiting = false): void {
-  const title = [projectName, info.title || info.label].filter(Boolean).join(" · ");
+  const title = [projectName, sessionName(t, info)].filter(Boolean).join(" · ");
   lastAlertAt.set(info.id, Date.now());
   watchLanding();
   void allowed()

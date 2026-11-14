@@ -231,27 +231,9 @@ export async function sendOrQueue(
 }
 
 /**
- * 대화상자 없이 바로 맡긴다 — 이 창에서 쉬는 claude 세션이 있으면 거기에(쉬는 세션이 없으면 첫 세션의
- * 줄에), 세션이 없으면 그 글로 새 세션을. 변경 화면의 「Claude 에게 맡기기」(일지 없는 변경의 기록 요청)가
- * 쓴다. 넣은 세션의 순번(1부터)과 결과를 돌려주고, 새 세션이면 `null`.
+ * 줄에 세웠다는 알림 — 「취소」로 뺄 수 있다. `n` 은 탭 앞 숫자(`sessionNumber`). 대화상자 없이 바로 맡기던
+ * `sendOrRun`(받는 곳 목록 순번을 「터미널 n」 으로 불렀다)은 변경 화면이 이 대화상자로 옮긴 뒤 부르는 곳이 없어 걷었다.
  */
-export async function sendOrRun(
-  projectId: number,
-  message: string,
-): Promise<{ n: number; outcome: SendOutcome } | null> {
-  const all = await terminalApi.list().catch(() => []);
-  const list = receiversOf(Array.isArray(all) ? all : []);
-  const target = defaultReceiver(list);
-  if (target) {
-    const outcome = await sendOrQueue(target.id, message);
-    return { n: list.indexOf(target) + 1, outcome };
-  }
-  const { runPromptInTerminal } = await import("./runPrompt");
-  await runPromptInTerminal(projectId, message);
-  return null;
-}
-
-/** 줄에 세웠다는 알림 — 「취소」로 뺄 수 있다. 변경 화면의 「Claude 에게 맡기기」도 쓴다. */
 export function toastQueued(t: Tr, n: number, key: number) {
   toast.info(t("send.queued", { n }), {
     actions: [

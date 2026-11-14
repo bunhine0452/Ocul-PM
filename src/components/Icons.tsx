@@ -290,6 +290,9 @@ export {
   List,
   Inbox,
   Store,
+  // 터미널 칸 크게 보기 · 되돌리기.
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 /** 모두 접기 — 위아래 꺾쇠가 안으로 모인다 (lucide `chevrons-down-up`). */

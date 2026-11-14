@@ -32,14 +32,14 @@ function key(init: Partial<KeyEventLike>): KeyEventLike {
 
 describe("⌘L in the key layer", () => {
   it("asks to send the selection only when something is selected", () => {
-    expect(translateKey(key({ metaKey: true }), { platform: "mac", altScreen: false, hasSelection: true })).toEqual({
+    expect(translateKey(key({ metaKey: true }), { platform: "mac", altScreen: false, agent: false, hasSelection: true })).toEqual({
       kind: "sendSelection",
     });
-    expect(translateKey(key({ metaKey: true }), { platform: "mac", altScreen: false, hasSelection: false })).toBeNull();
+    expect(translateKey(key({ metaKey: true }), { platform: "mac", altScreen: false, agent: false, hasSelection: false })).toBeNull();
   });
 
   it("is Ctrl+Shift+L elsewhere (terminal family) — plain Ctrl+L stays the shell's clear", () => {
-    const pc = { platform: "windows", altScreen: false, hasSelection: true } as const;
+    const pc = { platform: "windows", altScreen: false, agent: false, hasSelection: true } as const;
     expect(translateKey(key({ ctrlKey: true, shiftKey: true, key: "L" }), pc)).toEqual({ kind: "sendSelection" });
     expect(translateKey(key({ ctrlKey: true }), pc)).toBeNull();
   });

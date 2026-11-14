@@ -53,7 +53,6 @@ vi.mock("@/features/terminal/sendToClaude", () => ({
   requestSendToClaude: (ctx: { prefill?: string }) => {
     asked.push(ctx.prefill ?? "");
   },
-  sendOrRun: async () => null,
 }));
 
 vi.mock("@/lib/bindings", () => {

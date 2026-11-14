@@ -24,13 +24,18 @@ export function needsMe(status: TermStatus | null): boolean {
 export const QUIET_AFTER_MS = 30 * 60_000;
 
 // 세션마다 마지막 활동(출력 조각 · 상태 사건) 시각 — 창(웹뷰) 하나에 하나. 적는 쪽은 세션의 사건을 받는
-// 엔진(`termStore` 의 사건 처리)이다. `status.since` 는 「그 상태로 들어선 시각」 이라 쉬지 않고 출력하는
-// 긴 턴도 30분이 지나면 멈춘 것처럼 말했다.
+// 엔진(`termStore` 의 사건 처리)이고, 세션을 닫으면 버린다. `status.since` 는 「그 상태로 들어선 시각」 이라 쉬지
+// 않고 출력하는 긴 턴도 30분이 지나면 멈춘 것처럼 말했다.
 const activity = new Map<number, number>();
 
 /** 세션에 출력 · 상태 사건이 왔다 — 엔진이 부른다. */
 export function noteTermActivity(id: number, at = Date.now()): void {
   activity.set(id, at);
+}
+
+/** 세션을 닫았다 — 그 세션의 활동 시각을 버린다(`closeTerm`). */
+export function forgetTermActivity(id: number): void {
+  activity.delete(id);
 }
 
 /**
@@ -109,8 +114,8 @@ let lastNumber = 0;
 
 /**
  * 창 안에서 연 순서(1부터) — 닫혀도 그 번호는 다시 쓰지 않는다. 탭 앞 숫자 · 칸 머리 · 닫기 확인 · 창 닫기
- * 확인 · 「Claude 에게 보내기」 의 받는 곳과 그 알림이 같은 번호를 부른다. (변경 화면의 「Claude 에게 맡기기」
- * 토스트 · OS 알림은 아직 이 번호를 모른다 — 입력 · 엔진 쪽 몫.)
+ * 확인 · 「Claude 에게 보내기」 의 받는 곳과 그 토스트(변경 화면의 「Claude 에게 맡기기」 도 그 대화상자를 지난다)가
+ * 같은 번호를 부른다. OS 알림의 제목은 번호 없이 탭과 같은 이름(`sessionName`)이다.
  */
 export function sessionNumber(id: number): number {
   let n = numbers.get(id);
