@@ -5,37 +5,61 @@
 //! 세션은 창이 닫히면 그 창의 것이, 앱이 끝나면 전부 끝난다. 셸은 사용자의 로그인 셸을
 //! 그대로 띄우고(PATH 가 Finder 로 뜬 앱의 최소 PATH 가 아니게), rc 는 건드리지 않는다.
 //!
-//! 「다음」 을 실행할 때는 프롬프트를 환경 변수(`OCULPM_PROMPT`)로 넘기고 셸에
-//! `claude "$OCULPM_PROMPT"` 한 줄을 쳐 넣는다 — 따옴표·줄바꿈을 셸 문법으로 이스케이프할
-//! 일이 없고, claude 가 끝나면 셸이 남는다.
+//! 「다음」 을 실행할 때는 프롬프트를 환경 변수(`OCULPM_PROMPT`)로 넘기고, 셸이 `claude "$OCULPM_PROMPT"`
+//! 를 명령 인자로 받아 돌린다(`terminal_env.rs`) — 따옴표·줄바꿈을 셸 문법으로 이스케이프할 일이 없고, rc 의
+//! 질문이 그 줄을 먹지 않으며, claude 가 끝나면 셸이 남는다.
 //!
 //! 업데이트 재시작은 세션을 끝낸다(프로세스는 살리지 않는다). 대신 claude 가 돌던 세션의 자리를
 //! 창 스냅숏에 적어 두었다가, 다시 뜬 창이 같은 폴더에서 `claude --continue` 로 대화를 잇는다
 //! (`TermResume` · 10-31 사용자 결정).
 
 use std::collections::{HashMap, HashSet};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{native_pty_system, Child, CommandBuilder, PtySize};
 use serde::{Deserialize, Serialize};
 
 #[path = "terminal_output.rs"]
 mod output;
+#[path = "terminal_io.rs"]
+mod pty_io;
+#[path = "terminal_env.rs"]
+mod shell_env;
 use output::pump_output;
 pub use output::take_utf8;
+pub use pty_io::{FrontFn, BUSY as WRITE_BUSY};
 
 /// 프롬프트를 셸에 넘기는 환경 변수.
 pub const PROMPT_ENV: &str = "OCULPM_PROMPT";
 
-/// 웹뷰로 가는 세션 사건 — 출력 조각 · 끝 · 프로그램 상태(OSC 7501).
+/// 웹뷰로 가는 세션 사건 — 출력 조각 · 끝 · 프로그램 상태(OSC 7501) · 제목(OSC 0 · 2) · 종 · 알림(OSC 9 · 777).
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TermEvent {
-    Output { data: String },
-    Exit { code: Option<u32> },
-    Status { status: Option<TermStatus> },
+    /// `n` 은 이 조각의 바이트 수 — 웹뷰가 그린 뒤 `term_ack` 로 돌려준다(출력 흐름 제어).
+    Output {
+        data: String,
+        n: u32,
+    },
+    Exit {
+        code: Option<u32>,
+    },
+    Status {
+        status: Option<TermStatus>,
+    },
+    /// 세션 이름이 될 제목이 바뀌었다(`TermInfo.title`) — 같은 세션은 1초에 한 번까지.
+    Title {
+        title: Option<String>,
+    },
+    /// 무언가 도는 세션이 BEL 을 울렸다(셸만 도는 칸의 종은 오지 않는다).
+    Bell,
+    /// 안의 프로그램이 띄워 달라는 알림(OSC 9 · 777).
+    Notice {
+        title: Option<String>,
+        body: String,
+    },
 }
 
 /// 세션 안 프로그램(주로 claude)이 스스로 알린 상태 — `program_status` 의 루트 기록.
@@ -50,6 +74,11 @@ pub struct TermStatus {
     pub msg: Option<String>,
     /// 이 상태로 바뀐 시각 (RFC 3339) — 같은 상태가 이어지면 그대로다.
     pub since: String,
+    /// 상태를 보낸 프로그램(`claude` · `codex` …, 소문자) — 한 번 알리면 지울 때까지 남는다. 업데이트 뒤
+    /// 잇기는 이 이름이 claude 일 때만(`Row::runs_claude`). TS 는 선택 속성 — 이 필드를 모르던 시험 · 다른
+    /// 화면의 값 모양을 깨지 않는다(serde 속성으로 하면 specta 가 타입을 보내기 · 받기 둘로 쪼갠다).
+    #[specta(optional)]
+    pub app: Option<String>,
 }
 
 /// 업데이트 재시작을 건너 이을 claude 세션 하나 — 그 창의 프로젝트와, 레인이면 그 경로.
@@ -90,6 +119,10 @@ pub struct TermInfo {
     /// 그 창이 뒤에 있는 동안 안의 프로그램이 기다림 · 끝냄 · 오류로 바뀌었고 아직 그 창을 안 봤다
     /// (Orca 의 알림 규칙 — 읽지 않음은 프로젝트(= 창)마다). 창이 앞에 오면 지운다.
     pub unseen: bool,
+    /// 안의 프로그램이 붙인 제목(OSC 7501 의 `title=`, 없으면 OSC 0 · 2) — 정화해 60자. 탭의 이름이 된다
+    /// (claude 셋이 모두 「claude」 이던 것을 대화 주제로). TS 는 선택 속성(`TermStatus.app` 과 같은 까닭).
+    #[specta(optional)]
+    pub title: Option<String>,
 }
 
 /// 여는 데 필요한 것.
@@ -105,41 +138,52 @@ pub struct OpenSpec {
     pub lane: Option<String>,
     /// 업데이트 전 대화를 잇는다 — `claude --continue`.
     pub resume: bool,
+    /// 그 창이 앞에 있는가 — 출력 흐름 제어가 창이 뒤면 더 넉넉히 받는다(`pty_io::Flow`). 없으면 늘 앞.
+    pub front: Option<FrontFn>,
 }
 
 struct Session {
     window: String,
     lane: Option<String>,
     info: TermInfo,
-    master: Box<dyn MasterPty + Send>,
-    writer: Box<dyn Write + Send>,
+    /// 크기 바꾸기는 표 잠금 밖에서 — 잠금은 이 세션만 잡는다.
+    master: pty_io::SharedMaster,
+    /// 쓰기 줄 — 넣고 곧장 돌아온다. 탐침의 답도 이 줄로 간다.
+    input: pty_io::Input,
+    flow: Arc<pty_io::Flow>,
     child: Box<dyn Child + Send + Sync>,
+    /// 제목의 두 출처 — OSC 7501 의 `title=` 이 OSC 0 · 2 보다 먼저다(`TermInfo.title`).
+    program_title: Option<String>,
+    osc_title: Option<String>,
 }
 
 impl Session {
     /// 잠금 안에서 이 세션을 한 줄로 베낀다 — 「도는 중」 은 잠금을 놓은 뒤 가른다(`Row::busy`).
-    /// unix 의 포그라운드 그룹은 ioctl 하나라 여기서 잰다. Windows 의 프로세스 스냅숏은 무거워(시스템
-    /// 전체 프로세스 목록) 잠금 밖에서 한 번만 뜬다 — 예전에는 세션마다 잠금 안에서 떠, 그동안 입력 ·
-    /// 크기 바꾸기 · 출력 스레드의 상태 반영이 모두 그 잠금을 기다렸다(2026-11-11).
+    /// Windows 의 프로세스 스냅숏은 무거워(시스템 전체 프로세스 목록) 잠금 밖에서 한 번만 뜬다 — 예전에는
+    /// 세션마다 잠금 안에서 떠, 그동안 입력 · 크기 바꾸기 · 출력 스레드의 상태 반영이 모두 그 잠금을
+    /// 기다렸다(2026-11-11).
     fn row(&self) -> Row {
-        #[cfg(unix)]
-        let fg_busy = if self.info.alive {
-            match (self.master.process_group_leader(), self.child.process_id()) {
-                (Some(fg), Some(shell)) => Some(fg as u32 != shell),
-                _ => None,
-            }
-        } else {
-            None
-        };
-        #[cfg(not(unix))]
-        let fg_busy = None;
         Row {
             window: self.window.clone(),
             lane: self.lane.clone(),
             info: self.info.clone(),
-            fg_busy,
+            fg_busy: self.fg_busy(),
             shell_pid: self.child.process_id(),
         }
+    }
+
+    /// unix — 터미널의 포그라운드 프로세스 그룹이 셸이 아니다(ioctl 하나). 물을 수 없거나 Windows 면 `None`.
+    fn fg_busy(&self) -> Option<bool> {
+        if !self.info.alive {
+            return None;
+        }
+        #[cfg(unix)]
+        {
+            let fg = self.master.lock().ok()?.process_group_leader()?;
+            Some(fg as u32 != self.child.process_id()?)
+        }
+        #[cfg(not(unix))]
+        None
     }
 }
 
@@ -174,9 +218,17 @@ impl Row {
         self.info.status.is_some()
     }
 
-    /// claude 가 돈다 — 무언가 돌고, 그것이 상태 신호를 보냈거나(OSC 7501) claude 로 연 세션이다.
+    /// claude 가 돈다 — 무언가 돌고, 그것이 claude 라고 알렸거나(OSC 7501 `app=claude…`) claude 로 연 세션이다.
+    /// 다른 이름을 알렸으면(Codex 도 2026-10-09 부터 OSC 7501 을 `app=codex` 로 보낸다) 「다음」 으로 연 세션이어도
+    /// 아니다 — 업데이트 뒤 그 칸에 `claude --continue` 를 치지 않게. 이름이 없으면 예전 규칙 그대로.
     fn runs_claude(&self, parents: Option<&HashSet<u32>>) -> bool {
-        self.busy(parents) && (self.info.status.is_some() || self.info.label == "claude")
+        if !self.busy(parents) {
+            return false;
+        }
+        match self.info.status.as_ref().and_then(|s| s.app.as_deref()) {
+            Some(app) => app.starts_with("claude"),
+            None => self.info.status.is_some() || self.info.label == "claude",
+        }
     }
 }
 
@@ -222,8 +274,9 @@ fn size(cols: u16, rows: u16) -> PtySize {
     }
 }
 
-/// 사용자의 셸 — 로그인 셸로 띄워 프로필의 PATH 를 받는다.
-fn shell_command() -> (CommandBuilder, String) {
+/// 사용자의 셸 — 로그인 셸로 띄워 프로필의 PATH 를 받는다. `launch`(「다음」 · 잇기)가 있으면 셸이 그 줄을
+/// 명령 인자로 받고, 받지 못하는 셸이면 쳐 넣을 줄을 함께 돌려준다(`shell_env::attach_launch`).
+fn shell_command(launch: Option<shell_env::Launch>) -> (CommandBuilder, String, Option<String>) {
     #[cfg(windows)]
     {
         let (mut cmd, name) = match find_pwsh(std::env::var_os("PATH").as_deref()) {
@@ -236,7 +289,8 @@ fn shell_command() -> (CommandBuilder, String) {
         // 시작 배너(저작권 · 버전 안내)만 끈다 — 프로필은 그대로 읽는다. 배너는 세션을 열 때마다 몇 줄을
         // 차지하고 ConPTY 가 그만큼 더 그렸다(2026-11-11).
         cmd.arg("-NoLogo");
-        (cmd, name)
+        let typed = shell_env::attach_launch(&mut cmd, &name, launch, &[]);
+        (cmd, name, typed)
     }
     #[cfg(not(windows))]
     {
@@ -254,8 +308,10 @@ fn shell_command() -> (CommandBuilder, String) {
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| "shell".to_string());
         let mut cmd = CommandBuilder::new(&shell);
-        cmd.arg("-l");
-        (cmd, name)
+        // 실행 줄 끝의 `exec "$SHELL"` 가 같은 셸로 돌아오게 — 앱에 SHELL 이 없어 기본 셸을 고른 때도.
+        cmd.env("SHELL", &shell);
+        let typed = shell_env::attach_launch(&mut cmd, &name, launch, &["-l"]);
+        (cmd, name, typed)
     }
 }
 
@@ -344,43 +400,30 @@ fn yield_to_ui(pid: u32) {
     }
 }
 
-/// 업데이트 전 대화를 잇는 한 줄 — 그 폴더의 가장 최근 대화.
-const RESUME_LINE: &str = "claude --continue\r";
-
-/// 「다음」 실행 때 셸에 쳐 넣는 한 줄. 프롬프트가 비었으면 그냥 `claude` — 「끝까지」가 띄운 뒤
-/// 입력 대기 신호를 받고 `/goal …` 을 넣는다(시작 인자로 넘기는 슬래시 명령은 문서에 없다).
-fn run_line(prompt: &str) -> String {
-    if prompt.is_empty() {
-        return "claude\r".to_string();
-    }
-    if cfg!(windows) {
-        format!("claude $env:{PROMPT_ENV}\r")
-    } else {
-        format!("claude \"${PROMPT_ENV}\"\r")
-    }
-}
-
 impl TermSessions {
     /// 세션을 열고 출력 스레드를 붙인다. `emit` 은 출력·끝을 웹뷰로 보낸다.
     pub fn open<F>(&self, spec: OpenSpec, emit: F) -> Result<TermInfo, String>
     where
         F: Fn(TermEvent) + Send + 'static,
     {
-        let (cmd, shell_name) = shell_command();
-        let label = if spec.prompt.is_some() || spec.resume {
+        let launch = shell_env::Launch::of(spec.prompt.as_deref(), spec.resume);
+        let (cmd, shell_name, typed) = shell_command(launch);
+        let label = if launch.is_some() {
             "claude".to_string()
         } else {
             shell_name
         };
-        self.start(spec, cmd, label, emit)
+        self.start(spec, cmd, label, typed, emit)
     }
 
-    /// 명령을 PTY 에 띄운다 — `open` 이 셸로 부르고, 테스트는 짧은 명령으로 부른다.
+    /// 명령을 PTY 에 띄운다 — `open` 이 셸로 부르고, 테스트는 짧은 명령으로 부른다. `typed` 는 실행 줄을
+    /// 인자로 못 받는 셸에 쳐 넣을 한 줄 — 셸이 아직 프롬프트를 그리기 전이어도 tty 가 받아 둔다.
     fn start<F>(
         &self,
-        spec: OpenSpec,
+        mut spec: OpenSpec,
         mut cmd: CommandBuilder,
         label: String,
+        typed: Option<String>,
         emit: F,
     ) -> Result<TermInfo, String>
     where
@@ -390,15 +433,7 @@ impl TermSessions {
             .openpty(size(spec.cols, spec.rows))
             .map_err(|e| format!("pty: {e}"))?;
         cmd.cwd(&spec.cwd);
-        cmd.env("TERM", "xterm-256color");
-        cmd.env("COLORTERM", "truecolor");
-        // Claude Code 의 전체 화면 렌더러 — 일반 렌더러는 크기가 바뀔 때마다 지난 화면을
-        // 다시 쏟아 스크롤백을 더럽혔다(3.x 실측, v3.13.2).
-        cmd.env("CLAUDE_CODE_NO_FLICKER", "1");
-        // Claude Code 는 TERM_PROGRAM 목록에 없는 터미널을 하이퍼링크 미지원으로 보고 경로를 맨 글자로
-        // 찍는다 — 이 신호가 있으면 `file://` 절대경로로 감싸 보내고(OSC 8), 프런트가 그 링크로
-        // 이미지를 미리 보여 준다(`features/terminal/fileLinks.ts`). 빼면 미리보기가 조용히 죽는다.
-        cmd.env("FORCE_HYPERLINK", "1");
+        shell_env::apply_env(&mut cmd);
         if let Some(prompt) = spec.prompt.as_deref().filter(|p| !p.is_empty()) {
             cmd.env(PROMPT_ENV, prompt);
         }
@@ -415,24 +450,20 @@ impl TermSessions {
             .master
             .try_clone_reader()
             .map_err(|e| format!("reader: {e}"))?;
-        let mut writer = pair
+        let writer = pair
             .master
             .take_writer()
             .map_err(|e| format!("writer: {e}"))?;
-        // 셸이 아직 프롬프트를 그리기 전이어도 tty 가 받아 둔다.
-        let launch = if spec.resume {
-            Some(RESUME_LINE.to_string())
-        } else {
-            spec.prompt.as_deref().map(run_line)
+        let id = {
+            let mut inner = self.inner.lock().map_err(|_| "poisoned".to_string())?;
+            inner.next += 1;
+            inner.next
         };
-        if let Some(line) = launch {
-            let _ = writer.write_all(line.as_bytes());
-            let _ = writer.flush();
+        let input = pty_io::Input::spawn(id, writer)?;
+        if let Some(line) = typed {
+            let _ = input.send(line.into_bytes());
         }
-
-        let mut inner = self.inner.lock().map_err(|_| "poisoned".to_string())?;
-        inner.next += 1;
-        let id = inner.next;
+        let flow = Arc::new(pty_io::Flow::new(spec.front.take()));
         let info = TermInfo {
             id,
             project_id: spec.project_id,
@@ -443,23 +474,28 @@ impl TermSessions {
             status: None,
             busy: false,
             unseen: false,
+            title: None,
         };
-        inner.map.insert(
-            id,
-            Session {
-                window: spec.window,
-                lane: spec.lane,
-                info: info.clone(),
-                master: pair.master,
-                writer,
-                child,
-            },
-        );
-        drop(inner);
+        let session = Session {
+            window: spec.window,
+            lane: spec.lane,
+            info: info.clone(),
+            master: Arc::new(Mutex::new(pair.master)),
+            input,
+            flow: flow.clone(),
+            child,
+            program_title: None,
+            osc_title: None,
+        };
+        self.inner
+            .lock()
+            .map_err(|_| "poisoned".to_string())?
+            .map
+            .insert(id, session);
 
         // 읽기와 보내기를 두 스레드로 나눈다 — 막히는 `read` 는 스스로 시간을 재지 못해, 읽은 조각을
         // 받아 모으는 쪽이 `recv_timeout` 으로 잠잠해진 때를 잰다(`pump_output`). 채널은 묶어 둔다
-        // (조각 32개, 최대 ~256KB) — 웹뷰가 밀리면 읽기도 멈춰 예전처럼 PTY 가 받쳐 준다.
+        // (조각 32개, 최대 ~256KB) — 웹뷰가 밀려 펌프가 서면(`pty_io::Flow`) 읽기도 서서 PTY 가 받쳐 준다.
         let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(32);
         std::thread::Builder::new()
             .name(format!("term-{id}-read"))
@@ -467,12 +503,15 @@ impl TermSessions {
                 let mut buf = [0u8; 8192];
                 loop {
                     match reader.read(&mut buf) {
-                        Ok(0) | Err(_) => break,
+                        Ok(0) => break,
                         Ok(n) => {
                             if tx.send(buf[..n].to_vec()).is_err() {
                                 break;
                             }
                         }
+                        // 신호로 끊긴 읽기는 끝이 아니다 — 다시 읽는다.
+                        Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                        Err(_) => break,
                     }
                 }
             })
@@ -481,7 +520,7 @@ impl TermSessions {
         std::thread::Builder::new()
             .name(format!("term-{id}"))
             .spawn(move || {
-                pump_output(&rx, &table, id, &emit);
+                pump_output(&rx, &table, id, &emit, &flow);
                 // 표를 잠근 채 기다리지 않는다(try_wait) — 막히면 다른 세션 조작이 다 선다.
                 // 출력이 끝나도(EOF) 자식이 아직 안 거둬졌을 수 있어 잠깐씩 다시 본다(최대 ~1초) —
                 // 바로 한 번만 보면 부하가 있을 때 종료 코드를 「모름」 으로 적었다. 닫기로 끝난
@@ -513,26 +552,27 @@ impl TermSessions {
         Ok(info)
     }
 
+    /// 쓰기 줄에 넣고 곧장 돌아온다(`pty_io::Input`) — 표 잠금 안에서 PTY 에 쓰지 않는다.
     pub fn write(&self, id: u32, data: &str) -> Result<(), String> {
-        let mut inner = self.inner.lock().map_err(|_| "poisoned".to_string())?;
-        let s = inner.map.get_mut(&id).ok_or("no such session")?;
-        s.writer
-            .write_all(data.as_bytes())
-            .map_err(|e| e.to_string())?;
-        s.writer.flush().map_err(|e| e.to_string())
+        let inner = self.inner.lock().map_err(|_| "poisoned".to_string())?;
+        let s = inner.map.get(&id).ok_or("no such session")?;
+        s.input.send(data.as_bytes().to_vec())
     }
 
     pub fn resize(&self, id: u32, cols: u16, rows: u16) -> Result<(), String> {
-        let inner = self.inner.lock().map_err(|_| "poisoned".to_string())?;
-        let s = inner.map.get(&id).ok_or("no such session")?;
-        s.master.resize(size(cols, rows)).map_err(|e| e.to_string())
+        let master = {
+            let inner = self.inner.lock().map_err(|_| "poisoned".to_string())?;
+            inner.map.get(&id).ok_or("no such session")?.master.clone()
+        };
+        let master = master.lock().map_err(|_| "poisoned".to_string())?;
+        master.resize(size(cols, rows)).map_err(|e| e.to_string())
     }
 
-    /// 세션을 닫는다 — 자식을 죽이고 표에서 뺀다(PTY 가 닫혀 출력 스레드도 끝난다).
+    /// 세션을 닫는다 — 표에서 빼고 곧장 돌아온다. 자식을 죽이고 거두는 일은 따로 돈다(`pty_io::reap`).
     pub fn close(&self, id: u32) {
         let removed = self.inner.lock().ok().and_then(|mut t| t.map.remove(&id));
-        if let Some(mut s) = removed {
-            let _ = s.child.kill();
+        if let Some(s) = removed {
+            pty_io::reap(id, s.child, s.master);
         }
     }
 
@@ -717,19 +757,21 @@ impl TermSessions {
         }
     }
 
-    /// 앱이 끝날 때 — 전부. 고아 셸을 남기지 않는다.
+    /// 앱이 끝날 때 — 전부. 고아 셸을 남기지 않게 거두기를 잠깐 기다린다(`pty_io::SHUTDOWN_WAIT`).
     pub fn close_all(&self) {
-        let ids: Vec<u32> = self
+        let removed: Vec<(u32, Session)> = self
             .inner
             .lock()
-            .map(|t| t.map.keys().copied().collect())
+            .map(|mut t| t.map.drain().collect())
             .unwrap_or_default();
-        for id in ids {
-            self.close(id);
-        }
+        let reapers = removed
+            .into_iter()
+            .filter_map(|(id, s)| pty_io::reap(id, s.child, s.master))
+            .collect();
+        pty_io::join_until(reapers, pty_io::SHUTDOWN_WAIT);
     }
 }
 
 #[cfg(test)]
 #[path = "terminal_tests.rs"]
-mod tests;
+pub(crate) mod tests;

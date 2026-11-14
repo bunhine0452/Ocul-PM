@@ -16,18 +16,22 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 
 import { fileOpenApi } from "@/api/fileOpen";
+import { ApiError } from "@/api/invoke";
 import { terminalApi, type TermEvent, type TermInfo } from "@/api/terminal";
+import { kbd } from "@/lib/kbd";
 import { isMac } from "@/lib/platform";
 import { t } from "@/i18n";
+import { oculpmLog } from "@/lib/oculpmLog";
 import { toast } from "@/lib/toast";
-import { alertIfWaiting } from "./attention";
-import { createImagePathProvider, createOscLinkHandler } from "./fileLinks";
+import { alertIfWaiting, alertOnSignal, forgetAlerts } from "./attention";
+import { createImagePathProvider, createOscLinkHandler, shouldOpenLink } from "./fileLinks";
 import { createFileRefProvider, openFileMenu } from "./fileRefs";
 import { peekEvent } from "./imagePeek";
 import { pushImeTrace } from "./imeTrace";
 import { attachImeBridge } from "./imeBridge";
 import { LAUNCH_WATCH_CHARS, launchFailed } from "./launchCheck";
-import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
+import { afterFit, forgetCell, initialSize } from "./termSize";
+import { contrastFloor, observeTerminalTheme, readTerminalTheme } from "./termTheme";
 
 // 한글은 번들 'D2Coding Term'(App.css)이 unicode-range 로 두 셀을 정확히 채운다 — 라틴 격자를
 // 정하는 글꼴이 스택의 맨 앞이어야 한다 (3.x terminalPlatform.ts 의 실측 그대로).
@@ -64,6 +68,22 @@ export const PTY_RESIZE_DEBOUNCE_MS = 80;
 export const WEBGL_IDLE_MS = 30_000;
 /** 동시에 쥐는 WebGL 렌더러의 상한 — 넘으면 내려간 세션의 것부터 곧장 반납한다. */
 export const MAX_WEBGL = 8;
+/**
+ * 문맥을 잃으면 다시 붙이되 이 간격에 한 번까지 — 연달아 잃는 GPU 에서 붙였다 잃기를 되풀이하지 않게. 예전에는
+ * 두 번 잃으면 그 세션은 끝까지 DOM 렌더러였다(박스 문자가 점선처럼 끊긴다).
+ */
+export const WEBGL_RETRY_MS = 60_000;
+/** 글리프 아틀라스 페이지가 이만큼 붙을 때마다 비운다 — Claude 의 트루컬러 shimmer 가 글리프를 끝없이 늘렸다. */
+export const ATLAS_CLEAR_EVERY = 32;
+/** 그린 출력이 이만큼 모이면 백엔드에 알린다(`term_ack`) — 백엔드는 안 그린 것이 256KB 를 넘으면 읽기를 멈춘다. */
+export const ACK_BYTES = 32 * 1024;
+/**
+ * xterm 이 아직 못 그린 출력이 이만큼을 넘으면 새 출력은 버리고 센다 — 다시 따라오면 「N MB 를 건너뛰었어요」
+ * 한 줄을 남긴다. xterm 은 50MB 에서 말없이 버린다. 백엔드 흐름 제어가 있어 여기까지 오는 것은 창이 오래
+ * 멈춰 있을 때뿐이다.
+ */
+export const DROP_BYTES = 32 * 1024 * 1024;
+const LINE_HEIGHT = 1.15;
 
 interface Entry {
   info: TermInfo;
@@ -78,8 +98,12 @@ interface Entry {
   webgl: WebglAddon | null;
   /** 내려간 뒤 WebGL 을 반납할 타이머. */
   webglIdle: ReturnType<typeof setTimeout> | null;
-  /** 문맥을 잃고 한 번 다시 지었다 — 또 잃으면 DOM 렌더러로 둔다. */
-  webglRetried: boolean;
+  /** 문맥을 잃고 마지막으로 다시 붙인 때(ms, 0 이면 아직) — `WEBGL_RETRY_MS` 에 한 번. */
+  webglRetryAt: number;
+  /** 간격이 안 차 미뤄 둔 다시 붙이기. */
+  webglRetry: ReturnType<typeof setTimeout> | null;
+  /** 지금 WebGL 렌더러의 아틀라스 페이지 수 — `ATLAS_CLEAR_EVERY` 마다 비운다. */
+  atlasPages: number;
   /** 다음 프레임에 칸 맞추기가 잡혀 있다. */
   fitFrame: number | null;
   /** PTY 로 보낼 크기 — 잠잠해지면 보낸다. */
@@ -90,6 +114,11 @@ interface Entry {
 const entries = new Map<number, Entry>();
 /** 터미널 글자 크기 — 새 세션도 이 크기로 연다 (`setTermFontSize`). */
 let fontSize = 13;
+/** 이 창에서 WebGL 문맥을 잃은 수 — 로그에 싣는다. */
+let webglLosses = 0;
+/** 「⌘ 로 연다」 안내는 창마다 한 번. */
+let modHinted = false;
+let dprWatched = false;
 /** 안의 Claude 가 한 번이라도 「일하는 중」(OSC 7501 working)을 알린 세션 — 「일지 없이 끝남」의 재료. */
 const worked = new Set<number>();
 const listeners = new Set<() => void>();
@@ -142,8 +171,49 @@ function watchTheme() {
   if (unobserveTheme) return;
   unobserveTheme = observeTerminalTheme(() => {
     const theme = readTerminalTheme();
-    for (const e of entries.values()) e.term.options.theme = theme;
+    for (const e of entries.values()) {
+      e.term.options.theme = theme;
+      e.term.options.minimumContrastRatio = contrastFloor(theme.background);
+    }
   });
+}
+
+/**
+ * 화면 배율(DPR)이 바뀌면(외부 모니터로 옮김) 보이는 세션의 칸 수를 다시 맞춘다 — 셀 크기가 장치 픽셀로
+ * 반올림돼 바뀌는데, 칸 크기는 그대로라 ResizeObserver 가 부르지 않았다.
+ */
+function watchDpr() {
+  if (dprWatched || typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+  dprWatched = true;
+  const arm = () => {
+    const query = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    const onChange = () => {
+      query.removeEventListener("change", onChange);
+      forgetCell();
+      for (const e of entries.values()) if (e.mounts > 0) scheduleFit(e);
+      arm();
+    };
+    query.addEventListener("change", onChange);
+  };
+  arm();
+}
+
+function fontStack(): string {
+  return isMac() ? MAC_FONT : OTHER_FONT;
+}
+
+/** 전체 화면 프로그램 위의 맨 클릭은 그 프로그램에 둔다 — 창마다 한 번 ⌘ 로 연다고 알린다. */
+function hintModClick() {
+  if (modHinted) return;
+  modHinted = true;
+  toast.info(t("terminal.link.modHint", { mod: kbd("⌘") }));
+}
+
+/** 쓰기가 밀렸다(백엔드 대기 1MB) — 붙여넣기를 다시 하라고 한 번 알린다. 다른 실패는 조용히. */
+function warnIfBusy(e: unknown) {
+  if (e instanceof ApiError && e.code === "terminal_busy") {
+    toast.warning(t("terminal.writeBusy"), { dedupKey: "terminal-write-busy", dedupWindowMs: 5000 });
+  }
 }
 
 /**
@@ -158,20 +228,27 @@ export async function openTerm(
 ): Promise<number> {
   await Promise.all([sweepOrphans(), loadHangulFont()]);
   watchTheme();
+  watchDpr();
+  const theme = readTerminalTheme();
   const term = new Terminal({
-    cursorBlink: true,
+    // 영수증 ⑥ — 움직임은 응답일 때만. 깜빡이는 커서는 쉬지 않는 반복이다.
+    cursorBlink: false,
     cursorStyle: "bar",
     cursorInactiveStyle: "outline",
     allowProposedApi: true,
-    fontFamily: isMac() ? MAC_FONT : OTHER_FONT,
+    fontFamily: fontStack(),
     fontSize,
-    lineHeight: 1.15,
-    theme: readTerminalTheme(),
+    lineHeight: LINE_HEIGHT,
+    theme,
     scrollback: SCROLLBACK,
     macOptionIsMeta: true,
     macOptionClickForcesSelection: true,
     drawBoldTextInBrightColors: true,
-    minimumContrastRatio: 1.5,
+    minimumContrastRatio: contrastFloor(theme.background),
+    // 한 칸을 넘는 Nerd Font 아이콘이 옆 글자를 덮지 않게 칸 안으로 줄인다.
+    rescaleOverlappingGlyphs: true,
+    // 칸에 맞는 크기로 연다 — 80×24 로 열면 「다음」 의 claude 가 첫 화면을 80칸에 찍었다 다시 그렸다.
+    ...initialSize(fontStack(), fontSize, LINE_HEIGHT),
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
@@ -179,12 +256,20 @@ export async function openTerm(
   term.loadAddon(search);
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = "11";
-  term.loadAddon(new WebLinksAddon((_e, uri) => void fileOpenApi.url(uri)));
-  // OSC 8 링크(없으면 xterm 기본 처리기가 웹뷰에서 막혀 아무 일도 없다) · 출력의 이미지 경로.
   const openUrl = (uri: string) => void fileOpenApi.url(uri).catch(() => {});
-  term.options.linkHandler = createOscLinkHandler({ openUrl, onImage: peekEvent, onFile: openFileMenu });
+  term.loadAddon(
+    new WebLinksAddon((event, uri) => (shouldOpenLink(event, term) ? openUrl(uri) : hintModClick())),
+  );
+  // OSC 8 링크(없으면 xterm 기본 처리기가 웹뷰에서 막혀 아무 일도 없다) · 출력의 이미지 경로.
+  term.options.linkHandler = createOscLinkHandler({
+    openUrl,
+    onImage: peekEvent,
+    onFile: openFileMenu,
+    term,
+    onPassedThrough: hintModClick,
+  });
   term.registerLinkProvider(
-    createImagePathProvider((y) => term.buffer.active.getLine(y), peekEvent, () => term.cols),
+    createImagePathProvider((y) => term.buffer.active.getLine(y), peekEvent, () => term.cols, term, hintModClick),
   );
   // 맨 글자 `src/foo.ts:12` — ⌘클릭이면 「이 파일로 할 일」(Finder · 빠른 미리보기 · 외부 편집기).
   term.registerLinkProvider(createFileRefProvider((y) => term.buffer.active.getLine(y), openFileMenu));
@@ -197,9 +282,33 @@ export async function openTerm(
   // 첫 출력이 open 이 돌아오기 전에 올 수 있다 — xterm 은 open() 전에도 버퍼에 쓴다.
   // 「다음」 실행이면 첫머리에서 claude 를 못 찾았는지 본다 — 찾았든 못 찾았든 한 번만.
   let launchHead: string | null = prompt || resume ? "" : null;
+  // 출력 흐름 — xterm 이 그린(콜백) 바이트를 모아 `ACK_BYTES` 마다 백엔드에 알린다. 세션 id 는 open 이
+  // 돌아와야 알므로 그 전에 그린 것은 모아 두었다가 함께 알린다.
+  const flow = { id: null as number | null, pending: 0, drawn: 0, skipped: 0 };
+  const drawn = (n: number) => {
+    flow.drawn += n;
+    if (flow.id === null || flow.drawn < ACK_BYTES) return;
+    void terminalApi.ack(flow.id, flow.drawn).catch(() => {});
+    flow.drawn = 0;
+  };
   const onEvent = (ev: TermEvent) => {
     if (ev.kind === "output") {
-      term.write(ev.data);
+      const n = Number.isFinite(ev.n) ? ev.n : ev.data.length;
+      if (flow.pending > DROP_BYTES) {
+        flow.skipped += n;
+        drawn(n);
+        return;
+      }
+      if (flow.skipped > 0) {
+        const mb = Math.max(0.1, Math.round(flow.skipped / 104_857.6) / 10);
+        term.write(`\r\n\x1b[2m${t("terminal.notify.skipped", { mb })}\x1b[0m\r\n`);
+        flow.skipped = 0;
+      }
+      flow.pending += n;
+      term.write(ev.data, () => {
+        flow.pending -= n;
+        drawn(n);
+      });
       if (launchHead !== null) {
         launchHead += ev.data;
         if (launchFailed(launchHead)) {
@@ -221,6 +330,17 @@ export async function openTerm(
       notify();
       return;
     }
+    // 제목(OSC 0 · 2 · 7501 title=) · 종 · 프로그램 알림 — 이것도 open 뒤에만 쓴다.
+    if (ev.kind === "title") {
+      if (!entry) return;
+      entry.info = { ...entry.info, title: ev.title };
+      notify();
+      return;
+    }
+    if (ev.kind === "bell" || ev.kind === "notice") {
+      if (entry) alertOnSignal(entry.info, ev);
+      return;
+    }
     if (!entry) {
       earlyExit = { code: ev.code };
       return;
@@ -235,6 +355,8 @@ export async function openTerm(
     term.dispose();
     throw e;
   }
+  flow.id = info.id;
+  drawn(0);
   if (earlyExit) info = { ...info, alive: false, exit_code: (earlyExit as { code: number | null }).code };
   entry = {
     info,
@@ -247,7 +369,9 @@ export async function openTerm(
     mounts: 0,
     webgl: null,
     webglIdle: null,
-    webglRetried: false,
+    webglRetryAt: 0,
+    webglRetry: null,
+    atlasPages: 0,
     fitFrame: null,
     resizeTimer: null,
     pendingSize: null,
@@ -260,7 +384,7 @@ export async function openTerm(
     // 보냈는지, 그 뒤(ConPTY · 셸 · claude)에서 겹쳤는지를 덤프(⌃⌥⇧I)만 보고 가린다(2026-11-11
     // Windows). 키 입력 길이(8자 이하)만 — 붙여넣기 · 프롬프트 본문은 남기지 않는다.
     if (data.length <= 8) pushImeTrace("pty-write", { data: JSON.stringify(data) });
-    void terminalApi.write(id, data).catch(() => {});
+    void terminalApi.write(id, data).catch(warnIfBusy);
   });
   term.onResize((size) => queuePtyResize(id, e, size));
   notify();
@@ -317,8 +441,9 @@ export function mountTerm(id: number, container: HTMLElement, focus = true): () 
  * WebGL 렌더러 — 박스 그림 문자(Claude Code 배너 · 표)를 xterm 이 직접 이어 그린다(DOM 렌더러는
  * 글꼴 글리프라 점선처럼 끊겼다). 보이는 세션에 붙이고, 내려가면 `WEBGL_IDLE_MS` 뒤에 반납한다 — 세션마다
  * 문맥을 쥐면 브라우저 상한(약 16)과 GPU 메모리를 먹었다(3.x 「WebGL 반납」). 예전엔 내려가는 즉시 반납해
- * 탭을 오갈 때마다 문맥 · 글리프 아틀라스를 새로 지었다(2026-11-11). 문맥을 잃으면 한 번만 다시 짓고,
- * 또 잃거나 못 쓰면 DOM 그대로.
+ * 탭을 오갈 때마다 문맥 · 글리프 아틀라스를 새로 지었다(2026-11-11). 문맥을 잃으면 다시 붙이되
+ * `WEBGL_RETRY_MS` 에 한 번(`retryWebgl`), 못 쓰면 DOM 그대로. 아틀라스는 `ATLAS_CLEAR_EVERY` 페이지마다
+ * 비운다 — 트루컬러 shimmer 가 색마다 글리프를 새로 구워 끝없이 늘었다(Paradev 11GB → 2GB 실측).
  */
 function attachWebgl(e: Entry) {
   if (e.webgl) return;
@@ -331,17 +456,36 @@ function attachWebgl(e: Entry) {
     addon = new WebglAddon();
     addon.onContextLoss(() => {
       if (e.webgl !== addon) return;
+      webglLosses += 1;
+      oculpmLog.warn("terminal", "webgl context lost", { session: e.info.id, losses: webglLosses });
       releaseWebgl(e);
-      if (!e.webglRetried && e.mounts > 0) {
-        e.webglRetried = true;
-        attachWebgl(e);
-      }
+      retryWebgl(e);
+    });
+    addon.onAddTextureAtlasCanvas(() => {
+      e.atlasPages += 1;
+      // 그리는 도중의 사건이다 — 그 그리기가 끝난 뒤에 비운다.
+      if (e.atlasPages % ATLAS_CLEAR_EVERY === 0) queueMicrotask(() => e.webgl === addon && addon.clearTextureAtlas());
     });
     e.term.loadAddon(addon);
   } catch {
     return;
   }
+  e.atlasPages = 0;
   e.webgl = addon;
+}
+
+/** 잃은 문맥을 다시 붙인다 — 지난번에서 `WEBGL_RETRY_MS` 가 지났으면 곧장, 아니면 그때까지 미룬다. 보이는 세션만. */
+function retryWebgl(e: Entry) {
+  if (e.webglRetry) return;
+  const attach = () => {
+    e.webglRetry = null;
+    if (e.mounts === 0 || e.webgl || entries.get(e.info.id) !== e) return;
+    e.webglRetryAt = Date.now();
+    attachWebgl(e);
+  };
+  const wait = e.webglRetryAt + WEBGL_RETRY_MS - Date.now();
+  if (e.webglRetryAt === 0 || wait <= 0) attach();
+  else e.webglRetry = setTimeout(attach, wait);
 }
 
 function releaseWebgl(e: Entry) {
@@ -351,15 +495,30 @@ function releaseWebgl(e: Entry) {
   }
   const addon = e.webgl;
   e.webgl = null;
+  if (!addon) return;
+  // 캔버스는 버리기 전에 찾는다(버리면 화면에서 떨어진다). 문맥을 곧장 돌려준다 — 떨어진 캔버스의 GL 문맥은
+  // 가비지 컬렉터가 거둘 때까지 브라우저 상한(약 16)과 GPU 메모리를 쥐고 있었다.
+  const canvas = e.term.element?.querySelector<HTMLCanvasElement>(".xterm-screen canvas");
   try {
-    addon?.dispose();
+    addon.dispose();
   } catch {
     /* 이미 잃은 문맥 — 버릴 것도 없다 */
   }
+  try {
+    const gl = canvas?.getContext("webgl2") as WebGL2RenderingContext | null | undefined;
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    /* 돌려줄 문맥이 없다 */
+  }
 }
 
+/** 칸에 맞춘다 — 맞춘 격자를 가운데에 두고, 셀 크기 · 자리를 새 세션의 첫 크기로 기억한다(`termSize.ts`). */
 function refitNow(e: Entry) {
-  if (e.host.clientWidth > 0 && e.host.clientHeight > 0) e.fit.fit();
+  const width = e.host.clientWidth;
+  const height = e.host.clientHeight;
+  if (width <= 0 || height <= 0) return;
+  e.fit.fit();
+  afterFit(e.term, e.host, width, height);
 }
 
 const nextFrame: (cb: () => void) => number =
@@ -503,10 +662,13 @@ export function closeTerm(id: number) {
   if (e.fitFrame !== null) cancelFrame(e.fitFrame);
   if (e.resizeTimer) clearTimeout(e.resizeTimer);
   e.resizeTimer = null;
+  if (e.webglRetry) clearTimeout(e.webglRetry);
+  e.webglRetry = null;
   releaseWebgl(e);
   e.term.dispose();
   e.host.remove();
   entries.delete(id);
   worked.delete(id);
+  forgetAlerts(id);
   notify();
 }

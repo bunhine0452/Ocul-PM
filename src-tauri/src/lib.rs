@@ -289,6 +289,7 @@ use crate::commands::race::{
     diff_receipt, race_clear, race_lanes, race_patch, race_start, race_take,
 };
 use crate::commands::term_image::{terminal_image_preview, terminal_image_reveal};
+use crate::commands::terminal::term_ack;
 use crate::commands::terminal::{
     term_busy_all, term_close, term_end_window, term_list, term_open, term_overview, term_resize,
     term_take_resume, term_write,
@@ -332,6 +333,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             today_teammates,
             term_open,
             term_write,
+            term_ack,
             term_resize,
             term_close,
             term_list,

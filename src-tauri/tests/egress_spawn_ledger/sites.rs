@@ -38,22 +38,22 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         path: "terminal.rs",
         func: "shell_command",
         call: "CommandBuilder::new(&shell)",
-        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 쳐 넣는 claude 한 줄"),
-        reason: "앱 안 터미널의 셸(macOS·Linux, $SHELL -l) — portable-pty 가 앱 프로세스 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 스스로 치는 것은 「다음」 실행의 `claude \"$OCULPM_PROMPT\"` 한 줄뿐(사용자가 누른 단추).",
+        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 셸에 넘기는 claude 한 줄"),
+        reason: "앱 안 터미널의 셸(macOS·Linux, $SHELL -l) — portable-pty 가 앱 프로세스 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 스스로 시키는 것은 「다음」 실행의 `claude \"$OCULPM_PROMPT\"` 한 줄뿐(사용자가 누른 단추) — 2026-11-15 부터 쳐 넣지 않고 `$SHELL -l -i -c` 의 인자로 넘긴다(rc 의 질문이 먹지 않게, terminal_env.rs). 인자로 못 받는 셸(nushell 등)만 예전처럼 쳐 넣는다.",
     },
     Launch {
         path: "terminal.rs",
         func: "shell_command",
         call: "CommandBuilder::new(pwsh)",
-        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 쳐 넣는 claude 한 줄"),
-        reason: "Windows — 위와 같다. PATH 에 PowerShell 7(`pwsh.exe`)이 있으면 그 전체 경로로 띄운다(사용자의 PowerShell 7 프로필이 읽히게, 2026-11-10). 앱이 치는 것은 `claude $env:OCULPM_PROMPT` 한 줄뿐.",
+        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 셸에 넘기는 claude 한 줄"),
+        reason: "Windows — 위와 같다. PATH 에 PowerShell 7(`pwsh.exe`)이 있으면 그 전체 경로로 띄운다(사용자의 PowerShell 7 프로필이 읽히게, 2026-11-10). 앱이 시키는 것은 `-NoExit -Command` 로 넘기는 `claude $env:OCULPM_PROMPT` 한 줄뿐.",
     },
     Launch {
         path: "terminal.rs",
         func: "shell_command",
         call: "CommandBuilder::new(\"powershell.exe\")",
-        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 쳐 넣는 claude 한 줄"),
-        reason: "Windows — 위와 같다(pwsh 가 없을 때의 Windows PowerShell 5.1, `claude $env:OCULPM_PROMPT`).",
+        reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 또는 「다음」 실행이 셸에 넘기는 claude 한 줄"),
+        reason: "Windows — 위와 같다(pwsh 가 없을 때의 Windows PowerShell 5.1, `-NoExit -Command` 의 `claude $env:OCULPM_PROMPT`).",
     },
     // ── 창구 ──
     Launch {
@@ -257,6 +257,19 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
         "terminal_tests.rs",
         "Windows 우선순위 양보 — `ping -n 6 127.0.0.1` 을 띄워 「보통 이하」 로 내린 뒤 GetPriorityClass 로 확인한다. 루프백만 — 기기 밖에 닿지 않는다.",
         &[("windows_terminal_shell_yields_to_ui", "std_cmd(\"ping\")")],
+    ),
+    (
+        "terminal_tests.rs",
+        "터미널 시험의 `/bin/sh -c <script>` 한 자리 — 쓰기 줄 · 닫기 · 흐름 · 제목 · 종 · Codex 잇기 · 환경 시험(terminal_io.rs · terminal_env.rs · window/attention.rs 가 부른다)이 printf · sleep · cat · stty · trap 만 돌린다. 기기 밖에 닿지 않는다.",
+        &[("sh", "CommandBuilder::new(\"/bin/sh\")")],
+    ),
+    (
+        "terminal_env.rs",
+        "셸 환경 시험 — 부모 환경을 꾸미려고 명령을 만들기만 하고 띄우지 않는다(`parent`). 「다음」 실행 줄 시험은 한 글자를 묻는 .zshrc 를 둔 임시 ZDOTDIR 로 /bin/zsh 를 띄워 PATH 맨 앞의 가짜 claude(받은 인자를 임시 파일에 적는 sh 스크립트)가 프롬프트를 받는지 본다 — 진짜 claude 는 돌지 않는다. 기기 밖에 닿지 않는다.",
+        &[
+            ("parent", "CommandBuilder::new(\"sh\")"),
+            ("the_next_line_survives_an_rc_file_that_asks_a_question", "CommandBuilder::new(zsh)"),
+        ],
     ),
     (
         "git/safe.rs",
