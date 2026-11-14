@@ -93,7 +93,7 @@ describe("1 segment — the picked cell is lighter than the track", () => {
   });
 
   it("the picked cell paints --seg-on with a one-hairline inset edge", () => {
-    const sel = block(PRIM, '.seg-item[aria-selected="true"]');
+    const sel = block(PRIM, '.seg-item:is([aria-selected="true"], [aria-checked="true"], [aria-pressed="true"])');
     expect(sel).toMatch(/background:\s*var\(--seg-on\)/);
     expect(sel).toMatch(/box-shadow:\s*inset 0 0 0 1px var\(--sep-strong\)/);
   });

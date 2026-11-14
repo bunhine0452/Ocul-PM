@@ -32,8 +32,6 @@
 .jl-search { flex: 1; min-width: 0; box-sizing: border-box; }
 .jl-head .seg { flex: none; max-width: 100%; }
 .jl-head .seg-item { padding: 0 var(--space-3); white-space: nowrap; }
-/* 종류는 radiogroup 이라 고른 칸이 aria-checked 로 선다 — 모양은 세그먼트의 고른 칸과 같다. */
-.jl-head .seg-item[aria-checked="true"] { background: var(--bg-card); color: var(--text); box-shadow: var(--shadow-card); }
 .jl-head .seg-item:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 .jl-head .seg-item:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
 /* 「검증 없는 것만」 — 머리카락 선 단추(26). 켜지면 면 + 걸린 수(warn 숫자만). */
