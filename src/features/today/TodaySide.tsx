@@ -1,21 +1,43 @@
 /**
- * 오늘 화면의 세 줄 — 지금 일하는 중 · 다음 · 내 차례.
+ * 오늘 화면의 곁 — 날짜 줄의 수 한 줄 · 지금 일하는 중 · 첫 기록까지 세 걸음.
  *
- * 셋 다 「지금 무엇을 결정할까」에 답한다: 누가 돌고 있고(멈췄나), 다음에 무엇을 넘길까, 내가 할
- * 것이 계획에 남았나. 계획별 진행·판정 카드는 걷었다 — 계획 탭이 같은 것을 보여 주고, 실패한
- * 판정은 이미 「먼저 볼 것」에 선다 (4.0 「더 단순하게」).
+ * 셋 다 「지금 무엇을 결정할까」의 곁가지다: 계획에 남은 내 몫과 닫을 계획, 다른 기기와 주고받은 것은 날마다
+ * 바뀌는 예외가 아니라 날짜 줄 오른쪽의 **수**로만 선다(영수증 규칙 5). 예전엔 이것들이 「먼저 볼 것」 밖에
+ * 한 줄씩 넷까지 쌓여 가운뎃점과 괄호가 겹친 요약문처럼 읽혔다(11-15). 누가 돌고 있는지(멈췄나)는 카드
+ * 하나, 기록이 하나도 없는 프로젝트는 첫 기록까지의 세 걸음 카드 하나다.
  */
 
-import { SquareTerminal } from "@/components/Icons";
+import type { ReactNode } from "react";
+
+import { NotebookText } from "@/components/Icons";
+import type { TermInfo } from "@/api/terminal";
 import { agentLabel } from "@/features/today/agentColor";
-import { useT } from "@/i18n";
+import { useT, type I18nKey } from "@/i18n";
 import { relativeTime } from "@/lib/format";
-import type { Arrived, DigestItem, DigestPlan, LocalOnly } from "@/lib/bindings";
+import type { Arrived, DigestPlan, LocalOnly } from "@/lib/bindings";
 import type { TodaySplit } from "./todayModel";
+import { Num } from "./todayFormat";
 import type { LiveSession } from "./useLiveSessions";
 import { QUIET_MINUTES } from "./useLiveSessions";
 
-export function LiveCard({ sessions, now }: { sessions: LiveSession[]; now: number }) {
+/** 「지금 일하는 중」 이 조용해졌을 때 보낼 터미널 세션 — 일하는 것이 먼저, 없으면 살아 있는 첫 세션. */
+export function liveTerm(terms: readonly TermInfo[]): TermInfo | null {
+  const alive = terms.filter((x) => x.alive);
+  return alive.find((x) => x.busy) ?? alive[0] ?? null;
+}
+
+export function LiveCard({
+  sessions,
+  now,
+  term,
+  onShowTerminal,
+}: {
+  sessions: LiveSession[];
+  now: number;
+  /** 이 창의 터미널 세션 — 없으면 「터미널에서 보기」 를 세우지 않는다(바깥 터미널에서 도는 에이전트다). */
+  term: TermInfo | null;
+  onShowTerminal: (id: number) => void;
+}) {
   const { t } = useT();
   if (sessions.length === 0) return null;
   return (
@@ -31,6 +53,7 @@ export function LiveCard({ sessions, now }: { sessions: LiveSession[]; now: numb
           const quiet = quietMin >= QUIET_MINUTES;
           return (
             <li key={s.id} className="tdy-sess">
+              {/* 평소에는 회색 점 — 돌고 있는 것은 예외가 아니다(영수증 규칙 1). 조용해졌을 때만 호박색. */}
               <span className={"tdy-dot tdy-sess-dot" + (quiet ? " is-quiet" : "")} aria-hidden="true" />
               <div className="tdy-grow">
                 <div>
@@ -39,13 +62,25 @@ export function LiveCard({ sessions, now }: { sessions: LiveSession[]; now: numb
                     <span className="tdy-meta"> · {t("today.live.conversations", { n: s.conversations })}</span>
                   ) : null}
                 </div>
-                <div className={quiet ? "tdy-meta tdy-warn" : "tdy-meta"}>
-                  {quiet
-                    ? t("today.live.quiet", { n: quietMin })
-                    : s.lastRecordAt != null
+                {quiet ? (
+                  // 묻지 않고 사실만 — 「멈췄는지 볼까요?」 는 볼 곳을 주지 않았다. 볼 곳은 그 터미널이다.
+                  <div className="tdy-meta tdy-quiet">
+                    <span className="tdy-warn">
+                      {quietMin >= 60 ? t("today.live.quietHours", { n: Math.floor(quietMin / 60) }) : t("today.live.quiet", { n: quietMin })}
+                    </span>
+                    {term ? (
+                      <button type="button" className="tdy-link" onClick={() => onShowTerminal(term.id)}>
+                        {t("today.check.openTerminal")}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="tdy-meta">
+                    {s.lastRecordAt != null
                       ? t("today.live.last", { ago: relativeTime(s.lastRecordAt, now) })
                       : t("today.live.noneYet", { ago: relativeTime(s.startedAt, now) })}
-                </div>
+                  </div>
+                )}
               </div>
             </li>
           );
@@ -55,149 +90,175 @@ export function LiveCard({ sessions, now }: { sessions: LiveSession[]; now: numb
   );
 }
 
-/**
- * 다음 — 한 줄. 항목 제목 · 계획 이름 · 「터미널에서 실행」 하나(앱 안 터미널의 새 세션에서
- * `claude "<프롬프트>"`). 끝까지 맡기는 법(`/oculpm:next until-done`)은 버튼의 title 에.
- */
-export function NextCard({ next, onRun }: { next: { plan: DigestPlan; item: DigestItem } | null; onRun: () => void }) {
-  const { t } = useT();
-  return (
-    <section className="card tdy-card tdy-next" aria-labelledby="tdy-next-h">
-      <h2 id="tdy-next-h" className="tdy-next-k">
-        {t("today.nextUp.title")}
-      </h2>
-      {next ? (
-        <>
-          <div className="tdy-grow">
-            {/* 제목은 두 줄까지 — 한 줄로 자르면 항목이 무슨 일인지가 잘린 쪽에 있었다. */}
-            <div className="tdy-strong tdy-clamp">{next.item.title}</div>
-            <div className="tdy-meta tdy-ellipsis">{next.plan.title}</div>
-          </div>
-          <button
-            type="button"
-            className="btn primary sm"
-            onClick={onRun}
-            title={`${t("today.nextUp.hint")} /oculpm:next until-done`}
-          >
-            <SquareTerminal size={13} aria-hidden="true" />
-            {t("today.nextUp.run")}
-          </button>
-        </>
-      ) : (
-        <p className="tdy-grow tdy-meta">{t("today.nextUp.none")}</p>
-      )}
-    </section>
-  );
-}
-
-/**
- * 내 차례 — 계획에 적힌 사람 몫을 한 줄로 (화면 검사 {#today-mine}). 몇 주 걸리는 일(테스터 모집)이
- * 날마다 「먼저 볼 것」에 서 있으면 사람은 그 칸 전체를 건너뛰는 법을 배운다. 그래서 수만 말하고
- * 계획 화면으로 보낸다.
- */
-export function MineLine({ mine, onOpen }: { mine: TodaySplit["mine"]; onOpen: (planId: string) => void }) {
-  const { t } = useT();
-  const n = mine.reduce((sum, m) => sum + m.items.length, 0);
-  return (
-    <p className="tdy-mine">
-      {t("today.mine.line", { p: mine.length, n })}
-      <button type="button" className="tdy-link" onClick={() => onOpen(mine[0].planId)}>
-        {t("today.mine.open")}
-      </button>
-    </p>
-  );
-}
-
-/**
- * 닫을 수 있는 계획 — 남은 항목이 0 인데 「진행 중」 으로 남은 계획의 수를 한 줄로 (11-14). 닫는 것은
- * 사람의 결정이라 여기서 닫지 않고 계획 화면으로 보낸다. 닫지 않은 계획은 Claude 가 세션마다 다시 읽는다.
- */
-export function ClosableLine({ plans, onOpen }: { plans: DigestPlan[]; onOpen: (planId: string) => void }) {
-  const { t } = useT();
-  const closable = plans.filter((p) => p.closable);
-  if (closable.length === 0) return null;
-  return (
-    <p className="tdy-mine" title={t("today.closable.hint")}>
-      {t("today.closable.line", { n: closable.length })}
-      <button type="button" className="tdy-link" onClick={() => onOpen(closable[0].plan_id)}>
-        {t("today.closable.open")}
-      </button>
-    </p>
-  );
-}
-
-/**
- * 이 기기에만 — 커밋 안 한 변경(그중 기록)과 안 올린 커밋을 한 줄로 (11-13, 두 기기를 오갈 때).
- * 올리지 않은 일지는 다른 기기의 Claude 에게 없는 일이다. 일하는 중에는 늘 있는 것이라 「먼저 볼 것」의
- * 행도 배지의 수도 아니다 — 「내 차례」처럼 수만 말하고 변경 화면으로 보낸다. 없으면 그리지 않는다.
- *
- * 「올리기 맡기기」 는 앱 안 터미널의 Claude 에게 커밋하고 올려 달라고 한다 — 앱은 git 을 읽기만 하고
- * 스스로 올리지 않는다(네트워크 0). 자리를 옮기기 전의 한 번.
- */
-export function LocalOnlyLine({
-  local,
-  onOpen,
-  onHandOff,
-}: {
-  local: LocalOnly | null;
-  onOpen: () => void;
-  onHandOff: () => void;
-}) {
-  const { t } = useT();
-  if (!local || (local.uncommitted === 0 && local.unpushed === 0)) return null;
-  const parts: string[] = [];
-  if (local.uncommitted > 0) {
-    const changes = t("today.local.uncommitted", { n: local.uncommitted });
-    parts.push(local.records > 0 ? `${changes} (${t("today.local.records", { n: local.records })})` : changes);
-  }
-  if (local.unpushed > 0) parts.push(t("today.local.unpushed", { n: local.unpushed }));
-  return (
-    <p className="tdy-mine" title={t("today.local.hint")}>
-      {t("today.local.lead")} · {parts.join(" · ")}
-      <button type="button" className="tdy-link" onClick={onOpen}>
-        {t("today.local.open")}
-      </button>
-      <button type="button" className="tdy-link" onClick={onHandOff} title={t("today.local.handoffHint")}>
-        {t("today.local.handoff")}
-      </button>
-    </p>
-  );
-}
-
-/** 하루 — 「주고받은 지 N일」 은 이만큼 지나야 말한다. 어제 저녁에 올리고 오늘 아침에 여는 것은 조용하다. */
+/** 하루 — 「올리거나 받아 온 지 N일」 은 이만큼 지나야 말한다. 어제 저녁에 올리고 오늘 아침에 여는 것은 조용하다. */
 const DAY_MS = 86_400_000;
 
+/** 수 하나 — 누르면 그 수가 가리키는 곳으로. 뜻 전체(문장)는 툴팁이 말한다. */
+function NumLink({ k, n, title, onClick }: { k: I18nKey; n: number; title: string; onClick: () => void }) {
+  return (
+    <button type="button" className="tdy-num" title={title} onClick={onClick}>
+      <Num k={k} n={n} />
+    </button>
+  );
+}
+
 /**
- * 받아 온 것 — 다른 기기(나 동료)가 쓴 일지가 오늘 들어왔으면 그 수를, 아니면 리모트와 주고받은 지
- * 하루가 넘었을 때 그 날수를 한 줄로 (11-13, 두 기기를 오갈 때). 앱은 받아 오지 않는다 — git 이 남긴
- * 기록을 읽는다. 다른 곳의 기록을 받은 적이 없는 저장소에는 날수를 말하지 않는다(`synced_at` 이 없다).
+ * 날짜 줄 오른쪽의 수 한 줄 (11-15) — 「내 차례 3 · 닫을 계획 1 · 받아 온 일지 2 · 이 기기에만 4」.
+ *
+ * 0 인 수는 그리지 않는다. 「이 기기에만」 은 아직 커밋하지 않은 일지 · 계획 파일이 있을 때만이다 — 커밋 안 한
+ * 코드는 일하는 내내 있어 그것까지 세면 이 수가 하루 종일 섰다. 올리지 않은 일지는 다른 기기의 Claude 에게
+ * 없는 일이라 「올리기 맡기기」 를 그 곁에 둔다(앱 안 터미널의 Claude 에게 맡긴다 — 앱은 git 을 읽기만 한다).
+ * 받아 온 일지가 없으면 주고받은 지 하루가 넘었을 때만 그 날수를 말한다(다른 곳의 기록을 받은 적이 없는
+ * 저장소에는 말하지 않는다 — `synced_at` 이 없다).
  */
-export function ArrivedLine({
+export function TodayNumbers({
+  mine,
+  plans,
   arrived,
+  local,
   now,
-  onOpen,
+  onOpenPlan,
+  onOpenEntry,
+  onOpenDiff,
+  onHandOff,
+  opening,
 }: {
+  mine: TodaySplit["mine"];
+  plans: readonly DigestPlan[];
   arrived: Arrived | null;
+  local: LocalOnly | null;
   now: number;
-  onOpen: (relativePath: string) => void;
+  onOpenPlan: (planId: string) => void;
+  onOpenEntry: (relativePath: string) => void;
+  onOpenDiff: () => void;
+  onHandOff: () => void;
+  /** 올리기를 맡길 터미널을 여는 중 — 두 번 누르면 두 세션이 뜨지 않게. */
+  opening: boolean;
 }) {
   const { t } = useT();
-  if (!arrived) return null;
-  if (arrived.journals.length > 0) {
-    return (
-      <p className="tdy-mine" title={t("today.arrived.hint")}>
-        {t("today.arrived.line", { n: arrived.journals.length })}
-        <button type="button" className="tdy-link" onClick={() => onOpen(arrived.journals[0])}>
-          {t("today.arrived.open")}
-        </button>
-      </p>
+  const items: ReactNode[] = [];
+  const mineN = mine.reduce((sum, m) => sum + m.items.length, 0);
+  if (mineN > 0) {
+    items.push(
+      <NumLink key="mine" k="today.nums.mine" n={mineN} title={t("today.mine.line", { p: mine.length, n: mineN })} onClick={() => onOpenPlan(mine[0].planId)} />,
     );
   }
-  const days = arrived.synced_at == null ? 0 : Math.floor((now - arrived.synced_at * 1000) / DAY_MS);
-  if (days < 1) return null;
+  const closable = plans.filter((p) => p.closable);
+  if (closable.length > 0) {
+    items.push(
+      <NumLink key="closable" k="today.nums.closable" n={closable.length} title={t("today.closable.hint")} onClick={() => onOpenPlan(closable[0].plan_id)} />,
+    );
+  }
+  if (arrived && arrived.journals.length > 0) {
+    items.push(
+      <NumLink
+        key="arrived"
+        k="today.nums.arrived"
+        n={arrived.journals.length}
+        title={[t("today.arrived.line", { n: arrived.journals.length }), t("today.arrived.hint")].join(" ")}
+        onClick={() => onOpenEntry(arrived.journals[0])}
+      />,
+    );
+  } else if (arrived?.synced_at != null) {
+    const days = Math.floor((now - arrived.synced_at * 1000) / DAY_MS);
+    if (days >= 1) {
+      items.push(
+        <span key="synced" className="tdy-num-text" title={t("today.arrived.staleHint")}>
+          <Num k="today.arrived.stale" n={days} />
+        </span>,
+      );
+    }
+  }
+  if (local && local.records > 0) {
+    const detail = [t("today.local.files", { n: local.uncommitted, r: local.records })];
+    if (local.unpushed > 0) detail.push(t("today.local.unpushed", { n: local.unpushed }));
+    items.push(
+      <span key="local" className="tdy-num-group">
+        <NumLink k="today.nums.local" n={local.records} title={[detail.join(" · "), t("today.local.hint")].join(" ")} onClick={onOpenDiff} />
+        <button type="button" className="tdy-link" title={t("today.local.handoffHint")} disabled={opening} onClick={onHandOff}>
+          {t("today.local.handoff")}
+        </button>
+      </span>,
+    );
+  }
+  if (items.length === 0) return null;
   return (
-    <p className="tdy-mine" title={t("today.arrived.staleHint")}>
-      {t("today.arrived.stale", { n: days })}
-    </p>
+    <div className="tdy-nums" role="group" aria-label={t("today.nums.aria")}>
+      {items.flatMap((item, i) => (i === 0 ? [item] : [<span key={`sep${i}`} className="tdy-num-sep" aria-hidden="true">·</span>, item]))}
+    </div>
+  );
+}
+
+interface Step {
+  id: string;
+  title: string;
+  body: string;
+  done: boolean;
+  action?: { label: string; run: () => void; busy?: boolean };
+}
+
+/**
+ * 첫 기록까지 세 걸음 (11-15) — 일지가 하나도 없는 프로젝트. 바쁜 날과 같은 틀(날짜 줄 · 두 칸) 안의 카드 하나라
+ * 덜 만든 화면처럼 보이지 않는다. 끝난 걸음은 회색 ✓, 다음 걸음만 채운 단추를 갖는다(영수증 규칙 3) — 셋째
+ * (첫 일지)는 에이전트가 일을 마치면 저절로 끝나는 걸음이라 단추가 없다.
+ */
+export function FirstSteps({
+  connected,
+  working,
+  onConnect,
+  onHandOff,
+  opening,
+}: {
+  /** 에이전트가 이 프로젝트에 붙었다(플러그인이 깔렸거나 이미 무언가 일하는 중). */
+  connected: boolean;
+  /** 오늘 열린 작업 세션이 있다 — 첫 작업이 이미 넘어갔다. */
+  working: boolean;
+  onConnect: () => void;
+  onHandOff: () => void;
+  /** 첫 작업을 맡길 터미널을 여는 중. */
+  opening: boolean;
+}) {
+  const { t } = useT();
+  const steps: Step[] = [
+    { id: "connect", title: t("today.first.step1"), body: t("today.first.step1Body"), done: connected, action: { label: t("today.first.connect"), run: onConnect } },
+    {
+      id: "task",
+      title: t("today.first.step2"),
+      body: t("today.first.step2Body"),
+      done: working,
+      action: { label: opening ? t("today.busy.opening") : t("today.first.step2Run"), run: onHandOff, busy: opening },
+    },
+    { id: "journal", title: t("today.first.step3"), body: t("today.first.step3Body"), done: false },
+  ];
+  const nextAt = steps.findIndex((s) => !s.done);
+  return (
+    <section className="card tdy-card tdy-first" aria-labelledby="tdy-first-h">
+      <header className="tdy-ch">
+        <NotebookText size={15} className="tdy-first-ico" aria-hidden="true" />
+        <h2 id="tdy-first-h">{t("today.first.title")}</h2>
+        <span className="tdy-meta">{t("today.first.body")}</span>
+      </header>
+      <ol className="tdy-steps">
+        {steps.map((s, i) => (
+          <li key={s.id} className="tdy-step" data-done={s.done ? "" : undefined}>
+            <span className="tdy-step-mark" aria-hidden="true">
+              {s.done ? "✓" : String(i + 1)}
+            </span>
+            <div className="tdy-grow">
+              <div className="tdy-row-title">
+                {s.title}
+                {s.done ? <span className="tdy-sr"> · {t("today.first.done")}</span> : null}
+              </div>
+              <div className="tdy-meta">{s.body}</div>
+            </div>
+            {i === nextAt && s.action ? (
+              <button type="button" className="btn primary sm" disabled={s.action.busy} onClick={s.action.run}>
+                {s.action.label}
+              </button>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

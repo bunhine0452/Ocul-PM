@@ -1,4 +1,4 @@
-/* 판정 줄 (11-02 시그니처, 11-04 영수증으로 다시 깎음) — 표시 · 끝 줄(mono) · 시각, 필요하면 아래 한 줄.
+/* 판정 줄 (11-02 시그니처, 11-04 영수증으로 다시 깎음) — 표시 · 끝 줄(mono) · 시각(mono), 필요하면 아래 한 줄.
    영수증 규칙: 통과는 조용하다(회색 ✓ · 회색 끝 줄), 실패와 「통과 뒤 바뀜」 만 표시에 색이 든다.
    왼쪽 색 막대는 걷었다 — 줄마다 색 띠가 서면 경고 상자처럼 읽히고, 예외가 예외로 보이지 않는다. */
 .vl {
@@ -13,7 +13,11 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .vl-empty { color: var(--text-2); font-family: var(--font); }
-.vl-when { font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 시각은 기계 글씨다(영수증 규칙 2) — 줄마다 숫자 폭이 같아야 오른쪽 끝이 한 선에 선다. */
+.vl-when {
+  font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2);
+  font-variant-numeric: tabular-nums; font-variant-ligatures: none; white-space: nowrap;
+}
 .vl-sub {
   grid-column: 2 / -1; min-width: 0;
   font-size: var(--fs-3); color: var(--text-2);
@@ -21,11 +25,14 @@
 }
 .vl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* 예외 — 표시가 색을 갖고, 끝 줄은 본문 잉크로 올라온다(읽어야 할 줄이다). */
+/* 예외 — 표시가 색을 갖고, 끝 줄은 본문 잉크와 행 제목의 굵기(550)로 올라온다(읽어야 할 줄이다 — 11-15
+   굵기 세 단: 카드 머리 600 · 행 제목 550 · 메타 400). */
 .vl.is-fail .vl-mark { color: var(--danger-text); }
 .vl.is-stale .vl-mark, .vl.is-away .vl-mark { color: var(--warn-text); }
 .vl.is-fail .vl-out,
-.vl.is-stale .vl-out, .vl.is-away .vl-out { color: var(--text); }
+.vl.is-stale .vl-out, .vl.is-away .vl-out { color: var(--text); font-weight: var(--fw-label); }
+/* 아래 줄 안의 확인 명령은 고정폭 — 계획 이름(사람이 쓴 것)은 본문 서체 그대로. */
+.vl-sub code { font-family: var(--mono); font-size: inherit; font-variant-ligatures: none; }
 
 /* 표시 칸 없이 — 앞에 상태 칩이 이미 선 행(오늘 「먼저 볼 것」). */
 .vl.is-bare { grid-template-columns: minmax(0, 1fr) auto; }

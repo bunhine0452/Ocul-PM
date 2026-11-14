@@ -4,10 +4,11 @@
  * 원칙은 하나다: **예외만 보여 준다.** 화면의 크기는 에이전트가 한 양이 아니라 사람이 볼
  * 것에 비례한다. 하루 60건이든 3건이든 같은 규칙이 돌고, 모드는 없다.
  *
- * 「확인할 것」의 종류와 순서(심각도)는 여기서만 정한다 — 화면과 사이드바 배지가 같은
- * 목록을 센다 (`useTodayExceptions`).
+ * 「먼저 볼 것」의 종류와 순서(심각도)는 여기서만 정한다 — 화면과 윗줄 탭의 배지가 같은
+ * 목록을 센다 (`useTodayExceptions` 의 프로젝트별 저장소).
  */
 
+import { evidenceStateOf, type EvidenceState } from "@/features/oculpm/evidenceState";
 import type {
   DigestItem,
   DigestPlan,
@@ -20,29 +21,10 @@ import type {
   TodayDigest,
 } from "@/lib/bindings";
 
-/** 검증 칸 증거 등급 「명령」 — `oculpm::evidence::COMMAND`. 이 등급이어야 바깥 심판이다. */
-export const EVIDENCE_COMMAND = 2;
+// 일지 하나의 검증 상태는 일지 화면과 한 정의다(`oculpm/evidenceState` — 영수증 규칙 4). 예전엔 여기에
+// 같은 판정의 두 번째 벌(`evidenceOf`)이 있어 오늘과 일지가 같은 일지를 다른 낱말로 불렀다.
 
-/** 증거를 요구하는 종류 — 백엔드 `JournalScore`(증거 비율의 분모)와 같은 셋. */
-const JUDGED_TYPES = new Set<string>(["bug", "feature", "refactor"]);
-
-/**
- * 일지 하나의 증거 상태.
- * - `command`  검증 칸에 돌린 명령의 흔적이 있다 (바깥 심판).
- * - `verified` 사람이 「확인함」을 눌렀고 그 뒤 본문이 안 바뀌었다.
- * - `missing`  증거를 요구하는 종류인데 둘 다 없다 → 확인할 것.
- * - `none`     증거를 요구하지 않는 종류(에러 사이클·잡일)에 증거가 없다 — 예외가 아니다.
- */
-export type EvidenceState = "command" | "verified" | "missing" | "none";
-
-export function evidenceOf(e: JournalEntrySummary): EvidenceState {
-  if (e.evidence >= EVIDENCE_COMMAND) return "command";
-  // 확인 뒤 본문이 바뀐 일지는 더는 확인된 것으로 세지 않는다 (백엔드 `verified_stale`).
-  if (e.verified_by_user && !e.verified_stale) return "verified";
-  return JUDGED_TYPES.has(e.type) ? "missing" : "none";
-}
-
-/** 「확인할 것」 한 행. 심각도 순서는 `EXCEPTION_ORDER`. */
+/** 「먼저 볼 것」 한 행. 심각도 순서는 `EXCEPTION_ORDER`. */
 export type TodayException =
   | { kind: "question"; key: string; item: ClaudeQuestion }
   | { kind: "waiting"; key: string; session: TermInfo }
@@ -143,7 +125,7 @@ export function buildExceptions(input: ExceptionInput): TodayException[] {
   }
   for (const entry of input.entries) {
     if (input.verifiedLocally?.has(entry.relative_path)) continue;
-    if (evidenceOf(entry) === "missing") {
+    if (evidenceStateOf(entry) === "missing") {
       out.push({ kind: "evidence", key: `evidence:${entry.relative_path}`, entry });
     }
   }
@@ -178,16 +160,15 @@ type ExceptionOf<K extends ExceptionKind> = Extract<TodayException, { kind: K }>
 
 /**
  * 오늘 화면의 세 자리 (화면 검사 {#today-split} · {#today-mine}).
- * - `first`  먼저 볼 것 — 지금 손댈 것(실패 · 일지 없는 변경 · 일지 없이 끝난 대화 · 막힘 · 플러그인).
- * - `unread` 검증 없이 끝난 일지 — 한 묶음, 읽음 버튼 하나.
- * - `mine`   내 차례 — 계획에 적힌 사람 몫. 날마다 바뀌는 일이 아니라 한 줄 링크로만 선다.
- * `rows` 는 화면에 보이는 순서(first → unread)다 — j/k 이동이 따른다. 배지는 `first` 만 센다.
+ * - `first`  먼저 볼 것 — 지금 손댈 것(질문 · 기다림 · 실패 · 일지 없는 변경 · 일지 없이 끝난 대화 · 막힘 · 플러그인).
+ * - `unread` 검증 없이 끝난 일지 — 먼저 볼 것 아래 한 묶음(`UNREAD_LIMIT` 행 + 「N건 더」).
+ * - `mine`   내 차례 — 계획에 적힌 사람 몫. 날마다 바뀌는 일이 아니라 날짜 줄의 수 하나로만 선다.
+ * 키보드 순서(first → 「다음」 → 보이는 unread)는 화면이 쥔다. 배지는 `first` 만 센다(「다음」 행도 세지 않는다).
  */
 export interface TodaySplit {
   first: TodayException[];
   unread: ExceptionOf<"evidence">[];
   mine: ExceptionOf<"decision">[];
-  rows: TodayException[];
 }
 
 export function splitExceptions(list: readonly TodayException[]): TodaySplit {
@@ -199,7 +180,7 @@ export function splitExceptions(list: readonly TodayException[]): TodaySplit {
     else if (ex.kind === "decision") mine.push(ex);
     else first.push(ex);
   }
-  return { first, unread, mine, rows: [...first, ...unread] };
+  return { first, unread, mine };
 }
 
 /** plan-log 의 일지 열(`.oculpm/` 기준)을 일지 화면의 경로(일지 루트 기준)로. */
@@ -207,16 +188,14 @@ export function normalizeJournalRef(ref: string): string {
   return ref.replace(/^\.oculpm\//, "").replace(/^journal\//, "");
 }
 
-export interface EvidenceCounts {
-  command: number;
-  verified: number;
-  missing: number;
-  none: number;
-}
+/** 검증 없이 끝난 일지 칸이 처음 보여 주는 행 수 — 나머지는 「N건 더」 가 숫자로 말한다(영수증 규칙 5). */
+export const UNREAD_LIMIT = 5;
+
+export type EvidenceCounts = Record<EvidenceState, number>;
 
 function countEvidence(entries: readonly JournalEntrySummary[]): EvidenceCounts {
-  const c: EvidenceCounts = { command: 0, verified: 0, missing: 0, none: 0 };
-  for (const e of entries) c[evidenceOf(e)] += 1;
+  const c: EvidenceCounts = { command: 0, confirmed: 0, missing: 0, none: 0 };
+  for (const e of entries) c[evidenceStateOf(e)] += 1;
   return c;
 }
 
@@ -249,7 +228,7 @@ export function groupByPlan(entries: readonly JournalEntrySummary[], digest: Tod
     const key = plan ? plan.id : OUTSIDE;
     let g = groups.get(key);
     if (!g) {
-      g = { key, planId: plan?.id ?? null, title: plan?.title ?? null, entries: [], counts: { command: 0, verified: 0, missing: 0, none: 0 } };
+      g = { key, planId: plan?.id ?? null, title: plan?.title ?? null, entries: [], counts: { command: 0, confirmed: 0, missing: 0, none: 0 } };
       groups.set(key, g);
     }
     g.entries.push(e);
@@ -261,8 +240,9 @@ export function groupByPlan(entries: readonly JournalEntrySummary[], digest: Tod
 
 /**
  * 이만큼 이하면 다 보여 준다 — 3건 쓰는 사람에게 접힘은 클릭 하나를 더 시킬 뿐이다.
- * 이보다 많으면 묶음은 머리 한 줄로 접힌다. 검증 없는 일지는 위 「검증 없이 끝난 일지」 칸이
+ * 이보다 많으면 묶음은 머리 한 줄로 접힌다. 검증 없는 일지는 「검증 없이 끝난 일지」 칸이
  * 이미 보여 주므로 여기서 다시 펼치지 않는다 — 같은 행이 두 번 섰다 (화면 검사 {#today-split}).
+ * 묶음 머리는 그 수를 「위에 N」 으로만 말한다.
  */
 export const FOLD_MIN = 8;
 

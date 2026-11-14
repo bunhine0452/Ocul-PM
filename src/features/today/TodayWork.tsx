@@ -1,41 +1,36 @@
 /**
- * 「오늘 한 일」 — 계획별로 묶고, 하루가 길면 묶음을 머리 한 줄로 접는다.
+ * 「오늘 한 일」 — 오른쪽 칸의 하나뿐인 카드. 계획별로 묶고, 하루가 길면 묶음을 머리 한 줄로 접는다.
  *
- * 하루 60건이면 묶음 머리만 서고(검증 없는 것은 위 칸이 보여 준다), 3건이면 셋 다 보인다 —
- * 모드가 아니라 `todayModel.initialFold` 한 규칙이다. 묶음 머리를 누르면 펼치고 접는다.
+ * 하루 60건이면 묶음 머리만 서고(검증 없는 것은 왼쪽 칸이 보여 주고 머리는 「위에 N」 으로만 말한다), 3건이면
+ * 셋 다 보인다 — 모드가 아니라 `todayModel.initialFold` 한 규칙이다. 묶음 머리를 누르면 펼치고 접는다.
+ * 검증 표시는 일지 화면과 같은 모양이다(`JournalRow` 의 `EvidenceMark` — 영수증 규칙 4): 통과는 회색 ✓,
+ * 검증 없음은 호박 칩, 검증을 요구하지 않는 종류는 아무것도 없다.
  */
 
 import { useState } from "react";
 
 import { ChevronDown, ChevronRight } from "@/components/Icons";
+import { evidenceStateOf } from "@/features/oculpm/evidenceState";
+import { EvidenceMark } from "@/features/oculpm/JournalRow";
 import { TRIGGER_META } from "@/features/oculpm/triggerMeta";
 import { useT } from "@/i18n";
 import type { JournalEntrySummary, TodayDigest } from "@/lib/bindings";
 import { clockOf } from "@/lib/whenLabel";
-import { evidenceOf, FOLD_MIN, groupByPlan, initialFold, type GroupFold, type WorkGroup } from "./todayModel";
+import { FOLD_MIN, groupByPlan, initialFold, type GroupFold, type WorkGroup } from "./todayModel";
 
 type WorkView = "plan" | "time";
 
 function EntryRow({ entry, onOpen }: { entry: JournalEntrySummary; onOpen: (e: JournalEntrySummary) => void }) {
   const { t } = useT();
   const meta = TRIGGER_META[entry.type] ?? TRIGGER_META.chore;
-  const ev = evidenceOf(entry);
   return (
     <li>
       <button type="button" className="tdy-ent" onClick={() => onOpen(entry)}>
         <span className="tdy-ent-tm mono">{clockOf(entry.created_at)}</span>
-        <span className="tdy-ent-ty">
-          {t(meta.labelKey)}
-        </span>
+        <span className="tdy-ent-ty">{t(meta.labelKey)}</span>
         <span className="tdy-ent-ti">{entry.title}</span>
-        <span className={"tdy-ent-ev is-" + ev}>
-          {ev === "command"
-            ? t("today.work.evCommand")
-            : ev === "verified"
-              ? t("today.work.evVerified")
-              : ev === "missing"
-                ? t("today.work.evMissing")
-                : "—"}
+        <span className="tdy-ent-ev">
+          <EvidenceMark state={evidenceStateOf(entry)} />
         </span>
         <span className="tdy-ent-ln mono">{t("today.work.files", { n: entry.files_count })}</span>
       </button>
@@ -50,11 +45,12 @@ function GroupHead({ group, open, onToggle }: { group: WorkGroup; open: boolean;
     <button type="button" className="tdy-grp" aria-expanded={open} onClick={onToggle}>
       <Chevron size={13} aria-hidden="true" />
       <b>{group.title ?? t("today.work.outside")}</b>
-      <span className="tdy-meta">{t("today.work.count", { n: group.entries.length })}</span>
       <span className="tdy-sp" />
-      {/* 예외 수만 (화면 검사 {#today-sum}) — 「검증 41 · 없음 4」 는 잡일처럼 검증 대상이 아닌
-          일지를 어디에도 안 세서 합이 묶음 수와 맞지 않았다. */}
-      {group.counts.missing > 0 ? <span className="tdy-warn">{t("today.work.missing", { n: group.counts.missing })}</span> : null}
+      {/* 예외는 왼쪽 「검증 없이 끝난 일지」 가 이미 세웠다 — 여기서는 그중 몇이 이 묶음인지만, 색 없이
+          (영수증 규칙 1). 「검증 41 · 없음 4」 는 검증 대상이 아닌 일지를 어디에도 안 세서 합이 안 맞았다. */}
+      {group.counts.missing > 0 ? <span className="tdy-meta">{t("today.work.above", { n: group.counts.missing })}</span> : null}
+      {/* 묶음 건수는 오른쪽 끝 한 칸 — 제목 길이를 따라 줄마다 다른 자리에 서지 않게. */}
+      <span className="tdy-grp-n">{t("today.work.count", { n: group.entries.length })}</span>
     </button>
   );
 }
@@ -83,16 +79,10 @@ export function TodayWork({ entries, digest, onOpenEntry }: TodayWorkProps) {
         <span className="tdy-cnt">{entries.length}</span>
         <span className="tdy-sp" />
         {groups.length > 1 ? (
-          <div className="seg" role="tablist" aria-label={t("today.work.viewAria")}>
+          // 보는 방식 둘 — 탭이 아니라 눌린 단추다(바뀌는 것은 같은 카드의 줄 순서다).
+          <div className="seg" role="group" aria-label={t("today.work.viewAria")}>
             {(["plan", "time"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                role="tab"
-                className="seg-item"
-                aria-selected={view === v}
-                onClick={() => setView(v)}
-              >
+              <button key={v} type="button" className="seg-item" aria-pressed={view === v} onClick={() => setView(v)}>
                 {v === "plan" ? t("today.work.byPlan") : t("today.work.byTime")}
               </button>
             ))}
