@@ -68,7 +68,7 @@ describe("window switcher", () => {
       await vi.advanceTimersByTimeAsync(200);
     });
     const options = screen.getAllByRole("option");
-    expect(options.map((o) => o.textContent?.slice(0, 5))).toEqual(["ai-pm", "blog/", "naeri"]);
+    expect(options.map((o) => o.textContent?.slice(0, 5))).toEqual(["ai-pm", "blog", "naeri"]);
     expect(options[1].getAttribute("aria-selected")).toBe("true");
     // 색 없는 프로젝트의 점은 data-pc 가 없다 — 이 창의 색을 물려받지 않는다.
     expect(options[1].querySelector(".proj-dot")?.hasAttribute("data-pc")).toBe(false);

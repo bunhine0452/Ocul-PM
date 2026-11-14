@@ -2,8 +2,8 @@
  * 세 OS 로 바꿔 끼운 판정·매칭·표기 표 (크로스플랫폼 라운드 2026-09-23 {#ui-tests}).
  *
  * 사용자는 Windows·Linux 를 직접 볼 수 없다 — 이 표가 "그 OS 에서 무엇을 누르면
- * 무엇이 되는가" 의 명세다. macOS 행은 **예전과 한 글자도 다르지 않다**는 것을
- * 못박는다 (D3). setup.ts 가 매 테스트 전에 맥으로 되돌린다.
+ * 무엇이 되는가" 의 명세다. macOS 행은 예전 그대로(D3)이되 입력칸 · 터미널 안의 ⌃ 만
+ * ⌘ 로 치지 않는다 (11-15, kbd_korean). setup.ts 가 매 테스트 전에 맥으로 되돌린다.
  *
  * 테스트 설명은 영어다 — 한글 하드코딩 게이트(scripts/check-no-hardcoded-korean)의
  * 테스트 허용 목록은 레인 소유 밖이라, 한글이 검사 재료인 줄만 i18n-ignore 로 둔다.
@@ -170,7 +170,7 @@ describe("shell-key yield — Ctrl+C/D/K/L/R/U/W/Z … belong to the shell insid
 });
 
 describe("readChord — the terminal family", () => {
-  it("mac: same expression the old handlers used { mod: meta||ctrl, shift, alt, key }", () => {
+  it("mac: { mod: ⌘, or ⌃ outside text fields and the terminal (11-15), shift, alt, key }", () => {
     __setPlatformForTests("mac");
     expect(readChord(key({ key: "d", metaKey: true }), "terminal")).toEqual({ mod: true, shift: false, alt: false, key: "d" });
     expect(readChord(key({ key: "D", metaKey: true, shiftKey: true }), "terminal")).toEqual({
@@ -179,7 +179,7 @@ describe("readChord — the terminal family", () => {
       alt: false,
       key: "D",
     });
-    expect(readChord(key({ key: "k", ctrlKey: true }, xtermTarget())).mod).toBe(true);
+    expect(readChord(key({ key: "k", ctrlKey: true }, xtermTarget())).mod).toBe(false);
   });
 
   it.each(OTHERS)("%s: Ctrl+X shell · Ctrl+Shift+X = ⌘X · Ctrl+Alt+Shift+X = ⇧⌘X", (os) => {

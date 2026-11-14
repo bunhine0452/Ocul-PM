@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { createContext, useContext } from "react";
 import { createPortal } from "react-dom";
 import { dragRegion } from "@/lib/platform";
 import { useT } from "@/i18n";
@@ -8,9 +8,15 @@ import { requestOpenPalette } from "@/lib/paletteNav";
 import { ToolbarSlotContext } from "./toolbarSlot";
 
 // 화면 머리 (`--toolbar-h` 44px). 셸 안에서는 **셸 윗줄에 합쳐진다** (4.0 — 사이드바 안에
-// 사이드바가 서는 두 겹을 걷었다): 제목은 윗줄의 탭이 대신하고, `leading`·동작만
-// 윗줄의 「화면 동작」 자리(`ToolbarSlotContext`)로 포털된다. 찾기 ⌘K 는 윗줄이 늘 갖고
-// 있다. 셸 밖(테스트·단독 렌더)에서는 예전처럼 제자리에 한 줄로 선다.
+// 사이드바가 서는 두 겹을 걷었다): 제목은 윗줄의 탭이 대신하고, 동작만 윗줄의 「화면 동작」
+// 자리(`ToolbarSlotContext`)로 포털된다. 찾기 ⌘K 는 윗줄이 늘 갖고 있다. 셸 밖(테스트·단독
+// 렌더)에서는 예전처럼 제자리에 한 줄로 선다.
+//
+// `leading`(「뒤로」)은 탭 바로 뒤 왼쪽 자리로 간다(11-15, `ToolbarLeadSlotContext`) — 화면 동작과 함께
+// 오른쪽 끝(좁으면 ⋯ 안)에 서서, 뒤로 가려면 창의 반대편까지 가야 했다.
+
+/** 셸 윗줄의 「탭 뒤」 자리 — `leading` 이 포털된다. 없으면(셸 밖 · 옛 셸) 동작 자리에 함께 선다. */
+export const ToolbarLeadSlotContext = createContext<HTMLElement | null>(null);
 
 interface ToolbarProps {
   title: React.ReactNode;
@@ -24,7 +30,16 @@ interface ToolbarProps {
 
 export function Toolbar({ title, sub, leading, children, find = false }: ToolbarProps) {
   const slot = useContext(ToolbarSlotContext);
+  const lead = useContext(ToolbarLeadSlotContext);
   if (slot) {
+    if (lead) {
+      return (
+        <>
+          {leading ? createPortal(leading, lead) : null}
+          {createPortal(children, slot)}
+        </>
+      );
+    }
     return createPortal(
       <>
         {leading}
@@ -57,14 +72,20 @@ export function Toolbar({ title, sub, leading, children, find = false }: Toolbar
   );
 }
 
-/** 「찾기 ⌘K」 — 팔레트를 연다. 셸 윗줄과 셸 밖 툴바가 같은 단추를 쓴다. */
+/**
+ * 「찾기 ⌘K」 — 팔레트를 연다. 셸 윗줄과 셸 밖 툴바가 같은 단추를 쓴다.
+ *
+ * 조용한 30px 단추(테 · 그림자 없음)에 돋보기와 키만 (11-15). 혼자 테 두른 단추였고 바로 왼쪽이 화면 동작이라
+ * 「찾기 ⌘K」 가 터미널 출력 찾기로 읽혔다. 이름(찾기)은 화면에서만 감춘다 — 접근명은 「찾기 ⌘K」 로 보이는 키를 품는다.
+ */
 export function FindButton() {
   const { t } = useT();
+  const key = kbd("⌘K");
   return (
-    <button type="button" className="btn sm find-btn" onClick={requestOpenPalette} title={kbd("⌘K")}>
-      <SearchIcon size={13} aria-hidden="true" />
-      <span className="find-label">{t("toolbar.find")}</span>
-      <kbd className="kbd">{kbd("⌘K")}</kbd>
+    <button type="button" className="btn ghost find-btn" onClick={requestOpenPalette} title={`${t("toolbar.find")} (${key})`}>
+      <SearchIcon size={15} aria-hidden="true" />
+      <span className="sr-only">{t("toolbar.find")}</span>
+      <kbd className="kbd">{key}</kbd>
     </button>
   );
 }

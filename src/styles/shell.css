@@ -45,8 +45,18 @@
 .topbar-actions button { white-space: nowrap; }
 .topbar-settings.active { background: var(--bg-active); color: var(--text); }
 .topbar-more { display: none; }
+/* 「뒤로」(화면의 `leading`) — 탭 바로 뒤 (11-15). 비어 있으면 자리도 없다(빈 칸이 gap 두 몫을 먹는다). */
+.topbar-lead { display: flex; align-items: center; flex: none; }
+.topbar-lead:empty { display: none; }
+/* 화면 동작 │ 찾기 · 설정 — 1px 세로선 하나. 「찾기 ⌘K」 가 화면의 동작(출력 찾기)으로 읽히지 않게. */
+.topbar-sep { flex: none; width: 1px; height: 16px; background: var(--sep); }
+.topbar-actions:empty ~ .topbar-sep { display: none; }
+/* 찾기 — 조용한 30px 단추, 돋보기와 키만(11-15). 테 · 그림자를 두른 단추가 줄에서 혼자 튀었다. */
+.topbar .find-btn { gap: var(--space-2); padding: 0 var(--space-3); color: var(--text-2); }
+.topbar .find-btn:hover { color: var(--text); }
 
-/* 탭 — 활성은 조용한 틴트와 무게. 밑줄·강조 막대는 없다. */
+/* 탭 — 활성은 조용한 틴트. 밑줄·강조 막대는 없다. 굵기는 고르지 않아도 같다 — 고른 탭만 굵어지면
+   그 폭만큼 뒤의 탭이 옆으로 밀렸다(11-15). */
 .topnav {
   display: flex; align-items: center; gap: 2px; flex: none;
   padding-left: var(--space-4); border-left: 1px solid var(--sep);
@@ -60,17 +70,23 @@
   transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .topnav-item:hover { background: var(--bg-hover); color: var(--text); }
-.topnav-item.active { background: var(--bg-active); color: var(--text); font-weight: var(--fw-strong); }
+.topnav-item.active { background: var(--bg-active); color: var(--text); }
 .topnav-item:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
-/* 탭 옆의 수 — 예외만(확인할 것), 경고색 하나. */
+/* 탭 옆의 수 — 예외만(먼저 볼 것). 색은 가장 심한 행: 실패 · 막힘이면 빨강, 아니면 앰버(11-15).
+   바탕은 불투명 — 반투명 앰버가 고른 탭(--bg-active) 위에서 섞여 글자 대비가 4.48:1 로 떨어졌다. */
 .nav-badge {
   flex: none;
   min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--radius-pill);
   font-size: var(--fs-2); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; /* design-ignore -- 탭 수 배지는 12px 아래 예외 */
-  background: var(--warn-soft); color: var(--warn-text);
+  background: color-mix(in srgb, var(--warn) 14%, var(--bg-window)); color: var(--warn-text);
 }
+.nav-badge[data-tone="danger"] { background: color-mix(in srgb, var(--danger) 14%, var(--bg-window)); color: var(--danger-text); }
+[data-theme="dark"] .nav-badge { background: color-mix(in srgb, var(--warn) 20%, var(--bg-window)); }
+[data-theme="dark"] .nav-badge[data-tone="danger"] { background: color-mix(in srgb, var(--danger) 20%, var(--bg-window)); }
+/* 터미널 탭의 점 — 이 창의 세션이 내 손을 기다린다. 수가 아니라 「있다」 하나라 점이다. */
+.nav-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
 
 .topnav-ico { display: none; flex: none; }
 
@@ -124,24 +140,18 @@
   flex: 1 1 auto; min-height: 0; overflow-y: auto;
   padding: var(--space-2); display: flex; flex-direction: column; gap: 1px;
 }
+/* 줄 — 포커스는 거르기 칸에 머물고, ↑↓ · 마우스가 고른 줄(aria-selected)이 면(--bg-active)으로 선다(11-15).
+   ↩ 가 열 줄이 늘 보인다. 내용은 `ProjectRow`(아래 .prow-*). */
 .proj-pop-item {
-  display: flex; align-items: center; gap: var(--space-4); width: 100%; text-align: left;
-  padding: 7px var(--space-3); border-radius: var(--radius-s); cursor: pointer;
-  background: none; border: none; color: var(--text); font-family: var(--font);
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--ctl-5); box-sizing: border-box;
+  padding: 0 var(--space-3); border-radius: var(--radius-s); cursor: pointer;
+  color: var(--text); font-family: var(--font);
   transition: background-color var(--dur-1) var(--ease-out);
 }
-.proj-pop-item:hover, .proj-pop-item:focus-visible { background: var(--bg-hover); }
-.proj-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.proj-pop-name {
-  font-weight: var(--fw-label); font-size: var(--fs-4); letter-spacing: var(--track-tight);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.proj-pop-item.on .proj-pop-name { font-weight: var(--fw-strong); }
-.proj-pop-path { font-size: var(--fs-3); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* 그 줄을 부르는 키 — 평소엔 옅게, 줄에 올리면 읽힌다. */
+.proj-pop-item[aria-selected="true"] { background: var(--bg-active); }
+/* 그 줄을 부르는 키 — 평소엔 옅게, 고른 줄에서는 읽힌다. */
 .proj-pop-key { flex: none; color: var(--text-2); opacity: 0.55; transition: opacity var(--dur-1) var(--ease-out); }
-.proj-pop-item:hover .proj-pop-key, .proj-pop-item:focus-visible .proj-pop-key, .proj-pop-act:hover .proj-pop-key { opacity: 1; }
-.proj-pop-open { flex: none; font-size: var(--fs-3); color: var(--text-2); }
+.proj-pop-item[aria-selected="true"] .proj-pop-key, .proj-pop-act:hover .proj-pop-key { opacity: 1; }
 .proj-pop-check { flex: none; display: inline-flex; color: var(--accent-text); }
 .proj-pop-none { margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-2); font-size: var(--fs-3); }
 .proj-pop-foot {
@@ -177,23 +187,28 @@
 .topbar[data-pc] .proj-switch:hover,
 .topbar[data-pc] .proj-switch[aria-expanded="true"] { background: color-mix(in srgb, var(--win-pc) 26%, transparent); }
 .topbar[data-pc] .proj-switch .proj-dot { width: 9px; height: 9px; }
-.proj-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--pc, transparent); }
-/* 색 없는 프로젝트 — 빈 고리. 윗줄(.topbar[data-pc])의 --pc 를 물려받아 남의 색 점이 서던 것을 막는다. */
-.proj-dot:not([data-pc]) { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
+/* `.proj-dot` 과 프로젝트 한 줄(`.prow-*`)은 `features/shell/projectRow.css` 가 갖는다 — 시작 창은 이 파일
+   (ShellV2 의 늦은 청크)을 싣지 않는데, 같은 줄을 쓴다(11-15). */
 .proj-colors {
-  display: flex; align-items: center; gap: 7px;
-  height: var(--ctl-4); padding: 0 var(--space-3);
+  display: flex; align-items: center; gap: 0;
+  height: var(--ctl-4); padding: 0 var(--space-1) 0 var(--space-3);
 }
 .proj-colors-label { flex: 1; color: var(--text-2); font-size: var(--fs-3); }
+/* 견본 — 누를 자리 26px(컨트롤 램프 --ctl-3), 보이는 점 14px(11-15). 14px 단추를 7px 간격으로 세워 두면 옆 색을
+   누르기 쉬웠다. 점은 안쪽 여백만큼 바탕을 칠하지 않는다(background-clip). 고른 색의 고리는 안쪽 그림자 둘 — 바깥
+   2px 는 카드 색으로 덮고, 그 안 1.5px 가 고리다(점과 2.5px 틈). */
 .proj-swatch {
-  flex: none; width: 14px; height: 14px; padding: 0; border-radius: 50%; cursor: pointer;
-  background: var(--pc); border: 1px solid transparent; appearance: none; -webkit-appearance: none;
+  flex: none; width: var(--ctl-3); height: var(--ctl-3); padding: 6px; box-sizing: border-box; border-radius: 50%; cursor: pointer;
+  background: var(--pc); background-clip: content-box; border: none; appearance: none; -webkit-appearance: none;
   transition: scale var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
 .proj-swatch:hover { scale: 1.15; }
-.proj-swatch.none { background: transparent; border-color: var(--sep-strong); }
-.proj-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--text); }
-.proj-swatch:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+.proj-swatch.none { background: transparent; box-shadow: inset 0 0 0 6px var(--bg-card), inset 0 0 0 7px var(--sep-strong); }
+.proj-swatch[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--bg-card), inset 0 0 0 3.5px var(--text); }
+.proj-swatch.none[aria-checked="true"] {
+  box-shadow: inset 0 0 0 2px var(--bg-card), inset 0 0 0 3.5px var(--text), inset 0 0 0 6px var(--bg-card), inset 0 0 0 7px var(--sep-strong);
+}
+.proj-swatch:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 0; }
 
 /* 창 정리 (11-04) — 색 줄과 같은 꼴: 이름표 · 칸 모양 단추 다섯 · ⌥⌘T. 모양은 글자색 선으로만. */
 .proj-tiles {
@@ -285,51 +300,55 @@
   container-type: inline-size; container-name: screen;
 }
 
-/* 좁은 창 — 접기 단계 `data-fit` (11-04, `features/shell/useTopbarFit.ts`). 폭 숫자(@media 640 · 780 · 900)로
-   정하던 때는 화면마다 다른 「화면 동작」 폭을 못 봤다 — 터미널 창 800 에서 프로젝트 이름이 0px 로 짓눌리고,
-   그 아래에서는 「새 세션 ⌘T」 가 잘렸다. 이제 윗줄이 실제로 들어가는지 재서 한 단계씩 접는다:
-     1  단축키 표시(⌘T · ⌘K)를 감추고 찾기는 돋보기 — ⌘K 는 툴팁 · 팔레트에 남는다
+/* 좁은 창 — 접기 (11-04 → 11-15, `features/shell/useTopbarFit.ts`). 폭 숫자(@media 640 · 780 · 900)로
+   정하던 때는 화면마다 다른 「화면 동작」 폭을 못 봤다. 이제 윗줄이 실제로 들어가는지 잰다. 두 갈래다:
+   `data-fit` 은 화면 동작을 뺀 줄(프로젝트 · 탭 · 찾기 · 설정)만으로 정해서 화면마다 같다 — 탭은 화면을 바꿔도
+   그 자리 그 모양이다(예전엔 단계 3 이 gap · 여백 · ▾ 까지 줄여 탭 줄이 20px 옆으로 뛰었다).
+     1  단축키 표시(⌘T · ⌘K)를 감춘다 — ⌘K 는 툴팁 · 팔레트에 남는다
      2  탭 이름을 아이콘으로 — 이름은 화면에서만 감춘다(접근명 · E2E 의 탭 찾기가 글자로 읽는다)
-     3  화면 동작을 「⋯」 메뉴로 — 줄 안 스크롤 칸이 29px 로 짓눌려 누를 수 없었다(레드팀 10-31)
-   화면 동작은 줄지 않는다(잘리지 않게) — 모자라면 다음 단계로 간다. 신호등 자리(84px)는 줄이지 않는다
-   (76 이었을 때 macOS 27 의 더 큰 신호등에 이름이 붙었다, 11-02). 이름은 56px 아래로 짓눌리지 않는다. */
+   `data-fold` 는 그 단계에서 화면 동작이 남은 자리에 안 들어가면 「⋯」 메뉴로 접는다 — 줄 안 스크롤 칸이 29px 로
+   짓눌려 누를 수 없었다(레드팀 10-31). 접기만 한다(탭 · 여백은 그대로).
+   화면 동작은 줄지 않는다(잘리지 않게). 신호등 자리(84px)는 줄이지 않는다(76 이었을 때 macOS 27 의 더 큰
+   신호등에 이름이 붙었다, 11-02). 이름은 56px 아래로 짓눌리지 않는다. */
 .topbar-actions { flex-shrink: 0; }
 .proj-switch-wrap { min-width: 56px; }
 .topbar[data-fit] .kbd { display: none; }
-.topbar[data-fit] .find-label,
-.topbar:is([data-fit="2"], [data-fit="3"]) .topnav-label {
+.topbar[data-fit="2"] .topnav-label {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
-.topbar:is([data-fit="2"], [data-fit="3"]) .topnav { padding-left: var(--space-2); }
-.topbar:is([data-fit="2"], [data-fit="3"]) .topnav-item { padding: 0 var(--space-2); gap: var(--space-1); }
-.topbar:is([data-fit="2"], [data-fit="3"]) .topnav-ico { display: inline-flex; }
-.topbar[data-fit="3"] { gap: var(--space-2); padding-right: var(--space-3); }
-/* ▾ 는 감춘다 — 알약 면이 이미 누르는 것이고, 그 14px 이 이름 두 글자다. */
-.topbar[data-fit="3"] .proj-switch > svg { display: none; }
-.topbar[data-fit="3"] .proj-switch-wrap { max-width: 240px; }
-.topbar[data-fit="3"] .topbar-fill { min-width: var(--space-2); }
-.topbar[data-fit="3"] .topbar-actions { display: none; }
-.topbar[data-fit="3"] .topbar-actions.is-open {
+.topbar[data-fit="2"] .topnav { padding-left: var(--space-2); }
+.topbar[data-fit="2"] .topnav-item { padding: 0 var(--space-2); gap: var(--space-1); }
+.topbar[data-fit="2"] .topnav-ico { display: inline-flex; }
+.topbar[data-fold] .topbar-actions { display: none; }
+.topbar[data-fold] .topbar-actions.is-open {
   display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1);
   position: absolute; top: calc(100% + 4px); right: var(--space-3); z-index: var(--z-popover);
   min-width: 200px; padding: var(--space-2); overflow: visible;
   border: 1px solid var(--border-card); border-radius: var(--radius-m);
   background: var(--bg-card); box-shadow: var(--shadow-pop);
 }
-.topbar[data-fit="3"] .topbar-actions.is-open > * { justify-content: flex-start; }
-.topbar[data-fit="3"] .topbar-actions.is-open .kbd { display: inline-flex; margin-left: auto; }
-.topbar[data-fit="3"] .topbar-more { display: inline-flex; }
-.topbar[data-fit="3"] .topbar-actions:empty + .topbar-more { display: none; }
-/* 더 좁으면(≤460 — 480 창에 글자 125% 가 이 폭이다) 프로젝트 이름도 화면에서 감추고 탭을 더 붙인다 —
-   찾기 · 설정이 창 밖(396–467 / 384)으로 밀려났다(레드팀 10-31). */
+.topbar[data-fold] .topbar-actions.is-open > * { justify-content: flex-start; }
+.topbar[data-fold] .topbar-actions.is-open .kbd { display: inline-flex; margin-left: auto; }
+/* ⋯ 안의 아이콘 단추는 이름을 글자로 — 이름 없는 아이콘만 줄지어 서 있었다(나란히 · 위아래). */
+.topbar[data-fold] .topbar-actions.is-open .iconbtn[aria-label] {
+  width: auto; display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-4);
+  font-family: var(--font); font-size: var(--fs-3); color: var(--text);
+}
+.topbar[data-fold] .topbar-actions.is-open .iconbtn[aria-label]::after { content: attr(aria-label); }
+.topbar[data-fold] .topbar-more { display: inline-flex; }
+.topbar[data-fold] .topbar-actions:empty + .topbar-more { display: none; }
+/* 더 좁으면(≤460 — 480 창에 글자 125% 가 이 폭이다) 프로젝트 이름 · ▾ 도 화면에서 감추고 탭을 더 붙인다 —
+   찾기 · 설정이 창 밖(396–467 / 384)으로 밀려났다(레드팀 10-31). 폭 숫자라 화면마다 같다. */
 @media (max-width: 460px) {
-  .topbar, .topbar[data-fit="3"] { gap: var(--space-1); padding-right: var(--space-1); }
-  .proj-switch-wrap, .topbar[data-fit="3"] .proj-switch-wrap { min-width: 40px; max-width: 40px; }
+  .topbar { gap: var(--space-1); padding-right: var(--space-1); }
+  .proj-switch-wrap { min-width: 40px; max-width: 40px; }
   .proj-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* ▾ 는 감춘다 — 알약 면이 이미 누르는 것이고, 그 14px 이 이름 두 글자다. */
+  .proj-switch > svg { display: none; }
   .topnav { gap: 0; padding-left: var(--space-1); }
   .topnav-item { padding: 0 var(--space-1); }
   /* 찾기는 ⌘K 로 — 단추까지 서면 설정 톱니가 창 밖으로 나간다. */
-  .topbar .find-btn { display: none; }
+  .topbar .find-btn, .topbar-sep { display: none; }
 }
 
 /* ============================================================ WINDOW SWITCHER (⌥Tab, 11-04)
@@ -355,13 +374,9 @@
 .win-switch-list { margin: 0; padding: var(--space-2); list-style: none; overflow-y: auto; }
 .win-switch-row {
   display: flex; align-items: center; gap: var(--space-4);
-  min-height: 46px; padding: var(--space-2) var(--space-4); border-radius: var(--radius-m);
+  min-height: 38px; padding: var(--space-2) var(--space-4); border-radius: var(--radius-m);
   cursor: pointer;
 }
 .win-switch-row[aria-selected="true"] { background: var(--bg-active); }
 .win-switch-row .proj-dot { width: 9px; height: 9px; }
-.win-switch-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.win-switch-nm { font-size: var(--fs-4); font-weight: var(--fw-strong); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.win-switch-path { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.win-switch-here { flex: none; font-size: var(--fs-3); color: var(--text-2); }
 @media (prefers-reduced-motion: reduce) { .win-switch { transition: none; } }

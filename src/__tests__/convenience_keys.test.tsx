@@ -165,12 +165,12 @@ describe("project list filter", () => {
       <ProjectSwitcher projectName="ai-pm" currentProjectId={1} projects={projects} onOpenProject={onOpenProject} />,
     );
     fireEvent.click(container.querySelector(".proj-switch")!);
-    const find = await screen.findByRole("textbox", { name: t("sidebar.findProject") });
+    const find = await screen.findByRole("combobox", { name: t("sidebar.findProject") });
     fireEvent.change(find, { target: { value: "site" } });
     const rows = container.querySelectorAll(".proj-pop-item");
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain("blog");
-    expect(rows[0].textContent).toContain("⌥⌘3");
+    expect(rows[0].textContent).toContain("⌥⌘2"); // 지금 프로젝트는 번호가 없다 — saju ⌥⌘1 · blog ⌥⌘2 (11-15)
     fireEvent.keyDown(find, { key: "Enter" });
     expect(onOpenProject).toHaveBeenCalledWith(3);
   });
@@ -180,7 +180,7 @@ describe("project list filter", () => {
       <ProjectSwitcher projectName="ai-pm" currentProjectId={1} projects={projects} onOpenProject={() => {}} />,
     );
     fireEvent.click(container.querySelector(".proj-switch")!);
-    fireEvent.change(await screen.findByRole("textbox"), { target: { value: "zzz" } });
+    fireEvent.change(await screen.findByRole("combobox"), { target: { value: "zzz" } });
     expect(screen.getByText(t("sidebar.findProjectNone"))).toBeTruthy();
   });
 });

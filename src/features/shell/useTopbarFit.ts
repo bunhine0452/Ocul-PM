@@ -1,33 +1,45 @@
 /**
- * 윗줄 접기 단계 — 폭 숫자가 아니라 **실제로 들어가는지**로 정한다 (11-04).
+ * 윗줄 접기 — 폭 숫자가 아니라 **실제로 들어가는지**로 정한다 (11-04 → 11-15).
  *
  * 화면마다 윗줄의 「화면 동작」 폭이 다르다 — 작업 일지는 「+ 새 일지」 86px, 터미널은 「+ 새 세션 ⌘T · 나란히 ·
- * 위아래 · 여럿에서」 283px. 640 · 780 · 900 같은 @media 선 하나로는 한쪽에 맞추면 다른 쪽이 깨졌다: 터미널 창
- * 800 에서 프로젝트 이름이 0px 로 짓눌렸고, 그 아래에서는 「새 세션 ⌘T」 가 잘렸다(사용자 스크린숏 11-04).
+ * 위아래 · 여럿에서」 283px. 640 · 780 · 900 같은 @media 선 하나로는 한쪽에 맞추면 다른 쪽이 깨졌다(11-04).
  *
- * 그래서 단계를 하나씩 올린다 — 들어가지 않으면 다음 단계, 앞 단계가 다시 들어갈 자리가 생기면 내린다.
- *   0  전부
- *   1  단축키 표시(⌘T · ⌘K)를 감추고 찾기는 돋보기
- *   2  탭 이름을 아이콘으로
- *   3  화면 동작을 「⋯」 메뉴로
+ * 11-15: 접기를 두 갈래로 나눴다. 예전엔 한 사다리(0 → 3)를 화면마다 0 부터 다시 쟀고, 단계 3 이 gap · 여백 ·
+ * ▾ 까지 줄여서, 같은 창 폭에서도 화면을 바꾸면 탭 줄이 20px 옆으로 뛰고 ▾ 가 사라졌다. 이제
+ *   - `fit`(0 · 1 · 2)은 **화면 동작을 뺀** 줄 — 프로젝트 · 탭 · 찾기 · 설정 — 만으로 정한다. 화면마다 같은
+ *     값이라 탭은 화면을 바꿔도 그 자리 그 모양이다.
+ *       0  전부
+ *       1  단축키 표시(⌘T · ⌘K)를 감춘다
+ *       2  탭 이름을 아이콘으로
+ *   - `fold` 는 그 단계에서 화면 동작이 남은 자리에 안 들어가면 「⋯」 메뉴로 접는다. 접어도 탭은 그대로다.
+ * 단계마다 줄을 잠깐 그 단계로 그려 보고(속성을 걸어 재고 곧바로 되돌린다) 고르므로, 내용이 바뀌어도
+ * 지금 단계에서 다시 잴 뿐 0 으로 돌아가지 않는다 — 열린 ⋯ 가 화면 동작이 바뀔 때마다 닫히던 것도 그 탓이었다.
  * 「들어간다」 는 프로젝트 이름이 제 폭(길면 NAME_GOAL)을 받고도 줄이 넘치지 않는다는 뜻이다.
- * 단계마다 잰 필요 폭을 기억해 두고 내릴 때 쓴다. 화면 동작의 내용이 바뀌면(화면 전환) 처음부터 다시 잰다.
  */
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 
-export const FIT_MAX = 3;
+export const FIT_MAX = 2;
 /** 이름이 길면 이만큼은 보여야 들어갔다고 본다 — 그 뒤는 … 로 준다. */
 const NAME_GOAL = 140;
-/** 내릴 때의 여유 — 경계에서 단계가 오락가락하지 않게. */
+/** 내릴 때(단계를 낮추거나 접은 것을 펼 때)의 여유 — 경계에서 오락가락하지 않게. */
 const SLACK = 12;
 
-/** 지금 단계에서 이 줄이 넘치지 않으려면 필요한 폭. */
-export function neededWidth(bar: HTMLElement): number {
+export interface TopbarFit {
+  fit: number;
+  fold: boolean;
+}
+
+/**
+ * 지금 그려진 대로 이 줄이 넘치지 않으려면 필요한 폭. `skipActions` 면 화면 동작과 「⋯」 를 빼고, 대신 「⋯」
+ * 한 칸(설정 톱니와 같은 크기)을 늘 잡아 둔다 — 화면에 동작이 있든 없든 같은 값이 나와야 단계가 같다.
+ */
+export function neededWidth(bar: HTMLElement, skipActions = false): number {
   const cs = getComputedStyle(bar);
   const gap = parseFloat(cs.columnGap) || 0;
   let sum = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
   let shown = 0;
   for (const child of Array.from(bar.children) as HTMLElement[]) {
+    if (skipActions && (child.classList.contains("topbar-actions") || child.classList.contains("topbar-more"))) continue;
     const style = getComputedStyle(child);
     if (style.display === "none" || style.position === "absolute") continue;
     shown += 1;
@@ -43,16 +55,46 @@ export function neededWidth(bar: HTMLElement): number {
       sum += Math.max(child.getBoundingClientRect().width, child.scrollWidth);
     }
   }
+  if (skipActions) {
+    const more = bar.querySelector<HTMLElement>(".topbar-settings")?.getBoundingClientRect().width ?? 0;
+    sum += more + gap;
+    shown += 1;
+  }
   return sum + gap * Math.max(0, shown - 1);
 }
 
-export function useTopbarFit(bar: RefObject<HTMLElement | null>, slot: RefObject<HTMLElement | null>): number {
-  const [fit, setFit] = useState(0);
-  /** 내용이 바뀐 횟수 — 단계가 이미 0 이어도 다시 재게 한다. */
-  const [epoch, setEpoch] = useState(0);
-  const need = useRef<number[]>([]);
-  const fitRef = useRef(0);
-  fitRef.current = fit;
+/** 단계 — 가장 낮은, 들어가는 단계. 지금보다 낮추려면 SLACK 만큼 여유가 있어야 한다. */
+export function decideFit(needs: readonly number[], avail: number, current: number): number {
+  for (let stage = 0; stage < FIT_MAX; stage++) {
+    const room = stage < current ? avail - SLACK : avail + 0.5;
+    if (needs[stage] <= room) return stage;
+  }
+  return FIT_MAX;
+}
+
+/** 접기 — 화면 동작까지 펼친 줄이 안 들어가면 접는다. 접힌 것을 펴려면 SLACK 만큼 여유가 있어야 한다. */
+export function decideFold(full: number, avail: number, folded: boolean): boolean {
+  return folded ? full + SLACK > avail : full > avail + 0.5;
+}
+
+/** 줄을 잠깐 그 단계 · 접기로 그려 재고 되돌린다 — React 가 다음에 그리기 전이라 화면에는 안 보인다. */
+function probe<T>(bar: HTMLElement, fit: number, fold: boolean, read: () => T): T {
+  const was = { fit: bar.getAttribute("data-fit"), fold: bar.getAttribute("data-fold") };
+  const set = (name: string, value: string | null) => (value == null ? bar.removeAttribute(name) : bar.setAttribute(name, value));
+  set("data-fit", fit ? String(fit) : null);
+  set("data-fold", fold ? "" : null);
+  try {
+    return read();
+  } finally {
+    set("data-fit", was.fit);
+    set("data-fold", was.fold);
+  }
+}
+
+export function useTopbarFit(bar: RefObject<HTMLElement | null>, slot: RefObject<HTMLElement | null>): TopbarFit {
+  const [state, setState] = useState<TopbarFit>({ fit: 0, fold: false });
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useLayoutEffect(() => {
     const el = bar.current;
@@ -60,32 +102,28 @@ export function useTopbarFit(bar: RefObject<HTMLElement | null>, slot: RefObject
     const check = () => {
       const avail = el.clientWidth;
       if (!avail) return; // 아직 그려지지 않았다(테스트의 jsdom 도 여기서 멈춘다)
-      const f = fitRef.current;
-      const n = neededWidth(el);
-      need.current[f] = n;
-      if (n > avail + 0.5 && f < FIT_MAX) setFit(f + 1);
-      else if (f > 0 && need.current[f - 1] != null && need.current[f - 1] + SLACK <= avail) setFit(f - 1);
+      const now = stateRef.current;
+      const needs = [0, 1, 2].map((stage) => probe(el, stage, true, () => neededWidth(el, true)));
+      const fit = decideFit(needs, avail, now.fit);
+      const empty = !slot.current || slot.current.childElementCount === 0;
+      const fold = empty ? false : decideFold(probe(el, fit, false, () => neededWidth(el)), avail, now.fold);
+      if (fit !== now.fit || fold !== now.fold) setState({ fit, fold });
     };
     check();
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [bar, fit, epoch]);
+    const observers: Array<{ disconnect: () => void }> = [];
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(check);
+      ro.observe(el);
+      observers.push(ro);
+    }
+    // 화면 동작의 내용이 바뀌면(화면 전환 · 단추 글자) 지금 단계에서 다시 잰다.
+    if (slot.current && typeof MutationObserver !== "undefined") {
+      const mo = new MutationObserver(check);
+      mo.observe(slot.current, { childList: true, subtree: true, characterData: true });
+      observers.push(mo);
+    }
+    return () => observers.forEach((o) => o.disconnect());
+  }, [bar, slot]);
 
-  // 화면 동작의 내용이 바뀌면 단계별 필요 폭이 달라진다 — 처음부터 다시 잰다. CSS 로 감추는 것(⌘T)은
-  // 내용이 아니라 바뀌지 않는다(바뀌면 단계 ↔ 내용이 서로를 다시 부른다).
-  useLayoutEffect(() => {
-    const el = slot.current;
-    if (!el || typeof MutationObserver === "undefined") return;
-    const mo = new MutationObserver(() => {
-      need.current = [];
-      setFit(0);
-      setEpoch((e) => e + 1);
-    });
-    mo.observe(el, { childList: true, subtree: true, characterData: true });
-    return () => mo.disconnect();
-  }, [slot]);
-
-  return fit;
+  return state;
 }

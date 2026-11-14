@@ -31,6 +31,8 @@ import { UI_V2_VIEWS } from "@/contexts/uiV2View";
 import { setAlertProjectName, useHookWaitingAlerts } from "@/features/terminal/attention";
 import { SendToClaudeHost } from "@/features/terminal/SendToClaudeHost";
 import { useTermCloseGuard } from "@/features/terminal/useTermCloseGuard";
+import { jumpToWaiting } from "@/features/shell/jumpWaiting";
+import { addProjectFromFolder } from "@/features/start/addFolder";
 
 const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
 
@@ -50,6 +52,20 @@ export interface ProjectWindowProps {
 /** 다른 프로젝트는 다른 창이다 — 이미 열려 있으면 그 창이 앞으로 온다 (I1). */
 function openProject(projectId: number, failed: (error: unknown) => void) {
   windowApi.openProjectWindow(projectId).catch(failed);
+}
+
+/**
+ * 규칙 템플릿 경고는 판마다 한 번 (11-15) — 창을 열 때마다 20초짜리 앰버 토스트가 다시 떴다. 한 번 말한 판은
+ * 설정(SQLite, 모든 창이 같이 본다)에 적어 두고, 그 뒤로는 설정 · 이 프로젝트 칸의 조용한 줄(올리기 단추)만 남는다.
+ * 처음이면 `true` — 적기까지 한다. 설정을 못 읽으면 처음으로 친다(말하지 않는 것보다 한 번 더 말하는 편이 낫다).
+ */
+export async function firstTemplateWarning(projectId: number, mark: string): Promise<boolean> {
+  const key = `agents_template_warned_p${projectId}`;
+  const all = await commands.settingsGetAll().catch(() => null);
+  const seen = all?.status === "ok" ? all.data.find(([k]) => k === key)?.[1] : undefined;
+  if (seen === mark) return false;
+  await commands.settingsSet(key, mark).catch(() => null);
+  return true;
 }
 
 export default function ProjectWindow({
@@ -78,10 +94,13 @@ export default function ProjectWindow({
   useEffect(() => onOculpmActivateRequest(() => setInitNonce((n) => n + 1)), []);
   useGlobalShortcuts({
     onOpenPalette: () => setPaletteOpen(true),
+    onClosePalette: () => setPaletteOpen(false),
     // ⌘1~⌘4 + ⌘, — 설정도 다른 화면과 똑같이 셸의 화면이다.
     uiV2Nav: setUiV2View,
     onNavBack: navHistory.goBack,
     onNavForward: navHistory.goForward,
+    // ⌘J — 이 창의 기다리는 세션, 없으면 기다리는 다른 프로젝트 창.
+    onJumpWaiting: () => void jumpToWaiting(projectId, projects.map((p) => p.id)),
   });
   // ⌃Tab 화면 순환 · 트랙패드 두 손가락 쓸기 — 윗줄까지 가지 않고 (ocul-next #nav-cycle).
   useScreenCycle(prefs.uiV2View, setUiV2View);
@@ -95,6 +114,18 @@ export default function ProjectWindow({
   }, []);
 
   const openFailed = (e: unknown) => toast.destructive(t("project.openWindowFailed", { error: tError(toAppError(e)) }));
+
+  // 팔레트의 「폴더 열기…」 — ⌘O 목록의 것과 같은 길: 들이고 그 프로젝트의 창을 연다.
+  const openFolder = async () => {
+    const result = await addProjectFromFolder();
+    if (result.kind === "cancelled") return;
+    if (result.kind === "error") {
+      toast.destructive(result.message);
+      return;
+    }
+    onProjectsChanged?.();
+    openProject(result.project.id, openFailed);
+  };
 
   // 셸이 쓸 이름·루트만 채운다 (id 는 창이 정한 값 그대로 — I3).
   useEffect(() => {
@@ -202,11 +233,13 @@ export default function ProjectWindow({
       // (Phase 6 #not-honored-notice). 업그레이드 제안과 배타적이다.
       const aheadRes = await commands.oculpmAgentsCheckMasterAhead(projectId);
       if (cancelled) return;
-      if (aheadRes.status === "ok" && aheadRes.data) {
+      const ahead = aheadRes.status === "ok" ? aheadRes.data : null;
+      if (ahead && (await firstTemplateWarning(projectId, `ahead:${ahead.from_version}>${ahead.to_version}`))) {
+        if (cancelled) return;
         toast.warning(t("agents.ahead.title"), {
           title: t("agents.ahead.version", {
-            disk: aheadRes.data.from_version,
-            app: aheadRes.data.to_version,
+            disk: ahead.from_version,
+            app: ahead.to_version,
           }),
           dedupKey: `master-ahead-${projectId}`,
           durationMs: 20000,
@@ -217,8 +250,10 @@ export default function ProjectWindow({
       // template bump (their on-disk AGENTS.md is stale vs the shipped rules).
       const upRes = await commands.oculpmAgentsCheckMasterUpgrade(projectId);
       if (cancelled) return;
-      if (upRes.status === "ok" && upRes.data) {
-        const { from_version, to_version } = upRes.data;
+      const up = upRes.status === "ok" ? upRes.data : null;
+      if (up && (await firstTemplateWarning(projectId, `upgrade:${up.from_version}>${up.to_version}`))) {
+        if (cancelled) return;
+        const { from_version, to_version } = up;
         toast.warning(t("agents.upgrade.title"), {
           title: t("agents.upgrade.version", { from: from_version, to: to_version }),
           dedupKey: `master-upgrade-${projectId}`,
@@ -292,6 +327,7 @@ export default function ProjectWindow({
         onOpenSettings={() => setUiV2View("settings")}
         projects={projects}
         onSelectProject={(p) => openProject(p.id, openFailed)}
+        onOpenFolder={() => void openFolder()}
       />
     </>
   );

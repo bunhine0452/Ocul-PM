@@ -102,7 +102,7 @@ describe("최근 프로젝트", () => {
     const recent = screen.getByRole("region", { name: t("start.recent") });
     const row = await within(recent).findByText("ai-pm");
     const li = row.closest("li")!;
-    expect(within(li).getByText("~/Desktop/git")).toBeInTheDocument();
+    expect(within(li).getByRole("button", { name: t("start.openAria", { name: "ai-pm" }) })).toHaveAccessibleDescription(/~\/Desktop\/git/);
     expect(await within(li).findByText(t("start.today", { n: 58 }))).toBeInTheDocument();
     expect(await within(li).findByText(t("start.toCheck", { n: 4 }))).toHaveClass("warn");
     fireEvent.click(within(li).getByRole("button", { name: t("start.openAria", { name: "ai-pm" }) }));

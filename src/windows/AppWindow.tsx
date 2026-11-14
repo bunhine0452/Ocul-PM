@@ -88,7 +88,9 @@ export default function AppWindow({
     void projectsApi
       .list()
       .then((list) => {
-        setProjects(list);
+        // 내용이 같으면 이전 배열 그대로 (11-15) — ⌘O 를 열 때마다 다시 읽는데, 같은 내용의 새 배열이
+        // 목록을 쥔 효과들을 다시 돌려 친 거르기 글자가 지워지고 포커스가 튀었다.
+        setProjects((prev) => (JSON.stringify(prev) === JSON.stringify(list) ? prev : list));
         // 지워진 프로젝트의 워크스페이스 레코드 정리 (D3) — 목록이 진실이다.
         pruneWorkspaceRecords(list.map((p) => p.id));
       })

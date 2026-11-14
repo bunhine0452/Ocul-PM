@@ -9,6 +9,7 @@
 import { useEffect } from "react";
 
 import type { UiV2View } from "@/contexts/uiV2View";
+import { isModalOpen } from "@/lib/kbd";
 import { NAV_ENTRIES } from "@/lib/navRegistry";
 
 /** 다음(1) · 앞(-1) 화면. 다섯 화면 밖(설정)이면 첫 화면 · 끝 화면. */
@@ -24,7 +25,7 @@ export function useScreenCycle(current: UiV2View, setView: (v: UiV2View) => void
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Tab" || !e.ctrlKey || e.metaKey || e.altKey) return;
-      if (document.querySelector('[aria-modal="true"]')) return;
+      if (isModalOpen()) return;
       e.preventDefault();
       e.stopPropagation();
       setView(nextScreen(current, e.shiftKey ? -1 : 1));
@@ -91,6 +92,8 @@ export function useSwipeNav(onBack: () => void, onForward: () => void, enabled =
     if (!enabled) return;
     const tracker = new SwipeTracker();
     const onWheel = (e: WheelEvent) => {
+      // 모달이 떠 있으면 뒤 화면은 그대로다 — 팔레트 목록을 가로로 굴리다 화면이 넘어가지 않게.
+      if (isModalOpen()) return;
       const dir = tracker.feed({
         dx: e.deltaX,
         dy: e.deltaY,

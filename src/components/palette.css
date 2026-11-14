@@ -1,0 +1,54 @@
+/* ============================================================
+   palette.css — ⌘K 팔레트 (11-15, `CommandPalette.tsx`).
+   프로젝트 창과 시작 창이 같은 팔레트를 쓴다 — 셸의 늦은 청크(screens-overflow.css)에 두면 시작 창의
+   팔레트가 무스타일로 섰다. 그래서 팔레트가 스스로 싣는다.
+   ============================================================ */
+
+/* 판 — 카드 한 장. 판 높이는 바닥이 있어(min-height) 일지 검색 결과가 오가도 판이 뛰지 않는다. */
+.palette {
+  width: 100%; max-width: 600px; overflow: hidden;
+  display: flex; flex-direction: column;
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-l); box-shadow: var(--shadow-pop);
+}
+/* 입력 — 전역 포커스 링을 받지 않는다. 판의 overflow:hidden 에 잘린 링이 입력 밑에 2px 민트 막대로 남아
+   진행 막대처럼 보였다. 경계는 입력 밑 hairline 하나, 포커스는 깜빡이는 커서가 말한다. */
+.palette-input {
+  width: 100%; height: 46px; padding: 0 var(--space-6); box-sizing: border-box;
+  border: 0; border-bottom: 1px solid var(--sep); background: transparent;
+  font-family: var(--font); font-size: var(--fs-5); color: var(--text);
+}
+.palette-input,
+.palette-input:focus-visible { outline: none; }
+.palette-input::placeholder { color: var(--text-2); }
+.palette-list { min-height: min(320px, 52vh); max-height: 60vh; overflow-y: auto; padding: var(--space-1) var(--space-2) var(--space-2); }
+/* 묶음 머리 — 문장형(대문자 · 자간 없이), 위 여백이 아래보다 크고 앞 묶음과는 hairline 하나. */
+.palette-list [cmdk-group-heading] {
+  padding: var(--space-5) var(--space-4) var(--space-2);
+  font-size: var(--fs-3); font-weight: var(--fw-label); color: var(--text-2);
+}
+.palette-list [cmdk-group]:not([hidden]) ~ [cmdk-group]:not([hidden]) { border-top: 1px solid var(--sep); }
+.palette-item {
+  display: flex; align-items: center; gap: var(--space-4);
+  min-height: var(--ctl-5); padding: 0 var(--space-4); border-radius: var(--radius-m);
+  font-family: var(--font); font-size: var(--fs-4); color: var(--text); cursor: pointer;
+}
+.palette-item[aria-selected="true"] { background: var(--bg-active); }
+.palette-item > svg { flex: none; color: var(--text-2); }
+.palette-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-meta { flex: none; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.palette-project .proj-dot,
+.palette-dot { margin: 0 3px; }
+/* 찾는 중 · 맞는 것 없음 — 움직이지 않는 글자 한 줄(영수증 규칙 6). 맞는 줄이 하나도 없으면 판 가운데로. */
+.palette-status { padding: var(--space-3) var(--space-4); font-size: var(--fs-3); color: var(--text-2); }
+.palette-list [cmdk-list-sizer]:not(:has([cmdk-item])) > .palette-status {
+  padding: var(--space-8) var(--space-4); text-align: center; font-size: var(--fs-4);
+}
+
+/* 바닥 — 키 안내. 키는 앱의 .kbd 한 벌. */
+.palette-foot {
+  display: flex; align-items: center; gap: var(--space-4); padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border-card); font-size: var(--fs-3); color: var(--text-2);
+}
+.palette-foot .kbd { margin-right: var(--space-1); }
+.palette-foot-hint { margin-left: auto; }

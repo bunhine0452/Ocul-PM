@@ -119,7 +119,7 @@ describe("윗줄 — 프로젝트 · 탭 넷 · 찾기 · 설정 (사이드바 �
     // 머리는 프로젝트 이름 버튼 하나 — 최근 프로젝트 목록을 띄운다.
     expect(screen.getByRole("button", { name: t("sidebar.switchProjectAria", { name: "ai-pm" }) })).toHaveAttribute(
       "aria-haspopup",
-      "menu",
+      "dialog",
     );
   });
 
@@ -229,23 +229,23 @@ describe("⌘O — 최근 프로젝트 목록", () => {
     fx.openIds = [2];
     await mountShell();
     await act(async () => void fireEvent.keyDown(window, { key: "o", metaKey: true }));
-    const menu = await screen.findByRole("menu", { name: t("sidebar.switchProjectMenu") });
-    const items = within(menu).getAllByRole("menuitem");
-    // 두 프로젝트 + 「편집기에서 열기」 + 「폴더 열기…」.
-    expect(items).toHaveLength(4);
+    const menu = await screen.findByRole("dialog", { name: t("sidebar.switchProjectMenu") });
+    const items = within(menu).getAllByRole("option");
+    // 프로젝트 줄만 옵션이다 — 「편집기에서 열기」 · 「폴더 열기…」 는 아래 묶음(11-15).
+    expect(items).toHaveLength(2);
     const other = items.find((b) => b.textContent?.includes("naeri"))!;
     // 다른 창에 이미 열려 있으면 「열림」 — 고르면 그 창이 앞으로 온다(백엔드가 판단).
     expect(await within(other).findByText(t("sidebar.openProject"))).toBeInTheDocument();
     fireEvent.click(other);
     expect(fx.openProjectWindow).toHaveBeenCalledWith(2);
-    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("지금 프로젝트를 고르면 아무 창도 열지 않는다 — 이 창의 프로젝트는 바뀌지 않는다", async () => {
     await mountShell();
     fireEvent.click(screen.getByRole("button", { name: t("sidebar.switchProjectAria", { name: "ai-pm" }) }));
-    const menu = await screen.findByRole("menu");
-    fireEvent.click(within(menu).getAllByRole("menuitem").find((b) => b.textContent?.includes("ai-pm"))!);
+    const menu = await screen.findByRole("dialog");
+    fireEvent.click(within(menu).getAllByRole("option").find((b) => b.textContent?.includes("ai-pm"))!);
     expect(fx.openProjectWindow).not.toHaveBeenCalled();
   });
 
@@ -253,9 +253,9 @@ describe("⌘O — 최근 프로젝트 목록", () => {
     await mountShell();
     const head = screen.getByRole("button", { name: t("sidebar.switchProjectAria", { name: "ai-pm" }) });
     fireEvent.click(head);
-    await screen.findByRole("menu");
+    await screen.findByRole("dialog");
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(head);
   });
 });

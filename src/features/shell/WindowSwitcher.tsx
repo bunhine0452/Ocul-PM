@@ -14,10 +14,9 @@ import { windowApi } from "@/api/window";
 import { useT } from "@/i18n";
 import { kbd } from "@/lib/kbd";
 import { isMac } from "@/lib/platform";
-import { tildePath } from "@/lib/osPath";
 import { toast } from "@/lib/toast";
 import type { Project, ProjectAttention } from "@/lib/bindings";
-import { projectColorOf } from "./projectColor";
+import { ProjectRow, distinctWhere } from "./ProjectRow";
 
 /** 목록을 띄우기까지 — 이보다 빨리 손을 떼면 목록 없이 직전 창으로 간다(⌘Tab 과 같은 손맛). */
 const SHOW_AFTER_MS = 140;
@@ -148,6 +147,7 @@ export function WindowSwitcher({ currentProjectId, projects }: { currentProjectI
 
   if (!view) return null;
   const byId = new Map(projects.map((p) => [p.id, p] as const));
+  const where = distinctWhere(projects);
   const hold = isMac() ? kbd("⌥") : "Ctrl";
   const pick = (index: number) => {
     const id = view.list[index];
@@ -170,7 +170,6 @@ export function WindowSwitcher({ currentProjectId, projects }: { currentProjectI
           {view.list.map((id, i) => {
             const p = byId.get(id);
             if (!p) return null;
-            const a = attention.get(id);
             return (
               <li
                 key={id}
@@ -187,14 +186,13 @@ export function WindowSwitcher({ currentProjectId, projects }: { currentProjectI
                   pick(i);
                 }}
               >
-                <span className="proj-dot" data-pc={projectColorOf(p.color)} aria-hidden="true" />
-                <span className="win-switch-name">
-                  <span className="win-switch-nm">{p.name}</span>
-                  <span className="win-switch-path">{tildePath(p.root_path)}</span>
-                </span>
-                {a?.waiting ? <span className="chip sm warn">{t("sidebar.waiting", { n: a.waiting })}</span> : null}
-                {a?.failing ? <span className="chip sm danger">{t("sidebar.failing")}</span> : null}
-                {id === currentProjectId ? <span className="win-switch-here">{t("switcher.here")}</span> : null}
+                {/* 줄은 ⌘O · 시작 창 · ⌘K 와 한 벌 — 경로는 이름이 겹칠 때만 선다(`ProjectRow`). */}
+                <ProjectRow
+                  project={p}
+                  where={where.get(id)}
+                  signals={{ attention: attention.get(id) }}
+                  meta={id === currentProjectId ? t("switcher.here") : null}
+                />
               </li>
             );
           })}

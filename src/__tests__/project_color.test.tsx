@@ -77,7 +77,7 @@ describe("프로젝트 색", () => {
 
   it("VS Code 의 settings.json 에 주석이 있어 못 고치면 그렇다고 말한다", async () => {
     setColor.mockResolvedValueOnce("skipped" as never);
-    const info = vi.spyOn(toast, "info");
+    const info = vi.spyOn(toast, "warning");
     const { container } = render(
       <ProjectSwitcher projectName="a" currentProjectId={1} projects={projects} onOpenProject={() => {}} />,
     );

@@ -2,9 +2,11 @@
  * 수정키 — 매칭과 표기의 단일 창구 (크로스플랫폼 라운드 2026-09-23
  * {#ui-shortcuts} {#ui-labels}).
  *
- * **macOS 에서 이 모듈은 아무것도 바꾸지 않는다** (D3). 매칭은 예전 식
- * (`metaKey || ctrlKey`) 그대로고, 표기는 받은 문자열을 그대로 돌려준다. 모든
- * 분기는 `isMac()` 에서 먼저 갈라진다.
+ * macOS: 표기는 받은 문자열을 그대로 돌려준다. 매칭은 ⌘ 또는 ⌃ 인데, 전역 단축키가 읽는
+ * `readChord` 는 **⌃ 를 입력칸 · 터미널 면 밖에서만** ⌘ 로 읽는다(11-15) — 그 안의 ⌃K(줄 끝까지
+ * 지우기) · ⌃A · ⌃E 는 편집 키고 터미널의 ⌃/ · ⌃2 는 셸의 것인데, 예전 식(`metaKey || ctrlKey`)은
+ * 그것을 팔레트 · 치트시트 · 화면 이동으로 먹었다. 키 이름은 `code` 로 라틴 글자를 되찾는다 — 두벌식이면
+ * j · k 가 ㅓ · ㅏ 로 온다. 모든 분기는 `isMac()` 에서 먼저 갈라진다.
  *
  * Windows·Linux 규칙:
  *
@@ -63,11 +65,34 @@ export function isTerminalSurface(target: EventTarget | null | undefined): boole
   );
 }
 
+/** 누르는 칸(체크 · 라디오 · 단추)은 글자를 받지 않는다 — 그 위의 ⌃ 는 여전히 ⌘ 자리다. */
+const NON_TEXT_INPUTS = new Set(["checkbox", "radio", "button", "submit", "reset", "range", "color", "file", "image"]);
+
+/** 포커스가 글자를 받는 칸(input · textarea · contenteditable)인가 — 맥의 ⌃ 글쇠는 그 칸의 편집 키다. */
+export function isTextEntry(target: EventTarget | null | undefined): boolean {
+  if (typeof Element === "undefined" || !(target instanceof Element)) return false;
+  if (target.closest("textarea")) return true;
+  const input = target.closest("input");
+  if (input) return !NON_TEXT_INPUTS.has(input.type);
+  return target.closest('[contenteditable]:not([contenteditable="false"])') !== null;
+}
+
+/** macOS 의 ⌃ 가 ⌘ 자리로 읽히는가 — 입력칸 · 터미널 면 밖에서만 (11-15, 머리 주석). */
+function macCtrlAsMod(e: ModifierState): boolean {
+  return e.ctrlKey && !isTextEntry(e.target) && !isTerminalSurface(e.target);
+}
+
+/** 모달(대화상자 · 팔레트)이 떠 있나 — 떠 있으면 전역 단축키는 물러난다(⌘K 닫기 · Esc 만). */
+export function isModalOpen(): boolean {
+  return typeof document !== "undefined" && document.querySelector('[aria-modal="true"]') !== null;
+}
+
 /**
  * 화면 단축키의 ⌘(mac) / Ctrl(그 외) 가 눌렸나.
  *
  * mac 은 **예전 식 그대로** ⌃ 도 받는다 — 여러 핸들러가 `metaKey || ctrlKey` 로
- * 써 왔고, 그 동작을 바꾸지 않는다 (D3).
+ * 써 왔고, 그 동작을 바꾸지 않는다 (D3). 입력칸 · 터미널의 ⌃ 를 양보하는 것은 전역 단축키가
+ * 읽는 `readChord` 다(11-15).
  *
  * Windows·Linux 에서 포커스가 **터미널 면(xterm·도크 머리띠) 안이면 거짓**이다 —
  * xterm 안의 Ctrl+글자는 셸의 것이고(Ctrl+S 는 XOFF, Ctrl+F 는 한 글자 앞으로),
@@ -171,13 +196,15 @@ export interface Chord {
  *   Ctrl+Shift+X       → ⌘X
  *   Ctrl+Alt+Shift+X   → ⇧⌘X
  *
- * macOS: `{ mod: metaKey || ctrlKey, shift, alt, key }` — 예전 핸들러와 같은 식.
+ * macOS: `{ mod: ⌘ || 입력칸 · 터미널 밖의 ⌃, shift, alt, key }`. `key` 는 `keyOf` 로 읽는다 — 두벌식에서도
+ * j · k · v 가 ㅓ · ㅏ · ㅍ 가 아니라 라틴 글자로 온다(오늘 · 일지 · 변경의 한 글자 키가 이것을 읽는다).
  */
 export function readChord(e: ChordEvent, family: "app" | "terminal" = "app"): Chord {
   if (isMac()) {
-    return { mod: e.metaKey || e.ctrlKey, shift: e.shiftKey, alt: e.altKey, key: e.key };
+    return { mod: e.metaKey || macCtrlAsMod(e), shift: e.shiftKey, alt: e.altKey, key: keyOf(e) };
   }
-  const plain: Chord = { mod: false, shift: e.shiftKey, alt: e.altKey, key: e.key };
+  // 수정키 없는 한 글자 키(j · k · v …)도 라틴 글자로 — 한글 자판의 Windows 는 `Process` · ㅓ 로 온다.
+  const plain: Chord = { mod: false, shift: e.shiftKey, alt: e.altKey, key: keyOf(e) };
   if (!ctrlHeld(e)) return plain;
   const bracket = e.shiftKey ? SHIFTED_BRACKETS[e.code] : undefined;
   const key = bracket ?? keyOf(e);
