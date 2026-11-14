@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use rusqlite::params;
-use serde::Serialize;
 
 use crate::db::Db;
 use crate::oculpm::planner::log_archive as archive;
@@ -17,90 +16,10 @@ use crate::oculpm::spec::OculpmConfig;
 // 경로 도우미는 `paths.rs` 에 산다 — 이 파일이 래칫(800줄)에 걸려 갈랐다.
 pub use super::paths::{find_plan_path, planner_dir, slug_for};
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Command DTOs (specta + serde)
-// ─────────────────────────────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct PlanSummary {
-    pub plan_id: String,
-    pub title: String,
-    pub status: String,
-    pub owner_agent: String,
-    pub progress: f64,
-    pub file_path: String,
-    pub updated_at: String,
-    pub item_count: u32,
-    pub done_count: u32,
-    /// 「마지막 판정」 (`judge.rs`) — 확인 명령을 돌린 가장 최근 결과. 선택 필드(TS `?:`).
-    #[serde(default)]
-    pub last_verdict: Option<super::judge::PlanVerdict>,
-}
-
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct PlanItemDto {
-    pub item_id: String,
-    pub phase: Option<String>,
-    pub title: String,
-    pub status: String,
-    pub order_idx: u32,
-    pub parent_item: Option<String>,
-    pub note: Option<String>,
-    pub last_agent: Option<String>,
-    pub last_update: Option<String>,
-    /// Distinct journal entries linked to this item via the plan-log (the
-    /// agent's `일지` column). Drives the 📓 link + the progress suggestion.
-    pub journal_refs: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct PlanDecisionDto {
-    pub decision_id: String,
-    pub title: String,
-    pub body: String,
-    pub locked_at: Option<String>,
-    pub agent_id: Option<String>,
-    pub affects: Vec<String>,
-}
-
-/// A trackable phase (`## Heading {#id}`) — rollup status + who last touched it.
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct PlanPhaseDto {
-    pub phase_id: Option<String>,
-    pub name: String,
-    pub status: String,
-    pub progress: f64,
-    pub item_count: u32,
-    pub done_count: u32,
-    pub last_agent: Option<String>,
-    pub last_update: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct PlanDetail {
-    pub plan: PlanSummary,
-    pub items: Vec<PlanItemDto>,
-    pub phases: Vec<PlanPhaseDto>,
-    pub decisions: Vec<PlanDecisionDto>,
-    /// Non-fatal parse warnings (broken glyphs, missing ids, …). Surfaced so
-    /// the UI never fails silently on a malformed plan.
-    pub warnings: Vec<String>,
-    /// 「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다).
-    pub done_when: Option<String>,
-    /// 「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것.
-    pub check: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct PlanItemUpdateDto {
-    pub ts: String,
-    pub item_id: String,
-    pub agent_id: String,
-    pub from_status: Option<String>,
-    pub to_status: Option<String>,
-    pub journal_ref: Option<String>,
-    pub note: Option<String>,
-}
+// 명령 DTO 는 `dto.rs` 에 산다 — 판정의 지금 모습 두 칸을 더하자 이 파일이 래칫(800줄)을 넘었다(11-15).
+pub use super::dto::{
+    PlanDecisionDto, PlanDetail, PlanItemDto, PlanItemUpdateDto, PlanPhaseDto, PlanSummary,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading
@@ -216,6 +135,8 @@ fn summary_dto(loaded: &LoadedPlan) -> PlanSummary {
         item_count,
         done_count: done,
         last_verdict: super::judge::last_verdict(&p.updates),
+        stale_files: Vec::new(),
+        verdict_from: None,
     }
 }
 

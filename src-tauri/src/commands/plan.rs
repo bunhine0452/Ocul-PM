@@ -13,6 +13,7 @@ use crate::app_error::AppError;
 use crate::db::Db;
 use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::manager::OculpmManager;
+use crate::oculpm::planner::digest;
 use crate::oculpm::planner::dispatch::{
     build_dispatch_prompt, project_redact_patterns, shell_command_for,
 };
@@ -36,12 +37,20 @@ pub(super) async fn planner_root_of(db: &Db, project_id: u32) -> Result<PathBuf,
     Ok(planner_dir(Path::new(&project.root_path)))
 }
 
-/// List the project's plans (summary + progress + done counts).
+/// List the project's plans (summary + progress + done counts) — 판정의 지금 모습(「통과 뒤 바뀜」 ·
+/// 「여기선 아직」)까지 오늘 화면과 같은 계산으로 (`digest::verdict_now`).
 #[tauri::command]
 #[specta::specta]
 pub async fn plan_list(db: State<'_, Db>, project_id: u32) -> Result<Vec<PlanSummary>, String> {
-    let root = planner_root_of(&db, project_id).await?;
-    PlanCache::new(&db).list(project_id, &root).await
+    plan_summaries(&db, project_id).await
+}
+
+/// `plan_list` 의 몸통 — 전체 재투영 한 번으로 상세(일지 연결)를 얻어 판정 칸을 채운다.
+async fn plan_summaries(db: &Db, project_id: u32) -> Result<Vec<PlanSummary>, String> {
+    let root = planner_root_of(db, project_id).await?;
+    let mut details = digest::load_details(&PlanCache::new(db), project_id, &root).await?;
+    digest::verdict_now(db, project_id, &mut details).await;
+    Ok(details.into_iter().map(|d| d.plan).collect())
 }
 
 /// One plan's detail: items (with per-item last attribution), decisions, and
@@ -53,8 +62,29 @@ pub async fn plan_get(
     project_id: u32,
     plan_id: String,
 ) -> Result<Option<PlanDetail>, String> {
-    let root = planner_root_of(&db, project_id).await?;
-    PlanCache::new(&db).get(project_id, &root, &plan_id).await
+    plan_detail(&db, project_id, &plan_id).await
+}
+
+async fn plan_detail(
+    db: &Db,
+    project_id: u32,
+    plan_id: &str,
+) -> Result<Option<PlanDetail>, String> {
+    let root = planner_root_of(db, project_id).await?;
+    let detail = PlanCache::new(db).get(project_id, &root, plan_id).await?;
+    Ok(with_verdict_now(db, project_id, detail).await)
+}
+
+/// 명령이 내보내는 상세에 판정의 지금 모습을 싣는다 — 상태 바꾸기 · 닫기의 응답이 판정 칸을
+/// 「통과」로 되돌려 그리지 않게 (계획 화면은 응답을 그대로 문서로 쓴다).
+async fn with_verdict_now(
+    db: &Db,
+    project_id: u32,
+    detail: Option<PlanDetail>,
+) -> Option<PlanDetail> {
+    let mut detail = detail?;
+    digest::verdict_now(db, project_id, std::slice::from_mut(&mut detail)).await;
+    Some(detail)
 }
 
 /// 플랜 하나의 변경 로그 전체 — 플래너 「변경 로그 N행」 접힘 (UI 밀도 라운드 3).
@@ -203,7 +233,8 @@ async fn rewrite_plan(
     if new_md != md {
         write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
     }
-    Ok(PlanCache::new(db).get(project_id, &root, plan_id).await?)
+    let detail = PlanCache::new(db).get(project_id, &root, plan_id).await?;
+    Ok(with_verdict_now(db, project_id, detail).await)
 }
 
 /// Apply an edit to a plan's `.md` SSOT: mutate the body (glyph / new item) and
@@ -334,7 +365,8 @@ pub async fn plan_apply_edit(
     // 로그 표가 넘쳤으면 `<plan_id>.log.md` 로 갈라 낸 뒤 본문을 쓴다.
     let new_md = archive_overflow(&root, &plan_id, &new_md)?;
     write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
-    PlanCache::new(&db).get(project_id, &root, &plan_id).await
+    let detail = PlanCache::new(&db).get(project_id, &root, &plan_id).await?;
+    Ok(with_verdict_now(&db, project_id, detail).await)
 }
 
 // ─── migration (PR-PLN 5) ────────────────────────────────────────────────────
@@ -482,5 +514,74 @@ mod tests {
         .unwrap();
         assert_eq!(v["ttl"], 7_200);
         assert!(v.get("plan_rel").is_none());
+    }
+
+    /// 계획 화면도 오늘과 같은 판정 네 상태를 받는다 (11-15) — ✓ 뒤에 계획이 다룬 파일이 다시 저장되면
+    /// `stale_files`, 다른 OS 의 ✓ 는 `verdict_from` 이고 그때 `stale_files` 는 빈다.
+    #[tokio::test]
+    async fn plan_list_and_get_carry_the_verdict_now_like_today() {
+        use crate::oculpm::cache::JournalCache;
+        use crate::oculpm::planner::judge::HERE;
+
+        let dir = tempfile::TempDir::new().unwrap();
+        let root = dir.path().to_path_buf();
+        let planner = planner_dir(&root);
+        std::fs::create_dir_all(&planner).unwrap();
+        let other = if HERE == "mac" { "windows" } else { "mac" };
+        // 판정 시각은 먼 옛날 — 지금 저장한 파일은 무엇이든 그 뒤에 바뀐 것이다.
+        let plan = |id: &str, note: &str| {
+            format!(
+                "---\noculpm_plan: v1\nid: {id}\ntitle: \"{id}\"\nstatus: active\nowner: claude-code\nupdated: 2026-11-14\n---\n\n\
+                 ## A\n- [x] 끝 {{#a}}\n\n<!-- oculpm:plan-log begin v1 -->\n\
+                 | ts | item | agent | change | journal | note |\n|---|---|---|---|---|---|\n\
+                 | 2020-01-02T10:00:00+09:00 | #a | claude-code | ~→x | .oculpm/journal/20200102/Bugs/1000_bug_{id}.md | {note} |\n\
+                 <!-- oculpm:plan-log end -->\n"
+            )
+        };
+        std::fs::write(planner.join("here.md"), plan("here", "판정 ✓ 3 passed")).unwrap();
+        std::fs::write(
+            planner.join("away.md"),
+            plan("away", &format!("판정 ✓ 3 passed · {other}")),
+        )
+        .unwrap();
+        let journal = root.join(".oculpm").join("journal");
+        for id in ["here", "away"] {
+            let p = journal.join(format!("20200102/Bugs/1000_bug_{id}.md"));
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            let fm = format!(
+                "schema_version: 1\ntype: bug\nslug: {id}\nstatus: done\ncreated_at: \"2020-01-02T10:00:00+09:00\"\n\
+                 session_id: \"20200102-001\"\nagent: {{ id: claude-code }}\nlanguage: ko\n\
+                 files_touched:\n  - path: \"src/{id}.rs\"\n    op: update\ntags: []"
+            );
+            std::fs::write(&p, format!("---\n{fm}\n---\n[x] {id}\n")).unwrap();
+            std::fs::create_dir_all(root.join("src")).unwrap();
+            std::fs::write(root.join(format!("src/{id}.rs")), "x").unwrap();
+        }
+        let db = Db::open(dir.path().join("t.db")).await.unwrap();
+        let pid = db
+            .create_project("p".into(), root.to_string_lossy().to_string())
+            .await
+            .unwrap();
+        JournalCache::new(&db)
+            .reindex_full(pid, &journal)
+            .await
+            .unwrap();
+
+        let list = plan_summaries(&db, pid).await.unwrap();
+        let here = list.iter().find(|p| p.plan_id == "here").unwrap();
+        assert_eq!(here.stale_files, ["src/here.rs"]);
+        assert_eq!(here.verdict_from, None);
+        let away = list.iter().find(|p| p.plan_id == "away").unwrap();
+        assert_eq!(away.verdict_from.as_deref(), Some(other));
+        assert!(
+            away.stale_files.is_empty(),
+            "「여기선 아직」에 「통과 뒤 바뀜」을 겹치지 않는다"
+        );
+
+        // 상세도 같은 두 칸 — 판정 카드가 레일과 다른 상태를 그리지 않는다.
+        let d = plan_detail(&db, pid, "here").await.unwrap().unwrap();
+        assert_eq!(d.plan.stale_files, ["src/here.rs"]);
+        let d = plan_detail(&db, pid, "away").await.unwrap().unwrap();
+        assert_eq!(d.plan.verdict_from.as_deref(), Some(other));
     }
 }
