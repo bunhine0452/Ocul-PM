@@ -40,8 +40,9 @@ const TERM_BG: Record<ThemeFamily, string> = { light: "#faf9f5", dark: "#1b1f1d"
 
 /** 앱 기본 강조색 — tokens.css 의 `--accent`(`[data-accent]` 블록), 설정의 강조색 여섯 × 가족. */
 const APP_ACCENT: Record<ThemeFamily, Record<ColorTheme, string>> = {
-  light: { green: "#0e8a60", blue: "#2570e0", purple: "#7c5cdb", orange: "#e07b12", rose: "#e0524b", teal: "#0e9aa0" },
-  dark: { green: "#34d095", blue: "#5b9bff", purple: "#a78bfa", orange: "#eaa23f", rose: "#f1685f", teal: "#5fd5d0" },
+  // 주황 · 분홍은 11-15 #accent-colors 로 위험 · 경고색에서 뗀 값(tokens.css 와 같은 값 — 아래 시험이 문다).
+  light: { green: "#0e8a60", blue: "#2570e0", purple: "#7c5cdb", orange: "#b25e21", rose: "#c14978", teal: "#0e9aa0" },
+  dark: { green: "#34d095", blue: "#5b9bff", purple: "#a78bfa", orange: "#ffbb93", rose: "#ef8ba5", teal: "#5fd5d0" },
 };
 
 const TEXT_FLOOR = 4.5;
