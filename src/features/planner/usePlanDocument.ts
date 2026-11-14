@@ -7,7 +7,9 @@
  *
  * 옛 상태가 남지 않게 (11-15):
  *  - 읽기에 성공하면 오류를 지운다 — 에이전트가 계획 .md 를 고치는 순간 한 번 실패하면, 다시 읽어도
- *    오류 카드가 남아 있었다.
+ *    오류 카드가 남아 있었다. 목록과 상세의 오류는 따로 들고 **각자 자기 것만** 지운다: 상세 읽기의 성공이
+ *    목록 오류까지 지우면, 목록을 못 읽은 화면이 「계획 없음」 빈 화면(과 계획 세우기 단추)으로 섰다.
+ *  - 「계획이 하나도 없다」 는 목록을 **받아서** 0 개일 때만이다 — 못 읽으면 `plans` 는 그대로(null) 둔다.
  *  - 조용한 갱신(디스크 변경)이 실패하면 마지막 문서를 그대로 두고 문서 위에 한 줄만 단다(`stale`).
  *  - 모든 쓰기는 **보이는 문서의 계획 id**(`detail.plan.plan_id`)로 간다 — 고른 id 는 앞서 바뀌어 있을
  *    수 있다(다른 계획을 읽는 중). 화면은 그동안 동작 단추를 막는다(`busy`).
@@ -57,17 +59,21 @@ export function usePlanDocument(projectId: number): PlanDocument {
   selectedIdRef.current = selectedId;
   const [detail, setDetail] = useState<PlanDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [stale, setStale] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [listStale, setListStale] = useState(false);
+  const [detailStale, setDetailStale] = useState(false);
 
   const refreshPlans = useCallback(
     async (silent = false) => {
+      let failure: string;
       try {
         const res = await commands.planList(projectId);
         if (res.status === "ok") {
           const list = res.data ?? [];
           setPlans(list);
-          setError(null);
+          setListError(null);
+          setListStale(false);
           // 고른 계획이 아직 있으면 그대로, 없으면 진행 중 첫 계획(오늘 화면과 같은 순서).
           setSelectedId((cur) => {
             if (cur && list.some((p) => p.plan_id === cur)) return cur;
@@ -76,18 +82,12 @@ export function usePlanDocument(projectId: number): PlanDocument {
           });
           return;
         }
-        if (silent) setStale(true);
-        else {
-          setError(tError(res.error));
-          setPlans((cur) => cur ?? []);
-        }
+        failure = tError(res.error);
       } catch (e) {
-        if (silent) setStale(true);
-        else {
-          setError(tError(toAppError(e)));
-          setPlans((cur) => cur ?? []);
-        }
+        failure = tError(toAppError(e));
       }
+      if (silent) setListStale(true);
+      else setListError(failure);
     },
     [projectId],
   );
@@ -103,6 +103,8 @@ export function usePlanDocument(projectId: number): PlanDocument {
       if (selectedId == null) {
         setDetail(null);
         setLoadingDetail(false);
+        setDetailError(null);
+        setDetailStale(false);
         return;
       }
       if (!silent) setLoadingDetail(true);
@@ -111,14 +113,14 @@ export function usePlanDocument(projectId: number): PlanDocument {
         if (selectedIdRef.current !== selectedId) return;
         if (res.status === "ok") {
           setDetail(res.data);
-          setError(null);
-          setStale(false);
-        } else if (silent) setStale(true);
-        else setError(tError(res.error));
+          setDetailError(null);
+          setDetailStale(false);
+        } else if (silent) setDetailStale(true);
+        else setDetailError(tError(res.error));
       } catch (e) {
         if (selectedIdRef.current !== selectedId) return;
-        if (silent) setStale(true);
-        else setError(tError(toAppError(e)));
+        if (silent) setDetailStale(true);
+        else setDetailError(tError(toAppError(e)));
       } finally {
         if (!silent && selectedIdRef.current === selectedId) setLoadingDetail(false);
       }
@@ -195,11 +197,13 @@ export function usePlanDocument(projectId: number): PlanDocument {
     loadingDetail,
     busy: detail != null && detail.plan.plan_id !== selectedId,
     locked: (detail?.plan.status ?? "active") !== "active",
-    error,
-    stale,
+    error: listError ?? detailError,
+    stale: listStale || detailStale,
     retry: () => {
-      setError(null);
-      setStale(false);
+      setListError(null);
+      setDetailError(null);
+      setListStale(false);
+      setDetailStale(false);
       void refreshPlans();
       void refreshDetail();
     },

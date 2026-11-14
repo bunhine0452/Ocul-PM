@@ -26,6 +26,8 @@
   border-bottom: 1px solid var(--sep);
 }
 .jl-head-row { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+/* 종류 · 거르기 · 수 — 자리가 모자라면 다음 줄로(목록 칸 320), 남으면 한 줄로(좁은 창에서 위아래로 쌓인 칸). */
+.jl-head-wrap { flex-wrap: wrap; row-gap: var(--space-1); }
 /* 상자는 `.search-box`(primitives.css), 여기는 남는 폭을 채우게만. */
 .jl-search { flex: 1; min-width: 0; box-sizing: border-box; }
 .jl-head .seg { flex: none; max-width: 100%; }
@@ -136,12 +138,13 @@
 .jd-warns li { font-family: var(--mono); overflow-wrap: anywhere; }
 
 /* 검증 상자 — 에이전트의 말이 아니라 돌린 명령과 결과 끝 줄이 서는 자리. 머리 바로 아래, 본문 앞이다
-   (계획 문서가 판정 카드를 제목 아래 두는 이유와 같다). */
-.jd-verify { border: 1px solid var(--sep); border-radius: var(--radius-m); overflow: hidden; }
+   (계획 문서가 판정 카드를 제목 아래 두는 이유와 같다). 문서 안 상자의 머리 띠는 계획의 단계 상자와 같은
+   --bg-inset · --border-card 다 — --bg-card 위의 --bg-window 는 밝은 테마에서 바탕과 거의 같아 띠가 안 보였다. */
+.jd-verify { border: 1px solid var(--border-card); border-radius: var(--radius-m); overflow: hidden; }
 .jd-verify-hd {
   display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
-  background: var(--bg-window); border-bottom: 1px solid var(--sep);
+  background: var(--bg-inset); border-bottom: 1px solid var(--border-card);
 }
 .jd-verify-hd b { font-size: var(--fs-3); font-weight: var(--fw-strong); }
 .jd-verify-sp { flex: 1; }
@@ -157,11 +160,11 @@
 
 /* 인라인 diff — 기존 렌더러(PatchView)를 그대로 얹는다. 안쪽 세로 스크롤은 없다(휠이 갇히지 않게) —
    긴 패치는 상세가 통째로 스크롤한다. */
-.jd-diff { border: 1px solid var(--sep); border-radius: var(--radius-m); overflow: hidden; }
+.jd-diff { border: 1px solid var(--border-card); border-radius: var(--radius-m); overflow: hidden; }
 .jd-diff-fh {
   display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
-  background: var(--bg-window); border-bottom: 1px solid var(--sep);
+  background: var(--bg-inset); border-bottom: 1px solid var(--border-card);
 }
 /* 경로 두 조각 — 폴더가 먼저 줄고 파일 이름은 온전히 (변경 화면 `.chg-dir` · `.chg-base` 와 같은 규칙). */
 .jd-diff-name { display: flex; align-items: baseline; flex: 0 1 auto; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); }

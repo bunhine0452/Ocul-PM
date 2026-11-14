@@ -41,6 +41,8 @@ interface JournalListProps {
   /** 검색 발췌 (경로 → 한 줄). */
   excerpts?: ReadonlyMap<string, string>;
   query?: string;
+  /** 「검증 없는 것만」 이 켜졌다 — 줄이 전부 그것이라 날짜 머리의 「검증 없음 N」 은 같은 말이다. */
+  onlyMissing?: boolean;
   /** 목록 아래 손잡이(더 보기) — 화면이 정한다. */
   footer?: ReactNode;
   /** 목록 위 고지(못 읽었다). */
@@ -67,17 +69,22 @@ export const JournalList = memo(function JournalList({
   showAgent,
   excerpts,
   query,
+  onlyMissing = false,
   footer,
   notice,
   empty,
 }: JournalListProps) {
   const { t } = useT();
+  // 로빙 tabindex — Tab 이 멈출 줄 하나. 고른 일지가 목록에 그려져 있지 않으면(계획에서 연 14일 밖 일지 ·
+  // 닫힌 접힘 안 · 그린 줄 상한 밖) 화면 순서의 첫 줄이 받는다 — 안 그러면 Tab 으로 목록에 들어갈 수 없다.
+  const drawn = views.flatMap((v) => (v.open ? [...v.shown, ...v.folded] : v.shown));
+  const tabPath = drawn.some((e) => e.relative_path === selectedPath) ? selectedPath : (drawn[0]?.relative_path ?? null);
   const row = (e: JournalEntrySummary) => (
     <JournalRow
       key={e.relative_path}
       entry={e}
       selected={e.relative_path === selectedPath}
-      tabbable={e.relative_path === selectedPath}
+      tabbable={e.relative_path === tabPath}
       onSelect={onSelect}
       showAgent={showAgent}
       excerpt={excerpts?.get(e.relative_path)}
@@ -92,21 +99,26 @@ export const JournalList = memo(function JournalList({
       {views.map((v) => {
         const heading = ranked ? t("journal.searchResults") : dayHeading(v.workday, todayKey, t);
         const headId = `jl-day-${v.workday || "ranked"}`;
+        // 머리의 수는 다른 곳이 말하지 않는 것만 — 관련도 묶음의 건수는 숫자 줄(「조건에 맞는 N」)이, 「검증 없는
+        // 것만」 이 켜진 동안의 검증 없음 수는 그 단추가 이미 말한다.
+        const showCount = !ranked;
+        const showMissing = v.missing > 0 && !onlyMissing;
         return (
           <section key={v.workday || "ranked"} className="jl-day" role="group" aria-labelledby={headId}>
             <h3 className="jl-dayh" id={headId}>
-              <span>{heading}</span>
+              <span id={`${headId}-name`}>{heading}</span>
               <span className="jl-dayn">
-                {v.count}
-                {v.missing > 0 ? (
+                {showCount ? v.count : null}
+                {showMissing ? (
                   <>
-                    {" · "}
+                    {showCount ? " · " : null}
                     {t("journal.evidence.missing")} <b className="jl-warn-n">{v.missing}</b>
                   </>
                 ) : null}
               </span>
             </h3>
-            <div role="listbox" aria-label={t("journal.listAria")} className="jl-rows">
+            {/* 날마다 선 목록의 이름은 그 날 — 모두 같은 「일지 목록」 이면 스크린 리더가 같은 이름을 날 수만큼 읽었다. */}
+            <div role="listbox" aria-labelledby={`${headId}-name`} className="jl-rows">
               {v.shown.map(row)}
             </div>
             {v.folded.length > 0 ? (
@@ -118,7 +130,7 @@ export const JournalList = memo(function JournalList({
                 open={v.open}
                 onToggle={(open) => onToggleDay(v.workday, open)}
               >
-                <div role="listbox" aria-label={t("journal.goneFoldLabel")} className="jl-rows">
+                <div role="listbox" aria-label={`${heading} · ${t("journal.goneFoldLabel")}`} className="jl-rows">
                   {v.folded.map(row)}
                 </div>
               </Disclosure>

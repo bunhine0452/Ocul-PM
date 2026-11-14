@@ -57,16 +57,17 @@ interface JournalScreenV2Props {
   active?: boolean;
 }
 
-/** 줄 하나에 포커스(와 화면 안으로) — 키로 옮기거나 다른 화면에서 건너왔을 때. */
-function focusRow(list: HTMLElement | null, path: string | null) {
-  if (!list || !path) return;
+/** 줄 하나에 포커스(와 화면 안으로) — 키로 옮기거나 다른 화면에서 건너왔을 때. 줄을 못 찾으면 `false`. */
+function focusRow(list: HTMLElement | null, path: string | null): boolean {
+  if (!list || !path) return false;
   for (const row of list.querySelectorAll<HTMLElement>(".jl-item")) {
     if (row.dataset.path === path) {
       row.focus({ preventScroll: true });
       row.scrollIntoView?.({ block: "nearest" });
-      return;
+      return true;
     }
   }
+  return false;
 }
 
 export function JournalScreenV2({
@@ -236,7 +237,17 @@ export function JournalScreenV2({
     if (loading || !days || openEntryPath || focusPath) return;
     if (selectedPath && (pinned?.relative_path === selectedPath || allEntries.some((e) => e.relative_path === selectedPath))) return;
     const i = Math.min(lastIndexRef.current, order.length - 1);
-    choose(i >= 0 ? order[i] : null);
+    const next = i >= 0 ? order[i] : null;
+    choose(next);
+    if (!selectedPath) return;
+    // 고른 줄이 빠졌다(「검증 없는 것만」 에서 읽음). 포커스를 쥔 줄이나 상세(일지마다 새로 선다)가 사라지면
+    // 포커스가 body 로 떨어져, 키를 듣는 컨테이너 밖이 되고 다음 j/k/v 가 먹지 않았다 — j → v → j 가 끊겼다.
+    // body 로 떨어졌을 때만 새 줄로 옮긴다: 그새 사람이 검색칸 · 필터를 눌렀으면 건드리지 않는다.
+    requestAnimationFrame(() => {
+      const at = document.activeElement;
+      if (at && at !== document.body) return;
+      if (!focusRow(listRef.current, next?.relative_path ?? null)) splitRef.current?.focus({ preventScroll: true });
+    });
   }, [loading, days, allEntries, order, selectedPath, pinned, openEntryPath, focusPath, choose]);
 
   // 앱이 켜 있는 동안 기억한다 — 화면을 떠났다 돌아오면 같은 일지 · 같은 자리.
@@ -384,14 +395,22 @@ export function JournalScreenV2({
   );
   useEffect(() => {
     const pending = pendingFirstRef.current;
-    if (pending == null || pending !== query || loading) return;
-    if (searching && found.ranked == null && found.days == null) return;
+    if (pending == null) return;
+    // 그새 다른 글자로 찾기 시작했으면 기다리던 것은 버린다 — 나중에 그 글자로 돌아왔을 때 저절로 뛰지 않게.
+    // 못 읽었을 때도 버린다(다시 시도가 나중에 성공해도 그때 뛰지 않게).
+    if (pending !== query || (!loading && error)) {
+      pendingFirstRef.current = null;
+      return;
+    }
+    // 결과가 **이 검색어의 것**일 때만 푼다. 고친 검색어를 디바운스 전에 Enter 하면, 다시 그린 첫 커밋에는 옛
+    // 검색의 결과가 남아 있어 그 첫 줄을 골랐다(11-15). 검색이 아니면 평소 목록이 다시 읽힌 뒤에.
+    if (loading || (searching ? found.forQuery !== pending : feed.days == null)) return;
     pendingFirstRef.current = null;
     const first = order[0];
     if (!first) return;
     choose(first);
     requestAnimationFrame(() => focusRow(listRef.current, first.relative_path));
-  }, [query, loading, searching, found.ranked, found.days, order, choose]);
+  }, [query, error, loading, searching, found.forQuery, feed.days, order, choose]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const chord = readChord(e);
@@ -464,16 +483,20 @@ export function JournalScreenV2({
   const pageLoaded = searching ? found.loaded : feed.loaded;
   const morePages = !searching && feed.canLoadMore;
   const matched = onlyMissing || pageTotal == null ? vis.total : pageTotal;
+  const capped = searching && (found.total ?? 0) > SEARCH_LIMIT;
+  // 「검증 없는 것만」 단추가 걸린 수를 warn 으로 이미 말한다 — 숫자 줄은 단추가 모르는 것(더 받을 쪽 「+」 ·
+  // 안 그린 줄 「표시 N」 · 검색 상한)이 있을 때만 선다. 같은 수가 두 곳에 서지 않게.
+  const toggleSaysIt = onlyMissing && !morePages && vis.drawn >= matched && !capped;
   let countText: string | null = null;
   // 아직 결과가 없으면(첫 검색을 읽는 중) 세지 않는다 — 「조건에 맞는 0」 이 한 박자 서면 없는 줄 안다.
-  if (days != null && (filtered || (pageTotal != null && pageLoaded != null && pageLoaded < pageTotal))) {
+  if (days != null && !toggleSaysIt && (filtered || (pageTotal != null && pageLoaded != null && pageLoaded < pageTotal))) {
     countText =
       onlyMissing && morePages
         ? t("journal.countMatchMore", { n: matched })
         : vis.drawn < matched
           ? t("journal.countShown", { total: matched, shown: vis.drawn })
           : t("journal.countMatch", { n: matched });
-    if (searching && (found.total ?? 0) > SEARCH_LIMIT) countText = `${countText} · ${t("journal.narrowSearch")}`;
+    if (capped) countText = `${countText} · ${t("journal.narrowSearch")}`;
   }
 
   // 목록 바닥의 손잡이 하나 — 안 그린 줄이 있으면 그리고, 다 그렸으면 다음 쪽을 받는다. 바닥에 닿으면 저절로.
@@ -612,6 +635,7 @@ export function JournalScreenV2({
               showAgent={showAgent}
               excerpts={searching ? found.excerpts : undefined}
               query={searching ? query : undefined}
+              onlyMissing={onlyMissing}
               notice={error ? <ErrorCard title={t("journal.loadFailed")} error={error} onRetry={refresh} style={{ margin: 12 }} /> : null}
               empty={
                 // 못 불러왔는데 「일지가 없어요」 를 같이 띄우면 없는 건지 못 읽은 건지 모른다.

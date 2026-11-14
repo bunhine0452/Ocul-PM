@@ -22,6 +22,35 @@ import { doneOfTotal, heldTooLong, isUserItem, NO_PHASE, phasesOf, STATUS_META, 
 import { StatusMark } from "./StatusMark";
 import { StatusMenu, useCloseOnOutside } from "./StatusMenu";
 
+/** 보이는 상태 상자, 문서 순서 — j/k 가 걷는 것과 같다(접힌 끝난 단계 안은 없다). */
+export function itemBoxes(root: ParentNode): HTMLButtonElement[] {
+  return Array.from(root.querySelectorAll<HTMLButtonElement>(".plv-doc .plv-box-btn:not(:disabled)"));
+}
+
+const boxOf = (boxes: HTMLButtonElement[], itemId: string) =>
+  boxes.find((b) => b.closest<HTMLElement>(".plv-item")?.dataset.item === itemId);
+
+/**
+ * 항목 상태를 바꾼 뒤 포커스가 갈 곳 (11-15) — 상태를 바꾸기 **전에** 부른다(그 상자의 자리를 지금 잰다).
+ *
+ * 다음 프레임에, 포커스가 body 로 떨어졌을 때만 움직인다: 확인 상자 · 팔레트처럼 그새 뜬 것이 포커스를
+ * 가졌으면 건드리지 않는다(예전엔 무조건 상자로 돌려 확인 상자의 포커스를 스크림 뒤로 빼앗았다). 그 항목의
+ * 상자가 있으면 그 상자, 고른 상태로 단계가 끝나 접혀 상자가 사라졌으면 같은 자리(끝이었으면 바로 위)의
+ * 상자 — 일지 목록에서 줄이 빠질 때와 같은 규칙이다. 상자가 하나도 없으면 화면 본문(키는 거기서 듣는다).
+ */
+export function refocusItem(root: HTMLElement | null, itemId: string) {
+  if (!root) return;
+  const before = itemBoxes(root);
+  const own = boxOf(before, itemId);
+  const at = own ? before.indexOf(own) : 0;
+  requestAnimationFrame(() => {
+    const now = document.activeElement;
+    if (!root.isConnected || (now && now !== document.body)) return;
+    const boxes = itemBoxes(root);
+    (boxOf(boxes, itemId) ?? boxes[Math.min(at, boxes.length - 1)] ?? root).focus();
+  });
+}
+
 interface ItemProps {
   item: PlanItemDto;
   depth: number;
@@ -38,11 +67,15 @@ function PlanItemLine({ item, depth, parent, locked, onSetStatus, onOpenJournal,
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLSpanElement | null>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
+  // 바깥을 눌러 닫으면 포커스는 사람이 누른 곳에 둔다(상자로 되돌리지 않는다).
   useCloseOnOutside(anchor, open, () => setOpen(false));
-  // 메뉴를 닫으면 포커스는 상자로 — 고른 뒤 body 로 떨어지면 다음 키가 갈 곳이 없다.
+  // 고르거나 Esc · Tab 으로 닫으면 포커스는 상자로 — **지금 바로**. 확인 상자(검증 없이 완료)가 뜨면 그 상자는
+  // 열릴 때 포커스가 있던 곳(이 상자)을 기억해 닫힐 때 돌려준다. 고른 상태로 단계가 접혀 상자가 사라지면
+  // 같은 자리의 상자로(`refocusItem`). 고른 뒤 body 로 떨어지면 다음 키가 갈 곳이 없다.
   const closeToTrigger = () => {
+    refocusItem(anchor.current?.closest<HTMLElement>(".plv-body") ?? null, item.item_id);
     setOpen(false);
-    requestAnimationFrame(() => trigger.current?.focus());
+    trigger.current?.focus();
   };
   const title = stripUserTag(item.title);
   const statusLabel = t(STATUS_META[item.status]?.labelKey ?? "plan.status.todo");

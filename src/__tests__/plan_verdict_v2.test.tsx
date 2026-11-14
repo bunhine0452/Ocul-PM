@@ -95,6 +95,20 @@ describe("verdict states — the same four as Today", () => {
     expect(within(rail).getByRole("button", { name: /Away plan/ }).querySelector(".vl.is-away")).not.toBeNull();
     expect(railSummary("ok")).toBe("ok");
   });
+
+  it("the rail picks 'N passed / failed' from real last lines, and otherwise keeps the whole line", () => {
+    // 이 저장소 계획들의 실제 끝 줄 — 예전 「첫 숫자 + 다음 낱말」 은 77 files · 0 (1146 · 116 CI 를 세웠다.
+    const cases: Array<[string, string]> = [
+      ["pnpm test 77 files / 940 passed", "940 passed"],
+      ["36 suites / 1158 passed", "1158 passed"],
+      ["cargo test exit=0 (1146 passed)", "1146 passed"],
+      ["pnpm test 1109 passed · cargo test 1157 passed 0 failed", "1109 passed"],
+      ["2 failed", "2 failed"],
+      ["release run 40818745181 completed", "release run 40818745181 completed"],
+      ["PR #116 CI", "PR #116 CI"],
+    ];
+    for (const [summary, want] of cases) expect(railSummary(summary), summary).toBe(want);
+  });
 });
 
 describe("verdict card — nothing cut", () => {

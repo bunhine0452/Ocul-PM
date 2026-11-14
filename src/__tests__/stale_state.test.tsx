@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useEffect } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 // JN-06 (11-15) — no stale state, no stuck errors. A plan read that failed once kept its error card even
@@ -26,7 +27,7 @@ vi.mock("@/components/Markdown", () => ({ Markdown: ({ children }: { children: s
 
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { JournalScreenV2, __resetJournalMemory } from "@/features/oculpm/JournalScreenV2";
-import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { t } from "@/i18n";
 import { detail, item, pemit, pfx, plan, resetPlanFixtures, stage } from "./plannerHarness";
@@ -69,6 +70,24 @@ describe("planner — errors clear, stale reads stay quiet", () => {
     act(() => diskChanged());
     expect(await screen.findByRole("heading", { level: 2, name: "Recovered plan" })).toBeInTheDocument();
     expect(screen.queryByText(t("plan.error"))).toBeNull();
+  });
+
+  it("a failed list read is not cleared by a good read of the remembered plan — no false 'no plans' screen", async () => {
+    stage([detail(plan("a", { title: "Remembered plan" }), [item("x", "todo", 0)])]);
+    pfx.failList = 1;
+    // 오늘 화면의 「계획 열기」처럼 고른 계획이 기억된 채로 들어온다 — 목록과 상세가 같이 돈다.
+    function Remembered() {
+      const { state, setState } = useWorkspace();
+      useEffect(() => setState((prev) => ({ ...prev, plannerPlanId: "a" })), [setState]);
+      return state.plannerPlanId === "a" ? <PlannerScreenV2 projectId={1} onNavigate={vi.fn()} onOpenJournal={vi.fn()} /> : null;
+    }
+    render(<SettingsProvider><WorkspaceProvider projectId={1}><Remembered /></WorkspaceProvider></SettingsProvider>);
+    expect(await screen.findByText(t("plan.error"))).toBeInTheDocument();
+    // 기억된 계획의 상세 읽기(성공)까지 다 돈 뒤에도 — 목록을 못 읽었다는 말이 남는다.
+    await act(async () => {});
+    await act(async () => {});
+    expect(screen.getByText(t("plan.error"))).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: t("plan.emptyStart") })).toBeNull();
   });
 
   it("a quiet reread that fails keeps the document and adds one warn line with a retry", async () => {

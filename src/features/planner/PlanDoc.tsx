@@ -164,6 +164,7 @@ function NextRow({
         <span className="plv-meta">{t("plan.nextRow.none")}</span>
       ) : (
         <>
+          {/* 통과 전에도 닫을 수 있다(백엔드는 남은 항목만 본다) — 문장은 없는 관문을 약속하지 않고, 돌려 보라고만 한다. */}
           <span className="plv-meta">{passed ? t("plan.nextRow.allClosedPassed") : t("plan.nextRow.allClosed")}</span>
           {/* 닫기는 사람의 결정이다 — 남은 항목이 0 일 때만 선다. 닫지 않으면 「진행 중」 으로 쌓인다(11-14). */}
           {items.length > 0 ? (
@@ -207,8 +208,10 @@ export function PlanDoc({
   const p = detail.plan;
   const last = lastLogAt(detail.items);
   // 메타 — 만든 날과 마지막 기록을 따로 말한다. 날짜 하나만 서 있으면(만든 날) 최근 활동처럼 읽혔다.
+  // 날짜는 frontmatter `updated` 다: 만들 때 쓰이고 닫기 · 되돌리기가 그날로 다시 쓴다(planner/lifecycle.rs) —
+  // 닫힌 계획에서는 닫은 날이라 그렇게 부른다.
   const meta = [
-    t("plan.doc.created", { date: dateOf(p.updated_at) }),
+    t(locked ? "plan.doc.closedOn" : "plan.doc.created", { date: dateOf(p.updated_at) }),
     last ? t("plan.doc.lastLog", { ago: relativeTime(last, Date.now()) }) : null,
     agentLabel(p.owner_agent),
     locked ? t("plan.doc.locked") : null,

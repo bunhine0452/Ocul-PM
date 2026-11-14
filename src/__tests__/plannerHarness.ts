@@ -113,8 +113,13 @@ export function plannerBindings() {
                 return ok(pfx.details[id] ?? null);
               };
             case "planApplyEdit":
-              return (_p: number, planId: string, op: unknown) => {
+              // 상태 바꾸기는 디스크(가짜)에도 남긴다 — 응답이 옛 문서로 화면을 되돌리지 않게.
+              return (_p: number, planId: string, op: { kind: string; item_id?: string; status?: string }) => {
                 pfx.edits.push({ planId, op });
+                const d = pfx.details[planId];
+                if (d && op.kind === "set_status") {
+                  pfx.details[planId] = { ...d, items: d.items.map((i) => (i.item_id === op.item_id ? { ...i, status: op.status ?? i.status } : i)) };
+                }
                 return ok(pfx.details[planId]);
               };
             case "planLog":

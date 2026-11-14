@@ -74,7 +74,9 @@
 .plv-head { display: flex; flex-direction: column; gap: var(--space-1); }
 /* 문서 제목 — 이 화면에서 유일한 큰 활자. */
 .plv-title { margin: 0; font-size: var(--fs-8); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
-.plv-time { font-family: var(--mono); font-variant-numeric: tabular-nums; font-variant-ligatures: none; }
+/* 사람 말 시각(「3시간 전」 · 「11월 14일 17:26」)은 비례폭에 숫자만 고정폭 — 판정 줄의 시각(.vl-when)과 같은
+   모양이다(영수증 규칙 2 · 4). mono 는 기계 글씨 칸(일지 목록의 HH:MM)에만. */
+.plv-time { font-variant-numeric: tabular-nums; }
 
 /* 읽지 못한 줄 — warn 칩 하나, 펼치면 줄 목록 · 파일로 열기 (일지 상세의 파싱 경고와 같은 꼴). */
 .plv-warn { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }

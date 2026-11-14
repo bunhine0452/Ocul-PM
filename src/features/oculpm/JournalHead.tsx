@@ -5,7 +5,7 @@ import type { EntryType } from "@/lib/bindings";
 import { blocked } from "@/lib/blocked";
 import { JournalSearchInput } from "./JournalSearchInput";
 
-// 일지 목록 칸의 머리 (11-15) — 검색칸 줄(돌아가기 · 검색 · 기간/순서), 종류 줄, 거르기 줄과 숫자 한 줄.
+// 일지 목록 칸의 머리 (11-15) — 검색칸 줄(돌아가기 · 검색 · 기간/순서), 그리고 종류 · 거르기 · 숫자가 흐르는 줄.
 // 검색과 필터는 목록을 거르므로 목록 위에 산다 — 셸 윗줄에 두면 탭 넷과 한 줄을 다퉜다 (4.0 윗줄 개편).
 
 // 종류와 「검증 없는 것만」 은 다른 축이라 따로 건다 — 한 줄 세그먼트에 섞여 있을 때는 「검증 없는 버그」를
@@ -145,13 +145,15 @@ export function JournalHead({
           />
         )}
       </div>
-      <Radios
-        label={t("journal.typeFilterAria")}
-        value={filter}
-        options={FILTERS.map((f) => ({ id: f.id, label: t(f.labelKey) }))}
-        onChange={onFilter}
-      />
-      <div className="jl-head-row">
+      {/* 종류 · 「검증 없는 것만」 · 수가 한 줄에 흐른다 — 목록 칸(320)에서는 단추가 다음 줄로 내려가고, 좁은 창에서
+          칸이 위아래로 쌓여 넓어지면 한 줄에 서서 머리가 한 줄 준다(목록이 그만큼 더 보인다). */}
+      <div className="jl-head-row jl-head-wrap">
+        <Radios
+          label={t("journal.typeFilterAria")}
+          value={filter}
+          options={FILTERS.map((f) => ({ id: f.id, label: t(f.labelKey) }))}
+          onChange={onFilter}
+        />
         <button
           type="button"
           className="jl-only"
