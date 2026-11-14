@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 const css = readFileSync(join(__dirname, "..", "styles", "tokens.css"), "utf8");
 const screens = readFileSync(join(__dirname, "..", "styles", "screens.css"), "utf8");
+const changes = readFileSync(join(__dirname, "..", "features", "diff", "changes.css"), "utf8");
 
 function block(selector: string): Map<string, string> {
   const start = css.indexOf(`\n${selector} {`);
@@ -89,9 +90,31 @@ describe.each([
     expect(gutter).not.toEqual(card);
   });
 
-  it("defines the changed-word grounds", () => {
-    expect(resolve(fam, "--diff-add-word")).not.toBe("");
-    expect(resolve(fam, "--diff-del-word")).not.toBe("");
+  // 바뀐 단어의 바탕은 줄 바탕 위에 겹친다(다크는 rgba) — 그 위 글자는 줄 종류의 글자색이다(아래 규칙).
+  it("a changed word's ink reads at 4.5:1 on its ground (word over line over card)", () => {
+    for (const kind of ["add", "del"] as const) {
+      const line = rgb(resolve(fam, `--diff-${kind}-bg`), card);
+      const word = rgb(resolve(fam, `--diff-${kind}-word`), line);
+      expect(ratio(rgb(resolve(fam, `--diff-${kind}-text`), card), word), kind).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  // 본 파일 행은 이름만 --text-2 로 한 단 내린다 — 목록 칸의 두 바탕(묶음 밖 · 묶음 안) 위에서 읽혀야 한다.
+  it("a viewed row's name (--text-2) reads on the list grounds", () => {
+    const ink = rgb(resolve(fam, "--text-2"), card);
+    for (const ground of ["--bg-window", "--bg-content"]) {
+      expect(ratio(ink, rgb(resolve(fam, ground), card)), ground).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
+
+describe("viewed rows", () => {
+  // opacity 0.55 로 행을 흐리던 때 폴더 · 시각이 라이트에서 2.3:1 이었다 — 누를 수 있는 행인데 읽히지 않았다.
+  it("are not dimmed with opacity — the name steps down to --text-2", () => {
+    const rules = [...changes.matchAll(/([^{}]*is-viewed[^{}]*)\{([^}]*)\}/g)];
+    expect(rules.length).toBeGreaterThan(0);
+    for (const [, , body] of rules) expect(body).not.toMatch(/opacity/);
+    expect(changes).toMatch(/\.is-viewed[^{]*\.chg-base \{[^}]*color: var\(--text-2\)/);
   });
 });
 
@@ -99,6 +122,12 @@ describe("markers and numbers", () => {
   it("the +/- marker carries no opacity — it takes the line kind's colour", () => {
     const rule = /\n\.dl-mark \{([^}]*)\}/.exec(screens)?.[1] ?? "";
     expect(rule).not.toMatch(/opacity/);
+  });
+
+  // 문법 색은 바뀐 단어 바탕 위에서 4.2:1(라이트 del 위 문자열) · 3.3:1(다크 add 위 주석)까지 내려갔다.
+  it("a changed word takes the line kind's ink, not the syntax colours", () => {
+    expect(screens).toMatch(/\.dl\.add \.dl-word, \.dl-x\.add \.dl-word \{[^}]*(?<![-\w])color: var\(--diff-add-text\)/);
+    expect(screens).toMatch(/\.dl\.del \.dl-word, \.dl-x\.del \.dl-word \{[^}]*(?<![-\w])color: var\(--diff-del-text\)/);
   });
 
   it("gutter numbers and the +N/-M summary use the -text tier", () => {

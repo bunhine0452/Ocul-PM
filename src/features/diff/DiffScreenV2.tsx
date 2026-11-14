@@ -96,18 +96,27 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
   const generated = useMemo(() => generatedSet(changes, list.marked), [changes, list.marked]);
   const missing = useMemo(() => new Set(missingGroupKeys(buckets.groups, entries)), [buckets.groups, entries]);
 
-  // 처음 고르기는 묶음이 올 때까지(최대 300ms) 미룬다 — 가장 최근 파일을 먼저 골랐다가 일지 없는 첫
-  // 파일로 다시 튀며 첫 진입이 세 번 흔들렸다.
+  // 처음 고르기는 묶음 · 생성 표지가 올 때까지(최대 300ms) 미룬다 — 가장 최근 파일을 먼저 골랐다가 일지
+  // 없는 첫 파일로 다시 튀며 첫 진입이 세 번 흔들렸다. 표지를 안 기다리면 `bindings.ts` 를 처음 골랐다.
   const [waited, setWaited] = useState(false);
   useEffect(() => {
     const id = setTimeout(() => setWaited(true), FIRST_PICK_WAIT_MS);
     return () => clearTimeout(id);
   }, []);
   const file = useDiffFile(projectId, changes, baseline, {
-    autoSelect: (buckets.known && entriesReady) || waited,
+    autoSelect: (buckets.known && entriesReady && list.markedReady) || waited,
     ignoreWhitespace,
   });
   const { selected, select } = file;
+  // 사람이 고른 횟수 — 일지에서 건너온 늦은 답이 그 사이 사람이 고른 파일을 덮지 않게(목록 · 키가 이것으로 고른다).
+  const handPicks = useRef(0);
+  const pick = useCallback(
+    (path: string) => {
+      handPicks.current += 1;
+      select(path);
+    },
+    [select],
+  );
   const diffPath = file.diff?.path ?? null;
   const diffPatch = file.diff && "patch" in file.diff.source ? file.diff.source.patch : null;
 
@@ -152,8 +161,13 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
     if (selected && generated.has(selected)) setGenOpen(true);
   }, [selected, generated]);
 
-  // 건너온 한 번짜리 지정(`diffActivePath`)이 있으면 그쪽이 처음 고르기를 이긴다.
-  const handedOff = useRef(state.diffActivePath != null);
+  // 건너온 한 번짜리 지정(`diffActivePath`)이 있으면 그쪽이 처음 고르기를 이긴다 — 고른 것은 기준선이 바뀌어도
+  // 덮지 않는다. 아무 파일도 못 골랐을 때만(「이 일지의 파일은 지금 변경에 없어요」) 처음 고르기가 돈다 — 풀지
+  // 않던 때는 예외 먼저 고르기 대신 가장 최근 파일이 섰다.
+  const [handingOff, setHandingOff] = useState(() => state.diffActivePath != null);
+  const onHandoffDone = useCallback((picked: boolean) => {
+    if (!picked) setHandingOff(false);
+  }, []);
   useDiffHandoff({
     projectId,
     buckets,
@@ -161,28 +175,36 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
     ready: !list.listLoading && (buckets.known || waited || list.enrichError != null),
     select,
     expand,
+    handPicks,
+    onDone: onHandoffDone,
   });
 
   // 처음 고르기 — 일지 없는 첫 파일, 없으면 검증 없는 첫 묶음의 첫 파일. 기준선이 바뀌면 다시 한 번.
   const pickedFor = useRef<DiffBaseline | null>(null);
   useEffect(() => {
-    if (handedOff.current || !buckets.known || !entriesReady || pickedFor.current === baseline) return;
+    if (handingOff || !buckets.known || !entriesReady || !list.markedReady || pickedFor.current === baseline) return;
     pickedFor.current = baseline;
-    const pick = firstPick(buckets, missing, generated, changes);
-    if (pick) select(pick);
-  }, [buckets, baseline, entriesReady, missing, generated, changes, select]);
+    const first = firstPick(buckets, missing, generated, changes);
+    if (first) select(first);
+  }, [handingOff, buckets, baseline, entriesReady, list.markedReady, missing, generated, changes, select]);
 
   const splitRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   // 포커스는 목록이 처음 생긴 순간에 — 마운트 때는 아직 목록이 없어(git status · 워처를 기다린다)
-  // 포커스가 갈 곳이 없었고, 그래서 j/k 가 먹지 않았다.
+  // 포커스가 갈 곳이 없었고, 그래서 j/k 가 먹지 않았다. 입력칸에 쓰는 중이거나 대화상자 안이면 그대로 둔다:
+  // 워처가 늦게 목록을 채울 때 열린 치트시트 · 확인 창의 포커스가 뒤 화면으로 빠지면 포커스 가둠이 깨진다.
   const hasList = changes.length > 0;
   useEffect(() => {
     if (!hasList) return;
     const el = document.activeElement as HTMLElement | null;
-    const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
-    if (!typing) splitRef.current?.focus({ preventScroll: true });
+    const busy =
+      !!el &&
+      (el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA" ||
+        el.isContentEditable ||
+        el.closest('[role="dialog"], [aria-modal="true"], dialog') != null);
+    if (!busy) splitRef.current?.focus({ preventScroll: true });
   }, [hasList]);
   useEffect(() => {
     if (!selected) return;
@@ -305,11 +327,12 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
     };
   }, [projectId, sentKey]);
 
-  // 봤음 — (경로, 그때 패치 해시). 다시 바뀌면 풀려 예외로 다시 선다.
+  // 봤음 — (경로, 그때 패치 해시). 다시 바뀌면 풀려 예외로 다시 선다. 공백 무시는 본문을 읽은 때의 값이다
+  // (토글 직후 다시 읽기 전의 본문을 새 토글 값의 해시로 견주면 「본 뒤 바뀜」 이 한 번 깜빡였다).
   const viewedMap = useViewed(projectId);
   const currentHash = useMemo(
-    () => (diffPatch != null && !file.loading ? { hash: patchHash(diffPatch), ws: ignoreWhitespace } : null),
-    [diffPatch, file.loading, ignoreWhitespace],
+    () => (diffPatch != null && !file.loading ? { hash: patchHash(diffPatch), ws: file.diffWs } : null),
+    [diffPatch, file.loading, file.diffWs],
   );
   const viewStateFor = useCallback(
     (path: string) =>
@@ -326,8 +349,12 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
       return;
     }
     const hash = diffPath === selected && diffPatch != null ? patchHash(diffPatch) : "";
-    setViewed(projectId, key, { hash, ts: changeByPath.get(selected)?.ts ?? 0, ws: ignoreWhitespace });
-  }, [selected, baseline, viewStateFor, projectId, diffPath, diffPatch, changeByPath, ignoreWhitespace]);
+    setViewed(projectId, key, { hash, ts: changeByPath.get(selected)?.ts ?? 0, ws: file.diffWs });
+  }, [selected, baseline, viewStateFor, projectId, diffPath, diffPatch, changeByPath, file.diffWs]);
+
+  // 공백 무시는 git 갈래에만 걸린다 — 스냅샷 · 기준본 없는 새 파일 · 바이너리를 보는 중이면 막고 이유를 말한다.
+  const wsBlocked =
+    file.diff && file.diff.path === selected && file.diff.source.source !== "git" ? t("diff.ignoreWhitespaceGitOnly") : null;
 
   const onKeyDown = useDiffKeys({
     buckets,
@@ -337,7 +364,7 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
     generated,
     generatedOpen: genOpen,
     selected,
-    select,
+    select: pick,
     patch: diffPatch,
     notedFiles,
     toggleViewed,
@@ -429,7 +456,7 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
             selected={selected}
             open={open}
             onToggle={toggleGroup}
-            onSelect={select}
+            onSelect={pick}
             listRef={listRef}
             generated={generated}
             generatedOpen={genOpen}
@@ -461,6 +488,7 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
               viewed={selectedViewed}
               mode={diffMode}
               ignoreWhitespace={ignoreWhitespace}
+              wsBlocked={wsBlocked}
               onToggleViewed={toggleViewed}
               onAsk={() => void askFile()}
               onMode={setMode}
@@ -479,7 +507,7 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
                   baseline={baseline}
                   projectId={projectId}
                   notes={noteTarget}
-                  ignoreWhitespace={ignoreWhitespace}
+                  ignoreWhitespace={file.diffWs}
                   onOpenLine={openLine}
                   onOpenEditor={onOpenEditor}
                 />

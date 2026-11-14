@@ -74,7 +74,7 @@
 
   /* diff — 줄 안의 글자(코드 · 거터 숫자 · 표식 · +N)는 -text 단이다(카드 · add · del 위 4.5:1 이상).
      -line 은 글자가 아닌 표시(바이너리 크기 증감)만. -word 는 짝지은 줄 안에서 바뀐 단어의 한 단
-     진한 바탕 (11-15 #diff-basics). */
+     진한 바탕 (11-15 #diff-basics) — 그 위 글자는 문법 색이 아니라 -text 다(4.5:1, `diff_contrast`). */
   --diff-add-bg: #e6f6ec;   --diff-add-line: #1f9d57;  --diff-add-text: #0e6b39;
   --diff-del-bg: #fbe9e9;   --diff-del-line: #d6443c;  --diff-del-text: #9b2820;
   --diff-add-word: #d3f1dd; --diff-del-word: #f9dcdb;
@@ -431,7 +431,8 @@
 
   --diff-add-bg: rgba(46,160,87,0.16);  --diff-add-line: #3fb950;  --diff-add-text: #6cd584;
   --diff-del-bg: rgba(214,68,60,0.16);  --diff-del-line: #f1685f;  --diff-del-text: #f7918a;
-  --diff-add-word: rgba(46,160,87,0.26); --diff-del-word: rgba(214,68,60,0.26);
+  /* 바뀐 단어 바탕은 줄 바탕 위에 겹친다 — del 은 0.26 이면 줄 글자색이 4.51:1 로 문턱에 붙어 한 단 옅게. */
+  --diff-add-word: rgba(46,160,87,0.26); --diff-del-word: rgba(214,68,60,0.22);
 
   /* status — 다크: 채도를 낮추고 명도를 올린다 (트리거 색과 같은 규칙). */
   --ok: #34d095;      --ok-text: #6cd584;     --ok-soft: rgba(52,208,149,0.16);

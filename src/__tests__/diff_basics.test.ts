@@ -10,7 +10,7 @@ import { PatchView } from "@/features/diff/PatchView";
 import { isLockFile } from "@/features/diff/changeList";
 import { markRanges, wordRanges } from "@/features/diff/diffWords";
 import { t } from "@/i18n";
-import { entryGroup, fx, looseGroup, renderDiffScreen, resetFx, seed } from "./helpers/diffScreenFx";
+import { activeName, entryGroup, fx, looseGroup, renderDiffScreen, resetFx, seed } from "./helpers/diffScreenFx";
 
 beforeEach(resetFx);
 afterEach(cleanup);
@@ -58,6 +58,18 @@ describe("ignore whitespace", () => {
     fireEvent.click(getByRole("button", { name: t("diff.ignoreWhitespace") }));
     await waitFor(() => expect(container.textContent).toContain(t("diff.onlyWhitespace")));
   });
+
+  // 기준본 없는 빈 새 파일은 「커밋과 같아요」 가 아니고, 공백 무시는 그 본문에 걸리지 않는다.
+  it("is blocked with a reason on a new file, which says it is empty rather than unchanged", async () => {
+    seed([{ path: "src/__init__.py", op: "A" }]);
+    const patch = "diff --git a/src/__init__.py b/src/__init__.py\n--- /dev/null\n+++ b/src/__init__.py\n";
+    fx.diffByPath["src/__init__.py"] = { path: "src/__init__.py", source: { source: "new_file", patch }, truncated: null };
+    const { container, getByRole } = renderDiffScreen();
+    await waitFor(() => expect(container.textContent).toContain(t("diff.emptyNewFile")));
+    const toggle = getByRole("button", { name: t("diff.ignoreWhitespace") });
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
+    expect(toggle.title).toBe(t("diff.ignoreWhitespaceGitOnly"));
+  });
 });
 
 describe("generated files fold to one line at the end", () => {
@@ -81,6 +93,19 @@ describe("generated files fold to one line at the end", () => {
       "src/gen.ts",
       "Cargo.lock",
     ]);
+  });
+
+  // 표지가 묶음보다 늦게 오면 처음 고르기가 표지 파일(bindings.ts 같은)을 골랐다 — 표지를 기다린다.
+  it("the first pick waits for the markers and never opens on a marked file", async () => {
+    fx.groups = [looseGroup(["src/gen.ts", "src/a.ts"])];
+    fx.generated = ["src/gen.ts"];
+    let release = () => {};
+    fx.generatedGate = new Promise<void>((r) => (release = r));
+    seed(["src/a.ts", "src/gen.ts"].map((path) => ({ path, op: "M" as const })));
+    const { container } = renderDiffScreen();
+    await waitFor(() => expect(container.querySelector(".chg-bh")?.textContent).toContain(t("diff.unrecorded.label")));
+    release();
+    await waitFor(() => expect(activeName(container)).toBe("src/a.ts"));
   });
 });
 

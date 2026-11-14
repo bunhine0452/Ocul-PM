@@ -27,6 +27,13 @@ function seedTwo() {
 }
 
 const row = (el: HTMLElement, path: string) => el.querySelector(`.chg-item[data-path="${path}"]`);
+const isViewed = (el: HTMLElement, path: string) => row(el, path)?.classList.contains("is-viewed") ?? false;
+const split = (el: HTMLElement) => el.querySelector(".chg-split")!;
+const patchOf = (path: string, line: string) => ({
+  path,
+  source: { source: "git", patch: `diff --git a/${path} b/${path}\n@@ -1,2 +1,2 @@\n context line\n-old line\n+${line}\n` },
+  truncated: null,
+});
 
 describe("the unchecked group comes first", () => {
   it("sorts the no-verification group first, opens it, and picks its first file", async () => {
@@ -67,6 +74,41 @@ describe("viewed", () => {
     await waitFor(() => expect(row(container, "src/b1.ts")?.classList.contains("is-viewed")).toBe(false));
     expect(row(container, "src/b1.ts")?.querySelector(".chg-changed")?.getAttribute("aria-label")).toBe(t("diff.changedSinceViewed"));
     expect(container.querySelector(".chg-viewed")).toBeNull();
+  });
+
+  // 열쇠의 다른 절반 — 시각이 그대로인 자리(git 바탕 행 ts 0 · 최근 커밋)는 패치 해시만이 풀어 준다.
+  it("unmarks itself when the file's patch changes even though its time did not", async () => {
+    seedTwo();
+    const { container } = renderDiffScreen();
+    await waitFor(() => expect(container.textContent).toContain("new line"));
+    fireEvent.keyDown(split(container), { key: "v" });
+    await waitFor(() => expect(isViewed(container, "src/b1.ts")).toBe(true));
+    fx.diffByPath["src/b1.ts"] = patchOf("src/b1.ts", "rewritten line");
+    fireEvent.keyDown(split(container), { key: "j" });
+    await waitFor(() => expect(activeName(container)).toBe("src/b2.ts"));
+    expect(isViewed(container, "src/b1.ts")).toBe(true);
+    fireEvent.keyDown(split(container), { key: "k" });
+    await waitFor(() => expect(container.textContent).toContain("rewritten line"));
+    await waitFor(() => expect(isViewed(container, "src/b1.ts")).toBe(false));
+    expect(row(container, "src/b1.ts")?.querySelector(".chg-changed")).not.toBeNull();
+  });
+
+  it("stays viewed when Ignore whitespace reads a different patch, and unmarks when the same view differs", async () => {
+    seedTwo();
+    const { container } = renderDiffScreen();
+    await waitFor(() => expect(container.textContent).toContain("new line"));
+    fireEvent.keyDown(split(container), { key: "v" });
+    await waitFor(() => expect(isViewed(container, "src/b1.ts")).toBe(true));
+    const toggle = () => [...container.querySelectorAll(".chg-fh button")].find((b) => b.textContent === t("diff.ignoreWhitespace"))!;
+    // 보기 방식이 달라 패치가 다른 것이지 파일이 바뀐 것이 아니다.
+    fx.diffByPath["src/b1.ts"] = patchOf("src/b1.ts", "seen without whitespace");
+    fireEvent.click(toggle());
+    await waitFor(() => expect(container.textContent).toContain("seen without whitespace"));
+    expect(isViewed(container, "src/b1.ts")).toBe(true);
+    // 공백 무시를 끄고 다시 읽은 패치가 봤을 때와 다르면 그사이 바뀐 것이다.
+    fireEvent.click(toggle());
+    await waitFor(() => expect(fx.computeCalls.filter((c) => c[1] === "src/b1.ts" && c[4] === false)).toHaveLength(2));
+    await waitFor(() => expect(isViewed(container, "src/b1.ts")).toBe(false));
   });
 });
 

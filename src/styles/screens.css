@@ -55,9 +55,11 @@
 .dl.split .dl-x.empty { background: var(--bg-inset); opacity: 0.4; }
 /* 표식 줄 — git 의 `\ No newline at end of file` 을 「파일 끝 줄바꿈 없음」 으로. 번호 · 메모 단추 없음. */
 .dl.meta .dl-x { color: var(--text-2); font-family: var(--font); }
-/* 바뀐 단어 — 짝지은 줄 안에서 바뀐 조각만 한 단 진하게 (11-15 #diff-basics). */
-.dl.add .dl-word, .dl-x.add .dl-word { background: var(--diff-add-word); border-radius: var(--radius-2xs); }
-.dl.del .dl-word, .dl-x.del .dl-word { background: var(--diff-del-word); border-radius: var(--radius-2xs); }
+/* 바뀐 단어 — 짝지은 줄 안에서 바뀐 조각만 한 단 진하게 (11-15 #diff-basics). 그 안의 글자는 문법 색이 아니라
+   줄 종류의 글자색이다: 한 단 진한 바탕 위에서 문법 색은 4.5:1 을 못 넘었다(라이트 del 위 문자열 4.2, 다크 add 위
+   주석 3.3) — 사람이 가장 먼저 읽을 토큰이었다. `.dl-word` 는 늘 글자만 담은 잎 span 이다(`markRanges`). */
+.dl.add .dl-word, .dl-x.add .dl-word { background: var(--diff-add-word); color: var(--diff-add-text); border-radius: var(--radius-2xs); }
+.dl.del .dl-word, .dl-x.del .dl-word { background: var(--diff-del-word); color: var(--diff-del-text); border-radius: var(--radius-2xs); }
 /* 잘린 diff 의 영수증 줄 — 「64 KB / 212 KB 만 보여요 · 편집기에서 열기」. 숫자는 mono. */
 .diff-cut { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); padding: var(--space-4) var(--space-6); border-top: 1px solid var(--sep); color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); }
 .diff-cut .mono { font-variant-numeric: tabular-nums; color: var(--text); }

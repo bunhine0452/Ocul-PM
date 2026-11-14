@@ -107,7 +107,7 @@ describe("변경 바닥줄 — 일지의 확인 토글", () => {
     const { getByRole } = render(
       <DiffEntryFooter projectId={1} group={group(false)} onToggleVerified={onToggleVerified} />,
     );
-    const btn = getByRole("button", { name: ko["diff.markRead"] });
+    const btn = getByRole("button", { name: ko["entry.verify"] });
     expect(btn).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(btn);
     expect(onToggleVerified).toHaveBeenCalledWith("j/1.md", true);
@@ -119,7 +119,7 @@ describe("변경 바닥줄 — 일지의 확인 토글", () => {
     const { getByRole } = render(
       <DiffEntryFooter projectId={1} group={group(true, true)} onToggleVerified={onToggleVerified} />,
     );
-    const btn = getByRole("button", { name: ko["diff.markRead"] });
+    const btn = getByRole("button", { name: ko["entry.verify"] });
     expect(btn).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(btn);
     expect(onToggleVerified).toHaveBeenCalledWith("j/1.md", true);

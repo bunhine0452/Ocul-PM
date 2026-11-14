@@ -42,16 +42,15 @@ interface ChangeFileListProps {
   viewedCount: { n: number; m: number } | null;
 }
 
-/** 오늘이면 시각만, 아니면 날짜와 시각. */
-function stamp(iso: string | null, t: T): string {
-  if (!iso) return "";
+/** 오늘이면 시각만, 아니면 날짜와 시각 — 시각만 mono 로 그린다(영수증 규칙 2, 날짜는 사람 말). */
+function stamp(iso: string | null, t: T): { day: string | null; time: string } | null {
+  if (!iso) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})T/.exec(iso);
-  if (!m) return "";
+  if (!m) return null;
   const today = new Date();
   const same =
     Number(m[1]) === today.getFullYear() && Number(m[2]) === today.getMonth() + 1 && Number(m[3]) === today.getDate();
-  const time = timeLabel(iso);
-  return same ? time : `${t("journal.dayMd", { m: String(Number(m[2])), d: String(Number(m[3])) })} ${time}`;
+  return { day: same ? null : t("journal.dayMd", { m: String(Number(m[2])), d: String(Number(m[3])) }), time: timeLabel(iso) };
 }
 
 /** 파일 한 줄 — 바뀐 종류(M · A · D) · 경로 · 메모 수 · 본 뒤 바뀜 · 시각 (화면 검사 #diff-rows). */
@@ -164,7 +163,12 @@ export function ChangeFileList({
           </span>
           <span className="chg-meta">
             {t(kind.labelKey)}
-            {when ? ` · ${when}` : null}
+            {when ? (
+              <>
+                {when.day ? ` · ${when.day} ` : " · "}
+                <span className="chg-when">{when.time}</span>
+              </>
+            ) : null}
             {state === "command" ? <span className="chg-ok"> · ✓ {t("diff.evidence.command")}</span> : null}
             {state === "confirmed" ? <span className="chg-ok"> · ✓ {t("entry.verified")}</span> : null}
             {state === "missing" ? <span className="chg-warn"> · {t("journal.evidence.missing")}</span> : null}
@@ -244,7 +248,25 @@ export function ChangeFileList({
           {generatedOpen ? genList.map((p) => fileRow(p, true)) : null}
         </div>
       ) : null}
-      <p className="chg-keys">{t("diff.keysHint")}</p>
+      <KeysHint text={t("diff.keysHint")} />
     </div>
+  );
+}
+
+/**
+ * 키 안내 — 항목(「j k 파일」)은 줄에서 쪼개지 않고, 가운뎃점은 앞 항목에 붙인다: 꺾이는 자리는 「·」 뒤뿐이라
+ * 둘째 줄이 「·」 로 시작하지 않는다.
+ */
+function KeysHint({ text }: { text: string }) {
+  const items = text.split(" · ");
+  return (
+    <p className="chg-keys">
+      {items.map((item, i) => (
+        <span key={item}>
+          <span className="chg-key">{i < items.length - 1 ? `${item} ·` : item}</span>
+          {i < items.length - 1 ? " " : null}
+        </span>
+      ))}
+    </p>
   );
 }
