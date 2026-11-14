@@ -154,7 +154,7 @@ export function ProjectSection({ id, arrived }: { id: string; arrived?: number }
         label={t("prefs.data.cache")}
         meta={t("prefs.data.rebuildHint")}
         actions={
-          <button type="button" className="btn sm" onClick={() => void rebuild()} disabled={rebuilding || projectId == null}>
+          <button type="button" className="btn sm" onClick={() => void rebuild()} disabled={rebuilding}>
             {t("prefs.data.rebuild")}
           </button>
         }
