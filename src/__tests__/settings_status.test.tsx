@@ -9,6 +9,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 const fx = vi.hoisted(() => ({
   settingsSet: vi.fn(async (_k: string, _v: string) => ({ status: "ok", data: null })),
   pluginCalls: 0,
+  pluginFails: false,
   plugin: {} as Record<string, unknown>,
   health: { db_bytes: 1000, wal_bytes: 24, free_bytes: 200 } as Record<string, number | null>,
 }));
@@ -25,7 +26,7 @@ vi.mock("@/lib/bindings", () => {
           if (prop === "claudePluginStatus")
             return () => {
               fx.pluginCalls += 1;
-              return ok(fx.plugin);
+              return fx.pluginFails ? Promise.resolve({ status: "error" as const, error: "boom" }) : ok(fx.plugin);
             };
           if (prop === "oculpmAgentsCheckMasterUpgrade") return () => ok(null);
           if (prop === "oculpmAgentsCheckMasterAhead") return () => ok(null);
@@ -71,6 +72,7 @@ const section = (title: string) => screen.getByRole("region", { name: title });
 beforeEach(() => {
   setLangSetting("ko");
   fx.pluginCalls = 0;
+  fx.pluginFails = false;
   fx.plugin = { installed: true, path: "/p", installed_version: "4.3.0", scope: "user", bundled_version: "4.4.0", behind: true };
   fx.health = { db_bytes: 1000, wal_bytes: 24, free_bytes: 200 };
 });
@@ -134,6 +136,20 @@ describe("agents", () => {
     await waitFor(() => expect(fx.pluginCalls).toBe(2));
     fireEvent.click(within(section(t("prefs.agents.title"))).getByRole("button", { name: t("prefs.recheck") }));
     await waitFor(() => expect(fx.pluginCalls).toBe(3));
+  });
+
+  // 한 번의 실패(null)로 알던 답을 덮으면 맨 위 「고칠 것」 의 뒤처짐까지 내려갔다 — Codex · MCP 와 같은 규칙.
+  it("keeps what it knew when asking again fails once", async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector(".prefs-fixes")).not.toBeNull());
+    fx.pluginFails = true;
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() => expect(fx.pluginCalls).toBe(2));
+    await act(() => new Promise((r) => setTimeout(r, 20)));
+    expect(container.querySelector(".prefs-fixes")).not.toBeNull();
+    expect(within(section(t("prefs.agents.title"))).queryByText(t("prefs.unknown"))).toBeNull();
   });
 
   it("shows a missing plugin as a warn chip", async () => {

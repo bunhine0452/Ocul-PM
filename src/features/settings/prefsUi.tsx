@@ -32,7 +32,10 @@ export function PrefsCard({
       <div className="prefs-head">
         {/* 도착 표시 — 새로 그려질 때만 옅은 면에서 사라진다(@starting-style). 움직임은 응답일 때만. */}
         {arrived > 0 ? <span key={arrived} className="prefs-arrive" aria-hidden="true" /> : null}
-        <h2 id={titleId}>{title}</h2>
+        {/* tabIndex -1 — 다른 곳에서 이 칸으로 바로 오면 포커스가 여기 선다(Tab 차례에는 들지 않는다). */}
+        <h2 id={titleId} tabIndex={-1}>
+          {title}
+        </h2>
         {action ? <div className="prefs-head-act">{action}</div> : null}
       </div>
       {children}

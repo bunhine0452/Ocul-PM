@@ -50,11 +50,12 @@ function ClaudeRow({ tick }: { tick: number }) {
   const { t } = useT();
   const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
   const [probe, setProbe] = useState<Probe<ClaudePluginStatus>>({ state: "loading" });
-  // 다시 물을 때는 지금 답을 둔 채 묻는다 — 창을 앞으로 가져올 때마다 「확인 중」 이 깜빡이지 않게.
+  // 다시 물을 때는 지금 답을 둔 채 묻는다 — 창을 앞으로 가져올 때마다 「확인 중」 이 깜빡이지 않게. 다시 묻기가
+  // 한 번 실패해도(null) 알고 있던 답을 둔다: 덮으면 맨 위 「고칠 것」 의 플러그인 뒤처짐까지 내려갔다(Codex · MCP 와 같은 규칙).
   useEffect(() => {
     let alive = true;
     void claudeInstallApi.pluginStatus(projectId).then((s) => {
-      if (alive) setProbe(s ? { state: "ok", value: s } : { state: "unknown" });
+      if (alive) setProbe((p) => (s ? { state: "ok", value: s } : p.state === "ok" ? p : { state: "unknown" }));
     });
     return () => {
       alive = false;
