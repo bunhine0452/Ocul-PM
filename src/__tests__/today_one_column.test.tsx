@@ -105,13 +105,13 @@ describe("'next' is the last row of 'look first'", () => {
 });
 
 describe("unverified journals: five rows, then a number", () => {
-  it("shows 5 of 8 and says '3 more'; pressing it shows the rest", async () => {
+  it("shows 5 of 8 and says '3 more'; pressing it goes to the journal instead of growing here", async () => {
     fx.entries = Array.from({ length: 8 }, (_, i) => entry(i + 1, { type: "bug", evidence: 0 }));
-    renderToday();
+    const { onNavigate } = renderToday();
     await waitFor(() => expect(within(unreadCard()).getAllByRole("listitem")).toHaveLength(5));
     expect(unreadCard().querySelector(".tdy-cnt")?.textContent).toBe("8");
     fireEvent.click(screen.getByRole("button", { name: t("today.unread.more", { n: 3 }) }));
-    expect(within(unreadCard()).getAllByRole("listitem")).toHaveLength(8);
-    expect(screen.queryByRole("button", { name: t("today.unread.more", { n: 3 }) })).toBeNull();
+    expect(onNavigate).toHaveBeenCalledWith("journal");
+    expect(within(unreadCard()).getAllByRole("listitem")).toHaveLength(5);
   });
 });

@@ -18,6 +18,7 @@ import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { isEvidenceMissing } from "./evidenceState";
 import { foldedDayOf, ROW_LIMIT, visibleOrder } from "./journalOrder";
 import { rememberedJournal, rememberJournal } from "./journalMemory";
+import { consumeOnlyMissing, onOnlyMissing } from "./onlyMissing";
 import { JOURNAL_PAGE_SIZE, useJournalDays, type JournalDay } from "./useJournalDays";
 import { normalizeJournalRef, useJournalPlanLinks } from "./useJournalPlanLinks";
 import { useGoneJournals } from "./useGoneJournals";
@@ -147,7 +148,7 @@ export function JournalScreenV2({
   const rawDays: JournalDay[] | null = useMemo(() => {
     if (!searching) return feed.days;
     if (!rank) return found.days;
-    return found.ranked ? (found.ranked.length ? [{ workday: "", label: "", entries: found.ranked }] : []) : null;
+    return found.ranked ? (found.ranked.length ? [{ workday: "", entries: found.ranked }] : []) : null;
   }, [searching, rank, feed.days, found.days, found.ranked]);
   const loading = searching ? found.loading : feed.loading;
   const error = searching ? found.error : feed.error;
@@ -312,6 +313,14 @@ export function JournalScreenV2({
       cancelled = true;
     };
   }, [focusPath, openByPath, onFocusConsumed]);
+
+  // 오늘의 「N건 더」 가 「검증 없는 것만」 을 켜고 보냈다(`onlyMissing.ts`) — 설 때 회수하고, 서 있는 동안 온 요청은
+  // 구독으로 받는다. 거르기는 그대로 이 화면의 지역 상태다(다음에 열면 「전체」 로 시작한다).
+  useEffect(() => {
+    if (!active) return;
+    if (consumeOnlyMissing()) setOnlyMissing(true);
+    return onOnlyMissing(() => setOnlyMissing(true));
+  }, [active]);
 
   // Enter 로 고른 일지 — 새 상세가 선 다음에 포커스를 넘긴다.
   useEffect(() => {

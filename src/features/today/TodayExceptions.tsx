@@ -607,10 +607,8 @@ export function TodayExceptions({
 
 interface TodayUnreadProps {
   split: TodaySplit | null;
-  /** 지금 그리는 행 — `UNREAD_LIMIT` 행이거나, 펼쳤으면 전부. */
+  /** 지금 그리는 행 — 앞의 `UNREAD_LIMIT` 행. */
   shown: TodaySplit["unread"];
-  /** 「N건 더」 로 펼친 채인가 — 그러면 같은 단추가 「접기」 다. */
-  expanded: boolean;
   /** 첫 행의 키보드 목록 자리. */
   offset: number;
   navFor: (index: number) => RowNav;
@@ -621,18 +619,18 @@ interface TodayUnreadProps {
   onOpen: (entry: JournalEntrySummary) => void;
   onVerify: (entry: JournalEntrySummary) => void;
   onVerifyAll: (entries: JournalEntrySummary[]) => void;
-  onToggleMore: () => void;
+  /** 「N건 더」 — 일지 화면의 「검증 없는 것만」 으로 간다. */
+  onMore: () => void;
   isBusy: (id: string) => boolean;
 }
 
 /**
- * 「검증 없이 끝난 일지」 — 먼저 볼 것 아래 한 묶음, 처음엔 `UNREAD_LIMIT` 행 + 「N건 더」. 펼치면 같은 단추가
- * 「접기」 가 된다(같은 단추라 누른 뒤에도 포커스가 그 자리에 있다).
+ * 「검증 없이 끝난 일지」 — 먼저 볼 것 아래 한 묶음, `UNREAD_LIMIT` 행 + 「N건 더」. 나머지는 일지 화면의 「검증
+ * 없는 것만」 이 보여 준다(이 화면에서 펼치면 오늘이 둘째 일지 목록이 됐다).
  */
 export function TodayUnread({
   split,
   shown,
-  expanded,
   offset,
   navFor,
   showAgent,
@@ -640,7 +638,7 @@ export function TodayUnread({
   onOpen,
   onVerify,
   onVerifyAll,
-  onToggleMore,
+  onMore,
   isBusy,
 }: TodayUnreadProps) {
   const { t } = useT();
@@ -684,9 +682,9 @@ export function TodayUnread({
           />
         ))}
       </ul>
-      {hidden > 0 || expanded ? (
-        <button type="button" className="tdy-more" aria-expanded={expanded} onClick={onToggleMore}>
-          {expanded ? t("today.unread.less") : t("today.unread.more", { n: hidden })}
+      {hidden > 0 ? (
+        <button type="button" className="tdy-more" onClick={onMore}>
+          {t("today.unread.more", { n: hidden })}
         </button>
       ) : null}
     </section>

@@ -147,18 +147,14 @@ describe("the focus never falls to body when what held it goes away", () => {
     expect(document.activeElement).toBe(third);
   });
 
-  it("'N more' turns into 'show fewer' in place — the focus stays on it, and it folds back", async () => {
+  it("'N more' is a way to the journal, not a fold — no aria-expanded, and the list here stays five rows", async () => {
     fx.entries = Array.from({ length: 7 }, (_, i) => entry(i + 1, { type: "bug", evidence: 0, title: `unread ${i + 1}` }));
-    renderToday();
+    const { onNavigate } = renderToday();
     await waitFor(() => expect(rowsOf(unreadCard())).toHaveLength(5));
     const more = within(unreadCard()).getByRole("button", { name: t("today.unread.more", { n: 2 }) });
-    more.focus();
+    expect(more).not.toHaveAttribute("aria-expanded");
     fireEvent.click(more);
-    expect(rowsOf(unreadCard())).toHaveLength(7);
-    expect(document.activeElement).toBe(more);
-    expect(more).toHaveTextContent(t("today.unread.less"));
-    expect(more).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(more);
+    expect(onNavigate).toHaveBeenCalledWith("journal");
     expect(rowsOf(unreadCard())).toHaveLength(5);
   });
 });

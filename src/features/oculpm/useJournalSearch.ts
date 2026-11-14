@@ -127,7 +127,7 @@ export function useJournalSearch(
           const text = excerptOf(h);
           if (text) excerpts.set(e.relative_path, text);
         }
-        setResult({ query: q, days: groupByWorkday(ranked, todayKey), ranked, excerpts, total: page.total });
+        setResult({ query: q, days: groupByWorkday(ranked), ranked, excerpts, total: page.total });
       } catch (e) {
         if (cancelled) return;
         setError(tError(toAppError(e)));
