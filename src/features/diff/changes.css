@@ -48,8 +48,9 @@
 .chg-item.nested { padding-left: var(--space-8); background: var(--bg-content); }
 .chg-item.nested:hover { background: var(--bg-hover); }
 .chg-item.nested[aria-current="true"] { background: var(--bg-active); }
-/* 본 파일 — 흐리게 한 줄로 선다. 고르면 다시 또렷하다. */
-.chg-item.is-viewed:not([aria-current="true"]) .chg-r1 { opacity: 0.55; }
+/* 본 파일 — 이름만 한 단 옅게(--text-2, 어느 바탕에서도 4.5:1 이상). 고르면 다시 또렷하다. 행 전체를
+   opacity 0.55 로 흐리던 때 폴더 · 시각이 2.3:1 로 내려갔다 — 누를 수 있는 행인데 읽히지 않았다. */
+.chg-item.is-viewed:not([aria-current="true"]) .chg-base { color: var(--text-2); }
 .chg-r1 { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .chg-ti { flex: 1; min-width: 0; font-size: var(--fs-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chg-count { flex: none; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
@@ -65,7 +66,8 @@
 .chg-notes { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
 /* 본 뒤 바뀜 — 중립 회색 점 하나(색은 예외에만, 영수증 규칙 1). */
 .chg-changed { width: 6px; height: 6px; border-radius: 50%; background: var(--text-2); }
-.chg-when { font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* 시각은 기계 글씨 — 머리줄 「다시 바뀜」 · 묶음 메타의 시각과 같은 mono (영수증 규칙 2). */
+.chg-when { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .chg-ok { color: var(--text-2); } /* 통과는 조용히 — 영수증 규칙 1 */
 .chg-warn { color: var(--warn-text); font-weight: var(--fw-strong); }
 /* 경로 — 디렉터리부터 줄어들고 파일명은 온전히 남는다. */
@@ -78,8 +80,10 @@
 .chg-base { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 이름은 줄지 않고(폴더가 0 까지 먼저 준다), 이름만으로 칸을 넘을 때만 말줄임. 줄어드는 비율(100:1)로
    두던 때는 폴더와 이름이 같이 잘려 「src/features/she… ProjectSwitcher.t…」 처럼 두 번 끊겼다(11-04). */
-/* 키 안내 한 줄 — 목록 끝. */
-.chg-keys { margin: auto 0 0; padding: var(--space-5) var(--space-6); font-size: var(--fs-3); color: var(--text-2); }
+/* 키 안내 — 목록 끝. 284px 칸에서 둘째 줄로 꺾이면 마지막 한 항목만 홀로 내려가지 않게 고르게 나눈다. */
+.chg-keys { margin: auto 0 0; padding: var(--space-5) var(--space-6); font-size: var(--fs-3); color: var(--text-2); text-wrap: balance; }
+/* 항목은 쪼개지 않는다 — 「·」 는 앞 항목에 붙어 있어 꺾이는 자리는 「·」 뒤뿐이다. */
+.chg-key { white-space: nowrap; }
 
 /* ── 오른쪽 ───────────────────────────────────────────────────────────────── */
 .chg-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-card); outline: none; }
@@ -95,17 +99,29 @@
 .chg-banner.is-asked { border-color: var(--sep-strong); background: transparent; }
 .chg-banner-n { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; color: var(--text); }
 .chg-banner-text { flex: 1 1 200px; min-width: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
+/* 파일 머리줄 — 두 묶음: 이것이 무엇인가(경로 · 종류 · 숫자)와 동작. 둘이 한 줄에 서지 못하면 동작 묶음이
+   다음 줄 오른쪽으로 꺾이고, 그 줄도 모자라면 묶음 안에서 꺾인다. 한 줄로 밀어 넣던 때 720px 창(목록 284 +
+   본문 436)에서 머리줄이 넘치고 파일 이름 폭이 0 이었다(en 은 「Ignore whitespace」 까지 칸 밖으로 잘렸다). */
 .chg-fh {
-  display: flex; align-items: center; gap: var(--space-3);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4);
   padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--sep);
+}
+/* 이름은 0 폭으로 눌리지 않는다 — 곁의 칩 · 숫자 · 「다시 바뀜」 은 줄지 않고(flex none), 이름과 한 줄에 다 못 서면
+   이름 아래 줄로 꺾인다. 이름만 남은 줄에서는 폴더가 먼저 준다. (바닥 폭을 min-width 로 두면 짧은 이름 뒤에
+   빈칸이 섰다.) */
+.chg-fh-id { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+.chg-fh-act {
+  flex: 0 1 auto; min-width: 0; margin-left: auto;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2) var(--space-3);
 }
 /* 머리줄 경로 — 폴더 · 파일 두 조각. 폴더가 먼저 줄어 파일 이름이 끝까지 남는다. */
 .chg-fname { display: flex; align-items: baseline; min-width: 0; font-family: var(--mono); font-size: var(--fs-4); font-weight: var(--fw-strong); }
 .chg-fdir { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-weight: var(--fw-label); direction: rtl; text-align: left; }
 .chg-fbase { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chg-again { flex: none; font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 「11:42 에 다시 바뀜」 — 말은 본문 서체, 시각만 mono (영수증 규칙 2). */
+.chg-again { flex: none; font-size: var(--fs-3); color: var(--text-2); white-space: nowrap; }
+.chg-again .mono { font-variant-numeric: tabular-nums; }
 .chg-fh .chg-fh-wait { flex: none; padding: 0; }
-.chg-sp { flex: 1; }
 /* 눌린 토글(봤음 · 공백 무시 · 읽음) — ✓ 와 한 단 짙은 면. 초록은 쓰지 않는다(영수증 규칙 1). */
 .chg-fh .btn[aria-pressed="true"], .diff-entry-foot .btn[aria-pressed="true"] { background: var(--bg-active); border-color: var(--sep-strong); }
 /* 파일을 넘기는 동안 150ms 넘게 걸리면 이전 본문을 흐리게 — 다른 파일의 diff 를 읽지 않게. */
@@ -113,17 +129,21 @@
 
 /* 바닥줄 — 이 파일을 적은 일지의 검증 (DiffEntryFooter). 일지가 말한 것과 바뀐 것을 한 화면에서 붙여 본다. */
 .diff-entry-foot {
-  display: flex; align-items: center; gap: var(--space-3); min-height: var(--ctl-5); padding: 0 var(--space-4);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); min-height: var(--ctl-5);
+  padding: var(--space-1) var(--space-4);
   border-top: 1px solid var(--sep); background: var(--bg-inset); font-size: var(--fs-3); color: var(--text-2);
 }
+/* 단추 셋은 한 묶음 — 검증 줄이 12칸도 못 남기면 통째로 다음 줄 오른쪽으로 내려간다. */
+.def-act { flex: none; margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
 .diff-entry-foot[data-evidence="on"] > svg { color: var(--text-2); }
 .diff-entry-foot[data-evidence="off"] > svg { color: var(--warn-text); }
 .def-label { font-weight: var(--fw-bold); white-space: nowrap; }
-/* 검증 줄은 끝(결과)을 남기고 앞을 줄인다 — 앞 조각만 말줄임, 끝 조각은 그대로. */
-.def-line { display: flex; min-width: 0; color: var(--text); white-space: nowrap; }
-.def-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
-.def-tail { flex: none; white-space: pre; }
-.def-fill { flex: 1; }
+/* 검증 줄은 끝(결과)을 남기고 앞을 줄인다 — 앞 조각이 먼저 0 까지 줄고, 끝 조각은 칸 전체(100%)보다 길 때만
+   말줄임. 끝 조각이 칸 밖으로 못 줄던 때 좁은 창에서 최대 60자 mono 가 옆 단추 위로 넘쳐 겹쳤다. 둘 다 비율로
+   줄게 두면 넓은 창에서도 끝 조각이 한두 글자 잘렸다(줄어드는 몫은 너비에 비례한다). */
+.def-line { flex: 1 1 12ch; display: flex; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text); white-space: nowrap; }
+.def-head { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+.def-tail { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
 
 /* 좁은 창(≤640, 10-30) — 파일 목록이 위, diff 가 아래. 띠는 글이 먼저 한 줄을 갖고 단추는 아래로 내려간다
    (옆으로 서면 글이 한 글자씩 세로로 꺾였다). 파일 머리줄도 줄을 바꾼다. */
@@ -131,6 +151,6 @@
   .chg-split { flex-direction: column; }
   .chg-list { width: auto; max-width: none; max-height: 38%; border-right: 0; border-bottom: 1px solid var(--sep); }
   .chg-banner { margin: var(--space-4) var(--space-4) 0; }
-  .chg-fh { flex-wrap: wrap; padding: var(--space-3) var(--space-4); }
+  .chg-fh { padding: var(--space-3) var(--space-4); }
   .chg-keys { display: none; }
 }

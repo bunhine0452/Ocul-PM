@@ -16,6 +16,8 @@ import { toast } from "@/lib/toast";
  *
  * 11-15 (#diff-receipt): 검증 줄은 **끝(결과)을 남기고 가운데를 줄인다** — 끝에서 자르던 때 결과가 안
  * 보였다. 전문은 title. ✓ 는 누른 뒤에만 선다(누르기 전부터 ✓ 가 서 있었다).
+ * 읽음 단추의 이름은 일지 상세와 같은 낱말(`entry.verify`)이고, 설명은 키 표기 없이 따로 둔다 — 일지
+ * 상세의 설명은 「(v)」 를 알리는데, 이 화면의 v 는 파일의 「봤음」 이다(알린 키 = 듣는 키).
  */
 export function DiffEntryFooter({
   projectId,
@@ -72,27 +74,29 @@ export function DiffEntryFooter({
           "…"
         )}
       </span>
-      <span className="def-fill" />
-      {onOpenEntry ? (
-        <button type="button" className="btn ghost sm" onClick={() => onOpenEntry(path)}>
-          {t("diff.openEntry")}
+      {/* 동작 묶음 — 좁으면 통째로 다음 줄 오른쪽으로 꺾인다(검증 줄이 0 폭으로 눌리고 단추가 칸 밖으로 잘렸다). */}
+      <span className="def-act">
+        {onOpenEntry ? (
+          <button type="button" className="btn ghost sm" onClick={() => onOpenEntry(path)}>
+            {t("diff.openEntry")}
+          </button>
+        ) : null}
+        {first ? (
+          <button type="button" className="btn sm" onClick={copy}>
+            {t("diff.copyVerify")}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="btn sm"
+          aria-pressed={verified}
+          onClick={() => onToggleVerified(path, !verified)}
+          title={verified ? t("diff.unmarkReadTitle") : t("diff.markReadTitle")}
+        >
+          {verified ? <CheckMark size={13} aria-hidden="true" /> : null}
+          {verified ? t("entry.verified") : t("entry.verify")}
         </button>
-      ) : null}
-      {first ? (
-        <button type="button" className="btn sm" onClick={copy}>
-          {t("diff.copyVerify")}
-        </button>
-      ) : null}
-      <button
-        type="button"
-        className="btn sm"
-        aria-pressed={verified}
-        onClick={() => onToggleVerified(path, !verified)}
-        title={verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
-      >
-        {verified ? <CheckMark size={13} aria-hidden="true" /> : null}
-        {verified ? t("entry.verified") : t("diff.markRead")}
-      </button>
+      </span>
     </div>
   );
 }

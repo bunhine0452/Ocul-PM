@@ -37,6 +37,8 @@ export const fx = {
   uncommitted: [] as unknown[],
   lastCommit: null as unknown,
   generated: [] as string[],
+  /** 있으면 diff_generated_files 가 이것을 기다렸다가 답한다(표지가 늦게 오는 경우). */
+  generatedGate: null as Promise<unknown> | null,
   /** 경로 → 본문, 또는 오류 문장(read_project_file 봉투 오류). 없으면 「없음(os error 2)」. */
   files: new Map<string, { ok: string } | { err: string }>(),
   /** read_project_file 을 부른 경로들. */
@@ -54,6 +56,7 @@ export function resetBackend(): void {
   fx.uncommitted = [];
   fx.lastCommit = null;
   fx.generated = [];
+  fx.generatedGate = null;
   fx.files.clear();
   fx.reads.length = 0;
   fx.journal = null;
@@ -88,7 +91,10 @@ export function bindingsMock() {
             case "gitLastCommitChanges":
               return () => ok(fx.lastCommit);
             case "diffGeneratedFiles":
-              return () => ok(fx.generated);
+              return async () => {
+                if (fx.generatedGate) await fx.generatedGate;
+                return { status: "ok" as const, data: fx.generated };
+              };
             case "readProjectFile":
               return (_pid: number, path: string) => {
                 fx.reads.push(path);

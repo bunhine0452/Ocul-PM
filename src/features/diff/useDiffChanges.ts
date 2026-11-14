@@ -51,6 +51,8 @@ export interface DiffChanges {
   retryEnrich: () => void;
   /** 맨 위에 생성 표지가 든 파일 — 못 물으면 빈 집합(잠금 파일은 이름으로 따로 안다). */
   marked: ReadonlySet<string>;
+  /** 지금 경로 집합의 표지를 다 물었다 — 처음 고르기가 생성 파일을 피하려면 이것을 기다린다. */
+  markedReady: boolean;
 
   toggleVerified: (relativePath: string, next: boolean) => Promise<void>;
 }
@@ -166,11 +168,9 @@ export function useDiffChanges(projectId: number): DiffChanges {
   const changesRef = useRef(changes);
   changesRef.current = changes;
 
-  const [marked, setMarked] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
     if (changesRef.current.length === 0) {
       setGroups(null);
-      setMarked(new Set());
       return;
     }
     let cancelled = false;
@@ -186,15 +186,31 @@ export function useDiffChanges(projectId: number): DiffChanges {
         setGroups(null);
         setEnrichError(tError(toAppError(e)));
       });
-    // 생성 표지 — 접기만 바꾸는 곁들이라 실패해도 말하지 않는다(잠금 파일은 이름으로 접힌다).
-    diffApi
-      .generatedFiles(projectId, paths)
-      .then((data) => !cancelled && setMarked(new Set(Array.isArray(data) ? data : [])))
-      .catch(() => !cancelled && setMarked(new Set()));
     return () => {
       cancelled = true;
     };
   }, [projectId, pathKey, enrichNonce]);
+
+  // 생성 표지 — 접기만 바꾸는 곁들이라 실패해도 말하지 않는다(잠금 파일은 이름으로 접힌다). 경로 집합이 바뀔
+  // 때만 묻는다: 일지 이벤트(묶음 다시 받기)마다 바뀐 파일 전부의 앞 2KB 를 다시 읽던 것. 다시 묻는 동안은
+  // 직전 답을 둔다(생성된 파일 줄이 깜빡이지 않게).
+  const [marked, setMarked] = useState<{ key: string; set: ReadonlySet<string> } | null>(null);
+  useEffect(() => {
+    const paths = changesRef.current.map((c) => c.path);
+    if (paths.length === 0) {
+      setMarked(null);
+      return;
+    }
+    let cancelled = false;
+    const done = (set: ReadonlySet<string>) => !cancelled && setMarked({ key: pathKey, set });
+    diffApi
+      .generatedFiles(projectId, paths)
+      .then((data) => done(new Set(Array.isArray(data) ? data : [])))
+      .catch(() => done(new Set()));
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, pathKey]);
 
   // 그룹 머리글의 확인 토글 — 일지 상세와 같은 쓰기(프런트매터 → 캐시). 성공하면
   // 그룹 상태만 고쳐 다시 묶지 않는다 (검토 루프를 diff 안에서 닫는다, Phase 2).
@@ -235,7 +251,10 @@ export function useDiffChanges(projectId: number): DiffChanges {
     groups,
     enrichError,
     retryEnrich,
-    marked,
+    marked: marked?.set ?? NO_MARKS,
+    markedReady: marked?.key === pathKey,
     toggleVerified,
   };
 }
+
+const NO_MARKS: ReadonlySet<string> = new Set();

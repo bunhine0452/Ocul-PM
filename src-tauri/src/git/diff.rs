@@ -240,14 +240,21 @@ pub fn render_unified_diff_capped(
 /// 전체 크기 `total`. 예전엔 프런트가 파일을 크기 제한 없이 통째로 읽어(10MB 로그면 웹뷰가
 /// 멈췄다) 줄마다 `+` 를 붙였고, 끝 줄바꿈 뒤의 빈 조각까지 `+` 줄 하나로 세웠다. 이제 자른
 /// 자리는 줄 끝이고, 끝에 줄바꿈이 없으면 git 처럼 표식 줄을 단다.
+///
+/// 자른 자리와 보인 바이트는 **원래 바이트**에서 잰다 — lossy 로 바꾼 글자로 재면 UTF-8 이 아닌 파일
+/// (EUC-KR · Latin-1 로그)은 잘못된 바이트마다 U+FFFD(3바이트)로 부풀어, 100KB 파일이 「117 KB / 100 KB
+/// 만 보여요」 가 됐다. 화면에 보일 글만 lossy 로 만든다.
 pub fn new_file_patch(path: &str, head: &[u8], total: usize) -> CappedPatch {
     let partial = head.len() < total;
-    let text = String::from_utf8_lossy(head);
-    let body: &str = if partial {
-        text.rfind('\n').map_or(&text, |i| &text[..=i])
+    let kept: &[u8] = if partial {
+        head.iter()
+            .rposition(|&b| b == b'\n')
+            .map_or(head, |i| &head[..=i])
     } else {
-        &text
+        head
     };
+    let text = String::from_utf8_lossy(kept);
+    let body: &str = &text;
     let mut lines: Vec<&str> = body.split('\n').collect();
     let ends_with_newline = body.ends_with('\n');
     if ends_with_newline || body.is_empty() {
@@ -268,7 +275,7 @@ pub fn new_file_patch(path: &str, head: &[u8], total: usize) -> CappedPatch {
     CappedPatch {
         text: out,
         cut: partial.then_some(PatchCut {
-            shown: body.len(),
+            shown: kept.len(),
             total,
         }),
     }
@@ -550,5 +557,23 @@ mod tests {
         );
         let empty = new_file_patch("e.txt", b"", 0);
         assert!(!empty.text.contains("@@"));
+    }
+
+    /// UTF-8 이 아닌 큰 새 파일 — 보인 바이트는 원래 바이트로 센다(lossy 의 U+FFFD 로 부풀지 않는다).
+    #[test]
+    fn a_non_utf8_new_file_counts_shown_bytes_from_the_raw_bytes() {
+        // EUC-KR 「가나」 + 줄바꿈 한 줄 = 5바이트. 앞 64KB 를 읽었다고 치고 파일은 100KB.
+        let head: Vec<u8> = [0xB0u8, 0xA1, 0xB3, 0xAA, b'\n']
+            .iter()
+            .copied()
+            .cycle()
+            .take(64 * 1024)
+            .collect();
+        let p = new_file_patch("euc.log", &head, 100 * 1024);
+        let cut = p.cut.expect("cut");
+        let last_newline = head.iter().rposition(|&b| b == b'\n').unwrap();
+        assert_eq!(cut.shown, last_newline + 1);
+        assert!(cut.shown <= head.len() && cut.shown < cut.total);
+        assert!(p.text.contains('\u{FFFD}'), "보이는 글은 lossy 로");
     }
 }

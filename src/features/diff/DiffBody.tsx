@@ -29,7 +29,7 @@ interface DiffBodyProps {
   projectId: number;
   /** 줄 메모를 켠다 — 변경 화면만. */
   notes?: PatchNotes | null;
-  /** 공백 무시로 본 diff 다 — 비면 「공백만 바뀌었어요」. */
+  /** 이 본문을 공백 무시로 읽었다 — git 패치가 통째로 비었으면 「공백만 바뀌었어요」. */
   ignoreWhitespace?: boolean;
   /** 새 쪽 줄 번호 ⌘클릭 — 편집기에서 그 줄. */
   onOpenLine?: (line: number) => void;
@@ -71,13 +71,19 @@ export const DiffBody = memo(function DiffBody({
       </EmptyState>
     );
   }
-  // 덩이가 없으면 바뀐 줄이 없는 것이다 — 공백 무시로 비었으면 그렇다고 말한다.
+  // 덩이가 없으면 바뀐 줄이 없다 — 왜 없는지를 맞게 말한다. 「공백만」 은 공백 무시로 읽은 git 패치가 통째로
+  // 빈 때뿐이다(백엔드는 공백까지 보면 바뀐 추적 파일에만 그 답을 준다. 스냅샷 · 새 파일 갈래엔 공백 무시가
+  // 걸리지 않는다). 기준본 없는 빈 새 파일(`__init__.py` · `.gitkeep`)은 「커밋과 같아요」 가 아니다.
   if (!/^@@/m.test(src.patch)) {
+    const empty =
+      src.source === "new_file"
+        ? t("diff.emptyNewFile")
+        : ignoreWhitespace && src.source === "git" && src.patch.trim() === ""
+          ? t("diff.onlyWhitespace")
+          : t("diff.noChanges", { base: src.source === "snapshot" ? t("diff.baseSnapshot") : t("diff.baseHead") });
     return (
       <EmptyState align="start" density="compact">
-        {ignoreWhitespace
-          ? t("diff.onlyWhitespace")
-          : t("diff.noChanges", { base: src.source === "snapshot" ? t("diff.baseSnapshot") : t("diff.baseHead") })}
+        {empty}
       </EmptyState>
     );
   }

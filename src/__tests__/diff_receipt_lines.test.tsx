@@ -130,7 +130,7 @@ describe("the verification footer", () => {
     await waitFor(() => expect(container.querySelector(".def-line")?.getAttribute("title")).toBe(LINE));
     expect(container.querySelector(".def-tail")?.textContent).toBe(" · clippy -D warnings 0, eyes not checked");
     expect(getByRole("button", { name: t("diff.copyVerify") })).toBeTruthy();
-    const read = getByRole("button", { name: t("diff.markRead") });
+    const read = getByRole("button", { name: t("entry.verify") });
     expect(read.querySelector("svg")).toBeNull();
     expect(splitTail("short")).toEqual(["", "short"]);
   });

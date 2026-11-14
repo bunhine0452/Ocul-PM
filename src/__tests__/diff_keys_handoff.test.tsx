@@ -73,6 +73,15 @@ describe("handoff from a journal entry", () => {
     renderDiffScreen();
     await waitFor(() => expect(getToasts().some((x) => x.message === t("diff.handoffMissing"))).toBe(true));
   });
+
+  // 건너오기가 아무것도 못 고르면 처음 고르기(예외 먼저)가 돈다 — 가장 최근 파일(w1)이 서던 것.
+  it("lets the first pick run when the handoff found nothing", async () => {
+    fx.groups = [entryGroup("20260820/Bugs/1000_bug_a.md", "watch race", ["src/w1.ts"]), looseGroup(["src/loose.ts"])];
+    fx.journal = { frontmatter: { files_touched: [{ path: "src/gone.ts" }] } };
+    seed(["src/loose.ts", "src/w1.ts"].map((path) => ({ path, op: "M" as const })), { diffActivePath: "20260819/Bugs/old.md" });
+    const { container } = renderDiffScreen();
+    await waitFor(() => expect(activeName(container)).toBe("src/loose.ts"));
+  });
 });
 
 describe("focus", () => {
@@ -157,6 +166,47 @@ describe("keys the cheatsheet promises are keys the screen hears", () => {
     };
     expect(rows.map((r) => r.labelKey).sort()).toEqual(Object.keys(checks).sort());
     for (const r of rows) await checks[r.labelKey]();
+  });
+});
+
+describe("keys beyond the table", () => {
+  // 두벌식이면 e.key 가 ㅓ · ㅏ · ㅍ 로 온다 — 자리(e.code)로 듣는다.
+  it("hears the Korean layout by key position", async () => {
+    seedMixed({}, true);
+    const { container } = renderDiffScreen();
+    await waitFor(() => expect(activeName(container)).toBe("src/loose.ts"));
+    const split = container.querySelector(".chg-split")!;
+    fireEvent.keyDown(split, { key: "ㅓ", code: "KeyJ" });
+    await waitFor(() => expect(activeName(container)).toBe("src/w1.ts"));
+    fireEvent.keyDown(split, { key: "ㅏ", code: "KeyK" });
+    await waitFor(() => expect(activeName(container)).toBe("src/loose.ts"));
+  });
+
+  it("e opens the hunk on screen, not the one n/p last moved to", async () => {
+    seedMixed({}, true);
+    const { container } = renderDiffScreen();
+    await waitFor(() => expect(activeName(container)).toBe("src/loose.ts"));
+    fireEvent.keyDown(container.querySelector(".chg-split")!, { key: "j" });
+    await waitFor(() => expect(container.querySelectorAll(".diff-code .hunk-head")).toHaveLength(2));
+    // 마우스로 둘째 덩이까지 스크롤했다 — 첫 머리는 위로 지나갔고 둘째 머리가 맨 위에 걸쳤다.
+    const rect = (top: number) => ({ top, height: 20 }) as DOMRect;
+    const [first, second] = container.querySelectorAll<HTMLElement>(".diff-code .hunk-head");
+    container.querySelector<HTMLElement>(".diff-code")!.getBoundingClientRect = () => rect(100);
+    first.getBoundingClientRect = () => rect(-300);
+    second.getBoundingClientRect = () => rect(100);
+    fireEvent.keyDown(container.querySelector(".chg-split")!, { key: "e" });
+    await waitFor(() => expect(fx.openInEditor).toHaveBeenCalledWith("/tmp/proj", "src/w1.ts", expect.any(String), 21));
+  });
+
+  // 알린 키 = 듣는 키 — 바닥줄의 읽음 단추는 일지 상세의 「(v)」 설명을 빌려 쓰지 않는다.
+  it("only one control on the screen announces (v)", async () => {
+    seedMixed({}, true);
+    const { container } = renderDiffScreen();
+    await waitFor(() => expect(activeName(container)).toBe("src/loose.ts"));
+    fireEvent.keyDown(container.querySelector(".chg-split")!, { key: "j" });
+    await waitFor(() => expect(container.querySelector(".diff-entry-foot")).not.toBeNull());
+    const announcing = [...container.querySelectorAll("[title]")].filter((el) => el.getAttribute("title")!.includes("(v)"));
+    expect(announcing.map((el) => el.textContent)).toEqual([t("diff.viewed")]);
   });
 });
 

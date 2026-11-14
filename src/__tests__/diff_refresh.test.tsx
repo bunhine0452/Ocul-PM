@@ -2,12 +2,13 @@
 // 걷지 않아 스크롤이 남는다) 머리줄이 「11:42 에 다시 바뀜」 을 말한다. 예전엔 diff 는 그대로인데
 // 메모 판정만 새 내용을 봤다.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, waitFor } from "@testing-library/react";
 
 vi.mock("@/lib/bindings", async () => (await import("./helpers/diffFx")).bindingsMock());
 vi.mock("@/features/terminal/sendToClaude", async () => (await import("./helpers/diffFx")).sendMock());
 
 import { clockOf } from "@/features/diff/DiffFileHead";
+import { cancelNote, startNote } from "@/features/diff/diffNoteStore";
 import { REFRESH_DEBOUNCE_MS } from "@/features/diff/useDiffFile";
 import { t } from "@/i18n";
 import { recentChangesStore } from "@/lib/recentChangesStore";
@@ -40,6 +41,30 @@ describe("the open file changes again", () => {
     await waitFor(() => expect(container.textContent).toContain("newer line"));
     expect(container.querySelector(".chg-again")?.textContent).toBe(t("diff.changedAgain", { time: clockOf(ts) }));
     expect(container.textContent).not.toContain(t("diff.computing"));
+  });
+
+  // 덩이 · 줄은 순번이 열쇠다 — 위쪽에 줄이 늘어 밀리면 편집기가 다른 줄로 옮겨 새로 서며 쓰던 글이 사라졌다.
+  it("waits while a note is being written in that file, keeps the draft, and reads once the editor closes", async () => {
+    seed([{ path: "src/a.ts", op: "M" }]);
+    const { container } = renderDiffScreen();
+    await waitFor(() => expect(container.textContent).toContain("new line"));
+    act(() => startNote(1, { file: "src/a.ts", side: "new", line: 2, code: "new line" }));
+    await waitFor(() => expect(container.querySelector(".dl-note-input")).not.toBeNull());
+    fireEvent.change(container.querySelector(".dl-note-input")!, { target: { value: "draft" } });
+
+    fx.diffByPath["src/a.ts"] = {
+      path: "src/a.ts",
+      source: { source: "git", patch: "diff --git a/src/a.ts b/src/a.ts\n@@ -1,2 +1,3 @@\n+added on top\n context line\n-old line\n+new line\n" },
+      truncated: null,
+    };
+    act(() => recentChangesStore.push(1, { path: "src/a.ts", op: "M", ts: Date.now(), read: false }));
+    await new Promise((r) => setTimeout(r, REFRESH_DEBOUNCE_MS + 100));
+    expect(callsFor("src/a.ts")).toBe(1);
+    expect(container.querySelector<HTMLTextAreaElement>(".dl-note-input")?.value).toBe("draft");
+
+    act(() => cancelNote(1));
+    await waitFor(() => expect(callsFor("src/a.ts")).toBe(2), { timeout: REFRESH_DEBOUNCE_MS + 2000 });
+    await waitFor(() => expect(container.textContent).toContain("added on top"));
   });
 
   it("does not re-read when another file changes", async () => {

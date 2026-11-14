@@ -8,7 +8,7 @@
  * 11-15 (#diff-exact · #diff-perf):
  *  - 열어 둔 파일을 에이전트가 다시 고치면(워처가 새 시각을 주면) 250ms 뒤 조용히 다시 읽는다 — 본문을
  *    걷지 않으니 스크롤이 그대로고, 머리줄이 「11:42 에 다시 바뀜」 을 말한다. 예전엔 diff 는 그대로인데
- *    메모 판정만 새 내용을 봤다.
+ *    메모 판정만 새 내용을 봤다. 그 파일에 메모를 쓰는 중이면 편집기가 닫힐 때까지 미룬다.
  *  - 파일을 넘길 때 이전 본문을 그대로 두고, 150ms 넘게 걸릴 때만 `slow` 를 세운다 — 넘길 때마다
  *    「diff 계산 중」 이 깜빡였다.
  *  - 기준본 없는 새 파일은 백엔드가 앞 64KB 만 읽어 패치로 준다 — 프런트가 파일을 통째로 읽던 길은 걷었다.
@@ -22,6 +22,7 @@ import { toAppError } from "@/api/invoke";
 import type { DiffResult } from "@/lib/bindings";
 import { recentChangesStore, type RecentChange } from "@/lib/recentChangesStore";
 import type { DiffBaseline } from "./changeList";
+import { useDiffNotes } from "./diffNoteStore";
 import { countPatchStats } from "./diffParse";
 
 const DIFF_MAX_BYTES = 64 * 1024;
@@ -44,6 +45,8 @@ export interface DiffFile {
   current: RecentChange | null;
   /** 보이는 본문 — 파일을 넘기는 동안에는 이전 파일의 것이다(`diff.path` 로 가린다). */
   diff: DiffResult | null;
+  /** 보이는 본문을 공백 무시로 읽었나 — 토글 직후 다시 읽기 전까지는 지금 토글 값과 다르다. */
+  diffWs: boolean;
   /** 조회 중. 본문은 그대로 두므로 화면은 `slow` 만 본다. */
   loading: boolean;
   /** 150ms 넘게 걸리는 조회. */
@@ -66,6 +69,7 @@ export function useDiffFile(
   const { autoSelect, ignoreWhitespace } = opts;
   const [selected, setSelected] = useState<string | null>(null);
   const [diff, setDiff] = useState<DiffResult | null>(null);
+  const [diffWs, setDiffWs] = useState(false);
   const [loading, setLoading] = useState(false);
   const [slow, setSlow] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,23 +91,27 @@ export function useDiffFile(
     });
   }, [changes, autoSelect]);
 
-  // 고른 파일이 다시 바뀌었나 — 워처가 준 시각으로 안다. 같은 파일에서 시각만 바뀌면 조용히 다시 읽는다.
+  // 고른 파일이 다시 바뀌었나 — 워처가 준 시각으로 안다. 마지막으로 읽은 시각보다 늦으면 조용히 다시 읽는다.
+  // 그 파일에 메모를 쓰는 중이면 미룬다: 덩이 · 줄은 순번이 열쇠라, 위쪽이 고쳐져 줄이 밀리면 편집기가 다른
+  // 줄로 옮겨 새로 서며(autoFocus) 쓰던 글이 사라졌다. 편집기가 닫히면 그때 한 번 읽는다.
   const selTs = useMemo(() => changes.find((c) => c.path === selected)?.ts ?? 0, [changes, selected]);
-  const seen = useRef<{ path: string | null; ts: number }>({ path: null, ts: 0 });
+  const editing = useDiffNotes(projectId).editing;
+  const hold = editing != null && editing.file === selected;
+  const readAt = useRef<{ path: string | null; ts: number }>({ path: null, ts: 0 });
   useEffect(() => {
-    const prev = seen.current;
-    seen.current = { path: selected, ts: selTs };
-    if (prev.path !== selected) {
+    if (readAt.current.path !== selected) {
+      readAt.current = { path: selected, ts: selTs };
       setChangedAt(null);
       return;
     }
-    if (!selected || selTs === 0 || selTs === prev.ts) return;
+    if (!selected || selTs === 0 || selTs === readAt.current.ts || hold) return;
     const id = setTimeout(() => {
+      readAt.current = { path: selected, ts: selTs };
       setChangedAt(selTs);
       setRefresh((n) => n + 1);
     }, REFRESH_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [selected, selTs]);
+  }, [selected, selTs, hold]);
 
   // Fetch diff for the selected file (cancel-safe). 본문은 비우지 않는다 — 새 답이 오면 바꾼다.
   useEffect(() => {
@@ -120,6 +128,7 @@ export function useDiffFile(
       .then((data) => {
         if (cancelled) return;
         setDiff(data);
+        setDiffWs(ignoreWhitespace);
         setError(null);
       })
       .catch((e) => {
@@ -159,6 +168,7 @@ export function useDiffFile(
     select: setSelected,
     current: changes.find((c) => c.path === selected) ?? null,
     diff,
+    diffWs,
     loading,
     slow,
     error,
