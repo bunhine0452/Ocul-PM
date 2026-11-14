@@ -108,9 +108,8 @@
 .start-skel .start-row:nth-child(2) .start-skel-bar { width: 34%; }
 .start-skel .start-row:nth-child(3) .start-skel-bar { width: 40%; }
 
+/* 오류 카드의 속은 카드가 스스로 꾸민다(디자인 바닥) — 여기서는 바깥 여백만. */
 .start-error { margin-top: var(--space-5); }
-.start-error .stat-top { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-4); font-weight: var(--fw-strong); }
-.start-error .today-date { font-size: var(--fs-3); color: var(--text-2); }
 .start-none { color: var(--text-2); }
 
 .start-forget-body { margin: 0 0 var(--space-4); }

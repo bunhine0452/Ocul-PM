@@ -38,6 +38,7 @@ import { requestCheatsheet } from "@/lib/projectActions";
 import { dragRegion, isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { localWorkdayKey, shiftWorkday } from "@/lib/workday";
+import { workdayDate } from "@/lib/workdayLabel";
 import { ProjectRow, describedBy, distinctWhere } from "@/features/shell/ProjectRow";
 import { useTermOverview } from "@/features/terminal/status";
 import { addProjectFromFolder } from "./addFolder";
@@ -48,6 +49,11 @@ import "./start.css";
 export { whereOf } from "@/features/shell/ProjectRow";
 
 const StartSettings = lazy(() => import("./StartSettings"));
+
+/** 칸에 바로 넣는 글자 — 공백을 뺀 라틴 · 숫자 · 기호 한 자(공백은 줄 단추의 「열기」 다). */
+const ASCII_CHAR = /^[\x21-\x7e]$/;
+/** 라틴 밖의 글자 한 자 — 두벌식이 줄(단추) 위에서 보내는 낱자(ㅇ) 따위. */
+const NON_ASCII_CHAR = /^\P{ASCII}$/u;
 
 /** 줄의 「열기」 단추들 — 화면 순서대로. */
 function openButtons(list: HTMLElement | null): HTMLButtonElement[] {
@@ -63,13 +69,7 @@ function dayLabel(row: RecentProject, brief: BriefState, lang: Lang, t: ReturnTy
   if (!lastWorkday) return t("start.noRecords");
   if (lastWorkday === today) return t("start.today", { n: dayCount ?? 0 });
   if (lastWorkday === shiftWorkday(today, -1)) return t("start.yesterday", { n: dayCount ?? 0 });
-  const y = Number(lastWorkday.slice(0, 4));
-  const m = Number(lastWorkday.slice(4, 6));
-  const d = Number(lastWorkday.slice(6, 8));
-  return new Date(y, m - 1, d).toLocaleDateString(lang === "en" ? "en-US" : "ko-KR", {
-    month: "long",
-    day: "numeric",
-  });
+  return workdayDate(lastWorkday, lang);
 }
 
 export function StartWindow() {
@@ -87,6 +87,8 @@ export function StartWindow() {
   const findRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLButtonElement>(null);
   const focusedOnce = useRef(false);
+  /** 설정 쪽을 열었다 — 목록으로 돌아오면 첫 줄에 포커스를 다시 둔다. */
+  const fromSettings = useRef(false);
   /** 목록에서 뺀 줄의 자리 — 목록이 다시 오면 그 자리(= 다음 줄)에 포커스를 둔다. */
   const refocusAt = useRef<number | null>(null);
 
@@ -184,11 +186,20 @@ export function StartWindow() {
   // 첫 포커스 — 첫 줄(없으면 「폴더 열기」). 열자마자 ↓ · ↩ 가 먹는다. 이미 다른 곳에 포커스가 있으면 그대로 둔다.
   // 링은 띄우지 않는다(focusVisible: false) — 창을 열 때마다 첫 줄에 민트 테가 서면 시끄럽다. 줄의 면이 고른 줄을
   // 말하고, ↓ 를 누르면 그때부터 링이 선다(키보드로 옮긴 포커스).
+  // 설정에서 돌아올 때도 목록으로 — 누른 「← 최근 프로젝트」 가 사라져 포커스가 body 로 떨어지거나(톱니로 닫으면
+  // 머리줄에 남아) ↑↓ · j/k · 치면 거르기가 다시 먹지 않았다.
   useEffect(() => {
-    if (!loaded || focusedOnce.current || view !== "list") return;
+    if (view === "settings") {
+      fromSettings.current = true;
+      return;
+    }
+    if (!loaded) return;
+    const back = fromSettings.current;
+    fromSettings.current = false;
+    if (focusedOnce.current && !back) return;
     focusedOnce.current = true;
     const active = document.activeElement;
-    if (active && active !== document.body) return;
+    if (!back && active && active !== document.body) return;
     const quiet: FocusOptions & { focusVisible?: boolean } = { focusVisible: false };
     (openButtons(listRef.current)[0] ?? folderRef.current)?.focus(quiet);
   }, [loaded, view]);
@@ -260,9 +271,14 @@ export function StartWindow() {
     } else if (e.key === "ArrowUp" || (key === "k" && !query)) {
       e.preventDefault();
       moveFocus(-1);
-    } else if (e.key.length === 1 && e.key !== " ") {
+    } else if (ASCII_CHAR.test(e.key)) {
+      // 라틴 글자는 칸에 바로 넣는다 — 입력기가 끼지 않는 글자라 갈라질 일이 없다.
       e.preventDefault();
       setQuery((v) => v + e.key);
+      findRef.current?.focus();
+    } else if (e.key === "Process" || e.nativeEvent.keyCode === 229 || NON_ASCII_CHAR.test(e.key)) {
+      // 한글(두벌식) · 입력기 키는 글자를 넣지 않고 칸으로 포커스만 옮긴다 — 막지 않으면 이 키의 입력과 조합이 새
+      // 칸에서 시작된다. 낱자를 직접 넣으면 입력기 밖에 박혀 「오큘」 이 「ㅇㅗ큘」 로 갈라졌다.
       findRef.current?.focus();
     }
   };
@@ -278,7 +294,8 @@ export function StartWindow() {
       e.preventDefault();
       openButtons(listRef.current)[0]?.focus();
     } else if (e.key === "Enter") {
-      const first = visible[0];
+      // 화면의 맨 윗줄 — 「열린 창」 묶음이 먼저 선다. 최근 순 첫 줄을 열면 ↓ 가 가는 줄과 ↩ 가 여는 줄이 달랐다.
+      const first = opened[0] ?? rest[0];
       if (!first) return;
       e.preventDefault();
       adopt(first.project);

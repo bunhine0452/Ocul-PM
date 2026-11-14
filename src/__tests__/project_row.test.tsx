@@ -147,9 +147,48 @@ describe("⌘O list", () => {
     expect([keyOf("b"), keyOf("c"), keyOf("d")]).toEqual(["⌥⌘1", "⌥⌘2", "⌥⌘3"]);
   });
 
+  it("the picked row follows its project when waiting reorders the list — ↩ opens that project", async () => {
+    const onOpen = vi.fn();
+    render(<ProjectSwitcher projectName="a" currentProjectId={1} projects={P} onOpenProject={onOpen} />);
+    act(() => void window.dispatchEvent(new Event(NAV_BUS.openProjectSwitcher)));
+    await waitFor(() => expect(document.activeElement).toBe(find()));
+    fireEvent.keyDown(find(), { key: "ArrowDown" });
+    fireEvent.keyDown(find(), { key: "ArrowDown" });
+    expect(optionOf("c")).toHaveAttribute("aria-selected", "true");
+    // d 가 기다리기 시작해 맨 위로 온다 — 자리(셋째 줄)가 아니라 c 가 고른 줄로 남는다.
+    fx.attention = new Map([[4, { project_id: 4, waiting: 1, failing: false }]]);
+    await act(async () => fx.attentionChanged.forEach((cb) => cb()));
+    await waitFor(() => expect(screen.getAllByRole("option")[0]).toBe(optionOf("d")));
+    expect(optionOf("c")).toHaveAttribute("aria-selected", "true");
+    expect(find()).toHaveAttribute("aria-activedescendant", optionOf("c").id);
+    fireEvent.keyDown(find(), { key: "Enter" });
+    expect(onOpen).toHaveBeenCalledWith(3);
+  });
+
+  it("arrow keys walk the bottom menu once Tab has brought focus there", async () => {
+    openSwitcher();
+    await waitFor(() => expect(document.activeElement).toBe(find()));
+    const items = [...screen.getByRole("menu", { name: t("nav.projectActions") }).querySelectorAll("button")];
+    items[0].focus();
+    fireEvent.keyDown(items[0], { key: "ArrowRight" });
+    expect(document.activeElement).toBe(items[1]);
+    fireEvent.keyDown(items[1], { key: "ArrowUp" });
+    fireEvent.keyDown(items[0], { key: "ArrowUp" });
+    expect(document.activeElement).toBe(items[items.length - 1]);
+  });
+
   it("a11y — no axe violations with the list open", async () => {
     const { container } = openSwitcher();
     await waitFor(() => expect(document.activeElement).toBe(find()));
+    const results = await axe(container, { rules: { "color-contrast": { enabled: false } } });
+    expect(results.violations.map((v) => v.id)).toEqual([]);
+  });
+
+  it("a11y — still none when nothing matches the filter (the message sits outside the listbox)", async () => {
+    const { container } = openSwitcher();
+    await waitFor(() => expect(document.activeElement).toBe(find()));
+    fireEvent.change(find(), { target: { value: "zzz" } });
+    expect(screen.getByText(t("sidebar.findProjectNone"))).toBeInTheDocument();
     const results = await axe(container, { rules: { "color-contrast": { enabled: false } } });
     expect(results.violations.map((v) => v.id)).toEqual([]);
   });

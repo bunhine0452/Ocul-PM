@@ -62,4 +62,13 @@ describe("matchScore", () => {
     expect(matchScore("ocul", ["/Users/me/dev/ocul-pm"])).toBe(SCORE.word);
     expect(matchScore("pm", ["ocul-pm"])).toBe(SCORE.word);
   });
+
+  it("a cluster the IME composed (ㄳ from ㄱ then ㅅ) reads as its two initials; double initials stay", () => {
+    // i18n-ignore-next-line -- 겹받침 낱자 · 한글 음절이 검사 재료다
+    const [SKILL, CLUSTER, SPLIT, DOUBLE, DOUBLE_WORD] = ["기술", "ㄳ", "ㄱㅅ", "ㄲ", "까치"];
+    expect(isChoseongQuery(CLUSTER)).toBe(true);
+    expect(matchScore(CLUSTER, [SKILL])).toBe(SCORE.choseong);
+    expect(matchScore(SPLIT, [SKILL])).toBe(SCORE.choseong);
+    expect(matchScore(DOUBLE, [DOUBLE_WORD])).toBe(SCORE.choseong);
+  });
 });

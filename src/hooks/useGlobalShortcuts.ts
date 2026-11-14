@@ -49,8 +49,9 @@ export function useGlobalShortcuts({
       if (!c.mod) return;
       const key = c.key.toLowerCase();
 
-      // ⌘K — 팔레트. 모달이 떠 있으면 닫기만 한다(팔레트 자신이면 닫히고, 다른 대화상자면 그대로).
-      if (key === "k" && !c.shift) {
+      // ⌘K — 팔레트. 모달이 떠 있으면 닫기만 한다(팔레트 자신이면 닫히고, 다른 대화상자면 그대로). ⌥ 가 얹히면
+      // 아니다 — 맥의 키 이름을 `code` 로 되찾은 뒤로는 ⌥⌘K(˚)도 k 로 읽힌다.
+      if (key === "k" && !c.shift && !c.alt) {
         e.preventDefault();
         if (isModalOpen()) onClosePalette?.();
         else onOpenPalette();
@@ -90,8 +91,8 @@ export function useGlobalShortcuts({
         uiV2Nav("settings");
         return;
       }
-      // ⌘1~⌘5 — navRegistry 순서
-      const view = navViewForKey(c.key);
+      // ⌘1~⌘5 — navRegistry 순서. ⌥⌘ 번호는 프로젝트 창의 키다(`ProjectSwitcher`).
+      const view = c.alt ? null : navViewForKey(c.key);
       if (view) {
         e.preventDefault();
         uiV2Nav(view);

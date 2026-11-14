@@ -9,6 +9,7 @@ import { NAV_BUS } from "@/lib/navRegistry";
 import { planTargetOf } from "@/features/deeplink/deepLinkPlan";
 import { resumeAfterUpdate } from "@/features/terminal/resumeAfterUpdate";
 import { onTermFocusRequested } from "@/features/terminal/focusRequest";
+import { needsMe, useWindowTerms } from "@/features/terminal/status";
 import { useT, type Lang } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
@@ -82,13 +83,16 @@ export default function ShellV2({
   const projectId = runtime.currentProjectId;
   const workday = runtime.workdayKey ?? runtime.oculpmStatus?.current_workday ?? null;
   const oculpmReady = runtime.oculpmStatus?.initialized === true;
-  // 「오늘」 배지 = 오늘 화면의 먼저 볼 것 — 같은 규칙(`todayModel.buildExceptions`)으로 세고, 색은 가장
-  // 심한 행을 따른다(11-15). 이 창의 터미널 세션이 내 손을 기다리면(「waiting」 행) 터미널 탭에 점.
+  // 「오늘」 배지 = 오늘 화면의 먼저 볼 것 행(`todayModel.buildExceptions`) — 플러그인 새 판처럼 지금 손댈 일이
+  // 아닌 행은 수에서 빼고, 색은 가장 심한 행을 따른다(11-15, `useNavBadges`).
   const todayCheck = useTodayExceptions(projectId ?? 0, workday, oculpmReady && projectId != null);
   const exceptions = todayCheck.exceptions;
+  // 터미널 탭의 점 — 이 창의 세션이 내 손을 기다린다. 세션 목록을 직접 센다: 오늘 목록은 `.oculpm` 이 준비된
+  // 창에서만 돌아서, 거기서 얻으면 준비 전 창에서는 세션이 기다려도 점이 서지 않았다.
+  const terms = useWindowTerms(projectId != null);
   const badges = useNavBadges(projectId, workday, oculpmReady, todayCheck.count, {
     todayRows: exceptions ? splitExceptions(exceptions).first : null,
-    termWaiting: exceptions?.some((e) => e.kind === "waiting") ?? false,
+    termWaiting: terms.some((s) => s.alive && needsMe(s.status)),
   });
 
   // 트레이 딥링크·팔레트 점프·「수동 일지」 처럼 **다른 화면이 쏜 이동 요청**과
