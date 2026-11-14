@@ -1,52 +1,127 @@
 /* ============================================================
-   terminal.css — 터미널 (4.0 다시). 세션이 하나면 터미널만, 둘 이상이면 위 탭 줄
+   terminal.css — 터미널 (4.0 다시). 세션이 하나면 터미널만, 일부가 칸 밖이면 위 탭 줄
    (화면 검사 #term-col — 왼쪽 목록 칸이 일지 · 계획의 목록 칸과 두 겹이었다).
    터미널 면은 `--term-bg`(= 콘텐츠 바탕) 라 화면과 이어진다. 색은 tokens.css 의 --term-*.
+
+   왼쪽 기준선은 하나 — 탭의 점 · 칸 머리 · 상태 띠 · 레인 띠 · 빈 문장 · 터미널 글자가 모두 --space-5 에서
+   시작한다(예전엔 10 · 12 · 16 · 20px 다섯 갈래였다).
    ============================================================ */
 
 .tm-split { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.tm-empty { margin: 0; padding: var(--space-5) var(--space-6); font-size: var(--fs-3); color: var(--text-2); }
+.tm-empty { margin: 0; padding: var(--space-5); font-size: var(--fs-3); color: var(--text-2); }
+.tm-empty-state.es--rich { padding-left: var(--space-5); padding-right: var(--space-5); }
 
-/* 둘 이상이면 위 탭 줄 (화면 검사 #term-col). 고른 탭은 면(--bg-active). */
+/* ── 탭 줄 — 높이 고정(26 + 위아래 3), 스크롤바 없음. 넘치면 끝의 「+3」 ─────────────────────── */
 .tm-tabs {
-  flex: none; display: flex; gap: var(--space-1); overflow-x: auto;
-  padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--sep); background: var(--bg-window);
+  flex: none; position: relative; z-index: var(--z-strip);
+  display: flex; align-items: stretch; height: calc(var(--ctl-3) + 7px);
+  padding: 0 var(--space-2) 0 calc(var(--space-5) - var(--space-3));
+  border-bottom: 1px solid var(--sep); background: var(--bg-window);
 }
-.tm-tab { flex: none; display: flex; align-items: center; border-radius: var(--radius-s); max-width: 280px; }
-.tm-tab.is-active { background: var(--bg-active); }
-.tm-tab:not(.is-active):hover { background: var(--bg-hover); }
+.tm-tabs-scroll {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-1);
+  padding: 3px 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.tm-tabs-scroll::-webkit-scrollbar { display: none; }
+.tm-tab { flex: none; position: relative; display: flex; align-items: center; max-width: 260px; height: var(--ctl-3); border-radius: var(--radius-s); }
+.tm-tab:hover { background: var(--bg-hover); }
+/* 고른 탭 — 굵기는 그대로(폭이 튀지 않게), 글자색과 2px 아랫선. */
+.tm-tab.is-active::after {
+  content: ""; position: absolute; left: var(--space-3); right: var(--space-3); bottom: -3px; height: 2px;
+  background: var(--accent);
+}
+/* 다른 칸에 떠 있는 세션의 탭은 테만. */
+.tm-tab.is-shown { box-shadow: inset 0 0 0 1px var(--sep-strong); }
 .tm-pick {
-  min-width: 0; display: flex; align-items: center; gap: var(--space-3);
-  height: var(--ctl-4); padding: 0 var(--space-2) 0 var(--space-4);
-  border: 0; background: transparent; color: var(--text); font: inherit; cursor: pointer;
+  min-width: 0; height: 100%; display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-3); border: 0; border-radius: inherit; background: transparent;
+  color: var(--text-2); font: inherit; cursor: pointer;
 }
+.tm-tab.is-active .tm-pick { color: var(--text); }
 .tm-pick:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+
+/* 점 — 색만이 아니라 모양으로도 갈린다(라이트에서 회색 · 앰버 점의 밝기가 같았다, 3.18 · 3.27).
+   살아 있음 회색 · 기다림 앰버 + 고리 · 끝남 빈 고리 · 실패 빨강 · 일지 없음 앰버. 영수증 규칙 1. */
 .tm-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-2); }
-.tm-dot.is-live { background: var(--ok); }
-/* 안의 프로그램이 내 손을 기다린다(OSC 7501 blocked) — 초록(실행 중)과 갈라 본다. */
-.tm-dot.is-wait { background: var(--warn); }
-.tm-name { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); white-space: nowrap; }
-.tm-meta { font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tm-rec { color: var(--ok-text); }
-/* Claude 가 일했는데 시작 뒤 일지 0 (11-02) — 실패가 아니라 확인해 볼 것이라 경고 글자색만. */
-.tm-norec { color: var(--warn-text); }
-/* 닫기는 탭을 가리킬 때만 — 탭 줄이 × 로 줄무늬지지 않게. 키보드 포커스에는 늘 보인다. */
-.tm-close { flex: none; margin-right: var(--space-1); opacity: 0; }
-.tm-tab:hover .tm-close, .tm-tab.is-active .tm-close, .tm-close:focus-visible { opacity: 1; }
-
-/* 예외 한 줄 — 내 손을 기다리는 까닭(「approve Write: …」) · 끝난 하나뿐인 세션. */
-.tm-note {
-  flex: none; display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-2) var(--space-6); border-bottom: 1px solid var(--sep);
-  font-size: var(--fs-3); color: var(--text-2);
+.tm-dot.is-wait { background: var(--warn); outline: 1.5px solid var(--warn); outline-offset: 1.5px; }
+.tm-dot.is-ended { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-2); }
+.tm-dot.is-fail { background: var(--danger); }
+.tm-dot.is-norec { background: var(--warn); }
+.tm-dot.is-ended.is-norec { background: transparent; box-shadow: inset 0 0 0 1.5px var(--warn); }
+.tm-dot.is-none { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
+/* 번호는 기계 글씨 — 닫기 확인 · 보내기 대화상자 · 알림이 같은 번호를 부른다 (영수증 규칙 2). */
+.tm-num {
+  flex: none; font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2);
+  font-variant-numeric: tabular-nums; font-variant-ligatures: none;
 }
-.tm-note.is-wait { background: var(--warn-soft); color: var(--warn-text); }
-.tm-note-word { flex: none; font-weight: var(--fw-strong); }
-.tm-note-msg { min-width: 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tm-note-sp { flex: 1; }
+.tm-name { min-width: 0; font-size: var(--fs-4); font-weight: var(--fw-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-meta { min-width: 0; font-size: var(--fs-3); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-meta.is-warn { color: var(--warn-text); }
+.tm-meta.is-danger { color: var(--danger-text); }
+/* Claude 가 일했는데 시작 뒤 일지 0 (11-02) — 실패가 아니라 확인해 볼 것이라 경고 글자색만. 누르면 기록을 부탁한다. */
+.tm-norec { flex: none; font-size: var(--fs-3); color: var(--warn-text); }
+.tm-norec:hover { text-decoration: underline; }
+/* 닫기 — 점 자리에 겹친다. 가리킬 때 · 고른 탭 · 탭 안에 포커스가 있을 때만(탭 줄이 × 로 줄무늬지지 않게). */
+.tm-close {
+  position: absolute; left: var(--space-1); top: 50%; translate: 0 -50%;
+  width: 15px; height: 15px; display: grid; place-items: center;
+  border-radius: var(--radius-2xs); color: var(--text-2); cursor: pointer; opacity: 0;
+}
+.tm-close:hover { background: var(--bg-active); color: var(--text); }
+.tm-tab:is(:hover, .is-active, :focus-within) .tm-close { opacity: 1; }
+.tm-tab:is(:hover, .is-active, :focus-within) .tm-pick > .tm-dot { opacity: 0; }
 
-/* 칸 나누기 (11-02, Orca 「split panes」) — 나눔은 flex 한 줄, 경계는 1px 선에 잡는 폭 7px.
-   칸에 떠 있는 세션의 탭은 테만 두른다(고른 칸은 면). */
+/* 넘친 탭 — 「+3」 과 숨은 쪽의 「기다림 1」, 누르면 숨은 세션 목록 (⌘O 목록과 같은 모양). */
+.tm-more-wrap { position: relative; flex: none; align-self: center; margin-left: var(--space-1); }
+.tm-more {
+  display: inline-flex; align-items: center; gap: var(--space-2); height: var(--ctl-3); padding: 0 var(--space-3);
+  border: 0; border-radius: var(--radius-s); background: transparent; color: var(--text-2);
+  font: inherit; font-size: var(--fs-3); cursor: pointer;
+}
+.tm-more:hover, .tm-more[aria-expanded="true"] { background: var(--bg-hover); color: var(--text); }
+.tm-more:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+.tm-more-wait { color: var(--warn-text); }
+
+/* 팝오버 메뉴 셋(숨은 세션 · 「새 세션 ▾」 · 파일 메뉴)의 모양 — 카드 면 · 그림자, 포커스는 링 대신 면.
+   등장은 애니메이션이 아니라 전환 + @starting-style (창이 뒤에 있어도 투명한 첫 프레임에 멈추지 않게). */
+.tm-more-pop, .tm-menu {
+  z-index: var(--z-popover); display: flex; flex-direction: column; gap: 1px; padding: var(--space-1);
+  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop);
+  transition: opacity var(--dur-1) var(--ease-out), translate var(--dur-1) var(--ease-out);
+}
+@starting-style { .tm-more-pop, .tm-menu { opacity: 0; translate: 0 -2px; } }
+.tm-more-pop { position: absolute; top: calc(100% + 6px); right: 0; width: 280px; max-height: 320px; overflow-y: auto; }
+.tm-menu { position: fixed; min-width: 232px; }
+.tm-more-item, .tm-menu-item {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; height: var(--ctl-4); padding: 0 var(--space-3);
+  border: 0; border-radius: var(--radius-s); background: none; color: var(--text);
+  font: inherit; font-size: var(--fs-4); text-align: left; cursor: pointer;
+}
+.tm-more-item:is(:hover, :focus-visible), .tm-menu-item:is(:hover, :focus-visible) { background: var(--bg-active); outline: none; }
+.tm-menu-item[aria-disabled="true"] { color: var(--text-2); cursor: default; }
+.tm-menu-label { flex: 1; min-width: 0; }
+
+/* ── 윗줄 「새 세션 ⌘T ▾」 — 테두리 단추 하나에 두 몫(새 세션 · 나누기 메뉴) ─────────────────── */
+.tm-new {
+  flex: none; display: inline-flex; align-items: stretch; height: var(--ctl-3);
+  border: 1px solid var(--border-card); border-radius: var(--radius-s);
+  background: var(--bg-card); box-shadow: var(--shadow-card);
+}
+.tm-new-main, .tm-new-more {
+  display: inline-flex; align-items: center; gap: var(--space-3); border: 0; background: transparent;
+  color: var(--text); font: inherit; font-size: var(--fs-3); font-weight: var(--fw-label);
+  white-space: nowrap; cursor: pointer; transition: background-color var(--dur-1) var(--ease-out);
+}
+.tm-new-main { padding: 0 var(--space-4); border-radius: calc(var(--radius-s) - 1px) 0 0 calc(var(--radius-s) - 1px); }
+.tm-new-more {
+  padding: 0 var(--space-2); border-left: 1px solid var(--sep); color: var(--text-2);
+  border-radius: 0 calc(var(--radius-s) - 1px) calc(var(--radius-s) - 1px) 0;
+}
+.tm-new-main:hover, .tm-new-more:hover, .tm-new-more[aria-expanded="true"] { background: var(--bg-hover); }
+.tm-new-main:focus-visible, .tm-new-more:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+
+/* ── 칸 나누기 (11-02, Orca 「split panes」) — 나눔은 flex 한 줄, 경계는 1px 선에 잡는 폭 7px ─────── */
 .tm-panes { flex: 1; min-height: 0; display: flex; }
 .tm-node { flex: 1; min-width: 0; min-height: 0; display: flex; }
 .tm-node.is-col { flex-direction: column; }
@@ -55,36 +130,75 @@
 .tm-node.is-row > .tm-divider { width: 1px; margin: 0 -3px; border: solid transparent; border-width: 0 3px; background-clip: padding-box; cursor: col-resize; }
 .tm-node.is-col > .tm-divider { height: 1px; margin: -3px 0; border: solid transparent; border-width: 3px 0; background-clip: padding-box; cursor: row-resize; }
 .tm-divider:hover, .tm-divider:focus-visible { background-color: var(--accent); outline: none; }
-.tm-tab.is-shown { box-shadow: inset 0 0 0 1px var(--sep-strong); }
 
-/* 칸 — 둘 이상이면 머리 한 줄(세션 이름 · 상태 · 닫기). 고른 칸의 머리만 글자가 진하다. */
-.tm-leaf { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
+/* 칸 — 둘 이상이면 머리 한 줄(번호 · 이름 · 예외 · 닫기). 280px 아래 칸은 찾기 막대가 개수 · Aa 를 접는다. */
+.tm-leaf {
+  flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative;
+  container-type: inline-size; container-name: tm-leaf;
+}
+/* 머리는 단추 한 단(26px) 높이 — 22px 머리 안에서 26px 닫기가 넘쳤다. 굵기는 고정, 고른 칸은 글자색 + 2px 아랫선. */
+.tm-pane-head {
+  flex: none; display: flex; align-items: center; gap: var(--space-2);
+  height: calc(var(--ctl-3) + 1px); padding: 0 0 0 var(--space-5);
+  border-bottom: 1px solid var(--sep); background: var(--bg-window); color: var(--text-2);
+}
+.tm-pane-head .tm-name { color: var(--text-2); }
+.tm-leaf.is-active .tm-pane-head { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.tm-leaf.is-active .tm-pane-head .tm-name { color: var(--text); }
+.tm-note-sp { flex: 1; }
+/* 기다리는 칸(고른 칸이 아닐 때)은 1px 앰버 테, 끝난 칸의 화면은 흐리게 — 마지막 화면이 산 것처럼 남지 않게. */
+.tm-leaf.is-wait .tm-pane { box-shadow: inset 0 0 0 1px var(--warn); }
+.tm-leaf.is-ended .term-host { opacity: var(--dim-disabled); }
 
-/* 터미널 찾기 (11-02) — 고른 칸 오른쪽 위 한 줄. 출력 위에 뜨므로 카드 면 · 그림자. */
+/* 칸 위에 겹치는 것 — 상태 띠(맨 위, 칸 폭) · 찾기 막대(그 아래 오른쪽). 줄로 끼우지 않아 격자 크기가 그대로다. */
+.tm-over {
+  position: absolute; top: 0; left: 0; right: 0; z-index: var(--z-sticky);
+  display: flex; flex-direction: column; align-items: stretch; pointer-events: none;
+}
+.tm-over > * { pointer-events: auto; }
+
+/* 상태 띠 — 기다림 · 일지 없음은 앰버 면, 끝남은 중립 면. 터미널 위에 겹치므로 면은 불투명하다
+   (앰버 면 = 터미널 바탕 위에 --warn-soft 한 겹, 단색 두 겹이지 그라디언트 효과가 아니다). */
+.tm-band {
+  display: flex; align-items: center; gap: var(--space-3); min-height: calc(var(--ctl-3) + 4px);
+  padding: 2px var(--space-3) 2px var(--space-5); border-bottom: 1px solid var(--sep);
+  background: var(--bg-window); font-size: var(--fs-3); color: var(--text-2);
+}
+.tm-band.is-warn { background: linear-gradient(var(--warn-soft), var(--warn-soft)), var(--term-bg); color: var(--warn-text); }
+.tm-band-word { flex: none; font-weight: var(--fw-strong); }
+.tm-band-word.is-warn { color: var(--warn-text); }
+.tm-band-word.is-danger { color: var(--danger-text); }
+.tm-band-msg { min-width: 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-band-sp { flex: 1; }
+
+/* 터미널 찾기 (11-02) — 칸 머리 아래 오른쪽. 출력 위에 뜨므로 카드 면 · 그림자. 칸보다 넓어지지 않는다. */
 .tm-find {
-  position: absolute; top: var(--space-3); right: var(--space-5); z-index: var(--z-sticky);
-  display: flex; align-items: center; gap: var(--space-1);
+  align-self: flex-end; width: 400px; max-width: calc(100% - 2 * var(--space-5));
+  margin: var(--space-3) var(--space-5) 0;
+  display: flex; flex-direction: column; gap: var(--space-1);
   padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
   border: 1px solid var(--border-card); border-radius: var(--radius-m);
   background: var(--bg-card); box-shadow: var(--shadow-pop);
 }
+.tm-find-row { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
 .tm-find-input {
-  width: 180px; height: var(--ctl-2); border: 0; outline: 0; background: transparent;
-  font-family: var(--mono); font-size: var(--fs-3); color: var(--text);
+  flex: 1; min-width: 72px; height: var(--ctl-2); border: 0; outline: 0; background: transparent;
+  font-family: var(--mono); font-size: var(--fs-3); color: var(--text); font-variant-ligatures: none;
 }
-.tm-find-count { min-width: 44px; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; }
+.tm-find-count { flex: none; min-width: 44px; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .tm-find-count.is-none { color: var(--warn-text); }
 .tm-find-case { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); }
 .tm-find-case[aria-pressed="true"] { background: var(--bg-active); color: var(--text); }
 .tm-find-up svg { transform: rotate(180deg); }
-.tm-pane-head {
-  flex: none; display: flex; align-items: center; gap: var(--space-3);
-  height: var(--ctl-2); padding: 0 var(--space-1) 0 var(--space-4);
-  border-bottom: 1px solid var(--sep); background: var(--bg-window); color: var(--text-2);
+/* 대체 화면(전체 화면 TUI)에는 스크롤백이 없다 — 그 사실 한 줄과 「Claude 에서 찾기」. */
+.tm-find-alt {
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-1) 0;
+  border-top: 1px solid var(--sep); font-size: var(--fs-3); color: var(--text-2);
 }
-.tm-pane-head .tm-name { font-weight: var(--fw-body); }
-.tm-leaf.is-active .tm-pane-head { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
-.tm-leaf.is-active .tm-pane-head .tm-name { font-weight: var(--fw-strong); }
+.tm-find-alt-text { flex: 1; min-width: 0; }
+@container tm-leaf (max-width: 279px) {
+  .tm-find-count, .tm-find-case { display: none; }
+}
 
 /* 터미널 면 — xterm 이 이 칸을 채운다(FitAddon). 여백은 칸 안쪽에 두어 글자가 테두리에 붙지 않게. */
 .tm-pane { flex: 1; min-width: 0; min-height: 0; position: relative; background: var(--term-bg); }
@@ -112,17 +226,20 @@
 .tm-peek-stage img { display: block; max-width: 344px; max-height: 240px; object-fit: contain; }
 .tm-peek-skel { width: 220px; height: 136px; }
 .tm-peek-error { margin: 0; padding: var(--space-4); font-size: var(--fs-3); color: var(--text-2); text-align: center; }
-.tm-peek-cap { display: flex; align-items: baseline; gap: var(--space-3); padding: var(--space-2) var(--space-1) 0; font-size: var(--fs-3); }
+/* 두 줄 — 이름(가운데를 접는다), 그 아래 크기 · 힌트. 한 줄이던 때는 이름이 가장 먼저 잘렸다. */
+.tm-peek-cap { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-1) 0; font-size: var(--fs-3); }
 .tm-peek-name { min-width: 0; font-family: var(--mono); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-peek-sub { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; }
 .tm-peek-facts { flex: none; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.tm-peek-hint { flex: none; margin-left: auto; color: var(--text-2); }
+.tm-peek-hint { margin-left: auto; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* 크게 — 스크림 위 한 장. 그림은 창 안에 맞추고, 아래 한 줄에 이름 · 크기 · 경로 · 복사 · 닫기. */
+/* 크게 — 스크림 위 한 장. 그림은 창 안에 맞추고, 아래 한 줄에 이름 · 크기 · 경로 · 복사 · 닫기.
+   열면 그림 자체에 포커스가 간다 — 단추에 링이 바로 서지 않게. */
 .tm-peek-scrim { z-index: var(--z-modal); display: grid; place-items: center; padding: var(--space-8); }
 .tm-peek-full {
   margin: 0; display: flex; flex-direction: column; min-width: 320px; max-width: min(1200px, 100%); max-height: 100%;
   border: 1px solid var(--border-card); border-radius: var(--radius-l); overflow: hidden;
-  background: var(--bg-card); box-shadow: var(--shadow-pop);
+  background: var(--bg-card); box-shadow: var(--shadow-pop); outline: none;
   transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
 .tm-peek-full .tm-peek-stage { flex: 1; min-height: 160px; border-radius: 0; }
@@ -132,6 +249,7 @@
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5); border-top: 1px solid var(--sep);
   font-size: var(--fs-3);
 }
+.tm-peek-full figcaption .tm-peek-name { flex: none; max-width: 40%; }
 .tm-peek-dir { flex: 1; min-width: 0; font-family: var(--mono); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 등장은 애니메이션이 아니라 전환 — 창이 뒤에 있으면 `data-app-inactive` 가 모든 애니메이션을
    멈추는데(primitives.css), 배경 창에서도 호버는 되므로 카드가 투명한 첫 프레임에 멈췄다.
@@ -148,22 +266,25 @@
   font-size: var(--fs-3); font-weight: var(--fw-label); pointer-events: none; z-index: var(--z-sticky);
 }
 
-/* 터미널 경로의 「이 파일로 할 일」 (10-31) — 윗줄 프로젝트 목록과 같은 팝오버 모양. */
+/* 터미널 경로의 「이 파일로 할 일」 (10-31) — 팝오버 메뉴 셋과 같은 모양. 머리는 파일 이름:줄(고정폭, 자르지
+   않는다) 다음 폴더(앞쪽부터 접는다) — 영수증: 폴더가 먼저 줄어든다. */
 .tm-file-menu {
-  position: fixed; z-index: var(--z-popover);
+  position: fixed; z-index: var(--z-popover); min-width: 236px; max-width: 360px;
   display: flex; flex-direction: column; gap: 1px; padding: var(--space-1);
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
 }
 .tm-file-menu-head {
+  display: flex; align-items: baseline; gap: var(--space-3); min-width: 0;
   padding: var(--space-2) var(--space-3); margin-bottom: var(--space-1);
-  border-bottom: 1px solid var(--sep);
-  font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-bottom: 1px solid var(--sep); font-size: var(--fs-3); white-space: nowrap;
 }
+.tm-file-menu-lane { flex: none; color: var(--text-2); }
+.tm-file-menu-name { flex: none; font-family: var(--mono); color: var(--text); font-variant-ligatures: none; }
+.tm-file-menu-dir { flex: 1; min-width: 0; font-family: var(--mono); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .tm-file-menu-item {
   display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
   padding: var(--space-3); border-radius: var(--radius-s); cursor: pointer;
   background: none; border: none; color: var(--text); font-family: var(--font); font-size: var(--fs-4);
 }
-.tm-file-menu-item:hover, .tm-file-menu-item:focus-visible { background: var(--bg-hover); }
+.tm-file-menu-item:is(:hover, :focus-visible) { background: var(--bg-active); outline: none; }

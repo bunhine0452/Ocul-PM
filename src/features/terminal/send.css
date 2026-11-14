@@ -1,8 +1,14 @@
 /* 「Claude 에게 보내기」 대화상자 — 프로젝트 창마다 하나(터미널 덩어리 밖에 산다). */
 .send { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-7); }
-.send-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-4); }
+/* 머리는 제목뿐 — ⌘↩ 는 주 단추 안에 있다(머리 오른쪽 끝에 혼자 서 있었다). */
+.send-head { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-4); }
 .send-ctx { margin: 0; font-size: var(--fs-3); color: var(--text); overflow-wrap: anywhere; }
 .send-ctx-k { color: var(--text-2); }
+/* 맥락의 자리(일지 경로 · 계획 id · 파일 경로)는 기계 글씨 — 고정폭, 한 줄 아래 (영수증 규칙 2). */
+.send-ref {
+  display: block; margin-top: var(--space-1);
+  font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; font-variant-ligatures: none;
+}
 .send-hint { margin: 0; font-size: var(--fs-3); color: var(--text-2); }
 .send-text {
   width: 100%; resize: vertical; min-height: 84px;

@@ -1,34 +1,61 @@
 /* ============================================================
-   같은 일을 worktree 여럿에서 (10-30, Orca 벤치마킹) — 터미널 위 레인 띠 · 레인 변경 보기.
-   띠는 레인이 있을 때만 선다. 한 레인 = 한 줄(순번 · 상태 · 크기 · 보기 · 이것으로).
+   나란히 돌리기 (10-30, Orca 벤치마킹) — 터미널 위 띠 · 시도의 변경 보기.
+   띠는 시도가 있을 때만 서고 평소엔 한 줄로 접힌다. 펼치면 한 시도 = 한 줄이고, 줄들이 한 격자(subgrid)라
+   점 · 이름 · 낱말 · 크기 · 검증 · 단추가 줄을 넘어 세로로 맞는다. 띠가 좁으면(≤640) 검증 칸을 접는다.
    ============================================================ */
 
 .tm-race {
-  flex: none; display: flex; align-items: flex-start; gap: var(--space-4);
-  padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--sep); background: var(--bg-window);
+  flex: none; display: flex; flex-direction: column;
+  padding: 0 var(--space-3) 0 var(--space-5);
+  border-bottom: 1px solid var(--sep); background: var(--bg-window);
   font-size: var(--fs-3);
+  container-type: inline-size; container-name: race;
 }
-.tm-race-head { flex: none; padding-top: var(--space-2); font-weight: var(--fw-strong); color: var(--text); }
-.tm-race-lanes { flex: 1; min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
-/* 줄마다 같은 칸 — 레인 · 상태 · 크기 · 증거 · 단추가 줄을 넘어 세로로 맞는다(10-30). 증거 칸이 남는 폭을 쓴다. */
-.tm-race-lane {
-  display: grid; grid-template-columns: 10em 6.5em 9em minmax(0, 34em) max-content max-content; justify-content: start;
-  align-items: center; gap: var(--space-3); min-width: 0;
+.tm-race-bar { display: flex; align-items: center; gap: var(--space-3); min-height: calc(var(--ctl-3) + 4px); }
+/* 접힌 줄 — 「나란히 3 · 기다림 1 · 추천 시도 2 ›」. 누르면 펼친다(펼침은 창 하나에 하나, 화면을 오가도 그대로). */
+.tm-race-sum {
+  display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0;
+  height: var(--ctl-3); padding: 0 var(--space-2); margin-left: calc(-1 * var(--space-2));
+  border: 0; border-radius: var(--radius-s); background: transparent; color: var(--text-2);
+  font: inherit; white-space: nowrap; cursor: pointer;
 }
+.tm-race-sum:hover { background: var(--bg-hover); color: var(--text); }
+.tm-race-sum:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+.tm-race-sum > span + span::before { content: "·"; margin-right: var(--space-2); color: var(--text-2); }
+.tm-race-head { color: var(--text); font-weight: var(--fw-label); }
+.tm-race-wait { color: var(--warn-text); }
+.tm-race-chev { flex: none; transition: rotate var(--dur-1) var(--ease-out); }
+.tm-race-sum[aria-expanded="true"] .tm-race-chev { rotate: 90deg; }
+.tm-race-sp { flex: 1; }
+
+/* 펼친 줄들 — 열은 max-content 셋(누구 · 낱말 · 크기) · 남는 폭(검증) · max-content 둘(터미널 · 가져오기). */
+.tm-race-lanes {
+  margin: 0 0 var(--space-2); padding: 0; list-style: none;
+  display: grid; grid-template-columns: max-content max-content max-content minmax(0, 1fr) max-content max-content;
+  column-gap: var(--space-4); row-gap: var(--space-1); align-items: center;
+}
+.tm-race-lane { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; min-width: 0; min-height: var(--ctl-3); }
 .tm-race-who { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .tm-race-name {
   flex: none; padding: 0; border: 0; background: transparent; color: var(--text);
   font: inherit; font-weight: var(--fw-label); cursor: pointer;
 }
 .tm-race-name:hover:not([aria-disabled="true"]) { text-decoration: underline; }
+.tm-race-name[aria-disabled="true"] { color: var(--text-2); cursor: default; }
 .tm-race-name:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
-.tm-race-word { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* 단추는 크기 바로 뒤에 — 줄 끝으로 밀려 가운데가 비던 것(10-30). */
+.tm-race-word { min-width: 0; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tm-race-size { color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tm-race .add, .tm-race-diff .add { color: var(--diff-add-line); }
 .tm-race .del, .tm-race-diff .del { color: var(--diff-del-line); }
+@container race (max-width: 640px) {
+  .tm-race-lanes { grid-template-columns: max-content max-content minmax(0, 1fr) max-content max-content; }
+  .tm-race-ev { display: none; }
+}
 
+/* 시도의 변경 보기 — 머리에 ‹ 앞 · 다음 › 과 닫기, 발에 닫기 · 「이 변경 가져오기」. */
 .tm-race-diff { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-6) var(--space-7); max-height: min(78vh, 900px); }
+.tm-race-diff-head { display: flex; align-items: center; gap: var(--space-2); }
+.tm-race-diff-title { font-size: var(--fs-4); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; }
 .tm-race-diff-body { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--sep); border-radius: var(--radius-s); }
 .tm-race-file {
   position: sticky; top: 0; z-index: var(--z-sticky); margin: 0; padding: var(--space-2) var(--space-4);
@@ -36,8 +63,7 @@
   font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text);
 }
 
-/* 레인의 증거 (10-30 #lane-evidence) — 등급 칩 + 검증 칸 끝 줄. 끝 줄은 줄어들며 잘린다. */
+/* 시도의 검증 (10-30 #lane-evidence) — 등급 칩 + 검증 칸 끝 줄. 끝 줄은 줄어들며 잘린다. */
 .tm-race-ev { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
 .tm-race-proof { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
 .tm-race-muted { color: var(--text-2); }
-

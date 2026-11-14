@@ -53,7 +53,7 @@ vi.mock("@/features/terminal/termStore", () => ({
     store.finds.push([id, q, back]);
     return true;
   },
-  onFindResult: () => () => {},
+  onFindResult: () => () => {}, isAltScreen: () => false, clearFindDecor: () => {},
   clearFind: (id: number) => {
     store.cleared.push(id);
   },
@@ -122,18 +122,18 @@ describe("터미널 탭", () => {
     render(<TerminalScreen projectId={1} workday="20261029" />);
     const note = await screen.findByRole("status");
     expect(within(note).getByText(t("terminal.ended", { code: 0 }))).toBeInTheDocument();
-    fireEvent.click(within(note).getByRole("button", { name: t("terminal.closeAria", { name: "zsh" }) }));
+    fireEvent.click(within(note).getByRole("button", { name: t("terminal.closeAria", { name: "1 zsh" }) }));
     expect(store.closed).toEqual([1]);
   });
 
-  it("세션 줄은 도는 중/끝남과 시작 뒤 일지 수를 말한다", async () => {
+  it("탭은 끝남 같은 예외만 보이고, 평상 낱말(실행 중)과 시작 뒤 일지 수는 툴팁에 둔다", async () => {
     store.set([info(1, "zsh"), info(2, "claude", { alive: false, exit_code: 0 })]);
     journal.created = ["2026-10-29T09:00:00Z", "2026-10-29T10:30:00Z", "2026-10-29T11:00:00Z"];
     render(<TerminalScreen projectId={1} workday="20261029" />);
     expect(store.opened).toEqual([]); // 이미 있으면 새로 띄우지 않는다
-    expect(await screen.findAllByText(new RegExp(t("terminal.records", { n: 2 })))).toHaveLength(2);
-    expect(screen.getByText(t("terminal.running"), { exact: false })).toBeInTheDocument();
-    expect(screen.getByText(t("terminal.ended", { code: 0 }), { exact: false })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByRole("tab").filter((x) => x.title.includes(t("terminal.records", { n: 2 })))).toHaveLength(2));
+    expect(screen.queryByText(t("terminal.running"), { exact: false })).toBeNull();
+    expect(screen.getAllByText(t("terminal.ended", { code: 0 }), { exact: false }).length).toBeGreaterThan(0);
   });
 
   it("안의 프로그램이 알린 상태(OSC 7501)를 말하고, 내 손을 기다리면 그 까닭 한 줄을 붙인다", async () => {
@@ -143,11 +143,11 @@ describe("터미널 탭", () => {
       info(2, "claude", { status: { state: "working", kind: null, msg: "읽는 중", since } }),
     ]);
     render(<TerminalScreen projectId={1} workday="20261029" />);
-    // 둘 이상이면 위 탭 줄 — 탭마다 상태 말.
+    // 둘 이상이면 위 탭 줄 — 예외만 말한다(30분 넘게 그대로인 「작업 중」 은 「최근 소식 없음」).
     const tabs = screen.getAllByRole("tab");
     expect(tabs).toHaveLength(2);
     expect(within(tabs[0]).getByText(t("terminal.state.question"), { exact: false })).toBeInTheDocument();
-    expect(within(tabs[1]).getByText(t("terminal.state.working"), { exact: false })).toBeInTheDocument();
+    expect(within(tabs[1]).getByText(t("terminal.state.quiet"), { exact: false })).toBeInTheDocument();
     // 작업 중인 세션을 보고 있으면 예외 줄이 없다.
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByText("읽는 중")).toBeNull();
@@ -166,7 +166,7 @@ describe("터미널 탭", () => {
   it("닫기는 그 세션을 닫고, 새 세션 단추는 셸을 하나 더 연다", async () => {
     store.set([info(1, "zsh"), info(2, "claude")]);
     render(<TerminalScreen projectId={1} workday="20261029" />);
-    fireEvent.click(screen.getByRole("button", { name: t("terminal.closeAria", { name: "claude" }) }));
+    fireEvent.keyDown(screen.getByRole("tab", { selected: true }), { key: "Delete" });
     await waitFor(() => expect(store.closed).toEqual([2]));
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: new RegExp(t("terminal.new")) }));
@@ -210,14 +210,14 @@ describe("칸 나누기 (Orca split panes)", () => {
   it("칸의 세션이 닫히면 짝이 그 자리를 차지하고, 「하나로」는 고른 칸만 남긴다(세션은 탭에 남는다)", async () => {
     store.set([info(1, "zsh")]);
     const { container } = render(<TerminalScreen projectId={1} workday="20261029" />);
-    fireEvent.click(screen.getByRole("button", { name: t("terminal.splitRight") }));
+    fireEvent.keyDown(window, { key: "d", code: "KeyD", metaKey: true });
     await waitFor(() => expect(panes(container)).toEqual(["1", "2"]));
-    fireEvent.click(screen.getByRole("button", { name: t("terminal.splitDown") }));
+    fireEvent.keyDown(window, { key: "D", code: "KeyD", metaKey: true, shiftKey: true });
     await waitFor(() => expect(panes(container)).toEqual(["1", "2", "3"]));
     act(() => store.set(store.list.filter((s) => s.id !== 2)));
     await waitFor(() => expect(panes(container)).toEqual(["1", "3"]));
     expect(dirs(container)).toEqual(["row"]);
-    fireEvent.click(screen.getByRole("button", { name: t("terminal.unsplit") }));
+    fireEvent.click(screen.getByRole("button", { name: t("terminal.newMenu") })); fireEvent.click(screen.getByRole("menuitem", { name: t("terminal.unsplit") }));
     await waitFor(() => expect(panes(container)).toEqual(["3"]));
     expect(store.closed).toEqual([]);
     expect(screen.getAllByRole("tab")).toHaveLength(2);
@@ -295,7 +295,7 @@ describe("일지 없이 끝난 세션", () => {
     ]);
     render(<TerminalScreen projectId={1} workday="20261029" />);
     const tabs = await screen.findAllByRole("tab");
-    const has = (el: HTMLElement, text: string) => (el.textContent ?? "").includes(text);
+    const has = (el: HTMLElement, text: string) => ((el.textContent ?? "") + el.title).includes(text);
     await waitFor(() => expect(has(tabs[0], t("terminal.records", { n: 1 }))).toBe(true));
     expect(has(tabs[0], t("terminal.noRecord"))).toBe(false);
     expect(has(tabs[1], t("terminal.noRecord"))).toBe(true);

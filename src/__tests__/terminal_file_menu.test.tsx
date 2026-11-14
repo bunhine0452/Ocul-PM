@@ -77,7 +77,7 @@ describe("TermFileMenu", () => {
     render(<TermFileMenuHost projectRoot="/repo" />);
     act(() => openFileMenu({ path: "/repo/src/a.ts", line: 3, x: 20, y: 20 }));
     const menu = screen.getByRole("menu", { name: "이 파일로 할 일" });
-    expect(menu.textContent).toContain("src/a.ts:3");
+    expect(menu.querySelector(".tm-file-menu-name")?.textContent).toBe("a.ts:3");
     expect(screen.getByRole("menuitem", { name: /빠른 미리보기/ })).toBeTruthy();
     // 편집기 항목은 늘 선다 — 설정 밖이면 `auto`(백엔드가 깔린 편집기를 찾는다, editor_choice.rs).
     expect(screen.getByRole("menuitem", { name: /외부 편집기/ })).toBeTruthy();

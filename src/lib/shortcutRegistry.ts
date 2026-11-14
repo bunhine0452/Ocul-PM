@@ -103,6 +103,10 @@ const TERMINAL: ShortcutGroup = {
     { keys: "⌘F", labelKey: "keys.termFind" },
     { keys: "⇧⌘[ / ⇧⌘]", nonMac: "Ctrl+PageUp / PageDown", labelKey: "keys.termCycle" },
     { keys: "⌘= / ⌘- / ⌘0", nonMac: "Ctrl+= / Ctrl+- / Ctrl+0", labelKey: "keys.termFont" },
+    // 세션이 둘 이상이면 ⌘W 는 고른 세션만 닫는다(`interceptCloseKey`) — 그 밖 OS 는 터미널 가족 Ctrl+Shift+W.
+    { keys: "⌘W", labelKey: "terminal.keys.closeSession" },
+    // Ctrl+C · Ctrl+V 는 셸의 것(인터럽트 · 문자 그대로)이라 복사 · 붙여넣기는 Shift 를 얹는다 — 맥은 ⌘C · ⌘V 그대로.
+    { keys: "Ctrl+Shift+C / V", labelKey: "terminal.keys.copyPaste", nonMacOnly: true },
   ],
 };
 

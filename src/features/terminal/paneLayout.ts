@@ -105,6 +105,15 @@ export function show(v: PaneView, id: number): PaneView {
   return { layout: leaf(id), active: id };
 }
 
+/**
+ * 끝난 세션을 다시 열었다 — 그 칸(없으면 고른 칸)에 새 세션을 앉히고, 그 칸이 고른 칸이었으면 고른 칸도 따라간다.
+ * 「새 세션이면 고른 칸에」 규칙(`show`)과 달리 다른 칸을 빼앗지 않는다.
+ */
+export function swapSession(v: PaneView, from: number, to: number): PaneView {
+  if (!v.layout || !hasLeaf(v.layout, from)) return show(v, to);
+  return { layout: replaceLeaf(v.layout, from, to), active: v.active === from ? to : v.active };
+}
+
 /** 세션 목록이 바뀐 뒤 — 닫힌 세션의 칸을 접고, 고른 칸이 사라졌으면 남은 첫 칸을, 칸이 없으면 마지막 세션을. */
 export function syncView(v: PaneView, alive: readonly number[]): PaneView {
   const layout = prune(v.layout, new Set(alive));

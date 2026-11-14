@@ -598,23 +598,89 @@ export interface FindResult {
   count: number;
 }
 
-// 찾은 곳 · 지금 곳 — 브랜드 초록(#12a06b)을 지금 곳에. 장식 색은 #RRGGBB 만 받는다.
-const FIND_DECOR: ISearchOptions["decorations"] = {
-  matchBackground: "#7a6a2e",
-  matchOverviewRuler: "#d6a73a",
-  activeMatchBackground: "#12a06b",
-  activeMatchColorOverviewRuler: "#12a06b",
-};
+/** 찾기 조건 — `incremental` 은 치는 대로 찾을 때(지금 곳이 그대로 늘어난다, `findNext` 만). */
+export interface FindOptions {
+  caseSensitive?: boolean;
+  regex?: boolean;
+  incremental?: boolean;
+  /**
+   * 찾은 곳을 모두 새로 칠한다 — 테마가 바뀌었을 때. 검색 애드온은 같은 낱말 · 같은 조건이면 칠을 다시 하지
+   * 않는다(장식 색은 비교하지 않는다). 선택은 남겨 지금 곳이 그대로다.
+   */
+  repaint?: boolean;
+}
+
+/** 토큰이 아직 안 붙은 순간(첫 페인트 · jsdom)의 값 — 다크 기준. */
+const FIND_FALLBACK = { bg: "#1b1f1d", text: "#f1f4f1", warn: "#eaa23f", accent: "#34d095" };
+
+function hexToken(style: CSSStyleDeclaration, name: string, fallback: string): string {
+  const v = style.getPropertyValue(name).trim();
+  return /^#[0-9a-f]{6}$/i.test(v) ? v : fallback;
+}
+
+/** `top` 을 `base` 에 `amount` 만큼 섞은 #RRGGBB (`projectTint.mixHex` 와 같은 셈 — 이 구역만 고치려고 따로 둔다). */
+function mixFind(top: string, base: string, amount: number): string {
+  const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  const mixed = [0, 1, 2].map((i) => Math.round(ch(base, i) + (ch(top, i) - ch(base, i)) * amount));
+  return "#" + mixed.map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * 찾은 곳 · 지금 곳의 칠 — 토큰에서 #RRGGBB 로 만든다(장식은 그 꼴만 받는다). 예전 고정 색은 rg 가 칠한
+ * 빨간 낱말 위에서 글자 대비가 라이트 1.02:1 이었다 — 찾은 곳은 바탕에 글자색 20% 를 섞은 **중립** 면에
+ * 앰버 1px 테, 지금 곳은 한 단 짙은 면에 강조색 1px 테. 테마 · 프로젝트 색이 바뀌면 다음 찾기부터 따라간다.
+ */
+export function findDecor(root: HTMLElement = document.documentElement): NonNullable<ISearchOptions["decorations"]> {
+  const style = getComputedStyle(root);
+  const bg = hexToken(style, "--term-bg", FIND_FALLBACK.bg);
+  const text = hexToken(style, "--text", FIND_FALLBACK.text);
+  const warn = hexToken(style, "--warn", FIND_FALLBACK.warn);
+  const accent = hexToken(style, "--accent", FIND_FALLBACK.accent);
+  return {
+    matchBackground: mixFind(text, bg, 0.2),
+    matchBorder: warn,
+    matchOverviewRuler: warn,
+    activeMatchBackground: mixFind(text, bg, 0.32),
+    activeMatchBorder: accent,
+    activeMatchColorOverviewRuler: accent,
+  };
+}
 
 /**
  * 세션의 출력(스크롤백 포함)에서 찾는다 (11-02, 터미널 찾기 ⌘F). 결과 수는 `onResult` 로 —
- * 찾을 때마다 다시 온다. 돌려주는 것은 찾았는가.
+ * 찾을 때마다 다시 온다. 돌려주는 것은 찾았는가. 맞지 않는 정규식은 찾지 못한 것으로 친다.
  */
-export function findInTerm(id: number, query: string, back: boolean, caseSensitive: boolean): boolean {
+export function findInTerm(id: number, query: string, back: boolean, options: FindOptions = {}): boolean {
   const e = entries.get(id);
   if (!e || !query) return false;
-  const opts: ISearchOptions = { caseSensitive, decorations: FIND_DECOR };
-  return back ? e.search.findPrevious(query, opts) : e.search.findNext(query, opts);
+  const opts: ISearchOptions = {
+    caseSensitive: options.caseSensitive ?? false,
+    regex: options.regex ?? false,
+    incremental: !back && (options.incremental ?? false),
+    decorations: findDecor(),
+  };
+  if (options.repaint) e.search.clearDecorations();
+  try {
+    return back ? e.search.findPrevious(query, opts) : e.search.findNext(query, opts);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 안의 프로그램이 대체 화면(전체 화면 TUI)에 있는가 — Claude Code 는 `CLAUDE_CODE_NO_FLICKER` 라 대화가
+ * 거기 산다. 대체 화면에는 스크롤백이 없어 ⌘F 는 보이는 몇 줄만 찾는다.
+ */
+export function isAltScreen(id: number): boolean {
+  return entries.get(id)?.term.buffer.active.type === "alternate";
+}
+
+/** 찾은 곳 칠과 선택만 지운다 — 입력은 건드리지 않는다(다른 칸을 고르며 닫힐 때). */
+export function clearFindDecor(id: number) {
+  const e = entries.get(id);
+  if (!e) return;
+  e.search.clearDecorations();
+  e.term.clearSelection();
 }
 
 /** 찾기 결과 수가 바뀔 때마다 — 끄는 함수를 돌려준다. */
@@ -627,11 +693,8 @@ export function onFindResult(id: number, fn: (r: FindResult) => void): () => voi
 
 /** 찾기를 닫는다 — 칠한 것을 지우고 입력으로 돌아간다. */
 export function clearFind(id: number) {
-  const e = entries.get(id);
-  if (!e) return;
-  e.search.clearDecorations();
-  e.term.clearSelection();
-  e.term.focus();
+  clearFindDecor(id);
+  entries.get(id)?.term.focus();
 }
 
 /** 이 세션에서 Claude 가 일한 적이 있는가 (OSC 7501 working 을 한 번이라도). */

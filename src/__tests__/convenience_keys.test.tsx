@@ -136,17 +136,17 @@ describe("terminal sessions", () => {
     h.set([info(1, "zsh"), info(2, "claude")]);
     h.busy.add(2);
     render(<TerminalScreen projectId={1} workday={null} />);
-    fireEvent.click(screen.getByRole("button", { name: t("terminal.closeAria", { name: "claude" }) }));
-    await screen.findByText(t("terminal.closeOneAsk.title", { name: "claude" }));
+    fireEvent.keyDown(screen.getByRole("tab", { name: /claude/ }), { key: "Delete" });
+    await screen.findByText(t("terminal.closeOneAsk.title", { name: "2 claude" }));
     expect(h.closed).toEqual([]);
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: t("terminal.closeAsk.confirm") }));
     });
     await waitFor(() => expect(h.closed).toEqual([2]));
 
-    await waitFor(() => expect(screen.queryByText(t("terminal.closeOneAsk.title", { name: "claude" }))).toBeNull());
+    await waitFor(() => expect(screen.queryByText(t("terminal.closeOneAsk.title", { name: "2 claude" }))).toBeNull());
     act(() => h.set([info(1, "zsh"), info(3, "idle")]));
-    fireEvent.click(await screen.findByRole("button", { name: t("terminal.closeAria", { name: "idle" }) }));
+    fireEvent.keyDown(await screen.findByRole("tab", { name: /idle/ }), { key: "Delete" });
     await waitFor(() => expect(h.closed).toEqual([2, 3]));
   });
 });
