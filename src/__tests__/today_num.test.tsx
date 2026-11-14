@@ -15,18 +15,18 @@ describe("Num", () => {
   it("resolves the English plural and keeps only the number bold", async () => {
     await loadDict("en");
     setLangSetting("en");
-    const many = render(<Num k="today.day.records" n={34} />);
-    expect(many.container.textContent).toBe("34 entries");
+    const many = render(<Num k="today.arrived.stale" n={34} />);
+    expect(many.container.textContent).toBe("Synced 34 days ago");
     expect(many.container.querySelector("b")?.textContent).toBe("34");
     cleanup();
-    const one = render(<Num k="today.day.records" n={1} />);
-    expect(one.container.textContent).toBe("1 entry");
+    const one = render(<Num k="today.arrived.stale" n={1} />);
+    expect(one.container.textContent).toBe("Synced 1 day ago");
   });
 
   it("keeps the Korean sentence around the bold number", () => {
     setLangSetting("ko");
-    const { container } = render(<Num k="today.day.records" n={58} />);
-    expect(container.textContent).toBe("기록 58건");
+    const { container } = render(<Num k="today.arrived.stale" n={58} />);
+    expect(container.textContent).toBe("올리거나 받아 온 지 58일");
     expect(container.querySelector("b")?.textContent).toBe("58");
   });
 });

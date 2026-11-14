@@ -1,105 +1,147 @@
 /* ============================================================
-   오늘 (4.0 {#ui-today}) — 예외만 보여 준다.
-   두 칸(10-30): 왼쪽은 해야 할 것(확인할 것 · 다음 · 내 차례 · 지금 일하는 중), 오른쪽은 기록(검증
-   없이 끝난 일지 · 오늘 한 일). 넓은 창에서 820px 한 기둥 양옆이 비던 것을 줄였다. 자리가 모자라면
-   flex-wrap 이 한 칸으로 접는다. 옛 오른쪽 칼럼(계획 카드)은 계획 탭을 되풀이해 걷었고 돌아오지 않는다.
-   값은 전부 토큰이다. 강조는 면(배경)으로만 — 왼쪽 세로줄은 쓰지 않는다.
+   오늘 (4.0 {#ui-today} · 11-15 한 기둥) — 예외만 보여 준다.
+   틀은 처음부터 하나다: 날짜 줄(날짜 · 오른쪽에 수 한 줄) 아래 두 칸 — 왼쪽은 해야 할 것(첫 기록 전의
+   세 걸음 · 먼저 볼 것과 그 끝의 「다음」 · 검증 없이 끝난 일지 · 지금 일하는 중), 오른쪽은 기록(오늘 한 일).
+   오른쪽이 비어도 칸은 서 있어 값이 도착하며 화면이 옆으로 옮기지 않는다. 자리가 모자라면 flex-wrap 이
+   한 칸으로 접는다(접힘 선 숫자를 새로 고르지 않는다). 단축키 한 줄은 두 칸 밖 맨 끝.
+   값은 전부 토큰이다. 색은 예외에만(영수증 규칙 1) — 도는 세션 · 링크 · 빈 상태 체크는 회색이나 본문 잉크.
+   글자 굵기는 세 단: 카드 머리 600 · 행 제목 550 · 메타 400. 기계 글씨(시각 · 명령 · 경로)만 고정폭.
+   강조는 면(배경)으로만 — 왼쪽 세로줄은 쓰지 않는다.
    ============================================================ */
 
-.page.tdy { padding: var(--space-7) var(--space-8) 60px; }
+/* 카드 안 가로 여백 한 값 — 머리 · 행 · 묶음 · 세션이 같은 세로선에서 시작한다.
+   `--tdy-lead` 는 행 리드 칸(상태 칩 · 시각)의 바닥 폭 — 「일지 없음」 칩 + 행의 왼쪽 여백(subgrid 는 행의 여백을
+   첫 칸에 더한다)이 들어가는 폭이라, 먼저 볼 것과 검증 없이 끝난 일지 두 카드의 제목이 대개 한 세로선에서
+   시작한다(어제 시각처럼 더 넓은 것이 오면 그 목록만 넓어진다). */
+.page.tdy { --card-pad-x: 14px; --tdy-lead: 72px; padding: var(--space-7) var(--space-8) 60px; }
 .page.tdy:focus,
 .page.tdy:focus-visible { outline: none; }
 
-.tdy-body { max-width: 820px; margin: 0 auto; }
-.tdy-body.is-two { max-width: 1180px; }
+.tdy-body { max-width: 1180px; margin: 0 auto; }
+.tdy-col { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
 .tdy-cols { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-5) var(--space-6); }
 .tdy-main { flex: 3 1 520px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-5); }
 .tdy-side { flex: 2 1 380px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-5); }
-.tdy-col { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+/* 비어 있는 오른쪽 칸 — 넓을 때는 자리를 지키고, 접혀 한 칸이 됐을 때는 줄 간격만큼 남지 않게 되돌린다. */
+.tdy-side:empty { margin-top: calc(-1 * var(--space-5)); }
 
-/* ── 하루 한 줄 ─────────────────────────────────────────────── */
+/* ── 날짜 줄 — 날짜 · 오른쪽에 수 한 줄 ─────────────────────── */
 .tdy-day {
   display: flex; flex-wrap: wrap; align-items: baseline;
   gap: var(--space-2) var(--space-6);
   padding: 0 2px;
   font-size: var(--fs-4); color: var(--text-2);
 }
-.tdy-day b { color: var(--text); font-weight: var(--fw-strong); }
-.tdy-day b.tdy-warn { color: var(--warn-text); }
+.tdy-date { color: var(--text); font-weight: var(--fw-strong); }
+.tdy-day b { color: var(--text); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; }
+.tdy-nums { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); margin-left: auto; }
+.tdy-num-group { display: inline-flex; align-items: baseline; gap: var(--space-3); }
+.tdy-num { padding: 0; border: 0; background: none; font: inherit; color: var(--text-2); cursor: pointer; }
+.tdy-num:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+.tdy-num-sep { color: var(--text-2); }
 
 /* ── 카드 공통 ─────────────────────────────────────────────── */
 .tdy-card { overflow: hidden; }
 .tdy-ch {
   display: flex; align-items: center; gap: var(--space-3);
-  min-height: 40px; padding: 0 14px;
+  min-height: 40px; padding: 0 var(--card-pad-x);
   border-bottom: 1px solid var(--border-card);
 }
-.tdy-ch h2 { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
-.tdy-cnt { font-size: var(--fs-3); color: var(--text-2); }
+/* 카드 머리는 이름표다 — 예외 행보다 먼저 읽히지 않게 작고 회색(굵기 600 은 이름표의 단). */
+.tdy-ch h2 { margin: 0; font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); }
+.tdy-cnt { font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .tdy-sp { flex: 1; }
-.tdy-meta { font-size: var(--fs-3); color: var(--text-2); }
-.tdy-strong { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
+.tdy-meta { font-size: var(--fs-3); font-weight: var(--fw-body); color: var(--text-2); }
+.tdy-strong { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-label); }
+.tdy-warn { color: var(--warn-text); font-weight: var(--fw-label); }
+.tdy .mono,
+.tdy code { font-family: var(--mono); font-size: inherit; font-variant-numeric: tabular-nums; font-variant-ligatures: none; }
 
-.tdy-warn { color: var(--warn-text); font-weight: var(--fw-strong); }
-
-.tdy-pad { margin: 0; padding: var(--space-5) 14px; }
+.tdy-pad { margin: 0; padding: var(--space-5) var(--card-pad-x); }
 .tdy-grow { flex: 1; min-width: 0; }
-.tdy-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tdy-dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; }
-.tdy-rows, .tdy-ents, .tdy-list { margin: 0; padding: 0; list-style: none; }
+.tdy-rows, .tdy-ents, .tdy-list, .tdy-steps { margin: 0; padding: 0; list-style: none; }
 .tdy-keys { margin: 0; padding: 0 2px; font-size: var(--fs-3); color: var(--text-2); }
-.tdy-date { color: var(--text); font-weight: var(--fw-strong); }
-.tdy-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .tdy-notice { display: flex; align-items: center; gap: var(--space-5); }
+.tdy-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* 링크 — 본문 잉크에 밑줄은 가리킬 때만. 강조색 글자는 다크에서 본문보다 밝아 예외처럼 읽혔다. */
+.tdy-link { padding: 0; border: 0; background: none; font: inherit; color: var(--text); cursor: pointer; }
+.tdy-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+.tdy-link:is(:disabled, [aria-disabled="true"]) { color: var(--text-2); cursor: default; text-decoration: none; }
 
-/* ── 확인할 것 ─────────────────────────────────────────────── */
+/* 다시 읽다 실패했을 때 카드 머리의 한 줄 — 보이는 값은 그때 읽은 것이다. */
+.tdy-stale { display: inline-flex; align-items: baseline; gap: var(--space-3); font-size: var(--fs-3); color: var(--warn-text); }
+
+/* ── 먼저 볼 것 ─────────────────────────────────────────────── */
 .tdy-row {
   display: flex; align-items: center; gap: var(--space-4);
-  padding: 9px 14px;
+  padding: 9px var(--card-pad-x);
   border-bottom: 1px solid var(--border-card);
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .tdy-row:last-child { border-bottom: 0; }
-/* 먼저 볼 것 — 행마다 칩 폭이 달라 제목이 들쭉날쭉 시작하던 것을 한 칸(subgrid)으로 맞춘다.
-   칩 칸 · 내용 · 동작, 세 칸이 목록 전체에서 같은 선에 선다. */
-.tdy-rows.is-ex { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; }
+/* 행마다 칩 폭이 달라 제목이 들쭉날쭉 시작하던 것을 한 칸(subgrid)으로 맞춘다. 칩 칸 · 내용 · 동작, 세 칸이
+   목록 전체에서 같은 선에 선다 — 마지막 행 「다음」 도 같은 칸이라 왼쪽 기둥의 제목선이 하나다. */
+.tdy-rows.is-ex { display: grid; grid-template-columns: minmax(var(--tdy-lead), max-content) minmax(0, 1fr) auto; }
 .tdy-rows.is-ex > .tdy-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; }
-.tdy-rows.is-ex > .tdy-row > .chip { justify-self: start; }
-/* 검증 없이 끝난 일지도 같은 칸 — 시각 칸은 목록에서 가장 긴 시각(「어제 19:39」 · 「yesterday 19:39」)의 폭. */
-.tdy-rows.is-ex > .tdy-unread > .tdy-time { width: auto; white-space: nowrap; }
-.tdy-row:focus-within { background: var(--bg-hover); }
+/* 칩은 첫 줄에 붙는다 — 두 줄 이상 흐르는 질문 옆에서 가운데로 떠 있지 않게. */
+.tdy-rows.is-ex > .tdy-row > .chip { justify-self: start; align-self: start; margin-top: 1px; }
+/* 질문에는 동작 칸이 없다 — 내용이 그 칸까지 써서 오른쪽 끝이 아래 행 단추 끝과 맞는다. */
+.tdy-rows.is-ex > .tdy-row[data-kind="question"] > .tdy-row-t { grid-column: 2 / -1; }
+/* 지금 행(j/k 가 이어지는 곳) — 포커스가 다른 데 있을 때도 옅게. 키보드로 들어왔을 때만 진하게. */
+.tdy-row[data-active] { background: color-mix(in srgb, var(--bg-hover) 50%, transparent); }
+.tdy-row:is(:focus-visible, :has(:focus-visible)) { background: var(--bg-hover); }
 .tdy-row:focus-visible { outline-offset: var(--focus-offset-inset); }
 .tdy-row-t { flex: 1; min-width: 0; }
+.tdy-row-title { font-size: var(--fs-4); font-weight: var(--fw-label); }
 .tdy-row-title,
 .tdy-row .tdy-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tdy-row .tdy-wrap { white-space: normal; text-wrap: pretty; overflow: visible; }
+.tdy-acts { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
 /* 일지 행의 제목 = 그 일지 열기. 버튼이지만 글자처럼 — 밑줄은 hover 에만. */
 .tdy-row-open {
   display: block; width: 100%; padding: 0; border: 0; background: none;
-  font: inherit; color: var(--text); text-align: left; cursor: pointer;
+  font: inherit; font-weight: var(--fw-label); color: var(--text); text-align: left; cursor: pointer;
 }
 .tdy-row-open:hover { text-decoration: underline; text-underline-offset: 2px; }
-.tdy-empty { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px 14px; }
+.tdy-empty { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px var(--card-pad-x); }
+.tdy-empty-ico { flex: none; margin-top: 1px; color: var(--text-2); }
+/* 「다음」 — 제목은 두 줄까지(한 줄로 자르면 무슨 일인지가 잘린 쪽에 있었다). */
+.tdy-next .tdy-row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 
-/* 검증 없이 끝난 일지 — 시각 · 제목 · 행에 올라가야 보이는 「읽음」(읽음은 묶음 머리에 하나 서 있다). */
-/* 영어 「yesterday」 가 40px 에서 「yester / day」 로 꺾였다(10-30) — 낱말 안에서 끊지 않는 폭. */
-.tdy-time { flex: none; width: 5em; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; overflow-wrap: normal; word-break: keep-all; }
+/* 검증 없이 끝난 일지 — 시각 · 제목 · 「읽음」(여럿이면 행에 올라가야 보인다 — 묶음 머리에 「모두 읽음」). */
+.tdy-time { flex: none; font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; font-variant-ligatures: none; white-space: nowrap; }
 .tdy-unread .tdy-row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .tdy-row-quiet { opacity: 0; }
 .tdy-row:hover .tdy-row-quiet,
 .tdy-row:focus-within .tdy-row-quiet { opacity: 1; }
+.tdy-more {
+  display: block; width: 100%; padding: var(--space-3) var(--card-pad-x);
+  border: 0; border-top: 1px solid var(--border-card); background: transparent;
+  font: inherit; font-size: var(--fs-3); color: var(--text-2); text-align: left; cursor: pointer;
+}
+.tdy-more:hover { color: var(--text); background: var(--bg-hover); }
+.tdy-more:focus-visible { outline-offset: var(--focus-offset-inset); }
 
-/* 내 차례 — 카드가 아니라 조용한 한 줄. */
-.tdy-mine { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); margin: 0; padding: 0 2px; font-size: var(--fs-4); color: var(--text-2); }
-.tdy-link { padding: 0; border: 0; background: none; font: inherit; color: var(--accent-text); cursor: pointer; }
-.tdy-link:hover { text-decoration: underline; text-underline-offset: 2px; }
-.tdy-empty-ico { flex: none; margin-top: 1px; color: var(--accent); }
+/* Claude 의 질문에 답하는 칸 (MCP ask_user) — 고를 답 단추(길면 줄을 바꾼다) · 직접 쓰는 칸 · 보내기. */
+.tdy-answer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+.tdy-option { height: auto; min-height: var(--ctl-3); max-width: 100%; padding-block: var(--space-1); white-space: normal; text-align: start; }
+.tdy-answer-field { position: relative; display: flex; flex: 1 1 200px; min-width: 0; }
+.tdy-answer-input {
+  flex: 1; min-width: 0; height: var(--ctl-3); padding: 0 var(--space-3);
+  border: 1px solid var(--border-card); border-radius: var(--radius-s);
+  background: var(--bg-card); color: var(--text); font: inherit; font-size: var(--fs-3);
+}
+.tdy-answer-input:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+.tdy-answer-hint { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); pointer-events: none; }
+.tdy-sent { font-size: var(--fs-3); color: var(--text-2); }
 
 /* ── 오늘 한 일 ────────────────────────────────────────────── */
 .tdy-ent {
   display: grid;
   grid-template-columns: 44px 84px minmax(0, 1fr) auto 60px;
   align-items: center; gap: var(--space-3);
-  width: 100%; padding: 7px 14px;
+  width: 100%; padding: 7px var(--card-pad-x);
   border: 0; border-bottom: 1px solid var(--border-card);
   background: transparent; color: var(--text);
   font: inherit; font-size: var(--fs-4); text-align: left;
@@ -108,7 +150,9 @@
 }
 .tdy-ents li:last-child .tdy-ent { border-bottom: 0; }
 .tdy-ent:hover { background: var(--bg-hover); }
-.tdy-ent-tm, .tdy-ent-ln { font-size: var(--fs-3); color: var(--text-2); }
+.tdy-ent:focus-visible,
+.tdy-grp:focus-visible { outline-offset: var(--focus-offset-inset); }
+.tdy-ent-tm, .tdy-ent-ln { font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .tdy-ent-ln { text-align: right; white-space: nowrap; }
 .tdy-ent-ty {
   display: flex; align-items: center; gap: var(--space-2);
@@ -116,55 +160,61 @@
   font-size: var(--fs-3); color: var(--text-2);
 }
 .tdy-ent-ti { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tdy-ent-ev { font-size: var(--fs-3); white-space: nowrap; }
-.tdy-ent-ev.is-command { color: var(--text-2); } /* 통과는 조용히 — 영수증 규칙 1 */
-.tdy-ent-ev.is-missing { color: var(--warn-text); font-weight: var(--fw-strong); }
-.tdy-ent-ev.is-verified { color: var(--text-2); }
-.tdy-ent-ev.is-none { color: var(--text-2); }
+.tdy-ent-ev { display: inline-flex; align-items: center; justify-content: flex-end; }
 @container screen (max-width: 460px) {
   .tdy-ent { grid-template-columns: 44px minmax(0, 1fr) auto; }
   .tdy-ent-ty, .tdy-ent-ln { display: none; }
 }
 
 .tdy-grp-wrap + .tdy-grp-wrap { border-top: 1px solid var(--border-card); }
+/* 묶음 머리 — 바탕은 카드 그대로(다크에서 카드보다 어두운 띠가 섰다), 가리킬 때만 면. */
 .tdy-grp {
   display: flex; align-items: center; gap: var(--space-4);
-  width: 100%; padding: var(--space-4) 14px;
-  border: 0; background: var(--bg-window); color: var(--text);
+  width: 100%; padding: var(--space-4) var(--card-pad-x);
+  border: 0; background: transparent; color: var(--text);
   font: inherit; font-size: var(--fs-4); text-align: left;
   cursor: pointer;
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .tdy-grp:hover { background: var(--bg-hover); }
 .tdy-grp[aria-expanded="true"] { border-bottom: 1px solid var(--border-card); }
-.tdy-grp b { font-weight: var(--fw-strong); }
+.tdy-grp b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-label); }
 .tdy-grp > svg { flex: none; color: var(--text-2); }
+/* 묶음 건수 — 오른쪽 끝 한 칸, 숫자 폭이 같아 줄마다 같은 자리에 선다. */
+.tdy-grp-n { flex: none; min-width: 3em; text-align: right; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* 보는 방식 둘(계획별 · 시간순) — 탭이 아니라 눌린 단추라 `aria-pressed` 가 면을 갖는다. */
+.tdy .seg-item[aria-pressed="true"] { background: var(--bg-card); color: var(--text); box-shadow: var(--shadow-card); }
 
 /* ── 지금 일하는 중 ────────────────────────────────────────── */
 .tdy-sess {
   display: flex; align-items: flex-start; gap: var(--space-4);
-  padding: var(--space-4) 14px;
+  padding: var(--space-4) var(--card-pad-x);
   border-bottom: 1px solid var(--border-card);
 }
 .tdy-sess:last-child { border-bottom: 0; }
-.tdy-sess-dot { margin-top: 6px; background: var(--ok); }
+/* 도는 것은 예외가 아니다 — 회색 점. 조용해졌을 때만 호박색(영수증 규칙 1). */
+.tdy-sess-dot { margin-top: 6px; background: var(--text-2); }
 .tdy-sess-dot.is-quiet { background: var(--warn); }
+.tdy-quiet { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); }
 
-/* ── 다음 — 한 줄 ──────────────────────────────────────────── */
-.tdy-next { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-4) 14px; }
-.tdy-next p { margin: 0; }
-.tdy-next-k { flex: none; margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); color: var(--text-2); }
-
-/* ── 첫 기록 전 ────────────────────────────────────────────── */
-.tdy-first { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px; }
-.tdy-first-ico { flex: none; margin-top: 2px; color: var(--accent-text); }
-.tdy-first p { margin: var(--space-2) 0 var(--space-5); }
-
-/* Claude 의 질문에 답하는 칸 (MCP ask_user) — 고를 답 단추 · 직접 쓰는 칸 · 보내기. */
-.tdy-answer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
-.tdy-answer-input {
-  flex: 1 1 200px; min-width: 0; height: var(--ctl-3); padding: 0 var(--space-3);
-  border: 1px solid var(--border-card); border-radius: var(--radius-s);
-  background: var(--bg-card); color: var(--text); font: inherit; font-size: var(--fs-3);
+/* ── 첫 기록까지 세 걸음 ───────────────────────────────────── */
+.tdy-first-ico { flex: none; color: var(--text-2); }
+.tdy-step {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--space-4) var(--card-pad-x);
+  border-bottom: 1px solid var(--border-card);
 }
-.tdy-answer-input:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+.tdy-step:last-child { border-bottom: 0; }
+.tdy-step-mark { flex: none; width: 1.5em; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text-2); text-align: center; }
+.tdy-step[data-done] .tdy-row-title { color: var(--text-2); font-weight: var(--fw-body); }
+
+/* ── 좁은 창 (640) — 행은 두 줄(칩 · 제목 / 그 아래 동작), 좌우는 16px ─────────────── */
+@container screen (max-width: 640px) {
+  .tdy-body { margin-inline: calc(var(--space-6) - var(--space-8)); }
+  .tdy-nums { margin-left: 0; }
+  .tdy-rows.is-ex > .tdy-row:not(.tdy-unread) { row-gap: var(--space-3); }
+  .tdy-rows.is-ex > .tdy-row:not(.tdy-unread) > :is(.btn, .tdy-acts) { grid-column: 2 / -1; grid-row: 2; justify-self: start; }
+  .tdy .kbd:not(.tdy-answer-hint) { display: none; }
+  .tdy-step { flex-wrap: wrap; }
+  .tdy-step > .btn { margin-left: calc(1.5em + var(--space-4)); }
+}

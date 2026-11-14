@@ -145,6 +145,7 @@ vi.mock("@/lib/bindings", () => {
 });
 
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
+import { __resetTodayStoreForTests } from "@/features/today/useTodayExceptions";
 import { takeTermFocus } from "@/features/terminal/focusRequest";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
@@ -254,7 +255,7 @@ beforeEach(() => {
   fx.arrived = null;
   Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true });
 });
-afterEach(() => cleanup());
+afterEach(() => (cleanup(), __resetTodayStoreForTests()));
 
 describe("확인할 것 — 종류와 순서", () => {
   it("다른 OS 에서 받은 ✓ 는 「여기선 아직」 — 다시 확인은 이 기기에서 돌리라고 넘긴다 (11-13)", async () => {
@@ -277,11 +278,11 @@ describe("확인할 것 — 종류와 순서", () => {
     expect(runs[0]).toBe(t("today.check.recheckHerePrompt", { plan: "a", check: "pnpm test", os: "macOS" }));
   });
 
-  it("이 기기에만 있는 것은 행이 아니라 한 줄 — 배지에 안 세고, 누르면 변경 화면 (11-13)", async () => {
+  it("이 기기에만 있는 기록은 날짜 줄의 수 하나 — 배지에 안 세고, 누르면 변경 화면 (11-13 · 11-15)", async () => {
     fx.localOnly = { uncommitted: 5, records: 2, unpushed: 3 };
-    const { onNavigate, container } = renderToday();
-    const open = await screen.findByRole("button", { name: t("today.local.open") });
-    expect(container.textContent).toContain(t("today.local.unpushed", { n: 3 }));
+    const { onNavigate } = renderToday();
+    const open = await screen.findByRole("button", { name: t("today.nums.local", { n: 2 }) });
+    expect(open.title).toContain(t("today.local.unpushed", { n: 3 }));
     expect(within(checkCard()).queryAllByRole("listitem")).toHaveLength(0);
     fireEvent.click(open);
     expect(onNavigate).toHaveBeenCalledWith("diff");
@@ -291,32 +292,32 @@ describe("확인할 것 — 종류와 순서", () => {
     await waitFor(() => expect(runs).toEqual([t("today.local.handoffPrompt")]));
   });
 
-  it("오늘 받아 온 일지는 한 줄 — 누르면 가장 최근 것을 일지 화면에서 연다 (11-13)", async () => {
+  it("오늘 받아 온 일지는 수 하나 — 누르면 가장 최근 것을 일지 화면에서 연다 (11-13)", async () => {
     fx.arrived = { journals: ["20261112/Bugs/0327_bug_b.md", "20261111/Chores/2200_chore_a.md"], synced_at: 1 };
-    const { onOpenEntry, container } = renderToday();
-    const open = await screen.findByRole("button", { name: t("today.arrived.open") });
-    expect(container.textContent).toContain(t("today.arrived.line", { n: 2 }));
+    const { onOpenEntry } = renderToday();
+    const open = await screen.findByRole("button", { name: t("today.nums.arrived", { n: 2 }) });
+    expect(open.title).toContain(t("today.arrived.line", { n: 2 }));
     expect(within(checkCard()).queryAllByRole("listitem")).toHaveLength(0);
     fireEvent.click(open);
     expect(onOpenEntry).toHaveBeenCalledWith({ relative_path: "20261112/Bugs/0327_bug_b.md" });
   });
 
-  it("남은 항목이 없는 계획은 「닫을 수 있는 계획 N개」 한 줄 — 누르면 그 계획이 열린다 (11-14)", async () => {
+  it("남은 항목이 없는 계획은 「닫을 계획 N」 수 하나 — 누르면 그 계획이 열린다 (11-14)", async () => {
     fx.digest = digest({ plans: [plan("open"), plan("done-a", { closable: true }), plan("done-b", { closable: true })] });
-    const { onNavigate, container } = renderToday();
-    const open = await screen.findByRole("button", { name: t("today.closable.open") });
-    expect(container.textContent).toContain(t("today.closable.line", { n: 2 }));
+    const { onNavigate } = renderToday();
+    const open = await screen.findByRole("button", { name: t("today.nums.closable", { n: 2 }) });
+    expect(open.title).toBe(t("today.closable.hint"));
     // 행도 배지도 아니다 — 닫는 것은 급한 일이 아니다.
     expect(within(checkCard()).queryAllByRole("listitem")).toHaveLength(0);
     fireEvent.click(open);
     expect(onNavigate).toHaveBeenCalledWith("planner");
   });
 
-  it("닫을 계획이 없으면 그 줄은 없다", async () => {
+  it("닫을 계획이 없으면 그 수는 없다 — 다른 수도 없으면 수 줄이 통째로 없다", async () => {
     fx.digest = digest({ plans: [plan("open")] });
-    renderToday();
+    const { container } = renderToday();
     await screen.findByRole("region", { name: t("today.check.title") });
-    expect(screen.queryByRole("button", { name: t("today.closable.open") })).toBeNull();
+    expect(container.querySelector(".tdy-nums")).toBeNull();
   });
 
   it("동료가 git 으로 올린 일지는 그 사람 이름을 단다 — 내 에이전트의 일이 아니다", async () => {
@@ -345,8 +346,8 @@ describe("확인할 것 — 종류와 순서", () => {
     expect(checkCard().querySelector('[data-kind="verdict"] .vl.is-fail')).not.toBeNull();
     expect(pills()).toEqual([
       t("today.check.kind.verdict"),
-      t("today.check.kind.unrecorded"),
-      t("today.check.kind.unrecorded"),
+      t("today.chip.noJournal"),
+      t("today.chip.noJournal"),
       t("today.check.kind.blocked"),
       t("today.check.kind.plugin"),
     ]);
@@ -355,8 +356,8 @@ describe("확인할 것 — 종류와 순서", () => {
     expect(unread).toHaveLength(1);
     expect(unread[0].querySelector(".chip")).toBeNull();
     expect(within(unread[0]).getByText("새 폴더 감시 경합")).toBeInTheDocument();
-    // 내 차례는 행이 아니라 한 줄 — 계획 수와 항목 수만.
-    expect(screen.getByText(t("today.mine.line", { p: 1, n: 1 }))).toBeInTheDocument();
+    // 내 차례는 행이 아니라 날짜 줄의 수 하나 — 문장(계획 수와 항목 수)은 툴팁.
+    expect(screen.getByRole("button", { name: t("today.nums.mine", { n: 1 }) }).title).toBe(t("today.mine.line", { p: 1, n: 1 }));
     const card = checkCard();
     // 판정 실패 행은 결과 끝 줄(에이전트의 말이 아니라)을 보여 준다.
     expect(within(card).getByText(/2 failed, 418 passed/)).toBeInTheDocument();
@@ -382,7 +383,7 @@ describe("확인할 것 — 종류와 순서", () => {
   it("Claude 가 앱에 물으면(ask_user) 맨 위 줄에 답 칸 — 고른 답이나 쓴 답이 그 질문으로 간다", async () => {
     fx.questions = [{ id: "q1", question: "배포할까요?", options: ["예", "아니오"], asked_at: new Date().toISOString() }];
     renderToday();
-    await waitFor(() => expect(pills()).toEqual([t("today.check.kind.question")]));
+    await waitFor(() => expect(pills()).toEqual([t("today.chip.question")]));
     const card = checkCard();
     expect(within(card).getByText("배포할까요?")).toBeInTheDocument();
     fireEvent.click(within(card).getByRole("button", { name: "예" }));
@@ -408,8 +409,8 @@ describe("확인할 것 — 종류와 순서", () => {
       { id: 3, project_id: 1, label: "claude", started_at: since, alive: true, exit_code: null, busy: true, unseen: false, status: { state: "blocked", kind: "permission", msg: "approve Bash", since } },
     ];
     renderToday();
-    await waitFor(() => expect(pills()).toEqual([t("today.check.kind.waiting")]));
-    expect(screen.getByRole("button", { name: t("today.check.openTerminal") })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: t("today.check.openTerminal") })).toBeInTheDocument());
+    expect(pills()).toEqual([t("today.check.kind.waiting")]);
     expect(screen.queryByRole("button", { name: t("today.check.dismissWaiting") })).toBeNull();
   });
 
@@ -464,7 +465,7 @@ describe("확인할 것 — 동작", () => {
     expect(within(row).getAllByRole("button")).toHaveLength(2); // 제목 · 확인함
     fireEvent.click(within(row).getByRole("button", { name: (fx.entries[0] as JournalEntrySummary).title }));
     expect(onOpenEntry).toHaveBeenCalledWith({ relative_path: (fx.entries[0] as JournalEntrySummary).relative_path });
-    fireEvent.click(screen.getByRole("button", { name: t("today.check.openOutput") }));
+    fireEvent.click(screen.getByRole("button", { name: t("today.check.openPlan") }));
     expect(onNavigate).toHaveBeenCalledWith("planner");
   });
 
@@ -473,7 +474,7 @@ describe("확인할 것 — 동작", () => {
     fx.digest = digest({
       plans: [plan("a", { last_verdict: { passed: false, summary: "", ts: new Date().toISOString(), agent_id: "codex", item_id: "x" } })],
     });
-    const { container, onNavigate } = renderToday();
+    const { container } = renderToday();
     await waitFor(() => expect(checkCard().querySelector('[data-kind="verdict"] .vl')).not.toBeNull());
     const root = container.querySelector(".page.tdy") as HTMLElement;
     // 두 칸의 행은 한 목록 — 먼저 볼 것 다음에 검증 없는 일지.
@@ -486,9 +487,9 @@ describe("확인할 것 — 동작", () => {
     fireEvent.keyDown(rows[1], { key: "k" });
     expect(document.activeElement).toBe(rows[0]);
 
-    // 판정 실패 행에서 Enter → 그 계획.
+    // 판정 실패 행에서 Enter → 첫 동작 「다시 확인」(지금 코드에서 확인 명령을 다시 돌려 달라고 터미널에 맡긴다).
     fireEvent.keyDown(rows[0], { key: "Enter" });
-    expect(onNavigate).toHaveBeenCalledWith("planner");
+    await waitFor(() => expect(runs[runs.length - 1]).toContain("`pnpm test`"));
 
     // 판정 행에서 v 는 아무것도 하지 않는다 — 확인함은 일지 행의 것.
     fireEvent.keyDown(rows[0], { key: "v" });
@@ -514,15 +515,15 @@ describe("확인할 것 — 동작", () => {
     await waitFor(() => expect(screen.queryByRole("region", { name: t("today.unread.title") })).toBeNull());
   });
 
-  it("r 은 다음 항목을 앱 안 터미널에서 실행한다 (클립보드 경로는 걷었다)", async () => {
+  it("r 은 (포커스가 행에 있을 때) 다음 항목을 앱 안 터미널에서 실행한다 (클립보드 경로는 걷었다)", async () => {
     fx.entries = [entry(1)];
     fx.digest = digest({
       plans: [plan("a", { next: { plan_id: "a", plan_title: "계획 a", item_id: "drop-tray", title: "트레이 제거", status: "todo" } })],
     });
-    const { container } = renderToday();
+    renderToday();
     expect(await screen.findByText("트레이 제거")).toBeInTheDocument();
     runs.length = 0;
-    fireEvent.keyDown(container.querySelector(".page.tdy") as HTMLElement, { key: "r" });
+    fireEvent.keyDown(screen.getByRole("listitem", { name: /트레이 제거/ }), { key: "r" });
     await waitFor(() => expect(fx.dispatchCalls).toEqual([["a", "drop-tray"]]));
     await waitFor(() => expect(runs).toEqual(["PROMPT"]));
   });
@@ -558,7 +559,7 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
     expect(within(work).getByRole("button", { name: new RegExp(t("today.work.outside")), expanded: false })).toBeInTheDocument();
     // 묶음 머리는 예외 수만 — 「검증 n · 없음 m」 은 검증 대상이 아닌 일지를 빼먹어 합이 안 맞았다.
     expect(work.querySelector(".tdy-ok")).toBeNull();
-    expect(within(work).getByText(t("today.work.missing", { n: 1 }))).toBeInTheDocument();
+    expect(within(work).getByText(t("today.work.above", { n: 1 }))).toBeInTheDocument();
     // 같은 행을 두 번 세우지 않는다 — 검증 없는 일지는 위 칸에만.
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(0);
     expect(within(unreadCard()).getByText("새 폴더 감시 경합")).toBeInTheDocument();
@@ -570,7 +571,7 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(27);
 
     // 시간순은 전부 한 줄씩.
-    fireEvent.click(within(work).getByRole("tab", { name: t("today.work.byTime") }));
+    fireEvent.click(within(work).getByRole("button", { name: t("today.work.byTime") }));
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(60);
 
     const results = await axe(container, AXE_OPTIONS);
@@ -582,7 +583,7 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
     const { container } = renderToday();
     await waitFor(() => expect(container.querySelectorAll(".tdy-ent")).toHaveLength(3));
     expect(container.querySelector(".tdy-grp")).toBeNull();
-    expect(screen.queryByRole("tab", { name: t("today.work.byTime") })).toBeNull();
+    expect(screen.queryByRole("button", { name: t("today.work.byTime") })).toBeNull();
     const results = await axe(container, AXE_OPTIONS);
     expect(summarize(results)).toEqual([]);
   });
@@ -620,12 +621,5 @@ describe("한 칼럼과 첫 기록 전", () => {
     expect(screen.queryByText("통과한 계획")).toBeNull();
     expect(within(live).getByText(t("today.live.quiet", { n: 50 }))).toBeInTheDocument();
   });
-
-  it("일지가 0건이면 짧은 안내 하나 — 에이전트 연결로", async () => {
-    fx.total = 0;
-    const { onNavigate } = renderToday();
-    fireEvent.click(await screen.findByRole("button", { name: t("today.first.connect") }));
-    expect(onNavigate).toHaveBeenCalledWith("settings");
-    expect(screen.queryByRole("region", { name: t("today.check.title") })).toBeNull();
-  });
+  // 일지가 0건인 첫 기록 전 화면은 today_narrow_empty.test.tsx 가 문다(세 걸음 · 채운 단추 하나 · 같은 틀).
 });

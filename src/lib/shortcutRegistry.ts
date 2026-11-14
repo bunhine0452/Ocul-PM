@@ -68,6 +68,21 @@ const WINDOW: ShortcutGroup = {
   ],
 };
 
+// 오늘 (11-15) — `TodayScreenV2` 의 keydown 이 듣는 키. 화면 안에서만, v · r · ↩ 는 포커스가 행 안일 때만.
+const TODAY: ShortcutGroup = {
+  id: "today",
+  titleKey: "keys.todayGroup",
+  rows: [
+    { keys: "j / k", labelKey: "keys.todayMove" },
+    { keys: "↑ / ↓", labelKey: "keys.todayMove" },
+    { keys: "Home / End", labelKey: "keys.todayEnds" },
+    { keys: "↩", labelKey: "keys.todayAct" },
+    { keys: "v", labelKey: "keys.todayRead" },
+    { keys: "r", labelKey: "keys.todayRun" },
+    { keys: "Esc", labelKey: "keys.todayLeave" },
+  ],
+};
+
 const JOURNAL: ShortcutGroup = {
   id: "journal",
   titleKey: "keys.g.journal",
@@ -137,7 +152,7 @@ export function navShortcutGroup(): ShortcutGroup {
 
 /** 치트시트가 그리는 순서 — 전역과 화면 이동이 먼저, 화면별 로컬 키가 뒤. */
 export function buildShortcutGroups(): ShortcutGroup[] {
-  const groups = [navShortcutGroup(), GLOBAL, WINDOW, JOURNAL, DIFF, TERMINAL, START];
+  const groups = [navShortcutGroup(), GLOBAL, WINDOW, TODAY, JOURNAL, DIFF, TERMINAL, START];
   return groups.map(isMac() ? forMac : forOtherOs);
 }
 
