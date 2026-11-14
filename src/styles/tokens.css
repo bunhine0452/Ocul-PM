@@ -499,24 +499,31 @@
 }
 /* orange */
 [data-accent="orange"] {
-  /* --accent-text 는 표면 위에 얹히는 **글자**다. 예전 #b4620a 는 가장 불리한
-     표면(--bg-inset)에서 3.82:1 이라 여섯 팔레트 중 혼자 AA 미달이었다
-     (2026-09-04, design_contrast.test.ts 가 잡았다). */
-  --accent: #e07b12; --accent-strong: #b05f0a; --accent-text: #a25809;
-  --accent-soft: #fdefdb; --accent-ring: rgba(224,123,18,0.35);
+  /* 주황 · 분홍 · 앰버 여섯 블록 (11-15 #accent-colors) — 프로젝트 색을 고르면 이 팔레트가 그 창의 강조색이
+     된다(projectAccent.ts). 예전 값은 의미색 그 자체였다: 분홍의 --accent 가 --danger, 다크 주황이 --warn 이라
+     장미색 창에선 주 단추와 위험 확인 단추가 같은 빨강이었다(영수증 규칙 1 · 4). 이제 칠하는 넷(--accent ·
+     -strong · -text · -ring)은 위험 · 경고 · 일지 버그/에러 색과, 글자(-text)는 위험 · 경고 글자색과도 OKLab
+     ΔE 0.09 이상 떨어지고, 옅은 바탕(-soft)은 색조가 다르다 — accent_distinct.test.ts 가 0.08 로 문다.
+     주황은 갈색 쪽이다. 글자는 --warn-text(#8a5b05)와 밝기가 비슷하면 색조 차이만으로는 못 떼어 한 단 더
+     짙은 밤색이다(가장 불리한 표면에서 7.3:1). */
+  --accent: #b25e21; --accent-strong: #a25620; --accent-text: #773c18;
+  --accent-soft: #f6ece4; --accent-ring: rgba(178,94,33,0.35);
 }
 [data-theme="dark"][data-accent="orange"] {
-  --accent: #eaa23f; --accent-strong: #e0942b; --accent-text: #f2c078;
-  --accent-soft: rgba(234,162,63,0.16); --accent-ring: rgba(234,162,63,0.4);
+  /* 다크는 갈색으로 못 간다 — 어두운 잉크 대 --accent 래칫(7.33, design_tokens.test.ts)이 밝기를 붙잡고,
+     같은 밝기의 주황 색조는 --warn(#eaa23f)과 --danger(#f1685f) 사이에 끼어 있다. 그래서 한 단 밝은 살구색이다. */
+  --accent: #ffbb93; --accent-strong: #f6b797; --accent-text: #fed4b9;
+  --accent-soft: rgba(255,187,147,0.16); --accent-ring: rgba(255,187,147,0.4);
 }
 /* rose */
 [data-accent="rose"] {
-  --accent: #e0524b; --accent-strong: #d23f38; --accent-text: #c0352e;
-  --accent-soft: #fbe9e8; --accent-ring: rgba(224,82,75,0.35);
+  /* 견본(--pc #d05470)보다 한 단 짙고 차가운 분홍이다 — 견본 값 그대로는 --danger 와 ΔE 0.056, 흰 글자 4.05:1 이다. */
+  --accent: #c14978; --accent-strong: #b13f6e; --accent-text: #9e3468;
+  --accent-soft: #f8e9ef; --accent-ring: rgba(193,73,120,0.35);
 }
 [data-theme="dark"][data-accent="rose"] {
-  --accent: #f1685f; --accent-strong: #ed564c; --accent-text: #f7918a;
-  --accent-soft: rgba(241,104,95,0.16); --accent-ring: rgba(241,104,95,0.4);
+  --accent: #ef8ba5; --accent-strong: #e682a9; --accent-text: #f5b4c8;
+  --accent-soft: rgba(239,139,165,0.16); --accent-ring: rgba(239,139,165,0.4);
 }
 /* teal */
 [data-accent="teal"] {
@@ -531,12 +538,14 @@
 /* amber · slate — 설정의 강조색 목록에는 없다. 프로젝트 색(노랑 · 회색)을 고른 창만 쓴다
    (`features/theme/projectAccent.ts`, 2026-11-03). 흰 글자 대 --accent 도 AA 를 넘게 골랐다. */
 [data-accent="amber"] {
-  --accent: #a06a0a; --accent-strong: #94600a; --accent-text: #8a5a08;
-  --accent-soft: #fbf0d9; --accent-ring: rgba(160,106,10,0.35);
+  /* 앰버는 올리브 쪽이다 (11-15 #accent-colors, 위 주황 블록의 주석) — 예전 글자 #8a5a08 은 --warn-text 와 ΔE 0.003
+     이었다. 견본 · 윗줄 면은 --pc(#c2891b) 그대로라 창의 이름표는 앰버로 남는다. */
+  --accent: #87710e; --accent-strong: #786704; --accent-text: #575203;
+  --accent-soft: #efede1; --accent-ring: rgba(135,113,14,0.35);
 }
 [data-theme="dark"][data-accent="amber"] {
-  --accent: #e0b155; --accent-strong: #d6a443; --accent-text: #ecc77e;
-  --accent-soft: rgba(224,177,85,0.16); --accent-ring: rgba(224,177,85,0.4);
+  --accent: #d1c972; --accent-strong: #bcc267; --accent-text: #e1dd9b;
+  --accent-soft: rgba(209,201,114,0.16); --accent-ring: rgba(209,201,114,0.4);
 }
 [data-accent="slate"] {
   --accent: #5b6472; --accent-strong: #4b5361; --accent-text: #4b5361;
