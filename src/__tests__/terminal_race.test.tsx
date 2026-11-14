@@ -61,7 +61,7 @@ vi.mock("@/features/terminal/termStore", () => ({
 
 import { setLangSetting, t } from "@/i18n";
 import { RaceStartDialog, RaceStrip, recommendLane, splitByFile } from "@/features/terminal/RacePanel";
-import { __resetRaceForTests, laneNumberOf } from "@/features/terminal/race";
+import { __resetRaceForTests, laneNumberOf, setRaceExpanded } from "@/features/terminal/race";
 
 beforeEach(() => {
   setLangSetting("ko");
@@ -102,16 +102,16 @@ describe("같은 일을 여럿에서", () => {
     cleanup();
 
     h.lanes[0] = { ...h.lanes[0], files: 2, added: 3, removed: 1 };
-    render(<RaceStrip projectId={1} />);
+    render(<RaceStrip projectId={1} />); fireEvent.click(screen.getByRole("button", { expanded: false })); // 접힌 띠를 펼친다
     await waitFor(() => expect(screen.getByText(t("race.files", { n: 2 }))).toBeInTheDocument(), { timeout: 2000 });
     expect(screen.getAllByText(t("race.noChanges")).length).toBeGreaterThan(0);
 
-    // 변경 없는 레인은 가져올 수 없다 — 첫 레인을 고른다.
-    const takes = screen.getAllByRole("button", { name: t("race.take") });
-    expect(takes[1]).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(takes[0]);
-    // 확인 대화상자의 「이것으로」 — 띠의 셋 뒤에 하나 더 선다.
-    await waitFor(() => expect(screen.getAllByRole("button", { name: t("race.take") })).toHaveLength(4));
+    // 변경 없는 시도는 열 수 없다 — 가져오기는 변경 보기의 발에서. 첫 시도를 연다.
+    expect(screen.getByRole("button", { name: t("race.lane", { n: 2 }) })).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(screen.getByRole("button", { name: t("race.lane", { n: 1 }) }));
+    fireEvent.click(await screen.findByRole("button", { name: t("race.take") }));
+    // 확인 대화상자의 「이 변경 가져오기」 — 변경 보기 발의 것 뒤에 하나 더 선다.
+    await waitFor(() => expect(screen.getAllByRole("button", { name: t("race.take") })).toHaveLength(2));
     const confirmTake = screen.getAllByRole("button", { name: t("race.take") });
     fireEvent.click(confirmTake[confirmTake.length - 1]);
     await waitFor(() => expect(h.taken).toEqual(["/data/races/p1/1030-1812-1"]));
@@ -153,7 +153,7 @@ describe("같은 일을 여럿에서", () => {
       lane(4, {}),
     ];
     expect(recommendLane(h.lanes as never)).toBe("/data/races/p1/s-2");
-    render(<RaceStrip projectId={1} />);
+    setRaceExpanded(true); render(<RaceStrip projectId={1} />);
     await waitFor(() => expect(screen.getByText("pnpm test → 3 passed")).toBeInTheDocument(), { timeout: 2000 });
     const rows = screen.getAllByRole("listitem");
     expect(rows[1].textContent).toContain(t("race.recommended"));

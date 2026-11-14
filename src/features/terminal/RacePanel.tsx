@@ -1,14 +1,17 @@
 /**
- * 같은 일을 worktree 여럿에서 — 시작 대화상자 · 터미널 위 레인 띠 · 레인 변경 보기 (Orca 벤치마킹).
+ * 나란히 돌리기 (같은 일을 worktree 여럿에서) — 시작 대화상자 · 터미널 위 띠 · 시도의 변경 보기 (Orca 벤치마킹).
  *
- * 띠는 레인이 있을 때만 선다(예외만 보인다). 레인마다 순번 · 안의 Claude 상태 · 변경 크기,
- * 「보기」(그 레인의 diff)와 「이것으로」(원래 폴더에 커밋 전 변경으로 — 변경 화면에서 검토).
- * 「모두 정리」는 세션을 닫고 worktree 와 가지째 지운다.
+ * 띠는 시도가 있을 때만 서고, 평소엔 **한 줄로 접힌다** — 「나란히 3 · 기다림 1 · 추천 시도 2 ›」. 늘 펼쳐져 있던
+ * 때는 시도 셋이면 약 100px 을 먹었다. 펼치면 시도마다 한 줄: 탭과 같은 점 · 예외 낱말 · 변경 크기 · 검증.
+ * 시도 이름을 누르면 그 변경을 보고(「보기」 단추는 걷었다), 「이 변경 가져오기」 는 추천 줄과 변경 보기의 발에만
+ * 선다 — 원래 폴더에 커밋 전 변경으로 들어오고 변경 화면에서 검토한다. 「모두 정리」 는 세션을 닫고 worktree
+ * 와 가지째 지운다. 내부 이름(race · lane)은 그대로 두고, 사람에게는 「나란히 돌린 시도」 로 말한다.
  */
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 
 import { toAppError } from "@/api/invoke";
 import { raceApi, type RaceLane } from "@/api/race";
+import { ChevronLeft, ChevronRight, SquareTerminal, X } from "@/components/Icons";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { PatchView } from "@/features/diff/PatchView";
 import { langFromPath } from "@/features/diff/diffParse";
@@ -20,9 +23,10 @@ import { kbd } from "@/lib/kbd";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { toast } from "@/lib/toast";
 import { requestTermFocus } from "./focusRequest";
-import { clearRace, refreshRace, startRace, useRace } from "./race";
-import { sessionWord } from "./status";
-import { subscribeTerms, termsSnapshot } from "./termStore";
+import { clearRace, refreshRace, setRaceExpanded, startRace, useRace } from "./race";
+import { SessionDot, SessionWord } from "./SessionTabs";
+import { sessionView, type SessionView } from "./status";
+import { hasWorked, subscribeTerms, termsSnapshot } from "./termStore";
 import "./race.css";
 
 const COUNTS = [2, 3, 4] as const;
@@ -71,7 +75,6 @@ export function RaceStartDialog({ projectId, onClose }: { projectId: number; onC
       <div className="send">
         <div className="send-head">
           <b>{t("race.startTitle")}</b>
-          <kbd className="kbd">{kbd("⌘↩")}</kbd>
         </div>
         <p className="send-ctx">{t("race.startBody")}</p>
         <textarea
@@ -81,6 +84,9 @@ export function RaceStartDialog({ projectId, onClose }: { projectId: number; onC
           value={prompt}
           placeholder={t("race.placeholder")}
           aria-label={t("race.placeholder")}
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={onKeyDown}
         />
@@ -109,11 +115,15 @@ export function RaceStartDialog({ projectId, onClose }: { projectId: number; onC
           <button
             type="button"
             className="btn primary sm"
+            aria-keyshortcuts="Meta+Enter Control+Enter"
             {...blocked(prompt.trim() ? null : t("race.needsPrompt"))}
             disabled={busy}
             onClick={() => void start()}
           >
             {t("race.start", { n: count })}
+            <kbd className="kbd" aria-hidden="true">
+              {kbd("⌘↩")}
+            </kbd>
           </button>
         </div>
       </div>
@@ -126,22 +136,34 @@ export function RaceStrip({ projectId }: { projectId: number }) {
   const race = useRace();
   const sessions = useSyncExternalStore(subscribeTerms, termsSnapshot);
   const { confirm, confirmDialog } = useConfirm();
-  const [viewing, setViewing] = useState<{ lane: RaceLane; n: number } | null>(null);
+  const [viewing, setViewing] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const hasLanes = race.lanes.length > 0;
 
-  // 처음, 그리고 세션 상태가 바뀔 때(끝냄 · 기다림) 변경 크기를 다시 잰다 — 잠깐 모아서.
-  const statusKey = sessions.map((s) => `${s.id}:${s.status?.state ?? ""}:${s.alive}`).join(",");
+  // 시도가 있으면 세션 상태가 바뀔 때마다(끝냄 · 기다림) 변경 크기를 다시 잰다 — 잠깐 모아서. 없으면 화면에
+  // 들어올 때 한 번뿐 — 시도를 안 쓰는 사람에게 상태가 바뀔 때마다 `git worktree list` 를 띄우던 것.
+  const statusKey = hasLanes ? sessions.map((s) => `${s.id}:${s.status?.state ?? ""}:${s.alive}`).join(",") : "";
   useEffect(() => {
     const h = setTimeout(() => void refreshRace(projectId).catch(() => {}), 600);
     return () => clearTimeout(h);
-  }, [projectId, statusKey]);
+  }, [projectId, statusKey, hasLanes]);
 
-  if (race.lanes.length === 0) return confirmDialog;
+  if (!hasLanes) return confirmDialog;
   const recommended = recommendLane(race.lanes);
+  const infoOf = (lane: RaceLane) => {
+    const sid = race.sessions.get(lane.path);
+    return sessions.find((s) => s.id === sid) ?? null;
+  };
+  const viewOf = (lane: RaceLane): SessionView | null => {
+    const info = infoOf(lane);
+    return info ? sessionView(t, info, hasWorked(info.id), lane.journals ?? 0) : null;
+  };
+  const waiting = race.lanes.filter((l) => viewOf(l)?.mark === "wait").length;
+  const pickAt = race.lanes.findIndex((l) => l.path === recommended);
 
-  const take = async (lane: RaceLane, n: number) => {
+  const take = async (lane: RaceLane, n: number): Promise<boolean> => {
     const ok = await confirm({ title: t("race.takeTitle", { n }), message: t("race.takeBody"), confirmLabel: t("race.take") });
-    if (!ok) return;
+    if (!ok) return false;
     setBusy(true);
     try {
       await raceApi.take(projectId, lane.path);
@@ -153,8 +175,10 @@ export function RaceStrip({ projectId }: { projectId: number }) {
           },
         ],
       });
+      return true;
     } catch (e) {
       toast.destructive(t("race.takeFailed", { error: tError(toAppError(e)) }));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -177,70 +201,99 @@ export function RaceStrip({ projectId }: { projectId: number }) {
 
   return (
     <>
-      <div className="tm-race" role="region" aria-label={t("race.title")}>
-        <span className="tm-race-head">{t("race.title")}</span>
-        <ul className="tm-race-lanes">
-          {race.lanes.map((lane, i) => {
-            const n = i + 1;
-            const sid = race.sessions.get(lane.path);
-            const info = sessions.find((s) => s.id === sid) ?? null;
-            const empty = lane.files === 0;
-            return (
-              <li key={lane.path} className="tm-race-lane">
-                <span className="tm-race-who">
-                <button
-                  type="button"
-                  className="tm-race-name"
-                  title={lane.path}
-                  {...blocked(info ? null : t("race.noSession"))}
-                  onClick={() => info && requestTermFocus(info.id)}
-                >
-                  {t("race.lane", { n })}
-                </button>
-                {lane.path === recommended ? (
-                  <span className="chip sm hairline" title={t("race.recommendedTitle")}>
-                    {t("race.recommended")}
+      <div className={"tm-race" + (race.expanded ? " is-open" : "")} role="region" aria-label={t("race.title")}>
+        <div className="tm-race-bar">
+          <button
+            type="button"
+            className="tm-race-sum"
+            aria-expanded={race.expanded}
+            title={t("race.buttonTitle")}
+            onClick={() => setRaceExpanded(!race.expanded)}
+          >
+            <span className="tm-race-head">{t("race.summary", { n: race.lanes.length })}</span>
+            {waiting > 0 ? <span className="tm-race-wait">{t("race.summaryWaiting", { n: waiting })}</span> : null}
+            {pickAt >= 0 ? <span>{t("race.summaryPick", { n: pickAt + 1 })}</span> : null}
+            <ChevronRight className="tm-race-chev" size={13} aria-hidden="true" />
+          </button>
+          <span className="tm-race-sp" />
+          {race.expanded ? (
+            <button type="button" className="btn ghost sm" onClick={() => void clear()}>
+              {t("race.clear")}
+            </button>
+          ) : null}
+        </div>
+        {race.expanded ? (
+          <ul className="tm-race-lanes">
+            {race.lanes.map((lane, i) => {
+              const n = i + 1;
+              const info = infoOf(lane);
+              const view = viewOf(lane);
+              const empty = lane.files === 0;
+              return (
+                <li key={lane.path} className="tm-race-lane">
+                  <span className="tm-race-who">
+                    {view ? <SessionDot view={view} /> : <span className="tm-dot is-none" aria-hidden="true" />}
+                    <button
+                      type="button"
+                      className="tm-race-name"
+                      {...blocked(empty ? t("race.noChanges") : null, t("race.viewTitle", { path: lane.path }))}
+                      onClick={() => setViewing(i)}
+                    >
+                      {t("race.lane", { n })}
+                    </button>
+                    {lane.path === recommended ? (
+                      <span className="chip sm hairline" title={t("race.recommendedTitle")}>
+                        {t("race.recommended")}
+                      </span>
+                    ) : null}
                   </span>
-                ) : null}
-                </span>
-                <span className="tm-race-word">{info ? sessionWord(t, info) : t("race.noSession")}</span>
-                <span className="tm-race-size">
-                  {empty ? (
-                    t("race.noChanges")
+                  <span className="tm-race-word">
+                    {view ? <SessionWord view={view} /> : <span className="tm-race-muted">{t("race.noSession")}</span>}
+                  </span>
+                  <span className="tm-race-size">
+                    {empty ? (
+                      t("race.noChanges")
+                    ) : (
+                      <>
+                        {t("race.files", { n: lane.files })} <span className="add">+{lane.added}</span>{" "}
+                        <span className="del">−{lane.removed}</span>
+                      </>
+                    )}
+                  </span>
+                  <LaneEvidence lane={lane} />
+                  <button
+                    type="button"
+                    className="iconbtn sm"
+                    aria-label={t("race.focusSession", { n })}
+                    {...blocked(info ? null : t("race.noSession"), t("race.focusSession", { n }))}
+                    onClick={() => info && requestTermFocus(info.id)}
+                  >
+                    <SquareTerminal size={13} aria-hidden="true" />
+                  </button>
+                  {lane.path === recommended ? (
+                    <button type="button" className="btn sm" disabled={busy} onClick={() => void take(lane, n)}>
+                      {t("race.take")}
+                    </button>
                   ) : (
-                    <>
-                      {t("race.files", { n: lane.files })} <span className="add">+{lane.added}</span>{" "}
-                      <span className="del">−{lane.removed}</span>
-                    </>
+                    <span aria-hidden="true" />
                   )}
-                </span>
-                <LaneEvidence lane={lane} />
-                <button
-                  type="button"
-                  className="btn ghost sm"
-                  {...blocked(empty ? t("race.noChanges") : null)}
-                  onClick={() => setViewing({ lane, n })}
-                >
-                  {t("race.view")}
-                </button>
-                <button
-                  type="button"
-                  className="btn sm"
-                  {...blocked(empty ? t("race.noChanges") : null)}
-                  disabled={busy}
-                  onClick={() => void take(lane, n)}
-                >
-                  {t("race.take")}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        <button type="button" className="btn ghost sm" onClick={() => void clear()}>
-          {t("race.clear")}
-        </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
       </div>
-      {viewing ? <LaneDiffDialog projectId={projectId} {...viewing} onClose={() => setViewing(null)} /> : null}
+      {viewing != null && race.lanes[viewing] ? (
+        <LaneDiffDialog
+          projectId={projectId}
+          lanes={race.lanes}
+          at={viewing}
+          busy={busy}
+          onMove={setViewing}
+          onTake={(lane, n) => void take(lane, n).then((ok) => ok && setViewing(null))}
+          onClose={() => setViewing(null)}
+        />
+      ) : null}
       {confirmDialog}
     </>
   );
@@ -283,12 +336,36 @@ export function splitByFile(patch: string): { file: string; patch: string }[] {
     }));
 }
 
-function LaneDiffDialog({ projectId, lane, n, onClose }: { projectId: number; lane: RaceLane; n: number; onClose: () => void }) {
+/**
+ * 시도 하나의 변경 — 머리에 ‹ 앞 시도 · 다음 시도 › 와 닫기, 발에 닫기 · 「이 변경 가져오기」. 예전 대화상자에는
+ * 닫기도 가져오기도 없어 Esc 로 나가 띠에서 다시 골라야 했다.
+ */
+function LaneDiffDialog({
+  projectId,
+  lanes,
+  at,
+  busy,
+  onMove,
+  onTake,
+  onClose,
+}: {
+  projectId: number;
+  lanes: readonly RaceLane[];
+  at: number;
+  busy: boolean;
+  onMove: (at: number) => void;
+  onTake: (lane: RaceLane, n: number) => void;
+  onClose: () => void;
+}) {
   const { t } = useT();
+  const lane = lanes[at];
+  const n = at + 1;
   const [files, setFiles] = useState<{ file: string; patch: string }[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
+    setFiles(null);
+    setError(null);
     raceApi.patch(projectId, lane.path).then(
       (p) => alive && setFiles(splitByFile(p)),
       (e: unknown) => alive && setError(tError(toAppError(e))),
@@ -297,14 +374,37 @@ function LaneDiffDialog({ projectId, lane, n, onClose }: { projectId: number; la
       alive = false;
     };
   }, [projectId, lane.path]);
+  const empty = lane.files === 0;
   return (
     <AppDialog open onClose={onClose} label={t("race.lane", { n })} width={960}>
       <div className="tm-race-diff">
-        <div className="send-head">
-          <b>
+        <div className="tm-race-diff-head">
+          <button
+            type="button"
+            className="btn ghost sm"
+            {...blocked(at > 0 ? null : t("race.noPrev"))}
+            onClick={() => onMove(at - 1)}
+          >
+            <ChevronLeft size={13} aria-hidden="true" />
+            {at > 0 ? t("race.lane", { n: at }) : null}
+          </button>
+          <b className="tm-race-diff-title">
             {t("race.lane", { n })} · {t("race.files", { n: lane.files })} <span className="add">+{lane.added}</span>{" "}
             <span className="del">−{lane.removed}</span>
           </b>
+          <button
+            type="button"
+            className="btn ghost sm"
+            {...blocked(at < lanes.length - 1 ? null : t("race.noNext"))}
+            onClick={() => onMove(at + 1)}
+          >
+            {at < lanes.length - 1 ? t("race.lane", { n: n + 1 }) : null}
+            <ChevronRight size={13} aria-hidden="true" />
+          </button>
+          <span className="send-sp" />
+          <button type="button" className="iconbtn sm" aria-label={t("common.close")} title={t("common.close")} onClick={onClose}>
+            <X size={13} aria-hidden="true" />
+          </button>
         </div>
         {lane.journals ? (
           <p className="send-ctx">
@@ -313,13 +413,29 @@ function LaneDiffDialog({ projectId, lane, n, onClose }: { projectId: number; la
         ) : null}
         <div className="tm-race-diff-body diff-code">
           {error ? <p className="send-ctx">{error}</p> : null}
-          {files === null && !error ? <p className="send-ctx">{t("race.loading")}</p> : null}
+          {empty ? <p className="send-ctx">{t("race.noChanges")}</p> : null}
+          {files === null && !error && !empty ? <p className="send-ctx">{t("race.loading")}</p> : null}
           {files?.map((f) => (
             <section key={f.file}>
               <h3 className="tm-race-file">{f.file}</h3>
               <PatchView patch={f.patch} mode="unified" lang={langFromPath(f.file)} />
             </section>
           ))}
+        </div>
+        <div className="send-foot">
+          <span className="send-sp" />
+          <button type="button" className="btn sm" onClick={onClose}>
+            {t("common.close")}
+          </button>
+          <button
+            type="button"
+            className="btn primary sm"
+            {...blocked(empty ? t("race.noChanges") : null)}
+            disabled={busy}
+            onClick={() => onTake(lane, n)}
+          >
+            {t("race.take")}
+          </button>
         </div>
       </div>
     </AppDialog>

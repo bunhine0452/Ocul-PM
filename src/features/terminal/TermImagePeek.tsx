@@ -6,22 +6,36 @@
  * Esc · 바깥 클릭으로 닫고 경로를 복사할 수 있다.
  * 그림 뒤는 바둑판이라 투명 PNG(스크린숏 · 아이콘)가 바탕에 묻히지 않는다. 같은 경로를 다시
  * 가리키면 읽은 것을 쓴다(최근 넷).
+ *
+ * 카드의 글은 두 줄 — 이름(긴 이름은 가운데를 접어 확장자가 남는다), 그 아래 크기와 힌트. 한 줄이던 때는
+ * 크기 · 힌트가 자리를 먼저 차지해 이름이 가장 먼저 잘렸다.
  */
 import { useEffect, useRef, useState } from "react";
 
 import { toAppError } from "@/api/invoke";
 import { terminalApi } from "@/api/terminal";
 import { Copy, X } from "@/components/Icons";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { formatBytes } from "@/lib/format";
 import { kbd } from "@/lib/kbd";
+import { isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { closePeek, useImagePeek, type Peek } from "./imagePeek";
 
 /** 카드 바깥 폭의 상한 — 자리 계산에만 쓴다 (실제 상한은 CSS). */
 const CARD_W = 360;
 const CACHE_MAX = 4;
+/** 카드 한 줄에 드는 이름 글자 수 — 넘으면 가운데를 접는다. */
+const NAME_MAX = 40;
+
+/** 가운데 말줄임 — 앞과 확장자 쪽 끝이 남는다(`screenshot-2026-…-1830.png`). */
+export function middleEllipsis(name: string, max = NAME_MAX): string {
+  if (name.length <= max) return name;
+  const tail = Math.ceil((max - 1) * 0.45);
+  return name.slice(0, max - 1 - tail) + "…" + name.slice(name.length - tail);
+}
 
 type Load =
   | { status: "loading" }
@@ -49,7 +63,7 @@ function TermImagePeek({ path, x, y, pinned }: Peek) {
     return hit ? { status: "ready", ...hit } : { status: "loading" };
   });
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const figureRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (cache.has(path)) return;
@@ -67,22 +81,18 @@ function TermImagePeek({ path, x, y, pinned }: Peek) {
     };
   }, [path]);
 
-  // 크게 띄우면 닫기 단추로 포커스를 옮기고, 닫으면 돌려준다(터미널이 다시 키를 받는다).
-  // Esc 는 캡처 단계에서 — 터미널이 키를 먼저 삼키지 않게.
+  // 크게 띄우면 그림 자체(figure)에 포커스 — 열자마자 단추에 2px 링이 서지 않게. 포커스는 안에 가두고,
+  // 닫으면 연 자리(터미널)로 돌려준다(`useModalBehavior`). Esc 는 캡처 단계에서도 — 터미널이 먼저 삼키지 않게.
+  useModalBehavior({ open: pinned, onClose: closePeek, panelRef: figureRef, initialFocusRef: figureRef });
   useEffect(() => {
     if (!pinned) return;
-    const before = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.stopPropagation();
       closePeek();
     };
     window.addEventListener("keydown", onKey, true);
-    return () => {
-      window.removeEventListener("keydown", onKey, true);
-      before?.focus?.();
-    };
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [pinned]);
 
   const name = path.split(/[\\/]/).pop() || path;
@@ -115,10 +125,12 @@ function TermImagePeek({ path, x, y, pinned }: Peek) {
     return (
       <div className="scrim tm-peek-scrim" onMouseDown={closePeek}>
         <figure
+          ref={figureRef}
           className="tm-peek-full"
           role="dialog"
           aria-modal="true"
           aria-label={name}
+          tabIndex={-1}
           onMouseDown={(e) => e.stopPropagation()}
         >
           {stage}
@@ -133,7 +145,6 @@ function TermImagePeek({ path, x, y, pinned }: Peek) {
               {t("terminal.peek.copyPath")}
             </button>
             <button
-              ref={closeRef}
               type="button"
               className="iconbtn sm"
               onClick={closePeek}
@@ -152,13 +163,21 @@ function TermImagePeek({ path, x, y, pinned }: Peek) {
   const below = y < window.innerHeight * 0.55;
   const left = Math.max(8, Math.min(x + 12, window.innerWidth - CARD_W - 8));
   const place = below ? { top: y + 18 } : { bottom: window.innerHeight - y + 12 };
+  // 수정키 이름 — `kbd("⌘")` 만으로는 그 밖 OS 에서 「Ctrl+」 로 끝이 빈 채 나왔다.
+  const mod = isMac() ? kbd("⌘") : "Ctrl";
   return (
     <div className="tm-peek" style={{ left, ...place }} role="tooltip">
       {stage}
       <div className="tm-peek-cap">
-        <span className="tm-peek-name">{name}</span>
-        {facts ? <span className="tm-peek-facts">{facts}</span> : null}
-        {load.status === "ready" ? <span className="tm-peek-hint">{t("terminal.peek.hint", { mod: kbd("⌘") })}</span> : null}
+        <span className="tm-peek-name" title={name}>
+          {middleEllipsis(name)}
+        </span>
+        {facts || load.status === "ready" ? (
+          <span className="tm-peek-sub">
+            {facts ? <span className="tm-peek-facts">{facts}</span> : null}
+            {load.status === "ready" ? <span className="tm-peek-hint">{t("terminal.peek.hint", { mod })}</span> : null}
+          </span>
+        ) : null}
       </div>
     </div>
   );
