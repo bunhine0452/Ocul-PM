@@ -62,9 +62,9 @@ import "./changes.css";
 // 건너온 지정은 `useDiffHandoff`, 키는 `useDiffKeys`, 머리줄은 `DiffFileHead`, 본문 분기는 `DiffBody`.
 // 키는 컨테이너가 듣는다 — 전역 keydown 이 아니다.
 //
-// 채운 단추는 하나다(영수증 규칙 3): 보낼 메모가 있으면 「메모 N개 맡기기」, 없으면 띠의 「Claude 에게
-// 맡기기」. 세 흐름(메모 · 일지 없는 변경 · 이 파일)이 같은 작성기(`requestSendToClaude` — 미리보기와
-// 받는 세션)를 지난다 — 맡기기만 미리보기 없이 바로 넣던 때가 있었다.
+// 채운 단추는 하나다(영수증 규칙 3): 보낼 메모가 있으면 「메모 N개 맡기기」, 없으면 띠의 「일지 맡기기」
+// (목록이 비었으면 빈 화면의 「최근 커밋」). 세 흐름(메모 · 일지 없는 변경 · 이 파일)이 같은 작성기
+// (`requestSendToClaude` — 미리보기와 받는 세션)를 지난다 — 맡기기만 미리보기 없이 바로 넣던 때가 있었다.
 
 interface DiffScreenV2Props {
   projectId: number;
@@ -431,12 +431,18 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
             ) : list.listError ? (
               <ErrorCard title={t("diff.listFailed")} error={list.listError} onRetry={list.retryList} />
             ) : (
-              /* 직전 커밋으로 가는 길을 글이 아니라 버튼으로 (v3-surface). */
+              /* 직전 커밋으로 가는 길을 글이 아니라 버튼으로 (v3-surface). 보내지 않은 메모가 있으면 윗줄의
+                 「메모 N개 맡기기」 가 이 화면의 채운 단추다 — 이것은 보통 단추로 낮춘다(11-15 RC-14). 메모를 쓰고
+                 보내기 전에 커밋하면 「커밋 전」 목록이 비며 채운 단추가 둘 섰다. */
               <EmptyState
                 density="rich"
                 actions={
                   list.hasLastCommit ? (
-                    <button className="btn primary sm" onClick={() => list.pinBaseline("last_commit")}>
+                    <button
+                      type="button"
+                      className={"btn sm" + (drafts.length === 0 ? " primary" : "")}
+                      onClick={() => list.pinBaseline("last_commit")}
+                    >
                       {t("diff.lastCommit")}
                     </button>
                   ) : null

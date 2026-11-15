@@ -11,8 +11,8 @@
    ============================================================ */
 
 .plv-body { flex: 1; min-height: 0; display: flex; align-items: stretch; outline: none; }
-/* 조용한 갱신이 실패했을 때의 한 줄 — 문서는 그대로 두고 위에만. */
-.plv-stale { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-5); }
+/* 조용한 갱신이 실패했을 때의 한 줄 — 문서는 그대로 두고 위에만. 글은 `StaleNote`(오늘과 같은 `.stale-note`). */
+.plv-stale { margin: 0 0 var(--space-5); }
 .plv-main {
   flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden;
   padding: var(--space-8) var(--space-8) 48px;
@@ -31,11 +31,8 @@
   border-right: 1px solid var(--sep);
   background: var(--bg-window);
 }
-/* 목록 칸 손잡이는 가리킬 때만 — 일지 목록과 같은 규칙(journal.css `.jl-list` 주석). */
-.plv-rail::-webkit-scrollbar-thumb { background: transparent; }
-.plv-rail:is(:hover, :focus-within)::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--text-2) 32%, transparent); background-clip: padding-box;
-}
+/* 목록 칸 세 개(일지 · 계획 · 변경)는 스크롤바 자리를 두지 않는다 — 일지 목록과 같은 규칙(journal.css `.jl-list` 주석). */
+.plv-rail::-webkit-scrollbar { width: 0; height: 0; }
 .plv-rail-h {
   display: flex; align-items: center; gap: var(--space-2);
   padding: var(--space-5) var(--space-6) var(--space-2);
@@ -74,9 +71,10 @@
 .plv-head { display: flex; flex-direction: column; gap: var(--space-1); }
 /* 문서 제목 — 이 화면에서 유일한 큰 활자. */
 .plv-title { margin: 0; font-size: var(--fs-8); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
-/* 사람 말 시각(「3시간 전」 · 「11월 14일 17:26」)은 비례폭에 숫자만 고정폭 — 판정 줄의 시각(.vl-when)과 같은
-   모양이다(영수증 규칙 2 · 4). mono 는 기계 글씨 칸(일지 목록의 HH:MM)에만. */
-.plv-time { font-variant-numeric: tabular-nums; }
+/* 시각(「Claude · 3시간 전」 · 「11월 14일 17:26」)은 기계 글씨다 — 판정 줄의 시각(.vl-when) · 일지 목록의 시각
+   (.jl-when) · 오늘의 시각(.tdy-time)과 같은 mono(영수증 규칙 2 · 4, 11-15 RC-06). 비례폭이던 때 한 화면에 시각
+   모양이 둘이었다(판정 카드는 mono, 항목 · 계획 기록은 비례폭). */
+.plv-time { font-family: var(--mono); font-variant-numeric: tabular-nums; font-variant-ligatures: none; }
 
 /* 읽지 못한 줄 — warn 칩 하나, 펼치면 줄 목록 · 파일로 열기 (일지 상세의 파싱 경고와 같은 꼴). */
 .plv-warn { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
@@ -234,10 +232,7 @@
 .plv-carry-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-4); }
 .plv-carry-from { flex: none; max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── 완료 확인 대화상자 ────────────────────────────────────── */
-.plv-confirm { display: flex; gap: var(--space-4); padding: var(--space-7) var(--space-7) var(--space-1); font-size: var(--fs-4); line-height: var(--lh-prose); }
-.plv-confirm-ico { flex: none; margin-top: 2px; color: var(--warn-text); }
-.plv-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); padding: var(--space-5) var(--space-7) var(--space-6); }
+/* 완료 확인 대화상자는 확인 한 벌(`useConfirm`, primitives.css `.cf` · `.dlg-*`)이다 — 여기 자기 모양을 두지 않는다. */
 
 /* 좁은 창(≤640, 10-30) — 레일이 위(높이 36%), 문서가 아래. */
 @media (max-width: 640px) {

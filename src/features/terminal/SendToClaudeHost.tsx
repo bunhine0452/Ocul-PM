@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { toAppError } from "@/api/invoke";
-import { AppDialog } from "@/components/ui/AppDialog";
+import { AppDialog, DialogKey } from "@/components/ui/AppDialog";
 import { useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
@@ -200,8 +200,10 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
               </span>
             </label>
             <span className="send-sp" />
-            <button type="button" className="btn sm" onClick={close}>
+            {/* 발은 대화상자 한 벌의 약속(11-15 RC-10) — 취소 = 테 없는 단추 + Esc, 키 표기는 `DialogKey` 한 벌. */}
+            <button type="button" className="btn ghost sm" onClick={close}>
               {t("common.cancel")}
+              <DialogKey>Esc</DialogKey>
             </button>
             {readiness === "working" ? (
               <button
@@ -213,9 +215,7 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
                 onClick={() => void send(true)}
               >
                 {t("send.now")}
-                <kbd className="kbd" aria-hidden="true">
-                  {kbd("⇧⌘↩")}
-                </kbd>
+                <DialogKey>{kbd("⇧⌘↩")}</DialogKey>
               </button>
             ) : null}
             <button
@@ -227,9 +227,7 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
               onClick={() => void send()}
             >
               {t(readiness === "ready" ? "send.submit" : "send.submitQueue")}
-              <kbd className="kbd" aria-hidden="true">
-                {kbd("⌘↩")}
-              </kbd>
+              <DialogKey>{kbd("⌘↩")}</DialogKey>
             </button>
           </div>
         </div>

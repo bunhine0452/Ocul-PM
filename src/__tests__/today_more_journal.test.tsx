@@ -17,12 +17,12 @@ import { __resetTodayStoreForTests } from "@/features/today/useTodayExceptions";
 import { t } from "@/i18n";
 import { entry as journalEntry, jfx, resetJournalFixtures } from "./journalHarness";
 import { mux } from "./screenMux";
-import { entry as todayEntry, fx, resetFx } from "./todayFixture";
+import { entry as todayEntry, fx, resetFx, WORKDAY } from "./todayFixture";
 import { renderToday } from "./todayRender";
 
 const ROWS = [
-  journalEntry({ relative_path: "20260531/B/1300_m1.md", title: "Missing one", type: "bug", evidence: 0, created_at: "2026-05-31T13:00:00+09:00" }),
-  journalEntry({ relative_path: "20260531/B/1200_m2.md", title: "Missing two", type: "bug", evidence: 0, created_at: "2026-05-31T12:00:00+09:00" }),
+  journalEntry({ relative_path: "20260531/B/1300_m1.md", workday: WORKDAY, title: "Missing one", type: "bug", evidence: 0, created_at: "2026-05-31T13:00:00+09:00" }),
+  journalEntry({ relative_path: "20260531/B/1200_m2.md", workday: WORKDAY, title: "Missing two", type: "bug", evidence: 0, created_at: "2026-05-31T12:00:00+09:00" }),
   journalEntry({ relative_path: "20260531/F/1100_ok.md", title: "Has a command", evidence: 2, created_at: "2026-05-31T11:00:00+09:00" }),
 ];
 

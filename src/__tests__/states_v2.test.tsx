@@ -149,7 +149,7 @@ describe("ErrorBoundary — the one error card", () => {
     expect(read("windows/window.css")).toMatch(/\.winroot > \.err-wrap \{ padding-top: var\(--toolbar-h\); \}/);
     expect(card.querySelector(".err-title")?.textContent).toBe(t("crash.title"));
     expect(card.querySelector("pre.err-raw")?.textContent).toBe("render exploded");
-    expect(card.querySelector(".err-hint")?.textContent).toBe(t("crash.body"));
+    expect(card.querySelector(".err-hint")?.textContent).toBe(t("crash.body", { section: t("prefs.data.title"), logs: t("prefs.data.logs") }));
     // 가운데 정렬 인라인 리터럴은 걷었다.
     expect(container.querySelector("[style]")).toBeNull();
     expect(screen.getByRole("button", { name: t("common.retry") })).toBeInTheDocument();

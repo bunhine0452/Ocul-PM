@@ -8,13 +8,16 @@
 
 .chg-split { flex: 1; min-height: 0; display: flex; outline: none; }
 
-/* 목록 칸의 폭은 일지 · 계획 목록과 한 토큰(--panel-w) — 탭을 옮기면 경계가 같은 자리에 선다. */
+/* 목록 칸의 폭은 일지 · 계획 목록과 한 토큰(--panel-w) — 탭을 옮기면 경계가 같은 자리에 선다. 스크롤바 자리는 없다
+   (일지 목록과 같은 규칙, journal.css `.jl-list` 주석 · 11-15 V-03) — `scrollbar-gutter: stable` 이 늘 10px 를 잡아
+   고른 줄의 면이 칸 끝 앞에서 끊겼다. */
 .chg-list {
   width: var(--panel-w); max-width: 45%; flex: none; min-height: 0;
   display: flex; flex-direction: column;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable;
+  overflow-y: auto; overscroll-behavior: contain;
   border-right: 1px solid var(--sep); background: var(--bg-window);
 }
+.chg-list::-webkit-scrollbar { width: 0; height: 0; }
 /* 목록 머리 — 최근 커밋이면 「a1b2c3d · 제목」, 하나라도 봤으면 「본 것 4/12」. */
 .chg-lh {
   display: flex; align-items: baseline; gap: var(--space-4);
@@ -91,7 +94,7 @@
    --warn-soft 한 겹으로 두던 때 다크에서 탁한 올리브(카드와 1.37:1), 라이트에서 거의 안 보였다(1.11:1). */
 .chg-banner {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4);
-  margin: var(--space-5) var(--space-6) 0; padding: var(--space-3) var(--space-5);
+  margin: var(--space-5) var(--space-8) 0; padding: var(--space-3) var(--space-5);
   border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); border-radius: var(--radius-m);
   background: color-mix(in srgb, var(--warn) 5%, var(--bg-card));
 }
@@ -102,9 +105,11 @@
 /* 파일 머리줄 — 두 묶음: 이것이 무엇인가(경로 · 종류 · 숫자)와 동작. 둘이 한 줄에 서지 못하면 동작 묶음이
    다음 줄 오른쪽으로 꺾이고, 그 줄도 모자라면 묶음 안에서 꺾인다. 한 줄로 밀어 넣던 때 720px 창(목록 284 +
    본문 436)에서 머리줄이 넘치고 파일 이름 폭이 0 이었다(en 은 「Ignore whitespace」 까지 칸 밖으로 잘렸다). */
+/* 왼쪽 여백 24 — 일지 상세 · 계획 문서의 시작선과 같다(11-15 V-11). 16 이던 때 ⌘2 → ⌘3 → ⌘4 로 오가면 목록 경계
+   다음의 첫 글자가 8px 뛰었다. 띠(.chg-banner)도 같은 선에서 시작한다. */
 .chg-fh {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4);
-  padding: var(--space-3) var(--space-6); border-bottom: 1px solid var(--sep);
+  padding: var(--space-3) var(--space-8); border-bottom: 1px solid var(--sep);
 }
 /* 이름은 0 폭으로 눌리지 않는다 — 곁의 칩 · 숫자 · 「다시 바뀜」 은 줄지 않고(flex none), 이름과 한 줄에 다 못 서면
    이름 아래 줄로 꺾인다. 이름만 남은 줄에서는 폴더가 먼저 준다. (바닥 폭을 min-width 로 두면 짧은 이름 뒤에
@@ -122,8 +127,8 @@
 .chg-again { flex: none; font-size: var(--fs-3); color: var(--text-2); white-space: nowrap; }
 .chg-again .mono { font-variant-numeric: tabular-nums; }
 .chg-fh .chg-fh-wait { flex: none; padding: 0; }
-/* 눌린 토글(봤음 · 공백 무시 · 읽음) — ✓ 와 한 단 짙은 면. 초록은 쓰지 않는다(영수증 규칙 1). */
-.chg-fh .btn[aria-pressed="true"], .diff-entry-foot .btn[aria-pressed="true"] { background: var(--bg-active); border-color: var(--sep-strong); }
+/* 눌린 토글(봤음 · 공백 무시 · 읽음)은 눌린 단추 한 벌(`.btn[aria-pressed]`, screens-overflow.css — 일지의 「읽음」
+   과 같은 면 + 테, 11-15 RC-19). ✓ 는 단추 안 글자가 말하고 초록은 쓰지 않는다(영수증 규칙 1). */
 /* 파일을 넘기는 동안 150ms 넘게 걸리면 이전 본문을 흐리게 — 다른 파일의 diff 를 읽지 않게. */
 .diff-code.is-stale { opacity: 0.5; }
 
@@ -144,6 +149,8 @@
 .def-line { flex: 1 1 12ch; display: flex; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text); white-space: nowrap; }
 .def-head { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
 .def-tail { flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: pre; }
+/* 검증 줄은 본문 서체에 명령 · 결과 토큰만 mono — 일지 상세의 검증 상자와 같은 규칙(`MachineText`, 11-15 V-08). */
+.def-line .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; font-variant-ligatures: none; }
 
 /* 좁은 창(≤640, 10-30) — 파일 목록이 위, diff 가 아래. 띠는 글이 먼저 한 줄을 갖고 단추는 아래로 내려간다
    (옆으로 서면 글이 한 글자씩 세로로 꺾였다). 파일 머리줄도 줄을 바꾼다. */

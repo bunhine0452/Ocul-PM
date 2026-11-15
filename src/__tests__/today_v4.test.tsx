@@ -271,7 +271,7 @@ describe("확인할 것 — 종류와 순서", () => {
     await waitFor(() => expect(pills()).toEqual([t("today.check.kind.elsewhere")]));
     const row = within(checkCard()).getByRole("listitem");
     expect(row.textContent).toContain("12 passed · mac");
-    expect(row.textContent).toContain(t("today.check.elsewhereSub", { os: "macOS" }));
+    expect(row.textContent).toContain(t("state.verdict.awaySub", { os: "macOS" }));
     runs.length = 0;
     fireEvent.click(within(row).getByRole("button", { name: t("today.check.recheck") }));
     await waitFor(() => expect(runs).toHaveLength(1));
@@ -571,7 +571,7 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(27);
 
     // 시간순은 전부 한 줄씩.
-    fireEvent.click(within(work).getByRole("button", { name: t("today.work.byTime") }));
+    fireEvent.click(within(work).getByRole("radio", { name: t("today.work.byTime") }));
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(60);
 
     const results = await axe(container, AXE_OPTIONS);
@@ -583,7 +583,7 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
     const { container } = renderToday();
     await waitFor(() => expect(container.querySelectorAll(".tdy-ent")).toHaveLength(3));
     expect(container.querySelector(".tdy-grp")).toBeNull();
-    expect(screen.queryByRole("button", { name: t("today.work.byTime") })).toBeNull();
+    expect(screen.queryByRole("radio", { name: t("today.work.byTime") })).toBeNull();
     const results = await axe(container, AXE_OPTIONS);
     expect(summarize(results)).toEqual([]);
   });

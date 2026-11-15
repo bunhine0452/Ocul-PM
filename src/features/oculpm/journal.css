@@ -50,19 +50,17 @@
 /* 숫자 한 줄 — 「조건에 맞는 312 · 표시 200」. 거르기 줄의 오른쪽 끝. */
 .jl-count { margin-left: auto; min-width: 0; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; }
 
-/* 목록 — 손잡이는 가리킬 때만 색이 든다(늘 서 있던 회색 막대를 걷었다). 자리를 미리 잡아 두는
-   gutter(`scrollbar-gutter: stable`)도 걷었다 — 넘치지 않는 목록은 고른 줄 · 가리킨 줄의 면이 칸 끝까지 간다.
-   표준 `scrollbar-color` 가 아니라 `::-webkit-scrollbar-thumb` 로 — base.css 의 손잡이가 그 길이라, 표준 속성을
-   주면 크로미움에서는 base.css 손잡이가 통째로 꺼지고 WebKit 에서는 안 먹어 두 엔진이 갈린다. */
+/* 목록 — 스크롤바 자리가 없다(폭 0, 11-15 V-03). 손잡이를 가리킬 때만 칠하던 때도 base.css 의 10px 자리는 남아,
+   넘치는 목록(최근 14일은 늘 넘친다)에서 고른 줄 · 가리킨 줄의 면이 칸 끝 10px 앞에서 끊겼다 — 넘치지 않는 계획
+   레일은 끝까지 가서 세 목록의 면 끝이 둘이었다. 줄 사이는 휠 · 트랙패드 · j/k 로 다니고, 고른 줄은 늘 보이게
+   당겨 온다. 표준 `scrollbar-width` 가 아니라 `::-webkit-scrollbar` 로 — 표준 속성을 주면 크로미움에서는 base.css
+   의 손잡이 규칙이 통째로 꺼지고 WebKit 에서는 안 먹어 두 엔진이 갈린다. */
 .jl-list {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
   overflow-y: auto; overscroll-behavior: contain;
 }
-.jl-list::-webkit-scrollbar-thumb { background: transparent; }
-.jl-list:is(:hover, :focus-within)::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--text-2) 32%, transparent); background-clip: padding-box;
-}
+.jl-list::-webkit-scrollbar { width: 0; height: 0; }
 /* 날짜 머리 — 스크롤 중 붙는다. 불투명이 아니면 행이 글자 뒤로 비친다. 오른쪽은 그날 수 · 검증 없음 수. */
 .jl-dayh {
   position: sticky; top: 0; z-index: var(--z-sticky);
@@ -117,14 +115,9 @@
 .jd-head { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .jd-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-width: 0; }
 .jd-meta { font-size: var(--fs-3); color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
-/* 글자 그대로의 링크 하나 — 이 일지가 갱신한 계획 · 관련 일지가 같은 모양이다(본문색 · 옅은 밑줄). */
-.jd-link {
-  padding: 0; border: 0; background: none; font: inherit; color: var(--text); cursor: pointer; text-align: left;
-  text-decoration: underline; text-decoration-color: var(--sep-strong); text-underline-offset: 2px;
-}
-.jd-meta .jd-link { color: inherit; }
-.jd-link:hover { text-decoration-color: currentColor; }
-.jd-link:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); border-radius: var(--radius-2xs); }
+/* 이 일지가 갱신한 계획 · 관련 일지는 글자 링크 한 벌(`.text-link`, screens-overflow.css — 오늘 · 설정과 같은 모양).
+   메타 줄 안의 링크만 그 줄의 회색을 따른다. */
+.jd-meta .text-link { color: inherit; }
 /* 문서 제목만 큰 활자다 — 크롬은 작게 (툴바 14 · 목록 13). */
 .jd-title { margin: 0; font-size: var(--fs-8); font-weight: var(--fw-bold); line-height: var(--lh-tight); letter-spacing: var(--track-snug); overflow-wrap: anywhere; }
 .jd-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -146,15 +139,18 @@
 }
 .jd-verify-hd b { font-size: var(--fs-3); font-weight: var(--fw-strong); }
 .jd-verify-sp { flex: 1; }
-/* 「읽음」 — 눌린 상태는 면 + 굵게. 상태 글자와 툴팁이 같이 바뀐다. */
-.jd-read[aria-pressed="true"] { background: var(--bg-active); font-weight: var(--fw-strong); }
+/* 「읽음」 의 눌린 상태는 눌린 단추 한 벌(`.btn[aria-pressed]`, screens-overflow.css — 변경 화면 바닥줄과 같은 면 + 테).
+   상태 글자와 툴팁이 같이 바뀐다. */
 .jd-verify-note { margin: 0; padding: var(--space-4) var(--space-5); font-size: var(--fs-3); color: var(--text-2); }
+/* 검증 줄 — 본문 서체에 명령 · 결과 토큰만 mono(`MachineText`, 11-15 V-08). 통째로 mono 이던 때 에이전트가 쓴
+   한국어가 고정폭 대체 글꼴로 띄엄띄엄 놓였다. */
 .jd-term {
   margin: 0; padding: var(--space-4) var(--space-5);
   background: var(--bg-content); color: var(--text);
-  font-family: var(--mono); font-size: var(--fs-3); line-height: var(--lh-prose);
+  font-size: var(--fs-3); line-height: var(--lh-prose);
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
+.jd-term .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; font-variant-ligatures: none; }
 
 /* 인라인 diff — 기존 렌더러(PatchView)를 그대로 얹는다. 안쪽 세로 스크롤은 없다(휠이 갇히지 않게) —
    긴 패치는 상세가 통째로 스크롤한다. */

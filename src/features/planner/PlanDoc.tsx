@@ -15,7 +15,7 @@
 import { useId, useState } from "react";
 
 import { SquareTerminal } from "@/components/Icons";
-import { VerdictLine } from "@/components/VerdictLine";
+import { SubText, VerdictLine } from "@/components/VerdictLine";
 import { agentLabel } from "@/features/today/agentColor";
 import { osLabel } from "@/features/today/todayModel";
 import { useOpenInEditor } from "@/features/shell/useOpenInEditor";
@@ -28,7 +28,7 @@ import type { PlanDetail, PlanItemDto } from "@/lib/bindings";
 import { PlanItems } from "./PlanItems";
 import { PlanLog } from "./PlanLog";
 import { hasOpenLeaves, lastLogAt, nextLeaf, stripUserTag } from "./planMeta";
-import { checkLines, verdictStateOf } from "./verdictState";
+import { checkLines, verdictStateOf, verdictSub } from "./verdictState";
 import { blockedReason, prepareCheck, revealHidden } from "@/features/terminal/runCheck";
 import { requestSendToClaude } from "@/features/terminal/sendToClaude";
 
@@ -108,13 +108,9 @@ function JudgeCard({ detail, onRunCheck }: { detail: PlanDetail; onRunCheck: (li
   // 「✗ 실패」 가, 또는 「아직 안 돌렸어요」 가 같이 서던 것을 걷는다.
   const showCheck = detail.check != null || v == null;
   const showLast = v != null || detail.check != null;
-  const files = detail.plan.stale_files ?? [];
-  const extra =
-    state === "stale"
-      ? t("plan.judge.staleSub", { n: files.length })
-      : state === "away" && detail.plan.verdict_from
-        ? t("plan.judge.awaySub", { os: osLabel(detail.plan.verdict_from) })
-        : null;
+  // 아래 줄은 오늘 행과 같은 문장이다(RC-17) — 바뀐 파일은 첫 파일(기계 글씨) + 「외 N」, 전부는 툴팁.
+  const extra = verdictSub(state, detail.plan);
+  const who = v ? agentLabel(v.agent_id) : "";
   return (
     <section className="plv-judge" aria-label={t("plan.judge.aria")}>
       <div>
@@ -153,7 +149,18 @@ function JudgeCard({ detail, onRunCheck }: { detail: PlanDetail; onRunCheck: (li
               state={state}
               summary={v.summary}
               when={whenLabel(v.ts)}
-              sub={[agentLabel(v.agent_id), extra].filter(Boolean).join(" · ")}
+              sub={
+                <>
+                  {who}
+                  {extra ? (
+                    <>
+                      {who ? " · " : null}
+                      <SubText text={extra.text} mono={extra.mono} />
+                    </>
+                  ) : null}
+                </>
+              }
+              subTitle={extra ? [who, extra.full].filter(Boolean).join(" · ") : undefined}
             />
           ) : (
             <p className="plv-meta">{t("plan.judge.notRun")}</p>
@@ -164,17 +171,31 @@ function JudgeCard({ detail, onRunCheck }: { detail: PlanDetail; onRunCheck: (li
   );
 }
 
+/**
+ * 항목이 다 닫혔을 때의 한 문장 (11-15 RC-02) — 바로 위 판정 카드가 말하는 상태와 같은 말이다. 「아직 통과하지
+ * 않았어요」 는 실패 · 안 돌림에만: 통과 뒤 바뀜(호박 ✓) · 다른 기기 통과 · 명령 없는 계획에도 그 문장이 섰고,
+ * 명령 없는 계획에는 없는 명령을 돌려 보라고 했다. 통과는 명령이 지워졌어도 통과다(먼저 본다).
+ */
+function closedLine(detail: PlanDetail, t: ReturnType<typeof useT>["t"]): string {
+  const state = verdictStateOf(detail.plan);
+  if (state === "pass") return t("plan.nextRow.allClosedPassed");
+  if (!detail.check) return t("plan.nextRow.allClosedNoCheck");
+  if (state === "stale") return t("plan.nextRow.allClosedStale");
+  if (state === "away" && detail.plan.verdict_from) return t("plan.nextRow.allClosedAway", { os: osLabel(detail.plan.verdict_from) });
+  return t("plan.nextRow.allClosed");
+}
+
 function NextRow({
   items,
-  passed,
+  closed,
   busy,
   onRun,
   onRunUntilDone,
   onClose,
 }: {
   items: PlanItemDto[];
-  /** 마지막 결과가 지금도 통과인가 — 항목이 다 닫혔을 때 다음 할 일의 문장을 가른다. */
-  passed: boolean;
+  /** 항목이 다 닫혔을 때의 문장 — 판정 카드와 같은 상태를 말한다(`closedLine`). */
+  closed: string;
   /** 다른 계획을 읽는 중 — 옛 문서의 항목을 새 계획으로 보내지 않게 단추를 막는다. */
   busy: boolean;
   onRun: (item: PlanItemDto) => void;
@@ -207,7 +228,7 @@ function NextRow({
       ) : (
         <>
           {/* 통과 전에도 닫을 수 있다(백엔드는 남은 항목만 본다) — 문장은 없는 관문을 약속하지 않고, 돌려 보라고만 한다. */}
-          <span className="plv-meta">{passed ? t("plan.nextRow.allClosedPassed") : t("plan.nextRow.allClosed")}</span>
+          <span className="plv-meta">{closed}</span>
           {/* 닫기는 사람의 결정이다 — 남은 항목이 0 일 때만 선다. 닫지 않으면 「진행 중」 으로 쌓인다(11-14). */}
           {items.length > 0 ? (
             <>
@@ -274,7 +295,7 @@ export function PlanDoc({
       {locked ? null : (
         <NextRow
           items={detail.items}
-          passed={verdictStateOf(p) === "pass"}
+          closed={closedLine(detail, t)}
           busy={busy}
           onRun={onRun}
           onRunUntilDone={onRunUntilDone}

@@ -71,7 +71,6 @@ describe("the date line carries one line of numbers", () => {
       t("today.nums.closable", { n: 1 }),
       t("today.nums.arrived", { n: 1 }),
       t("today.nums.local", { n: 1 }),
-      t("today.local.handoff"),
     ]);
     fireEvent.click(mine);
     expect(onNavigate).toHaveBeenCalledWith("planner");

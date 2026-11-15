@@ -17,15 +17,17 @@
 import { useState, type ReactNode } from "react";
 
 import { Check, SquareTerminal } from "@/components/Icons";
-import { VerdictLine } from "@/components/VerdictLine";
+import { StaleNote } from "@/components/StaleNote";
+import { SubText, VerdictLine } from "@/components/VerdictLine";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { agentLabel } from "@/features/today/agentColor";
 import { useT, type I18nKey } from "@/i18n";
 import type { DigestItem, DigestPlan, JournalEntrySummary } from "@/lib/bindings";
 import { stripUserTag } from "@/features/planner/planMeta";
+import { verdictSub } from "@/features/planner/verdictState";
 import { sessionWord } from "@/features/terminal/status";
 import { blocked } from "@/lib/blocked";
-import { clockOf, whenLabel } from "@/lib/whenLabel";
+import { whenLabel } from "@/lib/whenLabel";
 import { osLabel, type ExceptionKind, type TodayException, type TodaySplit } from "./todayModel";
 
 type ChipKind = Exclude<ExceptionKind, "evidence" | "decision">;
@@ -271,6 +273,7 @@ function QuestionAnswer({
 /** 판정 실패 · 통과 뒤 바뀜 · 여기선 아직 — 끝 줄을 앞에, 명령 · 계획(· 바뀐 파일 · 돌린 곳)을 아래 한 줄로. */
 function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "stale" | "elsewhere" }> }) {
   const { t } = useT();
+  const state = ex.kind === "stale" ? "stale" : ex.kind === "elsewhere" ? "away" : "fail";
   const parts: ReactNode[] = [];
   // 툴팁의 전문 — 바뀐 파일은 「외 N」 으로 줄이지 않고 다 적는다.
   const full: string[] = [];
@@ -281,20 +284,15 @@ function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "s
   const inPlan = t("today.check.inPlan", { plan: ex.plan.title });
   parts.push(inPlan);
   full.push(inPlan);
-  if (ex.kind === "stale") {
-    const [first, ...rest] = ex.files;
-    const files = rest.length > 0 ? t("today.check.moreFiles", { first, n: rest.length }) : first;
-    parts.push(monoPart(t("today.check.staleFiles", { files }), first));
-    full.push(t("today.check.staleFiles", { files: ex.files.join(", ") }));
-  }
-  if (ex.kind === "elsewhere") {
-    const sub = t("today.check.elsewhereSub", { os: osLabel(ex.os) });
-    parts.push(sub);
-    full.push(sub);
+  // 바뀐 파일 · 돌린 곳은 계획 판정 카드와 같은 문장이다(`verdictSub`, RC-17).
+  const sub = verdictSub(state, ex.plan);
+  if (sub) {
+    parts.push(<SubText text={sub.text} mono={sub.mono} />);
+    full.push(sub.full);
   }
   return (
     <VerdictLine
-      state={ex.kind === "stale" ? "stale" : ex.kind === "elsewhere" ? "away" : "fail"}
+      state={state}
       summary={ex.verdict.summary}
       when={whenLabel(ex.verdict.ts)}
       sub={metaLine(parts)}
@@ -421,9 +419,13 @@ function NextRow({
 }
 
 /**
- * 검증 없이 끝난 일지 한 행 — 시각 · 제목(누르면 그 일지) · 「읽음」. 이유(검증에 명령이 없음 / 검증을 안 적음)는
+ * 검증 없이 끝난 일지 한 행 — 시각 · 제목(누르면 그 일지) · 「읽음 표시」. 이유(검증에 명령이 없음 / 검증을 안 적음)는
  * 묶음 머리가 이미 말하니 툴팁으로 내리고, 읽은 뒤 바뀐 일지만 그 이유를 줄에 쓴다 — 다른 행과 이유가 다르다.
- * 「읽음」 은 행이 여럿이면 행에 올라가야 보이고(묶음 머리에 「모두 읽음」 이 있다), 한 건이면 늘 보인다.
+ * 「읽음 표시」 는 행이 여럿이면 행에 올라가야 보이고(묶음 머리에 「모두 읽음」 이 있다), 한 건이면 늘 보인다.
+ *
+ * 단추는 일지 상세의 검증 상자 · 변경 화면 바닥줄과 같은 동작이라 같은 모양 · 같은 이름이다(11-15 V-06) — 테 있는
+ * 보통 단추 「읽음 표시」, ✓ 는 누른 뒤의 상태에만. 누르기 전부터 회색 ✓(통과 표지)를 단 테 없는 「✓ 읽음」 이
+ * 검증 없는 일지 바로 옆에서 이미 확인된 것처럼 읽혔다. 키 표기 v 는 이 화면에서 v 가 정말 이 단추를 누르니 둔다.
  */
 function UnreadRow({
   ex,
@@ -472,32 +474,17 @@ function UnreadRow({
       </div>
       <button
         type="button"
-        className={"btn ghost sm" + (quiet ? " tdy-row-quiet" : "")}
+        className={"btn sm" + (quiet ? " tdy-row-quiet" : "")}
         aria-label={t("today.check.verifyAria", { title: e.title })}
         disabled={verifying}
         onClick={() => onVerify(e)}
       >
-        <Check size={13} aria-hidden="true" />
-        {t("today.check.verify")}
+        {t("entry.verify")}
         <span className="kbd" aria-hidden="true">
           v
         </span>
       </button>
     </li>
-  );
-}
-
-/** 다시 읽다 실패했을 때 카드 머리의 한 줄 — 보이는 값은 그때 읽은 것이다. */
-function StaleNote({ since, onRetry }: { since: number; onRetry: () => void }) {
-  const { t } = useT();
-  const time = clockOf(new Date(since).toISOString());
-  return (
-    <span className="tdy-stale" role="status">
-      {monoPart(t("today.stale.since", { time }), time)}
-      <button type="button" className="tdy-link" onClick={onRetry}>
-        {t("common.retry")}
-      </button>
-    </span>
   );
 }
 

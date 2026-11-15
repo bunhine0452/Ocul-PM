@@ -10,7 +10,8 @@
  *    오류 카드가 남아 있었다. 목록과 상세의 오류는 따로 들고 **각자 자기 것만** 지운다: 상세 읽기의 성공이
  *    목록 오류까지 지우면, 목록을 못 읽은 화면이 「계획 없음」 빈 화면(과 계획 세우기 단추)으로 섰다.
  *  - 「계획이 하나도 없다」 는 목록을 **받아서** 0 개일 때만이다 — 못 읽으면 `plans` 는 그대로(null) 둔다.
- *  - 조용한 갱신(디스크 변경)이 실패하면 마지막 문서를 그대로 두고 문서 위에 한 줄만 단다(`stale`).
+ *  - 조용한 갱신(디스크 변경)이 실패하면 마지막 문서를 그대로 두고 문서 위에 한 줄만 단다(`staleSince` — 마지막으로
+ *    읽은 때. 오늘 화면과 같은 「14:12 이후 못 읽음」 이다, RC-11).
  *  - 모든 쓰기는 **보이는 문서의 계획 id**(`detail.plan.plan_id`)로 간다 — 고른 id 는 앞서 바뀌어 있을
  *    수 있다(다른 계획을 읽는 중). 화면은 그동안 동작 단추를 막는다(`busy`).
  */
@@ -39,8 +40,8 @@ export interface PlanDocument {
   locked: boolean;
   /** 목록 · 문서를 처음부터 못 읽었다 — 오류 카드. */
   error: string | null;
-  /** 문서는 있는데 방금 다시 읽기를 못 했다 — 문서 위 한 줄. */
-  stale: boolean;
+  /** 문서는 있는데 다시 읽기를 못 했다 — 그때 보이는 값을 읽은 시각(ms). 문서 위 한 줄. */
+  staleSince: number | null;
   /** 「다시 시도」 — 사유를 지우고 목록과 문서를 다시 읽는다. */
   retry: () => void;
   refreshDetail: () => void;
@@ -48,6 +49,9 @@ export interface PlanDocument {
   /** 보이는 계획을 닫는다 (남은 항목이 0 일 때만 화면이 부른다) — 알림에 「되돌리기」 가 달린다. */
   close: () => Promise<void>;
 }
+
+/** 못 읽기 시작한 때를 정한다 — 이미 못 읽는 중이면 그 시각 그대로, 아니면 마지막으로 읽은 때(없으면 지금). */
+const staleFrom = (okAt: number) => (prev: number | null) => prev ?? (okAt || Date.now());
 
 export function usePlanDocument(projectId: number): PlanDocument {
   const { state, setState } = useWorkspace();
@@ -61,8 +65,10 @@ export function usePlanDocument(projectId: number): PlanDocument {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [listStale, setListStale] = useState(false);
-  const [detailStale, setDetailStale] = useState(false);
+  // 못 읽기 시작한 때 보이던 값의 시각 — 마지막으로 읽은 때(`okAt`). 실패가 이어져도 처음 값을 둔다.
+  const [listStale, setListStale] = useState<number | null>(null);
+  const [detailStale, setDetailStale] = useState<number | null>(null);
+  const okAt = useRef({ list: 0, detail: 0 });
 
   const refreshPlans = useCallback(
     async (silent = false) => {
@@ -71,9 +77,10 @@ export function usePlanDocument(projectId: number): PlanDocument {
         const res = await commands.planList(projectId);
         if (res.status === "ok") {
           const list = res.data ?? [];
+          okAt.current.list = Date.now();
           setPlans(list);
           setListError(null);
-          setListStale(false);
+          setListStale(null);
           // 고른 계획이 아직 있으면 그대로, 없으면 진행 중 첫 계획(오늘 화면과 같은 순서).
           setSelectedId((cur) => {
             if (cur && list.some((p) => p.plan_id === cur)) return cur;
@@ -86,7 +93,7 @@ export function usePlanDocument(projectId: number): PlanDocument {
       } catch (e) {
         failure = tError(toAppError(e));
       }
-      if (silent) setListStale(true);
+      if (silent) setListStale(staleFrom(okAt.current.list));
       else setListError(failure);
     },
     [projectId],
@@ -104,7 +111,7 @@ export function usePlanDocument(projectId: number): PlanDocument {
         setDetail(null);
         setLoadingDetail(false);
         setDetailError(null);
-        setDetailStale(false);
+        setDetailStale(null);
         return;
       }
       if (!silent) setLoadingDetail(true);
@@ -112,14 +119,15 @@ export function usePlanDocument(projectId: number): PlanDocument {
         const res = await commands.planGet(projectId, selectedId);
         if (selectedIdRef.current !== selectedId) return;
         if (res.status === "ok") {
+          okAt.current.detail = Date.now();
           setDetail(res.data);
           setDetailError(null);
-          setDetailStale(false);
-        } else if (silent) setDetailStale(true);
+          setDetailStale(null);
+        } else if (silent) setDetailStale(staleFrom(okAt.current.detail));
         else setDetailError(tError(res.error));
       } catch (e) {
         if (selectedIdRef.current !== selectedId) return;
-        if (silent) setDetailStale(true);
+        if (silent) setDetailStale(staleFrom(okAt.current.detail));
         else setDetailError(tError(toAppError(e)));
       } finally {
         if (!silent && selectedIdRef.current === selectedId) setLoadingDetail(false);
@@ -198,12 +206,12 @@ export function usePlanDocument(projectId: number): PlanDocument {
     busy: detail != null && detail.plan.plan_id !== selectedId,
     locked: (detail?.plan.status ?? "active") !== "active",
     error: listError ?? detailError,
-    stale: listStale || detailStale,
+    staleSince: listStale == null ? detailStale : detailStale == null ? listStale : Math.min(listStale, detailStale),
     retry: () => {
       setListError(null);
       setDetailError(null);
-      setListStale(false);
-      setDetailStale(false);
+      setListStale(null);
+      setDetailStale(null);
       void refreshPlans();
       void refreshDetail();
     },

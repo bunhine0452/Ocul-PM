@@ -359,10 +359,11 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   };
 
   // 「N건 더」 는 일지 화면의 「검증 없는 것만」 으로 간다(합류 G-11) — 남은 줄은 그 거르기가 하는 일이다. 예전엔
-  // 제자리에서 펼쳐 이 화면이 둘째 일지 목록이 됐다. 거르기는 일지 화면의 지역 상태라 요청을 실어 보낸다.
+  // 제자리에서 펼쳐 이 화면이 둘째 일지 목록이 됐다. 거르기는 일지 화면의 지역 상태라 요청을 실어 보낸다. 요청은
+  // 이 날을 싣는다(SCR-05) — 「3건 더」 는 오늘의 수인데 일지 화면이 지난 모든 날(38줄)을 세웠다.
   const unreadShown = split ? split.unread.slice(0, UNREAD_LIMIT) : [];
   const openUnverified = () => {
-    requestOnlyMissing();
+    requestOnlyMissing(workday);
     onNavigate("journal");
   };
   const navRows: NavRow[] = split ? [...split.first, ...(next ? [NEXT_ROW] : []), ...unreadShown] : [];

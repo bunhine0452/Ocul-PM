@@ -11,8 +11,9 @@ import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent }
 
 import { toAppError } from "@/api/invoke";
 import { raceApi, type RaceLane } from "@/api/race";
-import { ChevronLeft, ChevronRight, SquareTerminal, X } from "@/components/Icons";
-import { AppDialog } from "@/components/ui/AppDialog";
+import { ChevronLeft, ChevronRight, SquareTerminal } from "@/components/Icons";
+import { RadioSeg } from "@/components/RadioSeg";
+import { AppDialog, DialogKey } from "@/components/ui/AppDialog";
 import { PatchView } from "@/features/diff/PatchView";
 import { langFromPath } from "@/features/diff/diffParse";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -93,24 +94,19 @@ export function RaceStartDialog({ projectId, onClose }: { projectId: number; onC
         <div className="send-foot">
           <span className="send-target">
             <span>{t("race.count")}</span>
-            <span className="seg" role="tablist" aria-label={t("race.count")}>
-              {COUNTS.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  role="tab"
-                  aria-selected={count === n}
-                  className="seg-item"
-                  onClick={() => setCount(n)}
-                >
-                  {n}
-                </button>
-              ))}
-            </span>
+            {/* 여럿 중 하나 — 앱의 라디오 묶음 한 벌(11-15 RC-19). 딸린 패널 없는 탭(role=tab)이라 화면 읽기에 거짓말을 했다. */}
+            <RadioSeg
+              label={t("race.count")}
+              value={String(count)}
+              options={COUNTS.map((n) => ({ id: String(n), label: n }))}
+              onChange={(v) => setCount(Number(v))}
+            />
           </span>
           <span className="send-sp" />
-          <button type="button" className="btn sm" onClick={onClose}>
+          {/* 발은 대화상자 한 벌의 약속(11-15 RC-10) — 취소 = 테 없는 단추 + Esc, 시작 = 채운 단추 + ⌘↩. */}
+          <button type="button" className="btn ghost sm" onClick={onClose}>
             {t("common.cancel")}
+            <DialogKey>Esc</DialogKey>
           </button>
           <button
             type="button"
@@ -121,9 +117,7 @@ export function RaceStartDialog({ projectId, onClose }: { projectId: number; onC
             onClick={() => void start()}
           >
             {t("race.start", { n: count })}
-            <kbd className="kbd" aria-hidden="true">
-              {kbd("⌘↩")}
-            </kbd>
+            <DialogKey>{kbd("⌘↩")}</DialogKey>
           </button>
         </div>
       </div>
@@ -401,10 +395,6 @@ function LaneDiffDialog({
             {at < lanes.length - 1 ? t("race.lane", { n: n + 1 }) : null}
             <ChevronRight size={13} aria-hidden="true" />
           </button>
-          <span className="send-sp" />
-          <button type="button" className="iconbtn sm" aria-label={t("common.close")} title={t("common.close")} onClick={onClose}>
-            <X size={13} aria-hidden="true" />
-          </button>
         </div>
         {lane.journals ? (
           <p className="send-ctx">
@@ -422,10 +412,12 @@ function LaneDiffDialog({
             </section>
           ))}
         </div>
+        {/* 닫는 길은 발의 「닫기 Esc」 하나 — 머리의 × 와 둘이면 어느 쪽이 기본인지 흐려진다(RC-10). */}
         <div className="send-foot">
           <span className="send-sp" />
-          <button type="button" className="btn sm" onClick={onClose}>
+          <button type="button" className="btn ghost sm" onClick={onClose}>
             {t("common.close")}
+            <DialogKey>Esc</DialogKey>
           </button>
           <button
             type="button"

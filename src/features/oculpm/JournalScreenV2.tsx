@@ -11,6 +11,7 @@ import { blocked } from "@/lib/blocked";
 import { isModChord, readChord } from "@/lib/kbd";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { toast } from "@/lib/toast";
+import { dayWord } from "@/lib/workdayLabel";
 import { JournalDetail, type JournalDetailActions } from "./JournalDetail";
 import { FILTERS, JournalHead, type Filter } from "./JournalHead";
 import { JournalList } from "./JournalList";
@@ -83,12 +84,16 @@ export function JournalScreenV2({
   onReturnToOrigin,
   active = true,
 }: JournalScreenV2Props) {
-  const { t } = useT();
+  const { t, lang } = useT();
   // 필터·검색은 화면 지역 상태다 — "어제 걸어 둔 필터 때문에 오늘 일지가 안 보인다" 가 이 화면에서
   // 가장 비싼 착각이라 열 때마다 전체로 시작한다. 고른 일지와 스크롤만 앱이 켜 있는 동안 기억한다.
   const memory = useRef(rememberedJournal(projectId));
   const [filter, setFilter] = useState<Filter>("all");
   const [onlyMissing, setOnlyMissing] = useState(false);
+  // 「검증 없는 것만」 을 한 날로 좁힘 — 오늘의 「N건 더」 가 그날을 실어 보낸다(SCR-05). 좁히지 않으면 지난 모든
+  // 날이 서서 「3건 더」 를 누르고 38줄을 봤다. 「검증 없는 것만」 을 끄거나 그 단추를 누르면 풀린다.
+  const [missingDay, setMissingDay] = useState<string | null>(null);
+  const scopeDay = onlyMissing ? missingDay : null;
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [rank, setRank] = useState(true);
@@ -172,8 +177,8 @@ export function JournalScreenV2({
     if (!onlyMissing) return mapped;
     return mapped
       .map((d) => ({ ...d, entries: d.entries.filter(isEvidenceMissing) }))
-      .filter((d) => d.entries.length > 0);
-  }, [rawDays, onlyMissing, localVerified]);
+      .filter((d) => d.entries.length > 0 && (scopeDay == null || d.workday === scopeDay));
+  }, [rawDays, onlyMissing, localVerified, scopeDay]);
   const allEntries = useMemo(() => (days ?? []).flatMap((d) => d.entries), [days]);
 
   const filtered = searching || filter !== "all" || onlyMissing;
@@ -217,7 +222,7 @@ export function JournalScreenV2({
   // 거르는 조건이 바뀌면 새 목록의 첫 줄부터.
   useEffect(() => {
     lastIndexRef.current = 0;
-  }, [filter, onlyMissing, query, showAll, rank]);
+  }, [filter, onlyMissing, query, showAll, rank, scopeDay]);
 
   // 밖에서 건너와 고른 일지가 접힌 날 안이면 그날 접힘을 연다(한 번 — 그 뒤로는 사람이 연다).
   useEffect(() => {
@@ -314,12 +319,17 @@ export function JournalScreenV2({
     };
   }, [focusPath, openByPath, onFocusConsumed]);
 
-  // 오늘의 「N건 더」 가 「검증 없는 것만」 을 켜고 보냈다(`onlyMissing.ts`) — 설 때 회수하고, 서 있는 동안 온 요청은
-  // 구독으로 받는다. 거르기는 그대로 이 화면의 지역 상태다(다음에 열면 「전체」 로 시작한다).
+  // 오늘의 「N건 더」 가 「검증 없는 것만」 을 켜고 그날을 실어 보냈다(`onlyMissing.ts`) — 설 때 회수하고, 서 있는 동안
+  // 온 요청은 구독으로 받는다. 거르기는 그대로 이 화면의 지역 상태다(다음에 열면 「전체」 로 시작한다).
   useEffect(() => {
     if (!active) return;
-    if (consumeOnlyMissing()) setOnlyMissing(true);
-    return onOnlyMissing(() => setOnlyMissing(true));
+    const take = (req: { workday: string | null }) => {
+      setOnlyMissing(true);
+      setMissingDay(req.workday);
+    };
+    const pending = consumeOnlyMissing();
+    if (pending) take(pending);
+    return onOnlyMissing(take);
   }, [active]);
 
   // Enter 로 고른 일지 — 새 상세가 선 다음에 포커스를 넘긴다.
@@ -490,7 +500,8 @@ export function JournalScreenV2({
   // 숫자 한 줄 — 거르거나 찾을 때, 또는 못 받은 쪽이 남았을 때만. 「조건에 맞는 312 · 표시 200」.
   const pageTotal = searching ? found.total : feed.total;
   const pageLoaded = searching ? found.loaded : feed.loaded;
-  const morePages = !searching && feed.canLoadMore;
+  // 한 날로 좁혔으면 더 받을 쪽이 없다 — 받는 쪽은 최신부터라 그날은 이미 첫 쪽에 있다.
+  const morePages = !searching && feed.canLoadMore && scopeDay == null;
   const matched = onlyMissing || pageTotal == null ? vis.total : pageTotal;
   const capped = searching && (found.total ?? 0) > SEARCH_LIMIT;
   // 「검증 없는 것만」 단추가 걸린 수를 warn 으로 이미 말한다 — 숫자 줄은 단추가 모르는 것(더 받을 쪽 「+」 ·
@@ -619,6 +630,12 @@ export function JournalScreenV2({
               missingCount={onlyMissing && days ? vis.total : null}
               onToggleMissing={() => {
                 setOnlyMissing((v) => !v);
+                setMissingDay(null);
+                setRowLimit(ROW_LIMIT);
+              }}
+              scopeLabel={scopeDay ? t("journal.dayScope", { day: dayWord(scopeDay, lang, t, todayKey ?? undefined) }) : null}
+              onClearScope={() => {
+                setMissingDay(null);
                 setRowLimit(ROW_LIMIT);
               }}
               allPeriod={allPeriod}

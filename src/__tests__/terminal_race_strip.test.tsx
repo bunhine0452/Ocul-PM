@@ -144,13 +144,13 @@ describe("race strip folds to one line", () => {
     }
   });
 
-  it("the run's name opens its changes; the dialog has close buttons and 'bring these changes' through the confirm", async () => {
+  it("the run's name opens its changes; the dialog has one close button and 'bring these changes' through the confirm", async () => {
     threeLanes();
     render(<RaceStrip projectId={1} />);
     fireEvent.click(screen.getByRole("button", { expanded: false }));
     fireEvent.click(screen.getByRole("button", { name: t("race.lane", { n: 2 }) }));
     const dialog = await screen.findByRole("dialog", { name: t("race.lane", { n: 2 }) });
-    expect(within(dialog).getAllByRole("button", { name: t("common.close") })).toHaveLength(2);
+    expect(within(dialog).getAllByRole("button", { name: t("common.close") })).toHaveLength(1);
     // ‹ 시도 1 · 시도 3 › — 대화상자를 닫지 않고 옆 시도로.
     expect(within(dialog).getByRole("button", { name: t("race.lane", { n: 3 }) })).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: t("race.take") }));

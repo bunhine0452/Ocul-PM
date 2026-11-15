@@ -8,6 +8,8 @@
  */
 
 import type { VerdictState } from "@/components/VerdictLine";
+import { osLabel } from "@/features/today/todayModel";
+import { t } from "@/i18n";
 import type { PlanVerdict } from "@/lib/bindings";
 
 /** `DigestPlan` 과 `PlanSummary` 가 같이 가진 판정 칸 — 둘 다 그대로 넘기면 된다. */
@@ -25,6 +27,38 @@ export function verdictStateOf(p: VerdictInput): VerdictState | null {
   if ((p.stale_files?.length ?? 0) > 0) return "stale";
   if (p.verdict_from) return "away";
   return "pass";
+}
+
+/** 「통과 뒤 바뀜」 · 「여기선 아직」 의 아래 줄 — 그릴 문장과 그 안의 기계 글씨 하나, 툴팁의 전문. */
+export interface VerdictSub {
+  text: string;
+  /** 문장 안의 첫 파일 경로 — 고정폭으로 그린다(영수증 규칙 2). 없으면 `null`. */
+  mono: string | null;
+  /** 바뀐 파일을 「외 N」 으로 줄이지 않은 전문. */
+  full: string;
+}
+
+/**
+ * 아래 줄 한 벌 (11-15 RC-17) — 오늘 행과 계획 판정 카드가 같은 문장을 쓴다. 오늘은 「그 뒤 바뀜 {파일}」 ·
+ * 「이 기기에선 아직」, 계획은 「통과 뒤 바뀐 파일 {수}」 · 「여기선 아직」 이라 같은 상태가 두 화면에서 다른
+ * 말이었다. 바뀐 파일은 첫 파일 + 「외 N」 — 수만으로는 무엇이 바뀌었는지 모른다.
+ */
+export function verdictSub(state: VerdictState | null, p: VerdictInput): VerdictSub | null {
+  if (state === "stale") {
+    const files = p.stale_files ?? [];
+    const [first = "", ...rest] = files;
+    const shown = rest.length > 0 ? t("today.check.moreFiles", { first, n: rest.length }) : first;
+    return {
+      text: t("state.verdict.staleSub", { files: shown }),
+      mono: first || null,
+      full: t("state.verdict.staleSub", { files: files.join(", ") }),
+    };
+  }
+  if (state === "away" && p.verdict_from) {
+    const text = t("state.verdict.awaySub", { os: osLabel(p.verdict_from) });
+    return { text, mono: null, full: text };
+  }
+  return null;
 }
 
 /**

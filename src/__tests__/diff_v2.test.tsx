@@ -47,7 +47,7 @@ let briefEntries: unknown[] = [];
 // Mutable per-test: `git status` 조회가 실패한다 (봉투 오류 / 진짜 Error).
 let gitStatus: "ok" | "error" | "throw" = "ok";
 
-// 「Claude 에게 맡기기」 — 작성기(대화상자)는 띄우지 않고 미리 채운 글만 본다.
+// 「일지 맡기기」 — 작성기(대화상자)는 띄우지 않고 미리 채운 글만 본다.
 const asked: string[] = [];
 vi.mock("@/features/terminal/sendToClaude", () => ({
   requestSendToClaude: (ctx: { prefill?: string }) => {
@@ -501,11 +501,11 @@ describe("변경 목록 — 기록 없음 먼저 · 일지별 묶음", () => {
     expect(container.querySelector(".diff-entry-foot")).not.toBeNull();
   });
 
-  it("「Claude 에게 맡기기」 는 기록 없음 묶음의 파일 목록을 기록 요청으로 작성기(받는 세션 · 미리보기)에 넘긴다", async () => {
+  it("「일지 맡기기」 는 기록 없음 묶음의 파일 목록을 기록 요청으로 작성기(받는 세션 · 미리보기)에 넘긴다", async () => {
     seedMixed();
     const { findByText, getByText } = renderDiff();
     await findByText(/이 변경을 남긴 일지가 없어요/);
-    fireEvent.click(getByText("Claude 에게 맡기기"));
+    fireEvent.click(getByText("일지 맡기기"));
     await waitFor(() => expect(asked).toHaveLength(1));
     const text = asked[0];
     expect(text).toContain("작업 일지에 기록돼 있지 않아요");

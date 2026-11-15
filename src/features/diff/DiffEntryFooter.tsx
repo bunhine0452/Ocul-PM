@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { oculpmApi } from "@/api/oculpm";
 import { CheckMark, ShieldCheck } from "@/components/Icons";
+import { MachineText, machineParts, machinePlain, splitParts } from "@/components/MachineText";
 import { verificationLines } from "@/features/oculpm/verification";
 import { useT } from "@/i18n";
 import type { ChangeGroup } from "@/lib/bindings";
@@ -18,6 +19,8 @@ import { toast } from "@/lib/toast";
  * 보였다. 전문은 title. ✓ 는 누른 뒤에만 선다(누르기 전부터 ✓ 가 서 있었다).
  * 읽음 단추의 이름은 일지 상세와 같은 낱말(`entry.verify`)이고, 설명은 키 표기 없이 따로 둔다 — 일지
  * 상세의 설명은 「(v)」 를 알리는데, 이 화면의 v 는 파일의 「봤음」 이다(알린 키 = 듣는 키).
+ * 검증 줄은 본문 서체에 명령 · 결과 토큰만 기계 글씨다(`MachineText`, 11-15 V-08) — 줄 전체가 mono 이던 때
+ * 에이전트가 쓴 한국어가 고정폭 대체 글꼴로 띄엄띄엄 놓였다.
  */
 export function DiffEntryFooter({
   projectId,
@@ -41,7 +44,8 @@ export function DiffEntryFooter({
     void Promise.resolve()
       .then(() => oculpmApi.getJournalEntry(projectId, path))
       .then((d) => {
-        if (!cancelled) setLines(verificationLines(d?.body_markdown ?? ""));
+        // 백틱을 남긴 줄 — 그릴 때 코드 조각을 기계 글씨로 읽는다.
+        if (!cancelled) setLines(verificationLines(d?.body_markdown ?? "", 8, true));
       })
       .catch(() => {
         if (!cancelled) setLines([]);
@@ -52,21 +56,27 @@ export function DiffEntryFooter({
   }, [projectId, path]);
   if (!path) return null;
   const verified = (group.verified_by_user ?? false) && !group.verified_stale;
-  const first = lines?.[0] ?? null;
+  const raw = lines?.[0] ?? null;
+  // 툴팁 · 복사는 글자만(백틱 · `**` 를 벗긴 것). 줄이는 자리는 그 글자 기준이다.
+  const first = raw != null ? machinePlain(raw) : null;
   const copy = () => {
     if (!first) return;
     void navigator.clipboard?.writeText(first).then(() => toast.info(t("diff.copiedVerify")));
   };
-  const [head, tail] = first ? splitTail(first) : ["", ""];
+  const [head, tail] = raw != null && first ? splitParts(machineParts(raw), splitTail(first)[0].length) : [[], []];
   return (
     <div className="diff-entry-foot" data-evidence={first ? "on" : lines ? "off" : "pending"}>
       <ShieldCheck size={13} aria-hidden="true" />
       <span className="def-label">{t("diff.entryVerify")}</span>
-      <span className="def-line mono" title={first ?? undefined}>
+      <span className="def-line" title={first ?? undefined}>
         {first ? (
           <>
-            <span className="def-head">{head}</span>
-            <span className="def-tail">{tail}</span>
+            <span className="def-head">
+              <MachineText parts={head} />
+            </span>
+            <span className="def-tail">
+              <MachineText parts={tail} />
+            </span>
           </>
         ) : lines ? (
           t("diff.entryVerifyNone")

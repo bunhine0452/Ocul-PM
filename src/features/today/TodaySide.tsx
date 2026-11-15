@@ -9,7 +9,7 @@
 
 import type { ReactNode } from "react";
 
-import { NotebookText } from "@/components/Icons";
+import { NotebookText, SquareTerminal } from "@/components/Icons";
 import type { TermInfo } from "@/api/terminal";
 import { agentLabel } from "@/features/today/agentColor";
 import { useT, type I18nKey } from "@/i18n";
@@ -73,7 +73,7 @@ export function LiveCard({
                       {quietMin >= 60 ? t("today.live.quietHours", { n: Math.floor(quietMin / 60) }) : t("today.live.quiet", { n: quietMin })}
                     </span>
                     {term ? (
-                      <button type="button" className="tdy-link" onClick={() => onShowTerminal(term.id)}>
+                      <button type="button" className="text-link" onClick={() => onShowTerminal(term.id)}>
                         {t("today.check.openTerminal")}
                       </button>
                     ) : null}
@@ -112,8 +112,10 @@ function NumLink({ k, n, title, onClick }: { k: I18nKey; n: number; title: strin
  * 0 인 수는 그리지 않는다. 「이 기기에만」 은 다른 기기에 없는 일지 · 계획 파일 수다 — 커밋 안 한 것과, 커밋했지만
  * 안 올린 커밋에 든 것(백엔드가 겹치는 파일은 한 번만 센다). 기록은 없고 안 올린 커밋만 있으면 그 커밋 수를
  * 「안 올린 커밋 N」 으로 말한다. 커밋 안 한 **코드만** 있을 때는 서지 않는다 — 일하는 내내 있어 그것까지 세면
- * 이 수가 하루 종일 섰다. 안 올린 것은 다른 기기의 Claude 에게 없는 일이라 「올리기 맡기기」 를 그 곁에 둔다(앱 안
- * 터미널의 Claude 에게 맡긴다 — 앱은 git 을 읽기만 한다).
+ * 이 수가 하루 종일 섰다. 안 올린 것은 다른 기기의 Claude 에게 없는 일이라 「올리기 맡기기」 를 둔다(앱 안
+ * 터미널의 Claude 에게 맡긴다 — 앱은 git 을 읽기만 한다). 그 동작은 수 줄 **밖**의 보통 단추다(11-15 V-01): 줄의
+ * 수는 누르면 화면을 옮기고 이것만 터미널 세션을 열어 claude 를 돌리는데, 숫자 뒤에 구분 없이 같은 글자 모양으로
+ * 붙어 「이 기기에만 4 올리기 맡기기」 한 문장처럼 읽혔다. 터미널 아이콘이 「실행」 임을 말한다.
  * 받아 온 일지가 없으면 주고받은 지 하루가 넘었을 때만 그 날수를 말한다(다른 곳의 기록을 받은 적이 없는
  * 저장소에는 말하지 않는다 — `synced_at` 이 없다).
  */
@@ -143,6 +145,7 @@ export function TodayNumbers({
 }) {
   const { t } = useT();
   const items: ReactNode[] = [];
+  let handoff: ReactNode = null;
   const mineN = mine.reduce((sum, m) => sum + m.items.length, 0);
   if (mineN > 0) {
     items.push(
@@ -187,24 +190,29 @@ export function TodayNumbers({
       );
     }
     items.push(
-      <span key="local" className="tdy-num-group">
-        <NumLink
-          k={here > 0 ? "today.nums.local" : "today.local.unpushed"}
-          n={here > 0 ? here : local.unpushed}
-          title={[detail.join(" · "), t("today.local.hint")].join(" ")}
-          onClick={onOpenDiff}
-        />
-        <button type="button" className="tdy-link" title={t("today.local.handoffHint")} disabled={opening} onClick={onHandOff}>
-          {t("today.local.handoff")}
-        </button>
-      </span>,
+      <NumLink
+        key="local"
+        k={here > 0 ? "today.nums.local" : "today.local.unpushed"}
+        n={here > 0 ? here : local.unpushed}
+        title={[detail.join(" · "), t("today.local.hint")].join(" ")}
+        onClick={onOpenDiff}
+      />,
+    );
+    handoff = (
+      <button type="button" className="btn sm tdy-handoff" title={t("today.local.handoffHint")} disabled={opening} onClick={onHandOff}>
+        <SquareTerminal size={13} aria-hidden="true" />
+        {opening ? t("today.busy.opening") : t("today.local.handoff")}
+      </button>
     );
   }
   if (items.length === 0) return null;
   return (
-    <div className="tdy-nums" role="group" aria-label={t("today.nums.aria")}>
-      {items.flatMap((item, i) => (i === 0 ? [item] : [<span key={`sep${i}`} className="tdy-num-sep" aria-hidden="true">·</span>, item]))}
-    </div>
+    <>
+      <div className="tdy-nums" role="group" aria-label={t("today.nums.aria")}>
+        {items.flatMap((item, i) => (i === 0 ? [item] : [<span key={`sep${i}`} className="tdy-num-sep" aria-hidden="true">·</span>, item]))}
+      </div>
+      {handoff}
+    </>
   );
 }
 

@@ -109,13 +109,13 @@ describe("a failed re-read keeps what was read", () => {
     await waitFor(() => expect(unreadRows()).toHaveLength(2));
     fx.fail.add("oculpmWorkdayBrief");
     act(() => emit("oculpmJournalUpdated", { project_id: 1 }));
-    await waitFor(() => expect(document.querySelector(".tdy-stale")).not.toBeNull());
+    await waitFor(() => expect(document.querySelector(".stale-note")).not.toBeNull());
     expect(unreadRows()).toHaveLength(2);
     expect(screen.queryByText(t("today.loadFailed"))).toBeNull();
     // 「다시 시도」 가 다시 읽고, 읽히면 그 줄은 사라진다.
     fx.fail.delete("oculpmWorkdayBrief");
-    fireEvent.click(within(document.querySelector(".tdy-stale") as HTMLElement).getByRole("button", { name: t("common.retry") }));
-    await waitFor(() => expect(document.querySelector(".tdy-stale")).toBeNull());
+    fireEvent.click(within(document.querySelector(".stale-note") as HTMLElement).getByRole("button", { name: t("common.retry") }));
+    await waitFor(() => expect(document.querySelector(".stale-note")).toBeNull());
   });
 
   it("shows the error card only when nothing was ever read", async () => {
