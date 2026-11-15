@@ -103,6 +103,8 @@ describe("unknown settings never write the Claude Code theme file", () => {
     expect(fx.writes).toBe(0);
     expect(within(themeRow()).getByText(t("prefs.unknown"))).toBeTruthy();
     expect(themeRow().querySelector(".chip")).toBeNull();
+    // 「끄기」 도 없다 — 기본값(켜짐)으로 그 단추를 세우면 모르는 상태를 「켜져 있다」 고 말한다.
+    expect(within(themeRow()).queryByRole("button")).toBeNull();
   });
 
   it("a successful read with the default (on) still writes — the guard is about not knowing, not about writing", async () => {
@@ -113,7 +115,7 @@ describe("unknown settings never write the Claude Code theme file", () => {
 });
 
 describe("a failed theme write says where and why", () => {
-  it("the backend's path and reason stand as one mono line, and the same line goes on top", async () => {
+  it("the backend's path and reason stand as one mono line, and the same line goes on top after the words", async () => {
     fx.write = async () => ({
       status: "ok",
       data: { state: "failed", path: "/Users/me/.claude/themes/ocul.json", error: "Permission denied (os error 13)" },
@@ -124,6 +126,10 @@ describe("a failed theme write says where and why", () => {
     const line = "~/.claude/themes/ocul.json: Permission denied (os error 13)";
     expect(within(themeRow()).getByText(line).className).toMatch(/\bmono\b/);
     await waitFor(() => expect(container.querySelector(".prefs-fixes .prefs-fix .mono")?.textContent).toBe(line));
+    // 맨 위 줄도 사람의 말이 먼저다 — mono 줄만이면 한국어 화면에 OS 의 영어 문구 한 줄만 섰다.
+    const fix = container.querySelector(".prefs-fixes .prefs-fix")!;
+    expect(fix.textContent).toBe(`${t("prefs.claudeTheme.label")} ${t("prefs.claudeTheme.failed")} ${line}`);
+    expect(within(fix as HTMLElement).getByText(t("prefs.claudeTheme.failed")).className).not.toMatch(/\bmono\b/);
   });
 
   it("an error with no path still shows its reason", async () => {

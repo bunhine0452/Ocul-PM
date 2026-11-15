@@ -39,7 +39,7 @@ function scrollTo(section: SettingsSection) {
 }
 
 const sameFix = (a: PrefsFix | undefined, b: PrefsFix) =>
-  !!a && a.section === b.section && a.label === b.label && a.detail === b.detail && a.mono === b.mono;
+  !!a && a.section === b.section && a.label === b.label && a.detail === b.detail && a.mono === b.mono && a.code === b.code;
 
 export function SettingsPage() {
   const { t } = useT();
@@ -88,6 +88,7 @@ export function SettingsPage() {
               {items.map((f) => (
                 <button key={f.section + f.label} type="button" className="prefs-fix" onClick={() => go(f.section)}>
                   {f.label} <span className={f.mono ? "mono" : undefined}>{f.detail}</span>
+                  {f.code ? <> <span className="mono">{f.code}</span></> : null}
                 </button>
               ))}
             </p>
