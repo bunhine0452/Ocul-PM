@@ -112,7 +112,7 @@ export function JournalRelated({
               {t("journal.related.missing")}
             </span>
           ) : (
-            <button type="button" className="jd-link" onClick={() => onOpen(l.path)} title={l.path}>
+            <button type="button" className="text-link" onClick={() => onOpen(l.path)} title={l.path}>
               {l.title}
             </button>
           )}

@@ -10,6 +10,7 @@
 import { useState } from "react";
 
 import { ChevronDown, ChevronRight } from "@/components/Icons";
+import { RadioSeg } from "@/components/RadioSeg";
 import { evidenceStateOf } from "@/features/oculpm/evidenceState";
 import { EvidenceMark } from "@/features/oculpm/JournalRow";
 import { TRIGGER_META } from "@/features/oculpm/triggerMeta";
@@ -80,14 +81,17 @@ export function TodayWork({ entries, digest, onOpenEntry }: TodayWorkProps) {
         <span className="tdy-cnt">{entries.length}</span>
         <span className="tdy-sp" />
         {groups.length > 1 ? (
-          // 보는 방식 둘 — 탭이 아니라 눌린 단추다(바뀌는 것은 같은 카드의 줄 순서다).
-          <div className="seg" role="group" aria-label={t("today.work.viewAria")}>
-            {(["plan", "time"] as const).map((v) => (
-              <button key={v} type="button" className="seg-item" aria-pressed={view === v} onClick={() => setView(v)}>
-                {v === "plan" ? t("today.work.byPlan") : t("today.work.byTime")}
-              </button>
-            ))}
-          </div>
+          // 보는 방식 둘 중 하나 — 변경 · 설정 · 일지와 같은 라디오 묶음(`RadioSeg`, 11-15 RC-19). 눌린 단추 둘이던
+          // 때 화면 읽기에는 「전환 단추, 눌림」 이라 둘 중 하나인지 알 수 없었다.
+          <RadioSeg<WorkView>
+            label={t("today.work.viewAria")}
+            value={view}
+            options={[
+              { id: "plan", label: t("today.work.byPlan") },
+              { id: "time", label: t("today.work.byTime") },
+            ]}
+            onChange={setView}
+          />
         ) : null}
       </header>
       {flat || view === "time" ? (

@@ -107,7 +107,7 @@ describe("journal copy", () => {
     await waitFor(() => expect(container.querySelector(".jd-related-missing")).not.toBeNull());
     await waitFor(() => expect(container.querySelector(".jd-related button")).not.toBeNull());
     const link = container.querySelector(".jd-related button")!;
-    expect(link.className).toContain("jd-link");
+    expect(link.className).toContain("text-link");
     expect(link.className).not.toMatch(/accent/);
     expect(link.textContent).toBe("Earlier work");
     const why = Array.from(container.querySelectorAll(".jd-related-why")).map((w) => w.textContent);

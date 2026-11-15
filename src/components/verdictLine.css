@@ -1,4 +1,6 @@
-/* 판정 줄 (11-02 시그니처, 11-04 영수증으로 다시 깎음) — 표시 · 끝 줄(mono) · 시각(mono), 필요하면 아래 한 줄.
+/* 판정 줄 (11-02 시그니처, 11-04 영수증으로 다시 깎음) — 표시 · 끝 줄 · 시각(mono), 필요하면 아래 한 줄. 끝 줄은
+   본문 서체이고 그 안의 명령 · 결과 토큰만 mono 다(`MachineText`, 11-15 V-08 — 에이전트가 덧붙인 한국어가 고정폭
+   대체 글꼴로 띄엄띄엄 놓였다).
    영수증 규칙: 통과는 조용하다(회색 ✓ · 회색 끝 줄), 실패와 「통과 뒤 바뀜」 만 표시에 색이 든다.
    왼쪽 색 막대는 걷었다 — 줄마다 색 띠가 서면 경고 상자처럼 읽히고, 예외가 예외로 보이지 않는다. */
 .vl {
@@ -8,10 +10,11 @@
 }
 .vl-mark { font-family: var(--mono); font-size: var(--fs-4); font-weight: var(--fw-strong); line-height: 1; color: var(--text-2); text-align: center; }
 .vl-out {
-  font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2);
-  font-variant-numeric: tabular-nums; font-variant-ligatures: none;
+  font-family: var(--font); font-size: var(--fs-3); color: var(--text-2);
+  font-variant-numeric: tabular-nums;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.vl-out .mono { font-family: var(--mono); font-variant-ligatures: none; }
 .vl-empty { color: var(--text-2); font-family: var(--font); }
 /* 시각은 기계 글씨다(영수증 규칙 2) — 줄마다 숫자 폭이 같아야 오른쪽 끝이 한 선에 선다. */
 .vl-when {
@@ -31,8 +34,8 @@
 .vl.is-stale .vl-mark, .vl.is-away .vl-mark { color: var(--warn-text); }
 .vl.is-fail .vl-out,
 .vl.is-stale .vl-out, .vl.is-away .vl-out { color: var(--text); font-weight: var(--fw-label); }
-/* 아래 줄 안의 확인 명령은 고정폭 — 계획 이름(사람이 쓴 것)은 본문 서체 그대로. */
-.vl-sub code { font-family: var(--mono); font-size: inherit; font-variant-ligatures: none; }
+/* 아래 줄 안의 확인 명령 · 바뀐 파일 경로는 고정폭 — 계획 이름(사람이 쓴 것)은 본문 서체 그대로. */
+.vl-sub :is(code, .mono) { font-family: var(--mono); font-size: inherit; font-variant-ligatures: none; }
 
 /* 표시 칸 없이 — 앞에 상태 칩이 이미 선 행(오늘 「먼저 볼 것」). */
 .vl.is-bare { grid-template-columns: minmax(0, 1fr) auto; }

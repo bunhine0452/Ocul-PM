@@ -7,13 +7,16 @@
 const HEADER = /^#{2,4}\s*(검증|Verification)(?![\p{L}\p{N}_])/mu;
 const NEXT = /^#{1,4}\s/m;
 
-/** 표시용으로 인라인 마크다운 표식(`` ` ``·`**`)을 벗긴다 — 명령은 mono 상자 안이라 이미 코드다. */
+/** 인라인 마크다운 표식(`` ` ``·`**`)을 벗긴다 — 복사 · 툴팁처럼 글자만 쓰는 자리용. 화면은 `raw` 줄을 그린다. */
 function plain(line: string): string {
   return line.replace(/`/g, "").replace(/\*\*/g, "");
 }
 
-/** 검증 칸의 줄들 — 목록 표식·코드 울타리·빈 줄 제외, 최대 `cap` 줄. 칸이 없으면 `[]`. */
-export function verificationLines(body: string, cap = 8): string[] {
+/**
+ * 검증 칸의 줄들 — 목록 표식·코드 울타리·빈 줄 제외, 최대 `cap` 줄. 칸이 없으면 `[]`.
+ * `raw` 면 인라인 표식(백틱 · `**`)을 그대로 둔다 — 그리는 쪽(`MachineText`)이 백틱을 기계 글씨로 읽는다(11-15 V-08).
+ */
+export function verificationLines(body: string, cap = 8, raw = false): string[] {
   const m = HEADER.exec(body);
   if (!m) return [];
   const rest = body.slice(m.index + m[0].length);
@@ -23,7 +26,7 @@ export function verificationLines(body: string, cap = 8): string[] {
     .split("\n")
     .map((l) => l.replace(/^\s*[-*]\s+/, "").trim())
     .filter((l) => l.length > 0 && !l.startsWith("```"))
-    .map(plain)
+    .map((l) => (raw ? l : plain(l)))
     .slice(0, cap);
 }
 

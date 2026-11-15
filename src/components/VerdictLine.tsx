@@ -1,8 +1,10 @@
 /**
  * 판정 줄 (11-02, Ocul 의 시그니처) — 확인 명령의 결과를 앱 어디서나 **한 모양**으로.
  *
- * 판정은 에이전트의 말이 아니라 명령이 찍은 끝 줄이다. 그래서 그 끝 줄을 고쳐 쓰지 않고 그대로(mono)
- * 앞에 세운다: ✓/✗ · 끝 줄 · 오른쪽 시각(mono), 필요하면 아래 한 줄(명령은 `<code>` · 계획). 영수증 규칙(11-04):
+ * 판정은 에이전트의 말이 아니라 명령이 찍은 끝 줄이다. 그래서 그 끝 줄을 고쳐 쓰지 않고 그대로 앞에 세운다:
+ * ✓/✗ · 끝 줄 · 오른쪽 시각(mono), 필요하면 아래 한 줄(명령은 `<code>` · 계획). 끝 줄 안에서는 명령 · 결과 토큰만
+ * 고정폭이다(`MachineText`, 11-15 V-08) — 에이전트가 덧붙인 「설치본 눈 확인은 안 함」 이 고정폭 대체 글꼴로
+ * 띄엄띄엄 놓였다. 영수증 규칙(11-04):
  * 통과는 회색으로 조용하고, 실패(빨강 ✗) · 통과 뒤 바뀜(호박 ✓ — 기록된 판정은 ✓ 그대로, 그 뒤에
  * 파일이 바뀌었다)만 색이 든다. 옛 왼쪽 2px 색 선은 걷었다.
  * 오늘 「먼저 볼 것」 · 계획 판정 칸 · 계획 목록이 같은 것을 쓴다 — 고르면 사용자가 한 번 배운다.
@@ -10,12 +12,29 @@
 import type { ReactNode } from "react";
 
 import { useT } from "@/i18n";
+import { MachineText } from "./MachineText";
 import "./verdictLine.css";
 
 /** `away` — ✓ 가 다른 OS 에서 돌았고 이 기기에서는 아직이다 (11-13). 모양은 `stale` 과 같다(호박 ✓). */
 export type VerdictState = "pass" | "fail" | "stale" | "away";
 
 const WORD = { pass: "verdict.pass", fail: "verdict.fail", stale: "verdict.stale", away: "verdict.away" } as const;
+
+/**
+ * 아래 줄의 문장 하나 — 그 안의 기계 글씨 조각(바뀐 파일 경로) 하나만 고정폭으로. 오늘 행과 계획 판정 카드가 같은
+ * 문장(`verdictSub`)을 같은 모양으로 그린다(RC-17).
+ */
+export function SubText({ text, mono }: { text: string; mono?: string | null }) {
+  const at = mono ? text.indexOf(mono) : -1;
+  if (!mono || at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <span className="mono">{mono}</span>
+      {text.slice(at + mono.length)}
+    </>
+  );
+}
 
 export function VerdictLine({
   state,
@@ -50,7 +69,7 @@ export function VerdictLine({
       )}
       <span className="vl-out" title={summary || undefined}>
         <span className="vl-sr">{t(WORD[state])} </span>
-        {summary || <span className="vl-empty">{t("today.check.noSummary")}</span>}
+        {summary ? <MachineText text={summary} /> : <span className="vl-empty">{t("today.check.noSummary")}</span>}
       </span>
       {when ? <span className="vl-when">{when}</span> : null}
       {sub && !compact ? (

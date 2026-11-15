@@ -4,9 +4,10 @@ import { evidenceStateOf } from "@/features/oculpm/evidenceState";
 import { timeLabel } from "@/features/oculpm/JournalRow";
 import { TRIGGER_META } from "@/features/oculpm/triggerMeta";
 import { normalizeJournalRef } from "@/features/oculpm/useJournalPlanLinks";
-import { useT } from "@/i18n";
+import { useT, type Lang } from "@/i18n";
 import type { ChangeGroup, EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { splitPath } from "@/lib/filePath";
+import { workdayDate } from "@/lib/workdayLabel";
 import type { ChangeOp, RecentChange } from "@/lib/recentChangesStore";
 import { cleanTitle, generatedPaths, groupKey, type ChangeBuckets } from "./changeGroups";
 import type { ViewState } from "./diffSessionStore";
@@ -17,8 +18,6 @@ import type { ViewState } from "./diffSessionStore";
 // 가고, 행 끝이 메모 수와 「본 뒤 바뀜」 을 말한다. 본 파일은 흐리게 선다.
 
 const OP_KEY = { A: "diff.opAdded", M: "diff.opModified", D: "diff.opDeleted" } as const;
-
-type T = ReturnType<typeof useT>["t"];
 
 interface ChangeFileListProps {
   changes: readonly RecentChange[];
@@ -42,15 +41,18 @@ interface ChangeFileListProps {
   viewedCount: { n: number; m: number } | null;
 }
 
-/** 오늘이면 시각만, 아니면 날짜와 시각 — 시각만 mono 로 그린다(영수증 규칙 2, 날짜는 사람 말). */
-function stamp(iso: string | null, t: T): { day: string | null; time: string } | null {
+/**
+ * 오늘이면 시각만, 아니면 날짜와 시각 — 시각만 mono 로 그린다(영수증 규칙 2, 날짜는 사람 말). 날짜 말은 일지 목록 ·
+ * 상세와 같은 함수(`workdayDate`)다 — 영어에서 여기만 「11/14」 로 적었다(11-15 RC-23).
+ */
+function stamp(iso: string | null, lang: Lang): { day: string | null; time: string } | null {
   if (!iso) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})T/.exec(iso);
   if (!m) return null;
   const today = new Date();
   const same =
     Number(m[1]) === today.getFullYear() && Number(m[2]) === today.getMonth() + 1 && Number(m[3]) === today.getDate();
-  return { day: same ? null : t("journal.dayMd", { m: String(Number(m[2])), d: String(Number(m[3])) }), time: timeLabel(iso) };
+  return { day: same ? null : workdayDate(`${m[1]}${m[2]}${m[3]}`, lang), time: timeLabel(iso) };
 }
 
 /** 파일 한 줄 — 바뀐 종류(M · A · D) · 경로 · 메모 수 · 본 뒤 바뀜 · 시각 (화면 검사 #diff-rows). */
@@ -128,7 +130,7 @@ export function ChangeFileList({
   commit,
   viewedCount,
 }: ChangeFileListProps) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const byPath = useMemo(() => new Map(changes.map((c) => [c.path, c] as const)), [changes]);
   const keep = (p: string) => !generated.has(p);
   const genList = generatedPaths(buckets, changes, generated);
@@ -152,7 +154,7 @@ export function ChangeFileList({
     const summary = g.entry_path ? entries.get(normalizeJournalRef(g.entry_path)) : undefined;
     const kind = TRIGGER_META[(g.entry_type ?? "chore") as EntryType] ?? TRIGGER_META.chore;
     const state = summary ? evidenceStateOf(summary) : null;
-    const when = stamp(g.created_at, t);
+    const when = stamp(g.created_at, lang);
     return (
       <div className="chg-group" key={key}>
         <button type="button" className="chg-item chg-grp" aria-expanded={isOpen} onClick={() => onToggle(key)}>

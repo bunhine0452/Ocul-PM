@@ -97,11 +97,11 @@ describe("planner — errors clear, stale reads stay quiet", () => {
     await screen.findByRole("heading", { level: 2, name: "Kept plan" });
     pfx.failGet = 1;
     act(() => diskChanged());
-    expect(await screen.findByText(t("plan.staleRead"))).toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector(".plv-stale .stale-note")).not.toBeNull());
     expect(screen.getByRole("heading", { level: 2, name: "Kept plan" })).toBeInTheDocument();
     expect(screen.queryByText(t("plan.error"))).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: t("plan.retry") }));
-    await waitFor(() => expect(screen.queryByText(t("plan.staleRead"))).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: t("common.retry") }));
+    await waitFor(() => expect(document.querySelector(".stale-note")).toBeNull());
   });
 
   it("switching to B while it loads blocks the run button; after it loads, run sends B's item to B", async () => {

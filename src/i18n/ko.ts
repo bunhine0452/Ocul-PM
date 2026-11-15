@@ -255,10 +255,12 @@ export const ko = {
   "common.delete": "삭제",
   "common.close": "닫기",
   "common.retry": "다시 시도",
-  "diff.notes.progress": "바뀜 {fixed}/{n}",
+  // 보낸 메모의 판정 — 「바뀜」 은 오늘 화면에서 「통과 뒤 파일이 바뀜」(호박 예외)이다. 메모 쪽은 좋은 상태라
+  // 다른 낱말을 쓴다(한 낱말 한 뜻, RC-07). 무엇으로 가리는지는 progressTitle 이 말한다.
+  "diff.notes.progress": "반영됨 {fixed}/{n}",
   "diff.notes.progressTitle": "보낸 메모 가운데 그 줄의 코드가 바뀐 것",
-  "diff.notes.fixed": "바뀜",
-  "diff.notes.open": "그대로",
+  "diff.notes.fixed": "반영됨",
+  "diff.notes.open": "아직",
   "diff.notes.sent": "보냄",
   "diff.notes.unsureTitle": "흔한 줄이라 바뀌었는지 가리지 않아요",
   "diff.notes.oldSideTitle": "지운 줄의 메모는 바뀌었는지 가리지 않아요",
@@ -439,7 +441,7 @@ export const ko = {
   "terminal.quitAsk.body": "앱을 끄면 모두 끝나요. {key} 를 한 번 더 눌러도 꺼져요.",
   "terminal.quitAsk.confirm": "끄기",
   "terminal.state.quiet": "최근 소식 없음",
-  "terminal.askRecord": "기록 남기게 하기",
+  "terminal.askRecord": "일지 맡기기",
   "terminal.askRecordPrompt": "이 세션에서 한 작업이 아직 작업 일지에 없어요. 무엇을 왜 바꿨는지 일지 한 건으로 남겨 주세요. `## 검증` 에는 돌린 명령과 그 결과 끝 줄을 적어 주세요. 코드를 바꾸지 않은 문답이었다면 남기지 않아도 돼요.",
   "terminal.reopen": "다시 열기",
   "terminal.reopenTitle": "같은 폴더에서 새로 열어요",
@@ -528,6 +530,10 @@ export const ko = {
   "verdict.fail": "확인 명령 실패:",
   "verdict.stale": "확인 명령 통과, 그 뒤 파일이 바뀜:",
   "verdict.away": "확인 명령 통과, 다른 기기에서:",
+  // 화면이 함께 쓰는 상태 문장 (11-15 RC-11 · RC-17) — 오늘과 계획이 같은 상태를 같은 말로 그린다.
+  "state.staleSince": "{time} 이후 못 읽음",
+  "state.verdict.staleSub": "통과 뒤 바뀜 {files}",
+  "state.verdict.awaySub": "{os} 에서 통과 · 이 기기에선 아직",
   "terminal.noRecord": "일지 없음",
   "terminal.noRecordTitle": "Claude 가 이 세션에서 일했는데, 세션이 시작된 뒤 일지가 없어요. 코드를 바꾸지 않은 문답이었다면 괜찮아요",
   "terminal.find.aria": "터미널에서 찾기",
@@ -571,13 +577,12 @@ export const ko = {
   "today.check.kind.stale": "바뀜",
   "today.check.teammate": "{name} 님이 올린 일지",
   "today.check.staleTitle": "계획 「{plan}」의 ✓ 뒤에 파일이 바뀌었어요",
-  "today.check.staleFiles": "그 뒤 바뀜 {files}",
   "today.check.recheck": "다시 확인",
   "today.check.kind.elsewhere": "다른 기기",
   "today.check.elsewhereTitle": "계획 「{plan}」의 ✓ 는 {os} 에서 받았어요",
-  "today.check.elsewhereSub": "{os} 에서 통과 · 이 기기에선 아직",
-  "today.check.recheckHerePrompt": "계획 {plan} 의 확인 명령 `{check}` 을 이 기기에서 돌리고, 결과 끝 줄을 AGENTS.md 의 형식대로 그 계획의 plan-log 에 남겨 줘. 지난 ✓ 는 {os} 에서 돌린 것이라 이 기기에서는 아직 확인되지 않았어.",
-  "today.check.recheckPrompt": "계획 {plan} 의 확인 명령 `{check}` 을 지금 코드에서 다시 돌리고, 결과 끝 줄을 AGENTS.md 의 형식대로 그 계획의 plan-log 에 남겨 줘. 지난 ✓ 뒤에 바뀐 파일: {files}",
+  // 앱이 Claude 에게 넘기는 프롬프트는 한 말투(해요체)다 — 터미널 · 변경 화면의 일지 맡기기와 같다(RC-09).
+  "today.check.recheckHerePrompt": "계획 {plan} 의 확인 명령 `{check}` 을 이 기기에서 돌리고, 결과 끝 줄을 AGENTS.md 의 형식대로 그 계획의 plan-log 에 남겨 주세요. 지난 ✓ 는 {os} 에서 돌린 것이라 이 기기에서는 아직 확인되지 않았어요.",
+  "today.check.recheckPrompt": "계획 {plan} 의 확인 명령 `{check}` 을 지금 코드에서 다시 돌리고, 결과 끝 줄을 AGENTS.md 의 형식대로 그 계획의 plan-log 에 남겨 주세요. 지난 ✓ 뒤에 바뀐 파일: {files}",
   "today.check.noSummary": "결과 끝 줄 없음",
   "today.check.evidenceSection": "검증에 돌린 명령이 없어요",
   "today.check.evidenceNone": "검증을 적지 않았어요",
@@ -588,7 +593,6 @@ export const ko = {
   "today.check.silentMeta": "마지막 {time} · 대화 {id}",
   "today.check.moreItems": "{title} 외 {n}개",
   "today.check.inPlan": "계획 「{plan}」",
-  "today.check.verify": "읽음",
   "today.check.verifyAria": "「{title}」 읽음으로 표시",
   "today.check.verified": "읽음으로 표시했어요",
   "today.check.verifyFailed": "읽음으로 표시하지 못했어요 — {error}",
@@ -604,7 +608,7 @@ export const ko = {
   "today.local.handoff": "올리기 맡기기",
   "today.local.handoffHint": "앱 안 터미널의 Claude 에게 커밋하고 올려 달라고 해요. 앱이 직접 올리지는 않아요.",
   "today.local.handoffPrompt":
-    "이 기기에만 있는 것을 다른 기기에서도 볼 수 있게 올려 줘. 먼저 git status 와 아직 원격 저장소에 없는 커밋을 확인해. .oculpm/ 아래의 기록(일지 · 계획)은 이 저장소의 커밋 규칙대로 커밋하고, 기록이 아닌 변경은 무엇인지 나에게 먼저 말한 뒤 내가 좋다고 하면 커밋해. 그다음 지금 가지를 원격 저장소에 올려. 강제로 올리지는 말고, 원격 저장소가 앞서 있거나 올릴 곳이 정해져 있지 않으면 멈추고 알려 줘.",
+    "이 기기에만 있는 것을 다른 기기에서도 볼 수 있게 올려 주세요. 먼저 git status 와 아직 원격 저장소에 없는 커밋을 확인해 주세요. .oculpm/ 아래의 기록(일지 · 계획)은 이 저장소의 커밋 규칙대로 커밋하고, 기록이 아닌 변경은 무엇인지 저에게 먼저 말한 뒤 제가 좋다고 하면 커밋해 주세요. 그다음 지금 가지를 원격 저장소에 올려 주세요. 강제로 올리지는 말고, 원격 저장소가 앞서 있거나 올릴 곳이 정해져 있지 않으면 멈추고 알려 주세요.",
   "today.arrived.line": "오늘 받아 온 일지 {n}건",
   "today.arrived.hint": "오늘 받아 온 커밋 가운데 다른 기기나 동료가 쓴 일지예요. 이 기기에서 만든 커밋의 일지는 세지 않아요.",
   "today.arrived.stale": "올리거나 받아 온 지 {n}일",
@@ -642,10 +646,10 @@ export const ko = {
   "today.chip.question": "질문",
   "today.chip.noJournal": "일지 없음",
   "today.check.noCheck": "이 계획에는 확인 명령이 없어요",
-  "today.check.recheckFailPrompt": "계획 {plan} 의 확인 명령 `{check}` 을 지금 코드에서 다시 돌리고, 결과 끝 줄을 AGENTS.md 의 형식대로 그 계획의 plan-log 에 남겨 줘. 지난번 끝 줄: {summary}",
+  "today.check.recheckFailPrompt": "계획 {plan} 의 확인 명령 `{check}` 을 지금 코드에서 다시 돌리고, 결과 끝 줄을 AGENTS.md 의 형식대로 그 계획의 plan-log 에 남겨 주세요. 지난번 끝 줄: {summary}",
   "today.check.silentLast": "마지막 {time}",
   "today.check.askJournal": "일지 맡기기",
-  "today.check.askJournalPrompt": "대화 {ids} 가 일지 없이 끝났어. 그 대화에서 한 일과 그 뒤로 바뀐 파일을 살펴보고, AGENTS.md 의 형식대로 일지 한 건으로 남겨 줘.",
+  "today.check.askJournalPrompt": "대화 {ids} 가 일지 없이 끝났어요. 그 대화에서 한 일과 그 뒤로 바뀐 파일을 살펴보고, 무엇을 왜 바꿨는지 일지 한 건으로 남겨 주세요. `## 검증` 에는 돌린 명령과 그 결과 끝 줄을 적어 주세요.",
   "today.check.sent": "보냄",
   "today.check.sendHint": "↩ 로 보내요",
   "today.check.dismissFailed": "기다림을 지우지 못했어요 — {error}",
@@ -655,14 +659,13 @@ export const ko = {
   "today.unread.undoFailed": "되돌리지 못했어요 — {error}",
   "today.work.unverified": "검증 없음 {n}",
   "today.live.quietHours": "{n}시간째 기록 없음",
-  "today.stale.since": "{time} 이후 못 읽음",
   "today.busy.opening": "여는 중",
   "today.first.step1": "에이전트 연결",
   "today.first.step1Body": "쓰고 있는 에이전트부터 연결하세요",
   "today.first.step2": "첫 작업 맡기기",
   "today.first.step2Body": "Claude 가 이 프로젝트를 둘러보고 첫 일지를 남겨요",
   "today.first.step2Run": "터미널에서 맡기기",
-  "today.first.step2Prompt": "이 프로젝트를 처음 맡았어. 구조와 지금 상태를 훑어보고, 무엇을 봤는지와 다음에 할 만한 일을 AGENTS.md 의 형식대로 일지 한 건으로 남겨 줘. 코드는 고치지 마.",
+  "today.first.step2Prompt": "이 프로젝트를 처음 맡았어요. 구조와 지금 상태를 훑어보고, 무엇을 봤는지와 다음에 할 만한 일을 AGENTS.md 의 형식대로 일지 한 건으로 남겨 주세요. 코드는 고치지 마세요.",
   "today.first.step3": "첫 일지",
   "today.first.step3Body": "에이전트가 일을 마치면 무엇을 했고 무엇으로 확인했는지가 여기 쌓여요",
   "today.first.done": "끝남",
@@ -728,6 +731,9 @@ export const ko = {
   "journal.period.recent": "최근 14일",
   "journal.period.all": "전체 기간",
   "journal.period.locked": "종류나 검증으로 거르는 동안은 전체 기간에서 찾아요",
+  // 오늘의 「N건 더」 가 그날을 실어 보냈다 (SCR-05) — 눌린 단추 하나가 범위를 말하고, 누르면 모든 날로 넓힌다.
+  "journal.dayScope": "{day}만",
+  "journal.dayScopeTitle": "이 날의 일지만 보여요. 누르면 모든 날의 검증 없는 일지를 보여요",
   "journal.orderAria": "결과 순서",
   "journal.order.rank": "관련도",
   "journal.order.recent": "최신",
@@ -750,7 +756,7 @@ export const ko = {
   "diff.recorded.count": "{files}개 파일 · 일지 {n}",
   "diff.openEntry": "일지 열기",
   "diff.unrecorded.title": "이 변경을 남긴 일지가 없어요",
-  "diff.unrecorded.ask": "Claude 에게 맡기기",
+  "diff.unrecorded.ask": "일지 맡기기",
   "diff.unrecorded.manual": "직접 기록",
   "diff.unrecorded.prompt": "아래 파일을 고친 작업이 작업 일지에 기록돼 있지 않아요. 무엇을 왜 바꿨는지 일지 한 건으로 남겨 주세요. `## 검증` 에는 돌린 명령과 그 결과 끝 줄을 적어 주세요.",
   "diff.unrecorded.promptMore": "외 {n}개",
@@ -923,7 +929,7 @@ export const ko = {
   "plan.error": "계획을 불러오지 못했어요",
   // 왜 못 누르는지 ({#fix-disabled-reason}) — `disabled` 는 포커스도 마우스도
   // 안 받아 이 문장들이 도달하지 않는다. `blocked()` 가 나른다 (lib/blocked.ts).
-  "plan.confirmDoneTitle": "검증 일지 없이 완료",
+  "plan.confirmDoneTitle": "검증 일지 없이 완료할까요?",
   "plan.confirmDoneBody1": "항목에 연결된",
   "plan.confirmDoneBody2": "검증 일지가 없어요",
   "plan.confirmDoneHint": "일지를 쓰고 plan-log 로 연결하면 \"무엇으로 확인했는지\"가 함께 남아요. 그래도 완료로 표시할 수 있어요.",
@@ -931,8 +937,11 @@ export const ko = {
   "plan.statusMenuAria": "\"{title}\" 상태",
   "plan.nextRow.doneLabel": "남은 일 없음",
   "plan.nextRow.allClosedPassed": "항목도 다 닫혔고 확인 명령도 통과했어요. 닫으면 끝난 계획으로 옮겨요.",
-  "plan.judge.staleSub": "통과 뒤 바뀐 파일 {n}",
-  "plan.judge.awaySub": "{os} 에서 통과 · 여기선 아직",
+  // 항목이 다 닫혔을 때의 한 문장은 판정 카드와 같은 상태를 말한다 (RC-02) — 「아직 통과하지 않았어요」 는
+  // 실패 · 안 돌림에만. 통과 뒤 바뀜 · 다른 기기 통과 · 명령 없음은 저마다의 문장이다.
+  "plan.nextRow.allClosedStale": "항목은 다 닫혔지만 통과 뒤 파일이 바뀌었어요. 닫기 전에 다시 돌려 보세요.",
+  "plan.nextRow.allClosedAway": "항목은 다 닫혔고 {os} 에서 통과했어요. 이 기기에서도 돌려 보세요.",
+  "plan.nextRow.allClosedNoCheck": "항목은 다 닫혔어요. 확인 명령이 없으니 닫아도 돼요.",
   // 확인 명령을 셸에서 (11-15 「누를 때만 돌리기」) — 단추 · 묻는 창 · 탭 이름.
   "plan.check.run": "셸에서 돌리기",
   "plan.check.multiline": "여러 줄이라 셸에서 돌리지 않아요. 계획 파일에서 한 줄로 고쳐 주세요.",
@@ -956,8 +965,6 @@ export const ko = {
   "plan.item.journalN": "일지 {n}",
   "plan.log.listAria": "계획 기록",
   "plan.emptyStart": "터미널에서 계획 세우기",
-  "plan.staleRead": "방금 이 계획을 못 읽었어요",
-  "plan.retry": "다시 시도",
 
   // ── ocul-pm 설정 (OculpmSettings) ───────────────────────────────────────
   // PR-ACP1 — ACP 에이전트 런타임 진단
@@ -1068,10 +1075,11 @@ export const ko = {
   "update.dismiss": "알림 닫기",
 
   // ── 렌더 경계 (components/ErrorBoundary.tsx) ─────────────────────────────
-  // 화면 한 조각이 죽어도 창은 살아 있다는 것을 알려 주는 문구.
+  // 화면 한 조각이 죽어도 창은 살아 있다는 것을 알려 주는 문구. 설정의 칸 이름은 박지 않고 끼운다(RC-03) —
+  // 칸 「데이터」 가 「앱」 으로 바뀐 뒤에도 이 문장만 「데이터」 를 가리켰다.
   "crash.title": "이 부분을 그리지 못했어요",
   "crash.body":
-    "나머지 화면은 그대로 쓸 수 있어요. 다시 시도해도 같으면 설정 → 데이터 → 로그 폴더의 oculpm.log 를 보내주세요.",
+    "나머지 화면은 그대로 쓸 수 있어요. 다시 시도해도 같으면 설정 → {section} → {logs}의 oculpm.log 를 보내주세요.",
   // ── 바닥 한 벌 (11-15) — 대화상자(components/ui/AppDialog.tsx) · 알림 기둥(components/ui/Toaster.tsx)
   // 단축키 표에서 지금 보고 있는 화면의 묶음(맨 앞에 선다)에 붙는 이름표.
   "dialog.keysHere": "지금 화면",

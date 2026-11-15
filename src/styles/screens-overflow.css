@@ -5,6 +5,27 @@
    ⌘K 팔레트의 규칙은 11-15 에 `components/palette.css` 로 옮겼다 — 시작 창도 같은 팔레트를 쓰는데
    이 파일은 셸의 늦은 청크라 시작 창에 오지 않는다.
    변경 화면 바닥줄(`.diff-entry-foot` · `.def-*`)의 정본은 `features/diff/changes.css` 다 (11-15). 여기 남아 있던 옛
-   사본이 뒤에 실려 꺾임 간격(padding · row-gap)과 선 색을 덮었다 — 다시 적지 않는다. */
+   사본이 뒤에 실려 꺾임 간격(padding · row-gap)과 선 색을 덮었다 — 다시 적지 않는다. 마지막 남은 `.btn.ok`(초록
+   글자 · 테, 영수증 규칙 1 위반)는 부르는 곳이 없어 걷었다.
 
-.diff-entry-foot .btn.ok { color: var(--ok-text); border-color: var(--ok); }
+   아래 셋은 오늘 · 일지 · 계획 · 변경이 같이 쓰는 한 벌이다 (11-15 최종 검수). 화면마다 사본을 두면 하나만 옛 모양으로
+   남는다. */
+
+/* 글자 링크 (RC-21) — 본문 잉크에 늘 옅은 밑줄, 가리키면 밑줄이 글자색이 된다. 오늘의 링크만 가리킬 때만 밑줄이라
+   그냥 글자로 보였다(일지 · 설정은 늘 옅은 밑줄). 누를 수 있는 글자는 누르기 전에 알아본다. */
+.text-link {
+  padding: 0; border: 0; background: none;
+  font: inherit; color: var(--text); text-align: left; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--sep-strong); text-underline-offset: 2px;
+}
+.text-link:hover { text-decoration-color: currentColor; }
+.text-link:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); border-radius: var(--radius-2xs); }
+.text-link:is(:disabled, [aria-disabled="true"]) { color: var(--text-2); cursor: default; text-decoration: none; }
+
+/* 다시 읽다 실패 (RC-11, `StaleNote`) — 호박 글자 한 줄(시각은 기계 글씨) + 글자 링크. 칩 안의 문장(11px)을 걷었다. */
+.stale-note { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); font-size: var(--fs-3); color: var(--warn-text); }
+.stale-note .mono { font-variant-numeric: tabular-nums; font-variant-ligatures: none; }
+
+/* 눌린 단추 (RC-19) — 면(--bg-active) + 한 단 짙은 테, ✓ 는 단추 안 글자가 말한다. 굵기는 바꾸지 않는다(글자 폭이
+   뛰면 줄이 다시 꺾인다). 일지의 「읽음」 은 면 + 굵게, 변경의 「읽음」 · 「봤음」 은 면 + 테로 갈려 있었다. */
+.btn[aria-pressed="true"] { background: var(--bg-active); border-color: var(--sep-strong); }

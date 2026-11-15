@@ -35,9 +35,9 @@ describe("colour only for exceptions", () => {
     expect(rules).toMatch(/\.tdy-sess-dot\.is-quiet \{[^}]*background: var\(--warn\)/);
   });
 
-  it("links are body ink with an underline on hover; group heads are transparent until hovered", () => {
-    expect(rules).toMatch(/\.tdy-link \{[^}]*color: var\(--text\)/);
-    expect(rules).toMatch(/\.tdy-link:hover \{[^}]*text-decoration: underline/);
+  it("links are the app's one text link (body ink, faint underline); group heads are transparent until hovered", () => {
+    expect(rules).not.toMatch(/\.tdy-link\b/);
+    expect(read("styles", "screens-overflow.css")).toMatch(/\.text-link \{[^}]*color: var\(--text\)[^}]*text-decoration: underline/);
     expect(rules).toMatch(/\.tdy-grp \{[^}]*background: transparent/);
   });
 });

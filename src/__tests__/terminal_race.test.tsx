@@ -81,7 +81,7 @@ describe("같은 일을 여럿에서", () => {
     render(<RaceStartDialog projectId={1} onClose={onClose} />);
     const start = screen.getByRole("button", { name: t("race.start", { n: 3 }) });
     expect(start).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(screen.getByRole("tab", { name: "2" }));
+    fireEvent.click(screen.getByRole("radio", { name: "2" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "캐시를 고쳐 줘" } });
     fireEvent.click(screen.getByRole("button", { name: t("race.start", { n: 2 }) }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());

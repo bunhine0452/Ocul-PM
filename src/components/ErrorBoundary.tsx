@@ -65,7 +65,8 @@ export class ErrorBoundary extends Component<Props, State> {
           error={this.state.error.message}
           onRetry={() => this.setState((s) => ({ error: null, nonce: s.nonce + 1 }))}
         >
-          {t("crash.body")}
+          {/* 설정 칸 이름은 그 칸의 제목 키를 그대로 끼운다 — 칸 이름이 바뀌어도 안내가 옛 칸을 가리키지 않게(RC-03). */}
+          {t("crash.body", { section: t("prefs.data.title"), logs: t("prefs.data.logs") })}
         </ErrorCard>
       </div>
     );

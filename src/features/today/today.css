@@ -42,10 +42,12 @@
 .tdy-date { color: var(--text); font-weight: var(--fw-strong); }
 .tdy-day b { color: var(--text); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; }
 .tdy-nums { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); margin-left: auto; }
-.tdy-num-group { display: inline-flex; align-items: baseline; gap: var(--space-3); }
+/* 수는 누르면 화면을 옮기는 집계라 회색 글자(가리키면 밑줄)다 — 글자 링크(.text-link)가 아니다. */
 .tdy-num { padding: 0; border: 0; background: none; font: inherit; color: var(--text-2); cursor: pointer; }
 .tdy-num:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
 .tdy-num-sep { color: var(--text-2); }
+/* 「올리기 맡기기」 — 수 줄 밖의 보통 단추(터미널 아이콘, V-01). 수 뒤에 같은 글자로 붙어 한 문장처럼 읽혔다. */
+.tdy-handoff { flex: none; }
 
 /* ── 카드 공통 ─────────────────────────────────────────────── */
 .tdy-card { overflow: hidden; }
@@ -71,13 +73,8 @@
 .tdy-keys { margin: 0; padding: 0 2px; font-size: var(--fs-3); color: var(--text-2); }
 .tdy-notice { display: flex; align-items: center; gap: var(--space-5); }
 .tdy-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-/* 링크 — 본문 잉크에 밑줄은 가리킬 때만. 강조색 글자는 다크에서 본문보다 밝아 예외처럼 읽혔다. */
-.tdy-link { padding: 0; border: 0; background: none; font: inherit; color: var(--text); cursor: pointer; }
-.tdy-link:hover { text-decoration: underline; text-underline-offset: 2px; }
-.tdy-link:is(:disabled, [aria-disabled="true"]) { color: var(--text-2); cursor: default; text-decoration: none; }
-
-/* 다시 읽다 실패했을 때 카드 머리의 한 줄 — 보이는 값은 그때 읽은 것이다. */
-.tdy-stale { display: inline-flex; align-items: baseline; gap: var(--space-3); font-size: var(--fs-3); color: var(--warn-text); }
+/* 글자 링크(「다시 시도」 · 「터미널에서 보기」)는 앱의 한 벌 `.text-link`, 다시 읽다 실패한 한 줄은 `.stale-note` 다
+   (screens-overflow.css, 11-15 RC-21 · RC-11). 이 화면의 링크만 가리킬 때만 밑줄이라 그냥 글자로 보였다. */
 
 /* ── 먼저 볼 것 ─────────────────────────────────────────────── */
 .tdy-row {
@@ -113,8 +110,9 @@
 .tdy-row-open:hover { text-decoration: underline; text-underline-offset: 2px; }
 .tdy-empty { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px var(--card-pad-x); }
 .tdy-empty-ico { flex: none; margin-top: 1px; color: var(--text-2); }
-/* 「다음」 — 제목은 두 줄까지(한 줄로 자르면 무슨 일인지가 잘린 쪽에 있었다). */
-.tdy-next .tdy-row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+/* 「다음」 — 제목은 세 줄까지, 전부는 툴팁(11-15 V-10). 두 줄이던 때 넓은 창(1440)에서 칩 칸 · 동작 칸이 넓어져
+   제목 칸이 400px 로 줄고 끝(「주고받은 지 N일」)이 잘렸다 — 960 창에서는 다 보였다(넓은 창이 덜 보여 줬다). */
+.tdy-next .tdy-row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 
 /* 검증 없이 끝난 일지 — 시각 · 제목 · 「읽음」(여럿이면 행에 올라가야 보인다 — 묶음 머리에 「모두 읽음」). */
 .tdy-time { flex: none; font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; font-variant-ligatures: none; white-space: nowrap; }

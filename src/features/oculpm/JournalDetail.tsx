@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useMemo, useState, type MutableRefObject } from "react";
 import { LoadingState } from "@/components/LoadingState";
+import { MachineText } from "@/components/MachineText";
 import { Markdown } from "@/components/Markdown";
 import { CheckMark, ChevronLeft, ChevronRight } from "@/components/Icons";
 import { oculpmApi } from "@/api/oculpm";
@@ -10,10 +11,12 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PatchView } from "@/features/diff/PatchView";
 import { countPatchStats, langFromPath } from "@/features/diff/diffParse";
 import { agentLabel } from "@/features/today/agentColor";
-import { useT } from "@/i18n";
+import { useT, type Lang } from "@/i18n";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary, JournalPlanLink } from "@/lib/bindings";
 import { splitPath } from "@/lib/filePath";
 import { toast } from "@/lib/toast";
+import { localWorkdayKey } from "@/lib/workday";
+import { workdayDate } from "@/lib/workdayLabel";
 import { EvidenceMark, plainTitle } from "./JournalRow";
 import { JournalRelated } from "./JournalRelated";
 import { evidenceStateOf } from "./evidenceState";
@@ -33,17 +36,14 @@ import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 // 화면이 `key={경로}` 로 그린다 — 다른 일지로 옮기면 이 컴포넌트가 새로 선다. 옮긴 직후 새 제목 아래
 // 옛 본문 · diff 가 한 프레임 서던 것, 늦게 온 읽음 응답이 옮긴 일지에 붙던 것이 그렇게 사라진다.
 
-/** "2026-10-28T14:02:11+09:00" → "10월 28일 14:02". */
-function whenLabel(createdAt: string, t: ReturnType<typeof useT>["t"]): string {
+/**
+ * "2026-10-28T14:02:11+09:00" → 날짜 「10월 28일」 · 「October 28」 + 시각 「14:02」. 날짜 말은 같은 화면 목록의 날짜
+ * 머리와 같은 함수(`workdayDate`)다 (11-15 RC-23) — 영어에서 왼쪽은 「November 15」, 오른쪽 머리는 「11/15」 였다.
+ */
+function whenParts(createdAt: string, lang: Lang): { date: string; time: string } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/.exec(createdAt);
-  if (!m) return createdAt;
-  return `${t("journal.dayMd", { m: String(Number(m[2])), d: String(Number(m[3])) })} ${m[4]}`;
-}
-
-/** 오늘 → 「11월 14일」 (로컬). */
-function todayLabel(t: ReturnType<typeof useT>["t"]): string {
-  const d = new Date();
-  return t("journal.dayMd", { m: String(d.getMonth() + 1), d: String(d.getDate()) });
+  if (!m) return null;
+  return { date: workdayDate(`${m[1]}${m[2]}${m[3]}`, lang), time: m[4] };
 }
 
 /** 화면이 키로 부르는 상세의 동작 — v(읽음) · [ ](이전 · 다음 파일). */
@@ -69,7 +69,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
   { projectId, entry, planLinks, onOpenDiff, onOpenRelated, actionsRef, onVerifiedChange },
   ref,
 ) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { state } = useWorkspace();
   const [detail, setDetail] = useState<JournalEntry | null>(null);
   const [diffs, setDiffs] = useState<EntryFileDiff[] | null>(null);
@@ -159,7 +159,8 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
   const judged = entry.type === "bug" || entry.type === "feature" || entry.type === "refactor";
   // 머리는 디스크의 제목이 먼저다 — 에이전트가 제목을 고치면 목록 요약은 한 박자 늦는다.
   const title = plainTitle(detail?.title || entry.title) || entry.slug;
-  const lines = useMemo(() => verificationLines(body, 12), [body]);
+  // 백틱을 남긴 줄 — 그릴 때 코드 조각을 기계 글씨로 읽는다(`MachineText`).
+  const lines = useMemo(() => verificationLines(body, 12, true), [body]);
   const prose = useMemo(() => withoutVerification(withoutTitle(body, detail?.title || entry.title)), [body, detail?.title, entry.title]);
   const confirmed = isConfirmed({ verified_by_user: verified, verified_stale: stale });
   const evState = evidenceStateOf({ ...entry, evidence: level, verified_by_user: verified, verified_stale: stale });
@@ -203,8 +204,10 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
         }`
       : null;
   const model = detail?.frontmatter.agent.version ?? entry.agent_version;
-  const readText = confirmed ? (readNow ? t("journal.readOn", { date: todayLabel(t) }) : t("entry.verified")) : null;
-  const metaText = [whenLabel(entry.created_at, t), agentLabel(entry.agent_id), model, readText].filter(Boolean).join(" · ");
+  const readText = confirmed ? (readNow ? t("journal.readOn", { date: workdayDate(localWorkdayKey(), lang) }) : t("entry.verified")) : null;
+  const when = whenParts(entry.created_at, lang);
+  // 시각만 기계 글씨다(영수증 규칙 2) — 날짜는 사람 말이라 본문 서체.
+  const metaText = [agentLabel(entry.agent_id), model, readText].filter(Boolean).join(" · ");
   // 이 일지가 갱신한 계획 — 누르면 그 계획으로 건너간다 (ocul-next #nav-links).
   const openPlan = () =>
     planLinks[0] &&
@@ -242,11 +245,18 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
             </button>
           ) : null}
           <span className="jd-meta">
-            {metaText}
+            {when ? (
+              <>
+                {when.date} <span className="mono">{when.time}</span>
+              </>
+            ) : (
+              entry.created_at
+            )}
+            {metaText ? ` · ${metaText}` : null}
             {planText ? (
               <>
                 {" · "}
-                <button type="button" className="jd-link jd-plan-link" onClick={openPlan} title={t("journal.planLinkTitle")}>
+                <button type="button" className="text-link jd-plan-link" onClick={openPlan} title={t("journal.planLinkTitle")}>
                   {planText}
                 </button>
               </>
@@ -316,7 +326,17 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
             </button>
           </div>
           {level < 2 ? <p className="jd-verify-note">{t("journal.verify.claimOnly")}</p> : null}
-          {lines.length > 0 ? <pre className="jd-term">{lines.join("\n")}</pre> : null}
+          {/* 본문 서체에 명령 · 결과 토큰만 기계 글씨 — 에이전트가 쓴 한국어 문장까지 고정폭으로 그리지 않는다(V-08). */}
+          {lines.length > 0 ? (
+            <div className="jd-term">
+              {lines.map((line, i) => (
+                <span key={i}>
+                  {i > 0 ? "\n" : null}
+                  <MachineText text={line} />
+                </span>
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
 

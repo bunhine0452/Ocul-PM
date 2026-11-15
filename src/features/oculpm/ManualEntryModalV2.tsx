@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { oculpmApi } from "@/api/oculpm";
 import { toAppError } from "@/api/invoke";
 import { Disclosure } from "@/components/Disclosure";
-import { AppDialog } from "@/components/ui/AppDialog";
+import { AppDialog, DialogKey } from "@/components/ui/AppDialog";
 import { X, CheckMark } from "@/components/Icons";
 import type {
   Difficulty,
@@ -16,7 +16,7 @@ import type {
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { blocked } from "@/lib/blocked";
-import { isModChord } from "@/lib/kbd";
+import { isModChord, kbd } from "@/lib/kbd";
 
 // PR-R1 (A4) — 수동 일지 작성 모달 (ui_v2 토큰 셸).
 //
@@ -192,7 +192,20 @@ export function ManualEntryModalV2({
   };
 
   return (
-    <AppDialog open onClose={dismiss} label={t("manual.title")} width={560} initialFocusRef={titleRef}>
+    <AppDialog
+      open
+      onClose={dismiss}
+      label={t("manual.title")}
+      width={560}
+      initialFocusRef={titleRef}
+      onKeyDown={(e) => {
+        // ⌘↩ — 판 어디에 있든 쓴다(본문 칸의 Enter 는 줄바꿈이다). 발의 단추 위에서도 들어야 「쓰기 ⌘↩」 표기가 참이다.
+        if (e.key === "Enter" && isModChord(e) && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          void submit();
+        }
+      }}
+    >
       <div className="set-modal-body wide">
         <div className="set-modal-title">{t("manual.title")}</div>
         <div className="set-modal-desc">{t("manual.desc")}</div>
@@ -202,13 +215,6 @@ export function ManualEntryModalV2({
           onSubmit={(e) => {
             e.preventDefault();
             void submit();
-          }}
-          onKeyDown={(e) => {
-            // ⌘↩ — 어느 칸에 있든 쓴다(본문 칸의 Enter 는 줄바꿈이다).
-            if (e.key === "Enter" && isModChord(e)) {
-              e.preventDefault();
-              void submit();
-            }
           }}
         >
           {/* type */}
@@ -399,9 +405,12 @@ export function ManualEntryModalV2({
           {error ? <div className="entry-err">{error}</div> : null}
         </form>
 
+        {/* 발은 대화상자 한 벌의 약속을 따른다(11-15 RC-10) — 취소 = 테 없는 단추 + Esc, 쓰기 = 채운 단추 + ⌘↩.
+            키 표기는 그 키가 정말 그 단추를 누를 때만 붙인다(`DialogKey`). */}
         <div className="set-modal-actions">
-          <button type="button" className="btn sm" onClick={onClose} disabled={submitting}>
+          <button type="button" className="btn ghost sm" onClick={onClose} disabled={submitting}>
             {t("common.cancel")}
+            <DialogKey>Esc</DialogKey>
           </button>
           <button
             type="button"
@@ -413,6 +422,7 @@ export function ManualEntryModalV2({
             disabled={submitting}
           >
             {submitting ? t("manual.submitting") : t("manual.submit")}
+            <DialogKey>{kbd("⌘↩")}</DialogKey>
           </button>
         </div>
       </div>

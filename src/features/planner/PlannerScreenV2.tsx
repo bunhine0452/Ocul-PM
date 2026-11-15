@@ -17,11 +17,11 @@ import { toAppError } from "@/api/invoke";
 import { planApi } from "@/api/plan";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
-import { TriangleAlert } from "@/components/Icons";
+import { StaleNote } from "@/components/StaleNote";
 import { Toolbar } from "@/components/Toolbar";
-import { AppDialog } from "@/components/ui/AppDialog";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
+import { useConfirm } from "@/hooks/useConfirm";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import type { PlanItemDto } from "@/lib/bindings";
@@ -64,24 +64,30 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   }, []);
 
   // 완료 소프트 게이트 (PR-CI6) — 연결된 검증 일지 없이 완료로 바꾸려 하면 한 번 묻는다.
-  // 막지는 않는다: 「검증 없이 완료」를 누르면 그대로 간다.
-  const [confirmDone, setConfirmDone] = useState<PlanItemDto | null>(null);
+  // 막지는 않는다: 「검증 없이 완료」를 누르면 그대로 간다. 묻는 창은 확인 한 벌(`useConfirm` — 머리 · 본문 · 발,
+  // 취소 = 테 없는 단추 + Esc, 확인 = 채운 단추 + ↩)이다(11-15 RC-10). 바로 옆 「셸에서 돌리기」 창과 달리 머리 없는
+  // 옛 모양에 취소가 테 단추였다. 되돌릴 수 있는 보통 질문이라 ↩ 한 번이 답이다.
+  const { confirm, confirmDialog } = useConfirm();
   const applyStatus = (item: PlanItemDto, status: string) => {
     if (busy) return;
     if (status === "done" && item.status !== "done" && item.journal_refs.length === 0) {
-      setConfirmDone(item);
+      void confirm({
+        title: t("plan.confirmDoneTitle"),
+        message: (
+          <>
+            <strong>{item.title}</strong> {t("plan.confirmDoneBody1")} <strong>{t("plan.confirmDoneBody2")}</strong>.{" "}
+            {t("plan.confirmDoneHint")}
+          </>
+        ),
+        confirmLabel: t("plan.confirmDoneAction"),
+      }).then((ok) => {
+        // 포커스는 그 항목의 상자로 — 완료로 단계가 접혀 상자가 사라졌으면 같은 자리의 상자로(`refocusItem`).
+        refocusItem(bodyRef.current, item.item_id);
+        if (ok) void plan.setStatus(item, "done");
+      });
       return;
     }
     void plan.setStatus(item, status);
-  };
-  // 확인 상자를 닫는다(취소 · Esc · 「검증 없이 완료」). 포커스는 그 항목의 상자로 — 상자가 그대로면 대화상자가
-  // 기억한 곳(상자)으로 돌아가고, 완료로 단계가 접혀 상자가 사라졌으면 같은 자리의 상자로(`refocusItem`).
-  const closeConfirm = (apply: boolean) => {
-    const item = confirmDone;
-    if (!item) return;
-    refocusItem(bodyRef.current, item.item_id);
-    setConfirmDone(null);
-    if (apply) void plan.setStatus(item, "done");
   };
 
   // 다음 항목 넘기기 — 백엔드가 프롬프트를 조립하고, 앱 안 터미널의 새 세션이 claude 로 돌린다
@@ -190,13 +196,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   } else {
     main = (
       <>
-        {/* 조용한 갱신이 실패했다 — 마지막 문서는 그대로 두고 한 줄만 말한다. */}
-        {plan.stale ? (
-          <p className="plv-meta plv-stale" role="status">
-            <span className="chip sm warn">{t("plan.staleRead")}</span>{" "}
-            <button type="button" className="btn ghost sm" onClick={plan.retry}>
-              {t("plan.retry")}
-            </button>
+        {/* 조용한 갱신이 실패했다 — 마지막 문서는 그대로 두고 한 줄만 말한다(오늘 카드 머리와 같은 꼴, RC-11). */}
+        {plan.staleSince != null ? (
+          <p className="plv-stale">
+            <StaleNote since={plan.staleSince} onRetry={plan.retry} />
           </p>
         ) : null}
         <PlanDoc
@@ -251,28 +254,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         )}
       </div>
 
-      <AppDialog open={confirmDone != null} onClose={() => closeConfirm(false)} label={t("plan.confirmDoneTitle")} width={480}>
-        {confirmDone ? (
-          <>
-            <div className="plv-confirm">
-              <TriangleAlert size={18} className="plv-confirm-ico" />
-              <div>
-                <strong>{confirmDone.title}</strong> {t("plan.confirmDoneBody1")} <strong>{t("plan.confirmDoneBody2")}</strong>.
-                <br />
-                <span className="plv-meta">{t("plan.confirmDoneHint")}</span>
-              </div>
-            </div>
-            <div className="plv-confirm-actions">
-              <button type="button" className="btn sm" onClick={() => closeConfirm(false)}>
-                {t("common.cancel")}
-              </button>
-              <button type="button" className="btn primary sm" onClick={() => closeConfirm(true)}>
-                {t("plan.confirmDoneAction")}
-              </button>
-            </div>
-          </>
-        ) : null}
-      </AppDialog>
+      {confirmDialog}
       <CheckRunDialog line={checkLine} onCancel={() => setCheckLine(null)} onRun={runCheck} />
     </>
   );
