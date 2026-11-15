@@ -82,10 +82,20 @@ export function prepareCheck(raw: string): CheckPrep {
 
 type Tr = (key: I18nKey, vars?: TVars) => string;
 
-/** 막힌 까닭 한 문장 — 단추 옆에 선다(`blocked`). 돌릴 수 있거나 단추가 없으면 `null`. 글자 번호는 셋까지. */
+/** 이유 줄에 번호로 적는 보이지 않는 글자 수 — 그 밖은 개수로 접는다. */
+const NAMED = 3;
+
+/**
+ * 막힌 까닭 한 문장 — 단추 옆에 선다(`blocked`). 돌릴 수 있거나 단추가 없으면 `null`. 글자 번호는 셋까지, 나머지는
+ * 「외 n개」 로(영수증 규칙 5) — 셋만 적던 때는 셋을 지운 사람이 넷째 때문에 다시 막혀도 남은 수를 알 길이 없었다.
+ */
 export function blockedReason(tr: Tr, prep: CheckPrep): string | null {
   if (prep.kind === "multiline") return tr("plan.check.multiline");
-  if (prep.kind === "hidden") return tr("plan.check.hidden", { chars: prep.chars.slice(0, 3).join(" · ") });
+  if (prep.kind === "hidden") {
+    const named = prep.chars.slice(0, NAMED).join(" · ");
+    const more = prep.chars.length - NAMED;
+    return tr("plan.check.hidden", { chars: more > 0 ? tr("plan.check.hiddenMore", { chars: named, n: more }) : named });
+  }
   if (prep.kind === "backtick") return tr("plan.check.backtick");
   return null;
 }

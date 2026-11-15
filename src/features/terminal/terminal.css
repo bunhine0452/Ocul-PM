@@ -127,7 +127,10 @@
 .tm-node.is-col { flex-direction: column; }
 .tm-node-part { min-width: 0; min-height: 0; display: flex; }
 .tm-divider { flex: none; box-sizing: content-box; position: relative; z-index: 1; background: var(--sep); touch-action: none; }
-.tm-node.is-row > .tm-divider { width: 1px; margin: 0 -3px; border: solid transparent; border-width: 0 3px; background-clip: padding-box; cursor: col-resize; }
+/* 좌우 경계의 잡는 폭은 선 오른쪽으로만 — 왼쪽 칸의 세로 스크롤바가 칸 끝(`.term-host` 오른쪽 여백 0)에 붙는다. 양쪽
+   3px 이던 때는 그 3px 가 스크롤바 위에 놓여, 스크롤바 끝을 끌면 칸 크기가 바뀌었다. 오른쪽 칸은 12px 여백이라 덮어도
+   빈자리다. 왼쪽 칸에 여백을 두면 격자가 다시 왼쪽으로 쏠린다(V-02). */
+.tm-node.is-row > .tm-divider { width: 1px; margin: 0 -6px 0 0; border: solid transparent; border-width: 0 6px 0 0; background-clip: padding-box; cursor: col-resize; }
 .tm-node.is-col > .tm-divider { height: 1px; margin: -3px 0; border: solid transparent; border-width: 3px 0; background-clip: padding-box; cursor: row-resize; }
 .tm-divider:hover, .tm-divider:focus-visible { background-color: var(--accent); outline: none; }
 

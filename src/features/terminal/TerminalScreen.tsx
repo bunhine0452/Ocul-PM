@@ -433,7 +433,8 @@ export function TerminalScreen({
 
   // 「기록 남기게 하기」 — 일지 없이 손을 놓은 Claude 에게 기록을 부탁한다(쉬지 않으면 줄에 세운다). 띠는 낡은 상태로도
   // 선다 — claude 가 `state=clear` 없이 죽으면 idle 이 남고 셸이 앞에 선다. `sendOrQueue` 가 목록을 다시 읽어 그 칸에
-  // Claude 가 없으면 넣지 않는다(셸에 그 부탁이 명령으로 들어갔다) — 그러면 띠를 접고 까닭을 알린다.
+  // Claude 가 없으면 넣지 않는다(셸에 그 부탁이 명령으로 들어갔다) — 그러면 띠를 접고 까닭을 알린다. 목록을 못 읽었으면
+  // 넣지 않되 띠는 그대로 둔다(그 칸에 Claude 가 있는지 모른다 — 다시 누를 수 있게).
   const askRecord = useCallback(
     async (id: number) => {
       try {
@@ -442,7 +443,8 @@ export function TerminalScreen({
         else if (res.outcome === "absent") {
           foldBand(id);
           toast.warning(t("terminal.noClaude", { n: sessionNumber(id) }));
-        } else toastQueued(t, sessionNumber(id), res.key);
+        } else if (res.outcome === "unknown") toast.warning(t("terminal.noList"));
+        else toastQueued(t, sessionNumber(id), res.key);
       } catch (e) {
         toast.destructive(t("send.failed", { error: tError(toAppError(e)) }));
       }
