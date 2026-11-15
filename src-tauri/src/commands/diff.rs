@@ -160,8 +160,9 @@ pub async fn compute_diff(
     }
 }
 
-/// 작업 트리 대 `HEAD` 의 답 셋.
-enum Working {
+/// 작업 트리 대 `HEAD` 의 답 셋. 세 갈래는 `git/tests.rs` 의 픽스처 저장소가 문다(git 을 띄우는 시험의 자리).
+#[derive(Debug)]
+pub(crate) enum Working {
     Patch(CappedPatch),
     /// 공백 무시로 비었지만 공백까지 보면 바뀐, 추적 중인 파일 — 답은 빈 git 패치다.
     WhitespaceOnly,
@@ -171,7 +172,7 @@ enum Working {
 
 /// 공백 무시로 빈 패치가 나오면 공백 없이 한 번 더 묻는다 — 그대로 비우면 공백만 고친 추적 파일이
 /// 미추적 파일로 읽혀 스냅샷 · 새 파일 갈래로 넘어간다. 두 번째 실행은 이 드문 경우에만 돈다.
-fn working_patch(
+pub(crate) fn working_patch(
     root: &std::path::Path,
     path: &str,
     max_bytes: usize,
