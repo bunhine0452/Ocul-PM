@@ -62,26 +62,26 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>문제 해결</h1>
-      <p class="wk-updated">마지막 수정 2026-10-29</p>
+      <p class="wk-updated">마지막 수정 2026-11-15</p>
       <nav class="wk-toc"><span>이 페이지에서</span><a href="#일지가-안-쌓여요">일지가 안 쌓여요</a><a href="#검색-논의-브랜치-스킬-화면이-안-보여요">검색 · 논의 · 브랜치 · 스킬 화면이 안 보여요</a><a href="#업데이트하니-앱-데이터가-줄었어요">업데이트하니 앱 데이터가 줄었어요</a><a href="#macos-가-파일-다른-앱-데이터-접근-권한을-물어봐요">macOS 가 파일·다른 앱 데이터 접근 권한을 물어봐요</a><a href="#여기-없는-문제라면">여기 없는 문제라면</a></nav>
       <h2 id="일지가-안-쌓여요">일지가 안 쌓여요</h2>
 <p>순서대로 확인하세요:</p>
 <ol><li><b>추적 중인 프로젝트인가요?</b> 프로젝트 루트에 <code>.oculpm/</code> 폴더와 <code>AGENTS.md</code> 가 있어야 합니다. 없다면 설정 → 이 프로젝트에서 「기록 켜기」를 누르세요.</li><li><b>터미널 Claude Code 인가요?</b> AGENTS.md 만으로는 모델이 기록을 잊을 수 있습니다. <a href="/wiki/claude-code">플러그인을 설치</a>하면 자동이 됩니다.</li><li><b>규칙이 오래됐나요?</b> 설정 → 이 프로젝트의 규칙 파일 줄에 새 판이 뜨면 「올리기」로 AGENTS.md 를 최신 규격으로 갱신합니다.</li><li><b>다른 에이전트(Cursor 등)인가요?</b> AGENTS.md 를 읽는 에이전트라면 그대로 동작합니다. 전용 규칙 파일이 필요하면 <code>.oculpm/config.toml</code> 의 <code>[agents] active</code> 에 더합니다 (<a href="/wiki/agents">자세히</a>).</li></ol>
 <h2 id="검색-논의-브랜치-스킬-화면이-안-보여요">검색 · 논의 · 브랜치 · 스킬 화면이 안 보여요</h2>
 <p>4.0 에서 걷었습니다. 앱은 오늘 · 작업 일지 · 계획 · 변경 · 설정 다섯 면입니다.</p>
-<div class="wk-table"><table><thead><tr><th>찾던 것</th><th>4.0 에서는</th></tr></thead><tbody><tr><td>일지 검색</td><td>작업 일지 화면의 <code>/</code></td></tr><tr><td>코드 검색</td><td>에이전트의 grep — 앱의 색인은 걷었습니다</td></tr><tr><td>논의(문제 해결)</td><td>계획의 <code>## 결정</code> 블록. <code>.oculpm/discussion/</code> 파일은 그대로 있습니다</td></tr><tr><td>브랜치의 기록률</td><td>오늘 · 변경 화면의 「기록 없는 변경」</td></tr><tr><td>스킬 · 규칙 관리</td><td>플러그인과 Claude Code 자체</td></tr><tr><td>앱 안 AI · 요약 · 롤업</td><td>터미널의 에이전트에게 (<code>journal_search</code> · <code>journal_read</code>)</td></tr><tr><td>탭 · 메뉴바 트레이</td><td>창 하나 = 프로젝트 하나, ⌘O · ⇧⌘N</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th>찾던 것</th><th>4.0 에서는</th></tr></thead><tbody><tr><td>일지 검색</td><td>작업 일지 화면의 <code>/</code></td></tr><tr><td>코드 검색</td><td>에이전트의 grep — 앱의 색인은 걷었습니다</td></tr><tr><td>논의(문제 해결)</td><td>계획의 <code>## 결정</code> 블록. <code>.oculpm/discussion/</code> 파일은 그대로 있습니다</td></tr><tr><td>브랜치의 기록률</td><td>오늘 · 변경 화면의 「일지 없음」</td></tr><tr><td>스킬 · 규칙 관리</td><td>플러그인과 Claude Code 자체</td></tr><tr><td>앱 안 AI · 요약 · 롤업</td><td>터미널의 에이전트에게 (<code>journal_search</code> · <code>journal_read</code>)</td></tr><tr><td>탭 · 메뉴바 트레이</td><td>창 하나 = 프로젝트 하나, ⌘O · ⇧⌘N</td></tr></tbody></table></div>
 <h2 id="업데이트하니-앱-데이터가-줄었어요">업데이트하니 앱 데이터가 줄었어요</h2>
-<p>정상입니다. 4.0 으로 올린 뒤 첫 실행에 3.x 의 코드 색인 · 임베딩 표를 지웁니다. 지우기 전에 앱 데이터 폴더에 <code>ocul-pm.db.bak-v42</code> 사본을 남기고, 지운 자리는 설정 → 데이터 → 「정리해서 돌려받기」가 디스크에 돌려줍니다. 일지 · 계획은 프로젝트의 마크다운이라 영향이 없습니다.</p>
+<p>정상입니다. 4.0 으로 올린 뒤 첫 실행에 3.x 의 코드 색인 · 임베딩 표를 지웁니다. 지우기 전에 앱 데이터 폴더에 <code>ocul-pm.db.bak-v42</code> 사본을 남기고, 지운 자리는 설정 → 앱 → 캐시의 「정리하기」 가 디스크에 돌려줍니다. 일지 · 계획은 프로젝트의 마크다운이라 영향이 없습니다.</p>
 <h2 id="macos-가-파일-다른-앱-데이터-접근-권한을-물어봐요">macOS 가 파일·다른 앱 데이터 접근 권한을 물어봐요</h2>
 <p>정상입니다. 두 관문을 구분하면 이해가 쉽습니다.</p>
 <ul><li><b>공증(notarization)</b> 은 "이 앱을 <b>실행</b>해도 되는가"를 묻습니다. Ocul 은 Apple Developer ID 로 서명하고 공증까지 마친 빌드라 여기는 그냥 통과합니다.</li><li><b>권한 프롬프트</b>는 "이 앱이 <b>저 데이터</b>를 읽어도 되는가"를 묻는 별개 관문입니다. 공증과 무관하고, 공증했다고 사라지지 않습니다.</li></ul>
 <p>물어보는 경우는 크게 둘입니다.</p>
 <p><b>프로젝트가 데스크탑·문서·다운로드 폴더 안에 있을 때.</b> macOS 가 보호하는 자리라 그 안의 파일을 읽으려면 한 번 승인이 필요합니다.</p>
-<p><b>앱이 띄운 프로그램이 파일을 읽을 때.</b> 외부 편집기 명령처럼 앱이 대신 실행한 프로그램이 보호 폴더를 읽으면, macOS 는 그 접근을 <b>프로그램이 아니라 띄운 앱</b>에 귀속시킵니다.</p>
+<p><b>앱이 띄운 프로그램이 파일을 읽을 때.</b> 앱 안 터미널에서 도는 프로그램이나 「파일 열기」 에 직접 입력한 명령처럼 앱이 대신 실행한 프로그램이 보호 폴더를 읽으면, macOS 는 그 접근을 <b>프로그램이 아니라 띄운 앱</b>에 귀속시킵니다.</p>
 <p><b>업데이트한 뒤 다시 물어봤다면</b> 서명이 바뀐 버전에서 한 번 그럽니다. macOS 는 승인 기록을 앱의 코드 서명에 묶어 두기 때문에, 서명 주체가 바뀌면 이전 승인이 무효가 됩니다.</p>
 <p>승인한 내용은 시스템 설정 → 개인정보 보호 및 보안에서 언제든 되돌릴 수 있습니다.</p>
 <h2 id="여기-없는-문제라면">여기 없는 문제라면</h2>
-<p><a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub 이슈</a>로 알려 주세요. 설정 → 데이터의 「로그 폴더」 에 있는 <code>oculpm.log</code> 를 함께 붙이면 빠르게 잡을 수 있습니다.</p>
+<p><a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub 이슈</a>로 알려 주세요. 설정 → 앱의 「로그 폴더」 에 있는 <code>oculpm.log</code> 를 함께 붙이면 빠르게 잡을 수 있습니다.</p>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/settings"><span>← 이전</span><b>설정</b></a>
 <a class="wk-pg next" href="/wiki/data"><span>다음 →</span><b>데이터와 파일 구조</b></a></footer>

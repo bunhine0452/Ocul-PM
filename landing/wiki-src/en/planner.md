@@ -2,7 +2,7 @@
 title: Plan
 desc: A plan document agents keep current — done condition · check command · last verdict, glyphs, the change log, decisions, and locking.
 order: 6
-updated: 2026-10-29
+updated: 2026-11-15
 ---
 
 If the journal is *what happened*, the plan is **the current plan**. With one difference: it isn't a to-do list you maintain, it's **a document agents update every time they finish something** (`plan_create` · `plan_update`).
@@ -63,7 +63,7 @@ verdict ✗ 2 failed, 418 passed
 판정 ✓ …          (Korean template — same shape)
 ```
 
-The newest such line is the plan's **last verdict**. The plugin's start hook and the app's Plan screen read it by **the same rule** (`^(판정|verdict) (✓|✗)`), so the next session's agent and you see the same verdict. A plain note with a colon, like "verdict:", is not a verdict. **All items closed is not done until the verdict passes** — a failed verdict goes to the top of Today's "Look first".
+The newest such line is the plan's **last verdict**. The plugin's start hook and the app's Plan screen read it by **the same rule** (`^(판정|verdict) (✓|✗)`), so the next session's agent and you see the same verdict. A plain note with a colon, like "verdict:", is not a verdict. **All items closed is not done until the verdict passes** — a failed verdict shows up as a "Failed" row under Today's "Needs your eyes".
 
 ## The change log — who moved what, when, why
 
@@ -102,19 +102,19 @@ The plan document itself has a status.
 | `done` | Finished | **No** |
 | `archived` | Archived | **No** |
 
-Agents **will not modify** a `done` or `archived` plan. That keeps a finished plan from quietly coming back to life and muddying the history; when there's follow-on work, a new plan is created. In the Plan screen's rail they fold into one "N finished plans" line.
+Agents **will not modify** a `done` or `archived` plan. That keeps a finished plan from quietly coming back to life and muddying the history; when there's follow-on work, a new plan is created. In the Plan screen's rail they fold into one "Finished N" line.
 
 ## The Plan screen (`⌘3`)
 
-- **Rail** — each active plan with a progress bar · verdict (✓ / ✗ / none) · updated time, most recently updated first
-- **Verdict card** — done condition · check command · last verdict (last line of output) right under the title; "Not run yet" when there is none
-- **Next up** — the first open item (human-owned ones skipped) with **[Run in terminal]** · **[To the end (/goal)]**. The first has `claude` pick the item up in a new session of the in-app terminal; the second hands the plan's done condition and check command to Claude Code's `/goal`, so it keeps going until the condition holds. Every item also has "Send to Claude".
+- **Rail** — each active plan with its done count (`3/5`) and its check result on one line (the same four states as Today — passed · failed · changed after pass · passed on another machine; "No check result" when there is none), most recently updated first
+- **Verdict card** — done condition · check command · last verdict (the card's "Last result" row — last line of output) right under the title; "Not run yet" when there is none. **[Run in shell]** beside the check command shows the full command in a confirm dialog and only then runs that one line in a new shell session — it leaves the plan's last verdict as it is (logging the verdict line is still the agent's job)
+- **Next up** — the first open item (human-owned ones skipped) with **[Run in terminal]** · **[To the end (/goal)]**. The first has `claude` pick the item up in a new session of the in-app terminal; the second hands the plan's done condition and check command to Claude Code's `/goal`, so it keeps going until the condition holds. Every item also has "Send to Claude". When nothing is left (no to-do, in-progress or blocked item), **[Close plan]** takes its place — the plan moves to finished plans, and the notification's undo reopens it.
 - **Item status** — click an item's box to pick one of six states. Marking it done without a verifying entry asks once
-- "Change log N lines · decisions M" stays folded
+- "Plan log · N lines · M decisions" stays folded
 
 ## Who creates a new plan
 
-In 4.0 **agents write plans** — there is no button in the app to create a plan or add items. For a new feature area, `/oculpm:inception` in the terminal goes through "what should happen next" and four depth questions and creates, with `plan_create`, a plan whose first item is a check command that is red right now. You can also write one by hand: frontmatter, done condition · check command, phase headings and item lines, in that order.
+In 4.0 **agents write plans** — there is no button in the app to create a plan or write a new item. The one exception is **[Carry here]** under "Open items in closed plans", which copies an item left open in a closed plan to the end of the "Carried" phase of the plan in progress you selected. With no plan at all, **[Plan it in the terminal]** hands `/oculpm:inception` to `claude` in a new session of the in-app terminal. For a new feature area, `/oculpm:inception` in the terminal goes through "what should happen next" and four depth questions and creates, with `plan_create`, a plan whose first item is a check command that is red right now. You can also write one by hand: frontmatter, done condition · check command, phase headings and item lines, in that order.
 
 :::warn
 When writing item lines, `{#id}` must sit at the **end of the line** with no wrapping. An `{#id}` that spills onto a second line won't be read by the parser.

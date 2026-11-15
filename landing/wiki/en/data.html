@@ -62,10 +62,10 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>Data &amp; file layout</h1>
-      <p class="wk-updated">Last updated 2026-10-29</p>
+      <p class="wk-updated">Last updated 2026-11-15</p>
       <nav class="wk-toc"><span>On this page</span><a href="#the-rule-files-are-the-truth">The rule — files are the truth</a><a href="#the-oculpm-layout">The `.oculpm/` layout</a><a href="#backup-and-moving">Backup and moving</a><a href="#what-lives-where">What lives where</a><a href="#what-leaves-the-machine">What leaves the machine</a></nav>
       <h2 id="the-rule-files-are-the-truth">The rule — files are the truth</h2>
-<p>Every record in Ocul is <b>a markdown file inside your project</b>. The app's database (SQLite) is only a <b>cache</b> for drawing screens quickly, and can always be rebuilt from the files (Settings → Data → "Rebuild from scratch"). So:</p>
+<p>Every record in Ocul is <b>a markdown file inside your project</b>. The app's database (SQLite) is only a <b>cache</b> for drawing screens quickly, and can always be rebuilt from the files (Settings → This project → Cache → "Rebuild from scratch"). So:</p>
 <ul><li>Uninstalling the app leaves your records behind</li><li>You can commit the records to git and share them with your team</li><li>You can read and edit them in any editor (it's plain markdown)</li></ul>
 <h2 id="the-oculpm-layout">The <code>.oculpm/</code> layout</h2>
 <pre class="wk-code"><code>.oculpm/
@@ -83,7 +83,7 @@
 <p>Copy the folder and you're done. Move <code>.oculpm/</code> wholesale into the same project on another machine and the app reads it and rebuilds the cache. Keeping it in git is the simplest backup.</p>
 <h2 id="what-lives-where">What lives where</h2>
 <div class="wk-table"><table><thead><tr><th>Data</th><th>Location</th><th>Nature</th></tr></thead><tbody><tr><td>Entries · plans</td><td>the project's <code>.oculpm/</code></td><td>source (markdown)</td></tr><tr><td>AGENTS.md recording rules</td><td>project root</td><td>source</td></tr><tr><td>Screen cache · diff baselines</td><td>app data folder (SQLite)</td><td>derived — rebuildable</td></tr><tr><td>App settings</td><td>app data folder</td><td>—</td></tr></tbody></table></div>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The first launch after updating to 4.0 drops the 3.x code-index and embedding tables (358MB of an 837MB database on one install). It keeps an <code>ocul-pm.db.bak-v42</code> copy first, and Settings → Data → "Compact" hands the freed space back to the disk.</p></div></div>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The first launch after updating to 4.0 drops the 3.x code-index and embedding tables (358MB of an 837MB database on one install). It keeps an <code>ocul-pm.db.bak-v42</code> copy first, and Settings → App → Cache → "Compact" hands the freed space back to the disk.</p></div></div>
 <h2 id="what-leaves-the-machine">What leaves the machine</h2>
 <p>Two things, and you start both: ① the update check (destination fixed in the app configuration, signature verified), ② links you click (your OS default browser opens them). <b>The app calls no LLM</b>, its screens (the webview) reach no outside host, and it takes no API key. No telemetry, analytics or account server. The full ledger is on the <a href="/privacy">privacy</a> page.</p>
     </article>

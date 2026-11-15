@@ -2,14 +2,14 @@
 title: 시작하기
 desc: Ocul 설치부터 첫 작업 일지가 쌓이기까지 — 5분 안에 끝나는 준비.
 order: 1
-updated: 2026-10-29
+updated: 2026-11-15
 ---
 
 ## 설치
 
 1. [GitHub Releases](https://github.com/bunhine0452/Ocul-PM/releases/latest) 에서 OS 에 맞는 파일을 받습니다 — macOS(Apple Silicon) `.dmg`, 베타인 Windows x64 · Linux x64.
 2. macOS 빌드는 Apple Developer ID 로 서명하고 공증(notarization)까지 마쳐 **경고 없이 열립니다**. 인터넷에서 받은 앱임을 알리는 확인 창이 한 번 뜨면 「열기」를 누릅니다.
-3. 이후 버전은 앱 안에서 자동으로 업데이트됩니다 (설정 → 데이터 → 「업데이트 확인」으로 수동 확인도 됩니다).
+3. 이후 버전은 앱 안에서 자동으로 업데이트됩니다 (설정 → 앱 → 업데이트 줄의 「업데이트 확인」으로 수동 확인도 됩니다).
 
 계정을 만들 필요가 없습니다 — 앱을 열면 바로 **시작 창**입니다.
 

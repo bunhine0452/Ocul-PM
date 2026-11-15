@@ -221,11 +221,11 @@ ${html}
     slug: "/changelog",
     active: "/changelog",
     title: `변경 이력 — Ocul (최신 ${releases[0].version})`,
-    desc: `Ocul 의 전체 릴리스 노트 ${releases.length}개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다.`,
+    desc: `Ocul 의 전체 릴리스 노트 ${releases.length}개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다.`,
     hero: hero(
       "Changelog",
       "매주 조금씩, 꾸준히.",
-      `릴리스 <b>${releases.length}개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.`,
+      `릴리스 <b>${releases.length}개</b>의 전문입니다. 새 판이 나오면 앱의 업데이트 알림과 <b>설정 → 앱</b>의 업데이트 줄이 알려 주고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 둘이 어긋날 수 없습니다.`,
     ),
     body: `    <div class="pg-jump">
       ${jump}
@@ -270,7 +270,7 @@ export function buildPrivacy(root) {
             <li><b>업데이트 확인</b> — 앱 시작과 수동 확인 시 <code>github.com</code> 의 릴리스 파일 한 장. 목적지는 앱 설정(<code>tauri.conf.json</code>)에 고정돼 있고, 받은 것은 서명을 검증합니다. 보내는 것은 요청 그 자체뿐입니다.</li>
             <li><b>당신이 누른 링크</b> — 저장소 · 이슈 · 릴리스 페이지 같은 링크는 앱이 보내지 않고 <b>OS 의 기본 브라우저</b>에 넘깁니다. <code>http</code> · <code>https</code> · <code>mailto</code> 가 아닌 주소는 거절합니다.</li>
           </ul>
-          <p>여기에 더해, <b>앱이 당신 대신 띄우는 도구</b>는 그 도구 자신의 동작을 합니다 — 설정에 적은 외부 편집기 명령, 변경 화면이 읽는 로컬 <code>git</code>. 앱이 띄우는 하위 프로세스는 자리마다 「송출 가능 / 로컬」로 분류해 원장(<code>egress_spawn_ledger.rs</code>)에 묶어 두었습니다.</p>
+          <p>여기에 더해, <b>앱이 당신 대신 띄우는 도구</b>는 그 도구 자신의 동작을 합니다 — 설정 → 앱의 「파일 열기」 가 여는 편집기, 앱 안 터미널에서 도는 당신의 셸(앱은 당신이 단추를 누를 때만 거기에 글을 넣습니다), 변경 화면이 읽는 로컬 <code>git</code>. 앱이 띄우는 하위 프로세스는 자리마다 「송출 가능 / 로컬」로 분류해 원장(<code>egress_spawn_ledger.rs</code>)에 묶어 두었습니다.</p>
         </div>
         <div class="pv-col never">
           <h3>절대 안 나가는 것</h3>
@@ -307,7 +307,7 @@ export function buildPrivacy(root) {
 
     <section class="pg-sec">
       <h2 id="english">English summary</h2>
-      <p>Ocul is local-first: no account, no server of ours, <b>no telemetry and no crash reporting</b> — and since 4.0 <b>the app calls no LLM</b> and its screens (the webview) reach no outside host. Exactly two kinds of outbound connection exist, and you start both: (1) update checks against a GitHub release file, whose destination is fixed in the app configuration and whose signature is verified; (2) links you click, which the app hands to your OS default browser (only http, https and mailto). Tools the app launches for you do their own thing: the external-editor command you configured and the local <code>git</code> the Diff screen reads.</p>
+      <p>Ocul is local-first: no account, no server of ours, <b>no telemetry and no crash reporting</b> — and since 4.0 <b>the app calls no LLM</b> and its screens (the webview) reach no outside host. Exactly two kinds of outbound connection exist, and you start both: (1) update checks against a GitHub release file, whose destination is fixed in the app configuration and whose signature is verified; (2) links you click, which the app hands to your OS default browser (only http, https and mailto). Tools the app launches for you do their own thing: the editor chosen under "Open files in" in Settings → App, your own shell in the in-app terminal (the app types there only when you press a button), and the local <code>git</code> the Diff screen reads.</p>
       <p>Never leaves the machine: your journal entries and plans, everything under <code>.oculpm/</code>, your source code (there is no LLM client in the app), usage statistics and crash reports (<b>not collected at all</b>). The app takes no API key. The core is MIT-licensed — the build keeps this list honest: <code>src-tauri/tests/egress_inventory.rs</code> fails on any outbound call that is not in its ledger, and <code>webview_csp.rs</code> fails if an outside host returns to the webview's <code>connect-src</code>.</p>
     </section>`,
   });

@@ -2,7 +2,7 @@
 title: Claude Code
 desc: The three places terminal Claude Code meets Ocul — the rules file, the plugin (hooks · MCP tools · commands), and the app's screens.
 order: 9
-updated: 2026-10-29
+updated: 2026-11-15
 ---
 
 In Ocul, Claude Code runs **in your own terminal**. The app's place is to receive what the terminal `claude` does as **record · evidence · plan**, and to unfold only what a person must see. The app calls no LLM.
@@ -25,14 +25,14 @@ Two lines inside the terminal `claude`:
 ```
 
 :::tip
-The same commands sit in the app under **Settings → Agent connections** with copy buttons. When the installed version is older than the app, that spot and Today hand you the update command.
+The same commands sit in the app under **Settings → Agents** with copy buttons. When the installed version is older than the app, that spot and Today hand you the update command.
 :::
 
 Once installed:
 
 - **Start hook** — for each recently updated plan: done condition · check command · **last verdict** · open items, plus the last three entries, go into the starting context. You don't explain yesterday again
 - **End hook** — judges whether the session ended without an entry
-- **Notification hook** — when Claude waits for you (Notification), "Claude is waiting" tops Today in the app, plus an OS notification if the window is in the background
+- **Notification hook** — when Claude waits for you (Notification), a "Waiting" row ("Outside terminal") appears under "Needs your eyes" on Today in the app, plus an OS notification if the window is in the background
 - **8 MCP tools** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` · `ask_user` (asks for your decision on Today in the app and waits for the answer, up to 25 minutes)
 - **Commands** — `/oculpm:inception` (what happens next → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is a check command that is red now) · `/oculpm:next` (claim the item as `[~]` → implement → check command → entry → plan; with `until-done`, until the verdict passes) · `/oculpm:redteam` (runs the claims, reports only counter-examples) · `/oculpm:help`
 
@@ -46,10 +46,12 @@ An agent that ran the check command logs the result as a `plan_update` note, one
 
 - **[Run in terminal]** (Plan screen · `r` on Today) — opens a new session in the in-app terminal and starts `claude` with a prompt that picks up the next item. If the `claude` command isn't found, it says so.
 - **[To the end (/goal)]** — starts `claude` and, once it waits for input, hands the plan's done condition and check command to Claude Code's `/goal`. It keeps going until the condition holds.
-- **"Send to Claude"** (entries · plan items · changed files) — pastes text carrying that context into an in-app claude session that's waiting for input, or opens a new one if there is none.
-- **Diff [Ask Claude]** — asks for an entry covering the files no entry mentions.
+- **"Send to Claude"** (entries · plan items · changed files · diff notes · terminal output selected with `⌘L`) — puts text carrying that context into an in-app claude session, opening a new one if there is none; while Claude is working it waits in line and goes in when Claude stops.
+- **Diff [Ask for an entry]** — asks for an entry covering the files no entry mentions.
+- **Today's hand-off buttons** — "Check again" (rerun a check command and log the result to the plan) · "Ask for an entry" (a conversation that ended without one) · "Ask Claude to push" (commit and push) · "Hand off in terminal" before the first entry (a first task) start `claude` in a new session with a prompt for that job. With no plan at all, the Plan screen's [Plan it in the terminal] hands over `/oculpm:inception` the same way.
+- **The Plan's [Run in shell]** — shows the full check command in a confirm dialog and only then runs that one line in a new shell session. Logging the verdict line is still Claude's job.
 
-The app writes into a terminal only when you press one of these, and never into a terminal outside the app. The other direction — Claude asking you — is the `ask_user` tool: the question shows up on Today, and the answer you pick or type goes straight back to Claude.
+The app writes into a terminal only when you press a button like these, and never into a terminal outside the app. The other direction — Claude asking you — is the `ask_user` tool: the question shows up on Today, and the answer you pick or type goes straight back to Claude.
 
 ## Summary — what should I install?
 

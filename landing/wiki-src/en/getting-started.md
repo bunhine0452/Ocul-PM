@@ -2,14 +2,14 @@
 title: Getting started
 desc: From installing Ocul to your first work-journal entry — five minutes of setup.
 order: 1
-updated: 2026-10-29
+updated: 2026-11-15
 ---
 
 ## Install
 
 1. Grab the file for your OS from [GitHub Releases](https://github.com/bunhine0452/Ocul-PM/releases/latest) — the macOS (Apple Silicon) `.dmg`, or the Windows x64 · Linux x64 beta.
 2. The macOS build is signed with an Apple Developer ID and notarized, so it **opens without warnings**. If the one-time "downloaded from the internet" prompt appears, click Open.
-3. Later versions update from inside the app (Settings → Data → "Check for updates" checks by hand).
+3. Later versions update from inside the app (Settings → App → Updates → "Check for updates" checks by hand).
 
 No account to create — the app opens straight into the **start window**.
 

@@ -2,12 +2,12 @@
 title: Data & file layout
 desc: The layout of the .oculpm folder, backup and moving, and what local-first actually means.
 order: 15
-updated: 2026-10-29
+updated: 2026-11-15
 ---
 
 ## The rule — files are the truth
 
-Every record in Ocul is **a markdown file inside your project**. The app's database (SQLite) is only a **cache** for drawing screens quickly, and can always be rebuilt from the files (Settings → Data → "Rebuild from scratch"). So:
+Every record in Ocul is **a markdown file inside your project**. The app's database (SQLite) is only a **cache** for drawing screens quickly, and can always be rebuilt from the files (Settings → This project → Cache → "Rebuild from scratch"). So:
 
 - Uninstalling the app leaves your records behind
 - You can commit the records to git and share them with your team
@@ -47,7 +47,7 @@ Copy the folder and you're done. Move `.oculpm/` wholesale into the same project
 | App settings | app data folder | — |
 
 :::note
-The first launch after updating to 4.0 drops the 3.x code-index and embedding tables (358MB of an 837MB database on one install). It keeps an `ocul-pm.db.bak-v42` copy first, and Settings → Data → "Compact" hands the freed space back to the disk.
+The first launch after updating to 4.0 drops the 3.x code-index and embedding tables (358MB of an 837MB database on one install). It keeps an `ocul-pm.db.bak-v42` copy first, and Settings → App → Cache → "Compact" hands the freed space back to the disk.
 :::
 
 ## What leaves the machine

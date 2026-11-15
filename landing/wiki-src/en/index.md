@@ -2,7 +2,7 @@
 title: Ocul Wiki
 desc: The Ocul manual — getting started, the five surfaces, agent integration, troubleshooting, data layout and shortcuts.
 order: 0
-updated: 2026-10-29
+updated: 2026-11-15
 ---
 
 The places people get stuck with Ocul, collected in one manual. Kept short, updated often. (As of 4.0.)
@@ -17,7 +17,7 @@ The 4.0 app has five surfaces — **Today · Work Journal · Plan · Diff · Set
 
 ## Concepts — what accumulates
 
-- **[Today](/wiki/en/today)** — the first screen you see. "Look first" and one line a day
+- **[Today](/wiki/en/today)** — the first screen you see. One line of numbers on the date line, and "Needs your eyes"
 - **[Work Journal](/wiki/en/journal)** — when and how entries pile up, the verification box, journal search
 - **[Plan](/wiki/en/planner)** — plan documents your agents update. Done condition · check command · last verdict
 
@@ -29,13 +29,13 @@ The 4.0 app has five surfaces — **Today · Work Journal · Plan · Diff · Set
 ## Running it
 
 - **[Windows · projects · external editor](/wiki/en/workspace)** — one window = one project, and the editor files open in
-- **[Settings](/wiki/en/settings)** — agent connections · this project · display · data
+- **[Settings](/wiki/en/settings)** — "To fix" on top, agents · this project · appearance · app
 
 ## Everything else
 
 - **[Troubleshooting](/wiki/en/troubleshooting)** — common snags and their fixes
 - **[Data & file layout](/wiki/en/data)** — the `.oculpm/` folder, backup and moving, what local-first actually means
-- **[Shortcuts](/wiki/en/shortcuts)** — screens, windows, keys on Today
+- **[Shortcuts](/wiki/en/shortcuts)** — screens, windows, keys on Today, Work Journal and Terminal
 
 :::note
 Found something wrong? "Edit this page" at the bottom left opens the source directly, or tell us in a [GitHub issue](https://github.com/bunhine0452/Ocul-PM/issues).

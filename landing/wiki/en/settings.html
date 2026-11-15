@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Settings — Ocul Wiki</title>
-<meta name="description" content="Settings on one page — agent connections · this project · display · data." />
+<meta name="description" content="One status table — "To fix" on top, then agents · this project · appearance · app." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#121514" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/settings" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
 <meta property="og:title" content="Settings — Ocul Wiki" />
-<meta property="og:description" content="Settings on one page — agent connections · this project · display · data." />
+<meta property="og:description" content="One status table — "To fix" on top, then agents · this project · appearance · app." />
 <meta property="og:image" content="https://oculpm.com/og-en.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -62,14 +62,14 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>Settings</h1>
-      <p class="wk-updated">Last updated 2026-10-29</p>
+      <p class="wk-updated">Last updated 2026-11-15</p>
       <nav class="wk-toc"><span>On this page</span><a href="#there-is-no-ai-inside-the-app">There is no AI inside the app</a><a href="#updates">Updates</a><a href="#next-steps">Next steps</a></nav>
-      <p>Open it with <code>⌘,</code>. In 4.0 Settings is <b>one page</b> — the twelve 3.x tabs (LLM · indexing · automation · diagnostics …) went with their features.</p>
-<div class="wk-table"><table><thead><tr><th>Section</th><th>What</th></tr></thead><tbody><tr><td><b>Agent connections</b></td><td>Whether the Claude Code plugin and Codex are installed, and whether the installed version is older than the app. Copy the install or update command. Cursor · Gemini CLI record through the rules file (<code>AGENTS.md</code>) alone, so there is nothing to connect</td></tr><tr><td><b>This project</b></td><td>The rules-file version ("Update" when a newer one ships with the app), "Turn on recording" when it is off, and the project folder's location</td></tr><tr><td><b>Display</b></td><td>Language (한국어 · English), appearance (system · light · dark), text size</td></tr><tr><td><b>Data</b></td><td>Cache size and "Compact", "Rebuild from scratch" (rebuilds this project's cache from the entry files), app version · check for updates, log folder</td></tr></tbody></table></div>
+      <p>Open it with <code>⌘,</code>. In 4.0 Settings is <b>one page</b> — the twelve 3.x tabs (LLM · indexing · automation · diagnostics …) went with their features. A <b>"To fix N"</b> line on top gathers what needs a hand (a missing or old plugin · a rules file that's behind · a new app version …), and clicking an item goes to its section. When nothing needs fixing, the line isn't there.</p>
+<div class="wk-table"><table><thead><tr><th>Section</th><th>What</th></tr></thead><tbody><tr><td><b>Agents</b></td><td>Whether the Claude Code plugin is installed, and whether the installed version is older than the app. Copy the install or update command. The <b>Claude Code theme</b> row is the app keeping a file (<code>~/.claude/themes/ocul.json</code>) that matches Claude Code's colours to the Ocul terminal; you pick it with <code>/theme</code> inside Claude. The Codex row shows only on a machine with Codex, and "Direct MCP registration" is the workaround for Windows, where the plugin's MCP doesn't start. "Check again" in the section header asks again. Cursor · Gemini CLI record through the rules file (<code>AGENTS.md</code>) alone, so there is nothing to connect</td></tr><tr><td><b>This project</b></td><td>The rules-file (<code>AGENTS.md</code>) version ("Update" when a newer one ships with the app, "Turn on recording" when recording is off), where the <code>.oculpm</code> folder lives, and the cache's "Rebuild from scratch" (rebuilds this project's cache from the journal files in the folder)</td></tr><tr><td><b>Appearance</b></td><td>Theme (System · Light · Dark), text size, app icon (macOS)</td></tr><tr><td><b>App</b></td><td>Language (한국어 · English), Open files in (Auto · VS Code · Cursor · Default app · Custom), Updates (the app version and "Check for updates"), log folder, cache size and "Compact"</td></tr></tbody></table></div>
 <h2 id="there-is-no-ai-inside-the-app">There is no AI inside the app</h2>
 <p>The 4.0 app calls no LLM — there are no API key, model or fallback settings. Ask the agent in your terminal for summaries or reports; it reads past entries through the MCP tools (<code>journal_search</code> · <code>journal_read</code>). API-key entries 3.x left in the keychain are neither read nor deleted by the app.</p>
 <h2 id="updates">Updates</h2>
-<p>The app checks on its own. "Check for updates" in Data checks by hand, and when a new version exists, "Install … and restart" does the rest. If you installed the Linux deb, grab the next <code>.deb</code> from the releases page instead of updating in-app. When the latest release has no build for your OS, it says so — that is not an error.</p>
+<p>The app checks on its own, and an update notification appears when a new version exists. "Check for updates" on the Updates row under App checks by hand, and when a new version exists, "Install … and restart" does the rest. If you installed the Linux deb, grab the next <code>.deb</code> from the releases page instead of updating in-app. When the latest release has no build for your OS, it says so — that is not an error.</p>
 <h2 id="next-steps">Next steps</h2>
 <ul><li>Rules files and adapters → <a href="/wiki/en/agents">Other agents</a></li><li>Where data is stored → <a href="/wiki/en/data">Data &amp; file layout</a></li></ul>
     </article>

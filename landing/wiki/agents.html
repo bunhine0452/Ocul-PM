@@ -62,7 +62,7 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>다른 에이전트 연동</h1>
-      <p class="wk-updated">마지막 수정 2026-10-29</p>
+      <p class="wk-updated">마지막 수정 2026-11-15</p>
       <nav class="wk-toc"><span>이 페이지에서</span><a href="#왜-agents-md-가-중심인가">왜 AGENTS.md 가 중심인가</a><a href="#지원하는-규칙-파일">지원하는 규칙 파일</a><a href="#여러분이-쓴-내용은-지켜집니다">여러분이 쓴 내용은 지켜집니다</a><a href="#규칙-원본-고치기">규칙 원본 고치기</a><a href="#규칙이-오래됐을-때">규칙이 오래됐을 때</a><a href="#지원-등급">지원 등급</a><a href="#여러-에이전트를-섞어-쓸-때">여러 에이전트를 섞어 쓸 때</a><a href="#스킬은-플러그인이-맡습니다">스킬은 플러그인이 맡습니다</a><a href="#다음-걸음">다음 걸음</a></nav>
       <p>Ocul 은 Claude Code 전용이 아닙니다. <b><code>AGENTS.md</code> 를 읽는 에이전트라면 무엇이든</b> 일지를 남길 수 있고, 그 파일을 안 읽는 에이전트를 위해서는 각자의 규칙 파일에 얇은 위임 stub 을 깔아 둡니다.</p>
 <h2 id="왜-agents-md-가-중심인가">왜 AGENTS.md 가 중심인가</h2>
@@ -84,7 +84,7 @@
 <p>규칙 문구 자체를 바꾸고 싶다면 <code>.oculpm/agents/_template.md</code> 를 고칩니다. 이게 마스터고, 저장하면 켜 둔 어댑터 전부로 자동 전파됩니다 — 한 곳만 고치면 Cursor 도 Claude Code 도 새 규칙을 받습니다.</p>
 <p>특정 에이전트에게만 다른 문구를 주려면 <code>.oculpm/agents/per-agent/</code> 아래에 그 에이전트용 파일을 두면 됩니다. 규칙 템플릿의 언어는 <code>config.toml</code> 의 <code>[agents] template_language</code>(<code>ko</code> · <code>en</code>)가 정합니다.</p>
 <h2 id="규칙이-오래됐을-때">규칙이 오래됐을 때</h2>
-<p>앱을 업데이트하면 규칙 규격(템플릿 판)이 올라갈 수 있습니다. 설정 → <b>이 프로젝트</b>의 규칙 파일 줄에 「v19 — 새 판 v20」 처럼 뜨면 <b>「올리기」</b> 를 누릅니다. 4.0 의 템플릿 v20 은 「완료 조건은 결과로 · 판정은 네가 아닌 것이 · 원재료와 전문가의 도구 · 어려운 숫자 목표는 정상 · 실패도 기록」 다섯 줄을 작업 규율로 싣습니다.</p>
+<p>앱을 업데이트하면 규칙 규격(템플릿 판)이 올라갈 수 있습니다. 설정 → <b>이 프로젝트</b>의 규칙 파일 줄에 「새 판 있음 v19 → v20」 처럼 뜨면 <b>「올리기」</b> 를 누릅니다. 4.0 의 템플릿 v20 은 「완료 조건은 결과로 · 판정은 네가 아닌 것이 · 원재료와 전문가의 도구 · 어려운 숫자 목표는 정상 · 실패도 기록」 다섯 줄을 작업 규율로 싣습니다.</p>
 <h2 id="지원-등급">지원 등급</h2>
 <p>같은 「일지를 남긴다」라도 약속의 세기가 다릅니다. 등급은 코드에서 읽었습니다 — 규칙 파일 어댑터 표, MCP 등록기, 훅. (앱 안 구동이던 4등급은 2026-10-28 에 화면과 함께, Claude Desktop 의 MCP 원클릭 등록은 4.0 에서 걷었습니다.)</p>
 <div class="wk-table"><table><thead><tr><th>등급</th><th>뜻</th></tr></thead><tbody><tr><td><b>1 · 규칙 호환</b></td><td>앱은 그 에이전트가 읽는 규칙 파일만 씁니다. 일지는 모델이 규칙을 지키는 만큼만 남습니다</td></tr><tr><td><b>2 · 구조화 기록</b></td><td>에이전트가 <code>oculpm</code> MCP 서버의 도구(<code>journal_write</code> · <code>plan_update</code> …)를 부를 수 있습니다. 등록은 플러그인이 하거나(Claude Code) 안내합니다(Codex)</td></tr><tr><td><b>3 · 세션 관측</b></td><td>세션 시작·종료를 훅으로 받고, 일지 없이 끝난 대화를 가려냅니다 (Stop 배달 게이트 · <code>sessions.json</code>)</td></tr></tbody></table></div>

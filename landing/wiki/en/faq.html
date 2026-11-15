@@ -62,7 +62,7 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>FAQ</h1>
-      <p class="wk-updated">Last updated 2026-10-29</p>
+      <p class="wk-updated">Last updated 2026-11-15</p>
       <nav class="wk-toc"><span>On this page</span><a href="#what-does-it-do">What does it do</a><a href="#money-and-privacy">Money and privacy</a><a href="#git-and-teams">git and teams</a><a href="#confusing-concepts">Confusing concepts</a><a href="#day-to-day">Day to day</a><a href="#not-answered-here">Not answered here</a></nav>
       <p>The questions that actually come up in the first few days. The confusing concepts and the scary parts come first.</p>
 <h2 id="what-does-it-do">What does it do</h2>
@@ -74,7 +74,7 @@
 <p>Turning recording on creates a rules file called <code>AGENTS.md</code> at the root, and agents like Claude Code, Codex, Cursor and Gemini CLI read it. "When you finish a unit of work, write an entry" is the rule. You don't even have to ask.</p>
 <div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>You can write one yourself if you like — it's just a markdown file. But that's not what the app is for.</p></div></div>
 <h3 id="does-the-app-run-the-ai-for-me">Does the app run the AI for me?</h3>
-<p>No. Your agent runs <b>in your own terminal, exactly as before</b>, and the app receives the record, the evidence and the plan of that work. Keep the app open and work done in the terminal gets picked up. The app itself calls no LLM.</p>
+<p>No. Your agent runs <b>in your own terminal, exactly as before</b>, and the app receives the record, the evidence and the plan of that work. Keep the app open and work done in the terminal gets picked up. The app itself calls no LLM, and it starts <code>claude</code> in its own terminal only when you press a button such as "Run in terminal".</p>
 <h2 id="money-and-privacy">Money and privacy</h2>
 <h3 id="does-it-cost-money">Does it cost money?</h3>
 <p><b>The app is free, and nothing in it costs money.</b> The 4.0 app calls no LLM, so it doesn't even take an API key — it watches file changes and reads the markdown your agent wrote, and that's all. The only cost is your agent's own subscription or usage in the terminal.</p>
@@ -115,15 +115,15 @@
 <div class="wk-table"><table><thead><tr><th></th><th>When</th><th>What</th></tr></thead><tbody><tr><td><b>Plan</b></td><td><b>Now</b></td><td>Done condition · check command · items. Glyphs move as items progress. Big decisions go in the decision block</td></tr><tr><td><b>Work Journal</b></td><td><b>After</b> the work</td><td>What was done, why and how — and what was run to check it</td></tr><tr><td><b>Verdict</b></td><td><b>After running</b> the check command</td><td>One line, `verdict ✓</td><td>✗ &lt;last line&gt;`. The result decides, not the agent's word</td></tr></tbody></table></div>
 <p>The 3.x Discussions screen was removed in 4.0 — <code>.oculpm/discussion/</code> files are left as they are.</p>
 <h3 id="can-the-ui-language-differ-from-the-language-of-the-records">Can the UI language differ from the language of the records?</h3>
-<p>Yes. The UI language (Settings → Display) is the app's text; the language of entries follows the agent writing them and the rules template. An English UI with Korean records is possible, and documents already written are never rewritten.</p>
+<p>Yes. The UI language (Settings → App → Language) is the app's text; the language of entries follows the agent writing them and the rules template. An English UI with Korean records is possible, and documents already written are never rewritten.</p>
 <h2 id="day-to-day">Day to day</h2>
 <h3 id="no-entries-are-piling-up">No entries are piling up</h3>
 <p>The most common cause is <b>using an agent in the terminal without the plugin</b>. With <code>AGENTS.md</code> alone a model can forget to record at the end of a long session. <a href="/wiki/en/claude-code">Install the plugin</a> and a session-end hook makes it structural.</p>
-<p><b>Today's "Look first"</b> tells you if anything's missing — it points at observed changes no entry records and at conversations that ended without an entry. (<a href="/wiki/en/troubleshooting">details</a>)</p>
+<p><b>Today's "Needs your eyes"</b> tells you if anything's missing — it points at observed changes no entry records and at conversations that ended without an entry. (<a href="/wiki/en/troubleshooting">details</a>)</p>
 <h3 id="can-i-edit-entries">Can I edit entries?</h3>
 <p>Yes. They're plain markdown and the app re-reads them when you save. But <b>agents are told not to edit existing entries</b> — a history that changes quietly can't be trusted. An agent writes a new entry and links it with <code>related</code>.</p>
 <h3 id="what-if-there-are-too-many-entries">What if there are too many entries?</h3>
-<p>Today doesn't overflow even at 60 a day — work with evidence folds to one line per plan, and only what you must see unfolds. Work Journal groups by date, with journal search (<code>/</code>) and filters (type · no evidence). And you can delete entries — they're just files.</p>
+<p>Today doesn't overflow even at 60 a day — work with evidence folds to one line per plan, and only what you must see unfolds. Work Journal groups by date, with journal search (<code>/</code>) and filters (type · Unverified only). And you can delete entries — they're just files.</p>
 <h3 id="what-happens-to-my-records-if-i-uninstall">What happens to my records if I uninstall?</h3>
 <p><b>They stay.</b> Every record is markdown inside the project folder; the app's database is only a cache for drawing screens fast.</p>
 <h3 id="can-i-use-several-projects-at-once">Can I use several projects at once?</h3>

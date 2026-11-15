@@ -62,7 +62,7 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>Other agents</h1>
-      <p class="wk-updated">Last updated 2026-10-29</p>
+      <p class="wk-updated">Last updated 2026-11-15</p>
       <nav class="wk-toc"><span>On this page</span><a href="#why-agents-md-is-the-center">Why AGENTS.md is the center</a><a href="#supported-rules-files">Supported rules files</a><a href="#what-you-wrote-is-kept">What you wrote is kept</a><a href="#editing-the-master-rules">Editing the master rules</a><a href="#when-the-rules-are-out-of-date">When the rules are out of date</a><a href="#support-tiers">Support tiers</a><a href="#mixing-several-agents">Mixing several agents</a><a href="#skills-live-in-the-plugin">Skills live in the plugin</a><a href="#next-steps">Next steps</a></nav>
       <p>Ocul isn't Claude Code–only. <b>Any agent that reads <code>AGENTS.md</code></b> can write entries, and for agents that don't read it, a thin delegating stub goes into their own rules file.</p>
 <h2 id="why-agents-md-is-the-center">Why AGENTS.md is the center</h2>
@@ -84,7 +84,7 @@
 <p>To change the wording itself, edit <code>.oculpm/agents/_template.md</code>. It's the master; save it and every adapter you've switched on picks it up — change one place and Cursor and Claude Code both get the new rules.</p>
 <p>To give one agent different wording, put a file for it under <code>.oculpm/agents/per-agent/</code>. The template's language is set by <code>[agents] template_language</code> (<code>ko</code> · <code>en</code>) in <code>config.toml</code>.</p>
 <h2 id="when-the-rules-are-out-of-date">When the rules are out of date</h2>
-<p>An app update can raise the rules spec (template version). When Settings → <b>This project</b> shows something like "v19 — new v20" on the rules-file row, press <b>"Update"</b>.</p>
+<p>An app update can raise the rules spec (template version). When Settings → <b>This project</b> shows something like "Update available v19 → v20" on the rules-file row, press <b>"Update"</b>.</p>
 <h2 id="support-tiers">Support tiers</h2>
 <p>"Writes entries" comes in different strengths. The tiers are read from code — the rules-file adapter table, the MCP registrars, the hooks. (The in-app tier 4 went with its screens on 2026-10-28; one-click MCP registration for Claude Desktop went in 4.0.)</p>
 <div class="wk-table"><table><thead><tr><th>Tier</th><th>Meaning</th></tr></thead><tbody><tr><td><b>1 · Rules-compatible</b></td><td>The app only writes the rules file that agent reads. Entries get written as far as the model obeys it</td></tr><tr><td><b>2 · Structured journaling</b></td><td>The agent can call the <code>oculpm</code> MCP server's tools (<code>journal_write</code> · <code>plan_update</code> …). The plugin registers the server (Claude Code) or walks you through it (Codex)</td></tr><tr><td><b>3 · Session observation</b></td><td>Session start/stop arrive through hooks, and conversations that ended without an entry are flagged (the Stop delivery gate · <code>sessions.json</code>)</td></tr></tbody></table></div>

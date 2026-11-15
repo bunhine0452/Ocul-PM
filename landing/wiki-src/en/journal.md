@@ -2,7 +2,7 @@
 title: Work Journal
 desc: When and how entries accumulate, the file layout, the verification box and change diffs, journal search, and unrecorded changes.
 order: 5
-updated: 2026-10-29
+updated: 2026-11-15
 ---
 
 The work journal is why this app exists. It records what an agent did and why, as **markdown a human reads**. Longer than a commit message, shorter than meeting minutes.
@@ -74,11 +74,11 @@ Verification is mandatory for one reason — the credibility gap between "I fixe
 
 ## The Work Journal screen
 
-On the left, one row per entry under date headers (type dot · title · evidence chip · time/agent/file count); on the right, the selected entry's detail. The toolbar shows "N · of M total", filters (all · bugs · features · refactors · chores · no evidence) and a search box.
+On the left, one row per entry under date headers — an entry with evidence (a command, or read) is a single line of title and time, and only exceptions (no verification · open · abandoned · parse warning) get a second line with a reason chip. Entries whose touched files are all gone from the project fold into "Entries about code that is gone" at the end of that day. On the right, the selected entry's detail, evidence first — verification box → body → inline diff per file → related entries. Above the list sit the search box and the filters: type (All · Bugs · Features · Refactors · Chores) · "Unverified only" · period (Last 14 days · All time).
 
-- **Verification box** — pulls the command that ran and its last result line out of the Verification section. With no command evidence it shows a warning chip and calls the entry a claim; when a human has read it and agrees, press **Checked**
-- **Journal search** (`/`) — titles · files · tags · body, grouped by date. 4.0 removed the Search screen; journal search lives here
-- Keys listen only inside the screen — `j`/`k` move · `Enter` open · `/` search
+- **Verification box** — pulls the command that ran and its last result line out of the Verification section. With no command evidence it shows a "No command" chip and calls the entry only a claim; when a human has read it and agrees, press **Mark read** (`v`)
+- **Journal search** (`/` · `⌘F`) — titles · files · tags · body, by relevance (or newest first), each row with a line showing why it matched. Entries whose touched files are all gone sink to the end. 4.0 removed the Search screen; journal search lives here
+- Keys listen only inside the screen — `j`/`k` move · `Enter` open · `v` mark read · `/` search
 
 ## Change diff — what actually changed at the time
 
@@ -98,17 +98,17 @@ Entries are grouped by which session produced them. Even when an agent can't kno
 
 ## Unrecorded changes
 
-The app reconciles the file changes it observed against `files_touched` in entries and points at **changes no entry anywhere records** — in Today's "Look first", and as the "No journal" group at the top of Diff (`⌘4`).
+The app reconciles the file changes it observed against `files_touched` in entries and points at **changes no entry anywhere records** — in Today's "Needs your eyes", and as the "No journal" group at the top of Diff (`⌘4`).
 
 - If everything changed today is recorded somewhere, **nothing shows** — no noise on clean days
 - Temp files, editor artifacts, and agent internal state are never counted
-- On Diff, **[Ask Claude]** hands that file list to the in-app terminal's claude to record, and **[Record it myself]** opens the composer pre-filled with those files
+- On Diff, **[Ask for an entry]** hands that file list to the in-app terminal's claude to record, and **[Record it myself]** opens the composer pre-filled with those files
 
 If this shows up often, [installing the plugin](/wiki/en/claude-code) is the surest fix. Recording moves from "as much as the model remembers the rules" to "structurally, when the session ends."
 
 ## Working with entries
 
-- **Checked** — a human's check mark is stored with a fingerprint of the body at that moment; if an agent edits the body later, it stops counting as checked
+- **Mark read** — a human's read mark is stored with a fingerprint of the body at that moment; if an agent edits the body later, it stops counting as read and the button turns into "Read again"
 - **Edit directly** — it's plain markdown; save and the app re-reads it
 
 :::warn

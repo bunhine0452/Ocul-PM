@@ -2,7 +2,7 @@
 title: FAQ
 desc: Where first-time users get stuck most — who writes the journal, does it cost money, should I commit it, what's a workday.
 order: 2
-updated: 2026-10-29
+updated: 2026-11-15
 ---
 
 The questions that actually come up in the first few days. The confusing concepts and the scary parts come first.
@@ -27,7 +27,7 @@ You can write one yourself if you like — it's just a markdown file. But that's
 
 ### Does the app run the AI for me?
 
-No. Your agent runs **in your own terminal, exactly as before**, and the app receives the record, the evidence and the plan of that work. Keep the app open and work done in the terminal gets picked up. The app itself calls no LLM.
+No. Your agent runs **in your own terminal, exactly as before**, and the app receives the record, the evidence and the plan of that work. Keep the app open and work done in the terminal gets picked up. The app itself calls no LLM, and it starts `claude` in its own terminal only when you press a button such as "Run in terminal".
 
 ## Money and privacy
 
@@ -110,7 +110,7 @@ The 3.x Discussions screen was removed in 4.0 — `.oculpm/discussion/` files ar
 
 ### Can the UI language differ from the language of the records?
 
-Yes. The UI language (Settings → Display) is the app's text; the language of entries follows the agent writing them and the rules template. An English UI with Korean records is possible, and documents already written are never rewritten.
+Yes. The UI language (Settings → App → Language) is the app's text; the language of entries follows the agent writing them and the rules template. An English UI with Korean records is possible, and documents already written are never rewritten.
 
 ## Day to day
 
@@ -118,7 +118,7 @@ Yes. The UI language (Settings → Display) is the app's text; the language of e
 
 The most common cause is **using an agent in the terminal without the plugin**. With `AGENTS.md` alone a model can forget to record at the end of a long session. [Install the plugin](/wiki/en/claude-code) and a session-end hook makes it structural.
 
-**Today's "Look first"** tells you if anything's missing — it points at observed changes no entry records and at conversations that ended without an entry. ([details](/wiki/en/troubleshooting))
+**Today's "Needs your eyes"** tells you if anything's missing — it points at observed changes no entry records and at conversations that ended without an entry. ([details](/wiki/en/troubleshooting))
 
 ### Can I edit entries?
 
@@ -126,7 +126,7 @@ Yes. They're plain markdown and the app re-reads them when you save. But **agent
 
 ### What if there are too many entries?
 
-Today doesn't overflow even at 60 a day — work with evidence folds to one line per plan, and only what you must see unfolds. Work Journal groups by date, with journal search (`/`) and filters (type · no evidence). And you can delete entries — they're just files.
+Today doesn't overflow even at 60 a day — work with evidence folds to one line per plan, and only what you must see unfolds. Work Journal groups by date, with journal search (`/`) and filters (type · Unverified only). And you can delete entries — they're just files.
 
 ### What happens to my records if I uninstall?
 

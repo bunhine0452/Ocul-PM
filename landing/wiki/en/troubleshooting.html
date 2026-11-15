@@ -62,26 +62,26 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>Troubleshooting</h1>
-      <p class="wk-updated">Last updated 2026-10-29</p>
+      <p class="wk-updated">Last updated 2026-11-15</p>
       <nav class="wk-toc"><span>On this page</span><a href="#no-journal-entries-appear">No journal entries appear</a><a href="#i-can-t-find-search-discussions-branch-or-skills">I can't find Search, Discussions, Branch or Skills</a><a href="#the-app-s-data-shrank-after-updating">The app's data shrank after updating</a><a href="#macos-asks-for-access-to-files-or-other-apps-data">macOS asks for access to files or other apps' data</a><a href="#not-listed-here">Not listed here</a></nav>
       <h2 id="no-journal-entries-appear">No journal entries appear</h2>
 <p>Check these in order:</p>
 <ol><li><b>Is the project tracked?</b> The project root needs a <code>.oculpm/</code> folder and an <code>AGENTS.md</code>. If not, press "Turn on recording" in Settings → This project.</li><li><b>Is it terminal Claude Code?</b> With AGENTS.md alone the model can forget to record. <a href="/wiki/en/claude-code">Install the plugin</a> and it becomes automatic.</li><li><b>Are the rules out of date?</b> When Settings → This project shows a newer version on the rules-file row, "Update" brings AGENTS.md to the latest spec.</li><li><b>Another agent (Cursor etc.)?</b> Anything that reads AGENTS.md works as-is. For a dedicated rules file, add it to <code>[agents] active</code> in <code>.oculpm/config.toml</code> (<a href="/wiki/en/agents">details</a>).</li></ol>
 <h2 id="i-can-t-find-search-discussions-branch-or-skills">I can't find Search, Discussions, Branch or Skills</h2>
 <p>4.0 removed them. The app has five surfaces: Today · Work Journal · Plan · Diff · Settings.</p>
-<div class="wk-table"><table><thead><tr><th>You were looking for</th><th>In 4.0</th></tr></thead><tbody><tr><td>Journal search</td><td><code>/</code> on Work Journal</td></tr><tr><td>Code search</td><td>your agent's grep — the app's index is gone</td></tr><tr><td>Discussions</td><td>a plan's decision block. <code>.oculpm/discussion/</code> files are still there</td></tr><tr><td>A branch's recorded rate</td><td>"unrecorded changes" on Today and Diff</td></tr><tr><td>Managing skills and rules</td><td>the plugin and Claude Code itself</td></tr><tr><td>In-app AI · summaries · rollups</td><td>the agent in your terminal (<code>journal_search</code> · <code>journal_read</code>)</td></tr><tr><td>Tabs · menu-bar tray</td><td>one window = one project, ⌘O · ⇧⌘N</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th>You were looking for</th><th>In 4.0</th></tr></thead><tbody><tr><td>Journal search</td><td><code>/</code> on Work Journal</td></tr><tr><td>Code search</td><td>your agent's grep — the app's index is gone</td></tr><tr><td>Discussions</td><td>a plan's decision block. <code>.oculpm/discussion/</code> files are still there</td></tr><tr><td>A branch's recorded rate</td><td>"No journal" on Today and Diff</td></tr><tr><td>Managing skills and rules</td><td>the plugin and Claude Code itself</td></tr><tr><td>In-app AI · summaries · rollups</td><td>the agent in your terminal (<code>journal_search</code> · <code>journal_read</code>)</td></tr><tr><td>Tabs · menu-bar tray</td><td>one window = one project, ⌘O · ⇧⌘N</td></tr></tbody></table></div>
 <h2 id="the-app-s-data-shrank-after-updating">The app's data shrank after updating</h2>
-<p>That's expected. The first launch after updating to 4.0 drops the 3.x code-index and embedding tables. It keeps an <code>ocul-pm.db.bak-v42</code> copy in the app data folder first, and Settings → Data → "Compact" hands the freed space back to the disk. Entries and plans are markdown in your project and are not affected.</p>
+<p>That's expected. The first launch after updating to 4.0 drops the 3.x code-index and embedding tables. It keeps an <code>ocul-pm.db.bak-v42</code> copy in the app data folder first, and Settings → App → Cache → "Compact" hands the freed space back to the disk. Entries and plans are markdown in your project and are not affected.</p>
 <h2 id="macos-asks-for-access-to-files-or-other-apps-data">macOS asks for access to files or other apps' data</h2>
 <p>That's normal. It helps to tell two gates apart.</p>
 <ul><li><b>Notarization</b> asks "may this app <b>run</b>?" Ocul is signed with an Apple Developer ID and notarized, so it passes.</li><li><b>A permission prompt</b> asks "may this app read <b>that data</b>?" — a separate gate, unrelated to notarization, and notarization doesn't make it go away.</li></ul>
 <p>It asks in roughly two cases.</p>
 <p><b>Your project is inside Desktop, Documents or Downloads.</b> macOS protects those, so reading files there needs one approval.</p>
-<p><b>A program the app launched reads a file.</b> When something the app ran for you — your external-editor command — reads a protected folder, macOS attributes the access <b>to the app that launched it</b>, not the program.</p>
+<p><b>A program the app launched reads a file.</b> When something the app ran for you — a program in the in-app terminal, or a custom command under "Open files in" — reads a protected folder, macOS attributes the access <b>to the app that launched it</b>, not the program.</p>
 <p><b>If it asked again after an update</b>, it does that once for a version whose signature changed. macOS ties approvals to the app's code signature, so a new signer voids the old approval.</p>
 <p>You can revoke approvals any time in System Settings → Privacy &amp; Security.</p>
 <h2 id="not-listed-here">Not listed here</h2>
-<p>Tell us in a <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub issue</a>. Attaching <code>oculpm.log</code> from Settings → Data → "Log folder" helps us catch it fast.</p>
+<p>Tell us in a <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub issue</a>. Attaching <code>oculpm.log</code> from Settings → App → "Log folder" helps us catch it fast.</p>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/settings"><span>← Previous</span><b>Settings</b></a>
 <a class="wk-pg next" href="/wiki/en/data"><span>Next →</span><b>Data &amp; file layout</b></a></footer>

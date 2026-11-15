@@ -2,7 +2,7 @@
 title: Other agents
 desc: Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them, the rules-file list, and support tiers.
 order: 10
-updated: 2026-10-29
+updated: 2026-11-15
 ---
 
 Ocul isn't Claude Code–only. **Any agent that reads `AGENTS.md`** can write entries, and for agents that don't read it, a thin delegating stub goes into their own rules file.
@@ -60,7 +60,7 @@ To give one agent different wording, put a file for it under `.oculpm/agents/per
 
 ## When the rules are out of date
 
-An app update can raise the rules spec (template version). When Settings → **This project** shows something like "v19 — new v20" on the rules-file row, press **"Update"**.
+An app update can raise the rules spec (template version). When Settings → **This project** shows something like "Update available v19 → v20" on the rules-file row, press **"Update"**.
 
 ## Support tiers
 
