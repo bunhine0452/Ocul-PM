@@ -6,6 +6,7 @@
  * 맞춰 둠은 회색 ✓, Claude Code 가 없는 기기는 중립 한 줄, 쓰기 실패만 경고 칩이고 맨 위 「고칠 것」 에 오른다.
  * 경로는 백엔드가 푼 실제 경로를 mono 로 보인다(영수증 규칙 2) — Windows 는 프로필 아래라 문구에 박지 않는다.
  * 실패하면 쓰려던 경로와 OS 의 이유를 같은 mono 한 줄로(`경로: 이유`) — 칩 「쓰지 못했어요」 만 서던 것(11-15 검수).
+ * 맨 위 「고칠 것」 도 「쓰지 못했어요」 라는 말 뒤에 그 mono 줄을 단다 — mono 줄만 두면 OS 의 영어 문구만 섰다.
  */
 import { useEffect } from "react";
 
@@ -39,7 +40,10 @@ export function ClaudeThemeRow({ tick }: { tick: number }) {
 
   const label = t("prefs.claudeTheme.label");
   const failure = ready && on && status.kind === "failed" ? claudeThemeFailure(status) : null;
-  useReportFix("claudeTheme", failure != null ? { section: "agents", label, detail: failure, mono: true } : null);
+  useReportFix(
+    "claudeTheme",
+    failure != null ? { section: "agents", label, detail: t("prefs.claudeTheme.failed"), code: failure } : null,
+  );
 
   const outcome = status.kind === "done" ? status.outcome : null;
   let body;
@@ -75,10 +79,14 @@ export function ClaudeThemeRow({ tick }: { tick: number }) {
     <PrefsRow
       label={label}
       meta={t("prefs.claudeTheme.meta")}
+      // 설정을 읽어 내기 전에는 단추가 없다 — 그때의 `on` 은 기본값이라 「끄기」 가 모르는 상태를 「켜져 있다」 고
+      // 말했다. 읽지 못한 동안은 쓰지 않으니 끌 것도 없다(11-15 재검수).
       actions={
-        <button type="button" className="btn sm" onClick={() => save("claudeTheme", on ? "off" : "on")}>
-          {on ? t("prefs.claudeTheme.turnOff") : t("prefs.claudeTheme.turnOn")}
-        </button>
+        ready ? (
+          <button type="button" className="btn sm" onClick={() => save("claudeTheme", on ? "off" : "on")}>
+            {on ? t("prefs.claudeTheme.turnOff") : t("prefs.claudeTheme.turnOn")}
+          </button>
+        ) : undefined
       }
     >
       {body}

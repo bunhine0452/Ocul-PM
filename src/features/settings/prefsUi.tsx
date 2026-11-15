@@ -108,6 +108,11 @@ export interface PrefsFix {
   detail: string;
   /** 판 번호처럼 기계 글씨인가 (영수증 규칙 2). */
   mono?: boolean;
+  /**
+   * 사람의 말(`detail`) 뒤에 붙는 기계 글씨 꼬리 — 경로 · OS 의 이유. 꼬리만 두면 맨 위 줄에서 무엇이 잘못됐는지
+   * 말하는 문장이 빠지고, 한국어 화면에 영어 OS 문구 한 줄만 섰다(11-15 재검수).
+   */
+  code?: string;
 }
 
 type Report = (key: string, fix: PrefsFix | null) => void;
@@ -117,7 +122,7 @@ export const PrefsFixProvider = FixContext.Provider;
 /** 칸이 고칠 것을 맨 위 한 줄에 올린다 — 없어지면 내린다. */
 export function useReportFix(key: string, fix: PrefsFix | null): void {
   const report = useContext(FixContext);
-  const sig = fix ? `${fix.section}\0${fix.label}\0${fix.detail}\0${fix.mono ? 1 : 0}` : "";
+  const sig = fix ? `${fix.section}\0${fix.label}\0${fix.detail}\0${fix.mono ? 1 : 0}\0${fix.code ?? ""}` : "";
   useEffect(() => {
     report(key, fix);
     return () => report(key, null);

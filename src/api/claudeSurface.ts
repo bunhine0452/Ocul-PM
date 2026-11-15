@@ -80,7 +80,8 @@ export const claudeInstallApi = {
 
 /**
  * Claude Code 테마 파일 `~/.claude/themes/ocul.json` (11-15, `features/theme/claudeTheme.ts`). `~/.claude` 가
- * 없으면 아무것도 만들지 않고(`no_claude`), 내용이 같으면 쓰지 않는다(`unchanged`). 실패는 `ApiError`.
+ * 없으면 아무것도 만들지 않고(`no_claude`), 내용이 같으면 쓰지 않는다(`unchanged`). 쓰지 못하면 `failed`(쓰려던
+ * 자리 · OS 의 이유)로 돌아오고, `ApiError` 는 홈을 못 찾았거나 테마 모양이 틀렸을 때뿐이다.
  */
 export const claudeThemeApi = {
   write: (theme: ClaudeTheme): Promise<ClaudeThemeOutcome> =>
