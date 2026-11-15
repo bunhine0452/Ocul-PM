@@ -21,6 +21,10 @@
 .text-link:hover { text-decoration-color: currentColor; }
 .text-link:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); border-radius: var(--radius-2xs); }
 .text-link:is(:disabled, [aria-disabled="true"]) { color: var(--text-2); cursor: default; text-decoration: none; }
+/* 조용한 글자 링크 — 오늘 날짜 줄의 수처럼 집계가 링크일 때. 같은 한 벌(늘 옅은 밑줄)에 잉크만 회색이고, 가리키면
+   본문 잉크다. 수가 가리킬 때만 밑줄이던 때 「이 기기에만 4」 가 그냥 글자로 보였다(RC-21 검수). */
+.text-link.is-quiet { color: var(--text-2); }
+.text-link.is-quiet:hover { color: var(--text); }
 
 /* 다시 읽다 실패 (RC-11, `StaleNote`) — 호박 글자 한 줄(시각은 기계 글씨) + 글자 링크. 칩 안의 문장(11px)을 걷었다. */
 .stale-note { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); font-size: var(--fs-3); color: var(--warn-text); }

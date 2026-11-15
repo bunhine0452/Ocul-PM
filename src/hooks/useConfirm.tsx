@@ -79,6 +79,12 @@ export function useConfirm(): {
   // 거기 앉는다).
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+    // 누른 채 되풀이된 Enter 는 답이 아니다 — 창을 연 키(메뉴의 ↩ · 다른 창의 ⌘↩)를 떼지 않은 손이, 막 포커스를 받은
+    // 확인 단추를 눌러 질문을 그냥 지났다(11-15 검수, 계획의 「검증 없이 완료」). 기본 동작까지 막아 단추도 눌리지 않는다.
+    if (e.repeat) {
+      e.preventDefault();
+      return;
+    }
     if (isModKey(e)) {
       e.preventDefault();
       if (!e.shiftKey && !e.altKey) settle(true);

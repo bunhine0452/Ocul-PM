@@ -68,3 +68,29 @@ describe("RC-10 — the terminal's dialogs keep the dialog set's foot", () => {
     expect(document.querySelector(".send-foot kbd:not(.dlg-key)")).toBeNull();
   });
 });
+
+// 단추가 「⌘↩」 를 달았으면 판 어디서든 그 키가 그 단추를 누른다 — 할 말 칸에서만 듣던 때는 발에 포커스를 두면
+// 아무 일이 없었다.
+describe("RC-10 — ⌘↩ works with focus on the foot, as the key mark says", () => {
+  it("parallel start: pick a count (focus on the radio), then ⌘↩ starts", async () => {
+    const onClose = vi.fn();
+    render(<RaceStartDialog projectId={1} onClose={onClose} />);
+    fireEvent.change(screen.getByLabelText(t("race.placeholder")), { target: { value: "Fix the cache" } });
+    const four = screen.getByRole("radio", { name: "4" });
+    fireEvent.click(four);
+    four.focus();
+    fireEvent.keyDown(four, { key: "Enter", metaKey: true, ctrlKey: true });
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("send to Claude: with focus on the receiver select, ⌘↩ sends and the dialog closes", async () => {
+    render(<SendToClaudeHost projectId={1} />);
+    act(() => requestSendToClaude({ kind: "plan", label: "Fix the cache", ref: "cache-plan#ttl" }));
+    fireEvent.change(await screen.findByLabelText(t("send.placeholder")), { target: { value: "Look at the TTL" } });
+    const select = document.querySelector(".send-foot select") as HTMLSelectElement;
+    await waitFor(() => expect(select.disabled).toBe(false));
+    select.focus();
+    fireEvent.keyDown(select, { key: "Enter", metaKey: true, ctrlKey: true });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+});

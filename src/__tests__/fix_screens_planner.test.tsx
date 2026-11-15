@@ -71,6 +71,21 @@ describe("RC-02 — every item closed: the sentence says the same state as the v
       want: () => t("plan.nextRow.allClosedPassed"),
       card: ".vl.is-pass",
     },
+    // 확인 명령 줄을 나중에 지운 계획 — 카드가 보이는 기록된 판정이 먼저다(「닫아도 돼요」 가 아니다).
+    {
+      name: "failed, then the check line was removed",
+      p: plan("x", { title: "Failed no line", last_verdict: verdict({ passed: false, summary: "2 failed" }) }),
+      check: null,
+      want: () => t("plan.nextRow.allClosed"),
+      card: ".vl.is-fail",
+    },
+    {
+      name: "changed after the pass, then the check line was removed",
+      p: plan("y", { title: "Stale no line", last_verdict: verdict(), stale_files: ["src/a.ts"] }),
+      check: null,
+      want: () => t("plan.nextRow.allClosedStale"),
+      card: ".vl.is-stale",
+    },
   ];
 
   it.each(cases)("$name", async ({ p, check, want, card }) => {
@@ -85,8 +100,10 @@ describe("RC-02 — every item closed: the sentence says the same state as the v
   });
 });
 
-describe("RC-06 — item and log times are drawn as machine text", () => {
-  it("'Claude · 3 hours ago' and the log row time carry the mono time class", async () => {
+// 여기는 클래스가 붙었는지만 문다 — `.plv-time` 은 레인 전에도 있던 클래스다. 시각의 모양(mono)은 fix_screens_rules 의
+// CSS 규칙 단언이 문다.
+describe("RC-06 — item and log times carry the time class", () => {
+  it("'Claude · 3 hours ago' and the log row time are .plv-time", async () => {
     const p = plan("t", { title: "Times" });
     const held = item("a", "in_progress", 0, { last_agent: "claude-code", last_update: new Date(Date.now() - 3 * 3600_000).toISOString() });
     stage([detail(p, [held, item("b", "todo", 1)])]);
@@ -96,7 +113,6 @@ describe("RC-06 — item and log times are drawn as machine text", () => {
     await waitFor(() => expect(container.querySelector(".plv-held .plv-time")).not.toBeNull());
     fireEvent.click(await screen.findByRole("button", { name: t("plan.log.rows", { n: 1 }) }));
     await waitFor(() => expect(container.querySelector(".plv-log-row .plv-time")).not.toBeNull());
-    // 판정 카드의 시각과 같은 한 벌의 기계 글씨 — 모양은 planner.css `.plv-time`(fix_screens_rules 가 문다).
     expect(container.querySelector(".plv-held .plv-time")?.textContent).toMatch(/\d/);
   });
 });
@@ -155,5 +171,20 @@ describe("RC-10 — 'done without a check' is the same dialog set as 'run in she
     fireEvent.click(screen.getByRole("button", { name: t("plan.check.run") }));
     const check = await screen.findByRole("dialog", { name: t("plan.check.confirmTitle") });
     expect(shapeOf(check)).toEqual(done);
+  });
+
+  it("a held ↩ (key repeat from the status menu) does not pass the gate", async () => {
+    stage([detail(plan("h", { title: "Held" }), [item("a", "todo", 0, { title: "Alpha" }), item("b", "todo", 1)])]);
+    renderPlanner();
+    await screen.findByRole("heading", { level: 2, name: "Held" });
+    fireEvent.click(screen.getByRole("button", { name: t("plan.item.statusAria", { title: "Alpha", status: t("plan.status.todo") }) }));
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitemradio", { name: t("plan.status.done") }));
+    const dialog = await screen.findByRole("dialog", { name: t("plan.confirmDoneTitle") });
+    const ok = within(dialog).getByRole("button", { name: t("plan.confirmDoneAction") });
+    // 기본 동작(단추 누름)까지 막힌다 — fireEvent 가 false 를 돌려준다.
+    expect(fireEvent.keyDown(ok, { key: "Enter", repeat: true })).toBe(false);
+    expect(fireEvent.keyDown(ok, { key: "Enter", repeat: true, metaKey: true, ctrlKey: true })).toBe(false);
+    expect(screen.getByRole("dialog", { name: t("plan.confirmDoneTitle") })).toBeInTheDocument();
+    expect(pfx.edits).toEqual([]);
   });
 });

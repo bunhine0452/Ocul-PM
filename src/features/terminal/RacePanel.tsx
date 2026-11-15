@@ -64,7 +64,9 @@ export function RaceStartDialog({ projectId, onClose }: { projectId: number; onC
       setBusy(false);
     }
   };
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  // ⌘↩ 시작 — 판이 듣는다. 할 일 칸에서만 듣던 때는 개수를 고른 뒤(포커스가 라디오에) 누르면 아무 일이 없어
+  // 「시작 ⌘↩」 표기가 거짓이었다(11-15 RC-10, 수동 일지 창과 같은 자리).
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void start();
@@ -72,7 +74,7 @@ export function RaceStartDialog({ projectId, onClose }: { projectId: number; onC
   };
 
   return (
-    <AppDialog open onClose={onClose} label={t("race.startTitle")} width={520} initialFocusRef={textRef}>
+    <AppDialog open onClose={onClose} label={t("race.startTitle")} width={520} initialFocusRef={textRef} onKeyDown={onKeyDown}>
       <div className="send">
         <div className="send-head">
           <b>{t("race.startTitle")}</b>
@@ -89,7 +91,6 @@ export function RaceStartDialog({ projectId, onClose }: { projectId: number; onC
           autoCorrect="off"
           autoCapitalize="off"
           onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={onKeyDown}
         />
         <div className="send-foot">
           <span className="send-target">

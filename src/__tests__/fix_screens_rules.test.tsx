@@ -9,7 +9,7 @@ import { MachineText, machineParts, machinePlain, splitParts } from "@/component
 import { RadioSeg } from "@/components/RadioSeg";
 import { StaleNote } from "@/components/StaleNote";
 import { VerdictLine } from "@/components/VerdictLine";
-import { LiveCard } from "@/features/today/TodaySide";
+import { LiveCard, TodayNumbers } from "@/features/today/TodaySide";
 import { NoteSlot } from "@/features/diff/DiffNotes";
 import { setLangSetting, t } from "@/i18n";
 import { en } from "@/i18n/en";
@@ -68,6 +68,11 @@ describe("RC-07 — one word, one meaning: a note that took effect is not called
     expect(chip.className).toContain("ok");
     expect(chip.textContent).toBe(t("diff.notes.fixed"));
     expect(chip.textContent).not.toBe(t("today.check.kind.stale"));
+    // 앱이 아는 것은 「그 줄이 바뀌었다」 뿐 — 칩마다 그 기준을 말한다(메모대로라고 단정하지 않는다).
+    expect(chip.getAttribute("title")).toBe(t("diff.notes.fixedTitle"));
+    cleanup();
+    const open = render(<NoteSlot projectId={1} anchor={anchor} note={{ ...anchor, text: "rename", sent: true, fixed: false }} editing={false} />);
+    expect(open.container.querySelector(".dl-note .chip")?.getAttribute("title")).toBe(t("diff.notes.openTitle"));
   });
 });
 
@@ -140,6 +145,16 @@ describe("RC-21 — one text link", () => {
     expect(screen.getByRole("button", { name: t("common.retry") }).className).toBe("text-link");
     expect(container.querySelector(".tdy-link, .jd-link")).toBeNull();
   });
+
+  it("Today's date-line numbers are the same link in a quiet ink — underlined before you hover", () => {
+    const local = { records: 4, unpushed_records: 0, unpushed: 0, uncommitted: 4 } as never;
+    render(<TodayNumbers mine={[]} plans={[]} arrived={null} local={local} now={0} onOpenPlan={vi.fn()} onOpenEntry={vi.fn()} onOpenDiff={vi.fn()} onHandOff={vi.fn()} opening={false} />);
+    const num = screen.getByRole("button", { name: t("today.nums.local", { n: 4 }) });
+    expect(num.className.split(" ")).toEqual(expect.arrayContaining(["text-link", "is-quiet"]));
+    expect(rule("styles/screens-overflow.css", ".text-link.is-quiet")).toMatch(/color:\s*var\(--text-2\)/);
+    // 오늘에 따로 두던 「가리킬 때만 밑줄」 규칙은 없다.
+    expect(strip(read("features/today/today.css"))).not.toMatch(/\.tdy-num\s*[{:]/);
+  });
 });
 
 describe("RC-19 — one pressed-button rule", () => {
@@ -192,9 +207,12 @@ describe("V-03 — the three list panes reserve no scrollbar gutter", () => {
 });
 
 describe("V-11 — the diff document starts on the same 24px line as the journal and the plan", () => {
-  it("file head and banner use --space-8 like .jd and .plv-main", () => {
+  it("file head, banner and the lines under the patch use --space-8 like .jd and .plv-main", () => {
     expect(rule("features/diff/changes.css", ".chg-fh")).toMatch(/padding:\s*var\(--space-3\) var\(--space-8\)/);
     expect(rule("features/diff/changes.css", ".chg-banner")).toMatch(/margin:\s*var\(--space-5\) var\(--space-8\) 0/);
+    // 같은 칸의 패치 아래 줄(기준 설명 · 잘린 diff 영수증)도 같은 시작선이다 — 16 에 남아 8px 어긋났다.
+    expect(rule("styles/screens.css", ".diff-foot")).toMatch(/padding:\s*14px var\(--space-8\)/);
+    expect(rule("styles/screens.css", ".diff-cut")).toMatch(/padding:\s*var\(--space-4\) var\(--space-8\)/);
     expect(rule("features/oculpm/journal.css", ".jd")).toMatch(/padding:\s*var\(--space-8\)/);
     expect(rule("features/planner/planner.css", ".plv-main")).toMatch(/padding:\s*var\(--space-8\) var\(--space-8\)/);
   });
@@ -225,7 +243,8 @@ describe("V-08 — inside a human line only the machine text is mono", () => {
     expect(machinePlain(line)).toBe(line.replace(/`/g, ""));
     // i18n-ignore-next-line -- 문장 가운데의 명령 이름은 사람 말이다
     expect(mono("실제 cargo 시험으로 확인했다")).toEqual([]);
-    expect(mono("vitest 116 files passed · typecheck · lint · build exit 0.")).toEqual(["vitest 116 files passed", "exit 0"]);
+    // 사람 말 낱말 없는 도구 출력 줄은 통째로(끝 마침표만 빼고) — 결과 토큰만 고정폭이면 한 줄에서 글꼴이 섞였다.
+    expect(mono("vitest 116 files passed · typecheck · lint · build exit 0.")).toEqual(["vitest 116 files passed · typecheck · lint · build exit 0"]);
     expect(mono("$ cargo test --locked")).toEqual(["$ cargo test --locked"]);
     expect(machineParts("a `b c")).toEqual([{ text: "a `b c", mono: false }]);
     expect(machineParts("**bold** `x`")).toEqual([
@@ -233,6 +252,20 @@ describe("V-08 — inside a human line only the machine text is mono", () => {
       { text: "x", mono: true },
     ]);
     expect(mono("2 failed, 418 passed")).toEqual(["2 failed, 418 passed"]);
+  });
+
+  it("English prose stays body type: go · make · node need an argument, a command stops where the sentence starts", () => {
+    expect(mono("make sure the export flag survives a reload")).toEqual([]);
+    expect(mono("go back and re-run it later")).toEqual([]);
+    expect(mono("pnpm test passed on mac and windows, eyes not checked")).toEqual(["pnpm test"]);
+    expect(mono("make test · go test ./... · node landing/wiki-src/build.mjs")).toEqual(["make test · go test ./... · node landing/wiki-src/build.mjs"]);
+    expect(mono("cargo test --locked --no-fail-fast passed")).toEqual(["cargo test --locked --no-fail-fast"]);
+    // 사람 문장이 없는 도구 출력 줄은 통째로 — cargo 의 끝 줄이 「1157 passed; 0 failed」 만 고정폭이었다.
+    const cargo = "test result: ok. 1157 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.21s";
+    expect(mono(cargo)).toEqual([cargo]);
+    expect(mono("Tests  1798 passed (1798)")).toEqual(["Tests  1798 passed (1798)"]);
+    // 결과 토큰이 있어도 사람 문장이 섞이면 줄 단위가 아니다.
+    expect(mono("1046 passed, not eyeballed")).toEqual(["1046 passed"]);
   });
 
   it("uses no regex lookbehind — older WebKitGTK cannot parse it and the whole chunk would fail to load", () => {

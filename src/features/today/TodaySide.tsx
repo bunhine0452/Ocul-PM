@@ -97,10 +97,10 @@ export function LiveCard({
 /** 하루 — 「올리거나 받아 온 지 N일」 은 이만큼 지나야 말한다. 어제 저녁에 올리고 오늘 아침에 여는 것은 조용하다. */
 const DAY_MS = 86_400_000;
 
-/** 수 하나 — 누르면 그 수가 가리키는 곳으로. 뜻 전체(문장)는 툴팁이 말한다. */
+/** 수 하나 — 누르면 그 수가 가리키는 곳으로. 뜻 전체(문장)는 툴팁이 말한다. 모양은 글자 링크 한 벌의 조용한 잉크. */
 function NumLink({ k, n, title, onClick }: { k: I18nKey; n: number; title: string; onClick: () => void }) {
   return (
-    <button type="button" className="tdy-num" title={title} onClick={onClick}>
+    <button type="button" className="text-link is-quiet tdy-num" title={title} onClick={onClick}>
       <Num k={k} n={n} />
     </button>
   );

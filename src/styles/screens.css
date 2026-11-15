@@ -60,13 +60,16 @@
    주석 3.3) — 사람이 가장 먼저 읽을 토큰이었다. `.dl-word` 는 늘 글자만 담은 잎 span 이다(`markRanges`). */
 .dl.add .dl-word, .dl-x.add .dl-word { background: var(--diff-add-word); color: var(--diff-add-text); border-radius: var(--radius-2xs); }
 .dl.del .dl-word, .dl-x.del .dl-word { background: var(--diff-del-word); color: var(--diff-del-text); border-radius: var(--radius-2xs); }
-/* 잘린 diff 의 영수증 줄 — 「64 KB / 212 KB 만 보여요 · 편집기에서 열기」. 숫자는 mono. */
-.diff-cut { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); padding: var(--space-4) var(--space-6); border-top: 1px solid var(--sep); color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); }
+/* 잘린 diff 의 영수증 줄 — 「64 KB / 212 KB 만 보여요 · 편집기에서 열기」. 숫자는 mono. 왼쪽 여백은 파일 머리줄
+   (.chg-fh)과 같은 24 — 한 칸 안의 글 줄이 한 시작선에 선다(11-15 V-11). */
+.diff-cut { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); padding: var(--space-4) var(--space-8); border-top: 1px solid var(--sep); color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); }
 .diff-cut .mono { font-variant-numeric: tabular-nums; color: var(--text); }
 .diff-cut-open { padding: 0; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--sep-strong); text-underline-offset: 2px; }
 .diff-cut-open:hover { text-decoration-color: currentColor; }
 .diff-cut-open:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: 2px; border-radius: var(--radius-2xs); }
-.diff-foot { padding: 14px var(--space-6); color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); border-top: 1px solid var(--sep); display: flex; align-items: center; gap: var(--space-3); }
+/* 패치 아래 기준 설명 줄 — 머리줄과 같은 24 에서 시작한다(V-11). 16 이던 때 같은 칸 안에서 8px 어긋났다. 좁은 창은
+   파일 머리줄처럼 줄인다(changes.css 의 ≤640 블록). */
+.diff-foot { padding: 14px var(--space-8); color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); border-top: 1px solid var(--sep); display: flex; align-items: center; gap: var(--space-3); }
 
 /* +N/−M 라인 요약 (변경 화면 파일 머리 · 일지 상세 diff 머리). 0 인 쪽은 색 없이 — 「−0」 이 빨갛게
    서면 지운 것이 있는 것처럼 읽혔다 (영수증 규칙 1). */

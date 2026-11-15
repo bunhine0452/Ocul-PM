@@ -133,7 +133,7 @@ describe("SCR-05 — Today's 'N more' counts that day, and the journal stands on
   );
   const rows = (c: HTMLElement) => c.querySelectorAll(".jl-item").length;
 
-  it("'3 more' → the journal shows today's 8 unverified with a pressed 'today only'; pressing it widens to all 38", async () => {
+  it("'3 more' → the journal shows today's 8 unverified with a pressed 'today only'; pressing it widens to all 38 (and stays)", async () => {
     mux.screen = "today";
     fx.entries = Array.from({ length: 8 }, (_, i) => todayEntry(i + 1, { type: "bug", evidence: 0 }));
     const { onNavigate } = renderToday();
@@ -162,6 +162,6 @@ describe("SCR-05 — Today's 'N more' counts that day, and the journal stands on
     fireEvent.click(scope);
     await waitFor(() => expect(rows(container)).toBe(38));
     expect(container.querySelector(".jl-only .jl-warn-n")?.textContent).toBe("38");
-    expect(container.querySelectorAll(".jl-only")).toHaveLength(1);
+    expect(scope).toHaveAttribute("aria-pressed", "false");
   });
 });

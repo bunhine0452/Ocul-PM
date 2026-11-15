@@ -91,9 +91,12 @@ export function JournalScreenV2({
   const [filter, setFilter] = useState<Filter>("all");
   const [onlyMissing, setOnlyMissing] = useState(false);
   // 「검증 없는 것만」 을 한 날로 좁힘 — 오늘의 「N건 더」 가 그날을 실어 보낸다(SCR-05). 좁히지 않으면 지난 모든
-  // 날이 서서 「3건 더」 를 누르고 38줄을 봤다. 「검증 없는 것만」 을 끄거나 그 단추를 누르면 풀린다.
+  // 날이 서서 「3건 더」 를 누르고 38줄을 봤다. 실어 온 날(`missingDay`)은 「검증 없는 것만」 이 켜진 동안 남고,
+  // 「오늘만」 은 그 날로 좁히고 넓히는 전환 단추다(`dayOnly`). 눌러도 사라지지 않는다 — 사라지던 때는 키보드로
+  // 누르면 포커스가 body 로 떨어져 다음 j/k/v 가 먹지 않았고, 넓힌 뒤 그날로 돌아갈 길도 없었다.
   const [missingDay, setMissingDay] = useState<string | null>(null);
-  const scopeDay = onlyMissing ? missingDay : null;
+  const [dayOnly, setDayOnly] = useState(false);
+  const scopeDay = onlyMissing && dayOnly ? missingDay : null;
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [rank, setRank] = useState(true);
@@ -175,9 +178,11 @@ export function JournalScreenV2({
             }),
           }));
     if (!onlyMissing) return mapped;
+    // 날 좁힘은 일지마다 본다 — 관련도 순 검색은 날 머리 없는 한 묶음(`workday: ""`)이라, 묶음의 날로 거르면 맞는
+    // 일지가 있어도 0줄이었다.
     return mapped
-      .map((d) => ({ ...d, entries: d.entries.filter(isEvidenceMissing) }))
-      .filter((d) => d.entries.length > 0 && (scopeDay == null || d.workday === scopeDay));
+      .map((d) => ({ ...d, entries: d.entries.filter((e) => isEvidenceMissing(e) && (scopeDay == null || e.workday === scopeDay)) }))
+      .filter((d) => d.entries.length > 0);
   }, [rawDays, onlyMissing, localVerified, scopeDay]);
   const allEntries = useMemo(() => (days ?? []).flatMap((d) => d.entries), [days]);
 
@@ -326,6 +331,7 @@ export function JournalScreenV2({
     const take = (req: { workday: string | null }) => {
       setOnlyMissing(true);
       setMissingDay(req.workday);
+      setDayOnly(req.workday != null);
     };
     const pending = consumeOnlyMissing();
     if (pending) take(pending);
@@ -631,11 +637,13 @@ export function JournalScreenV2({
               onToggleMissing={() => {
                 setOnlyMissing((v) => !v);
                 setMissingDay(null);
+                setDayOnly(false);
                 setRowLimit(ROW_LIMIT);
               }}
-              scopeLabel={scopeDay ? t("journal.dayScope", { day: dayWord(scopeDay, lang, t, todayKey ?? undefined) }) : null}
-              onClearScope={() => {
-                setMissingDay(null);
+              dayLabel={onlyMissing && missingDay ? t("journal.dayScope", { day: dayWord(missingDay, lang, t, todayKey ?? undefined) }) : null}
+              dayOnly={scopeDay != null}
+              onToggleDay={() => {
+                setDayOnly((v) => !v);
                 setRowLimit(ROW_LIMIT);
               }}
               allPeriod={allPeriod}

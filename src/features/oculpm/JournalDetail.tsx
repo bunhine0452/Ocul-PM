@@ -312,7 +312,8 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
               </span>
             )}
             <span className="jd-verify-sp" />
-            {/* 「읽음」 — 눌렸는지 눈으로 안다: ✓ + 상태 글자, 눌리면 면 · 굵게, 툴팁은 그때 할 일(해제). */}
+            {/* 「읽음」 — 눌렸는지 눈으로 안다: ✓ + 상태 글자, 눌리면 면 + 테(눌린 단추 한 벌, screens-overflow.css), 툴팁은
+                그때 할 일(해제). 키 v 는 오늘의 「읽음 표시 v」 와 같은 표기다(알린 키 = 듣는 키, V-06). */}
             <button
               type="button"
               className="btn sm jd-read"
@@ -323,6 +324,9 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
             >
               {confirmed ? <CheckMark size={13} aria-hidden="true" /> : null}
               {readLabel}
+              <span className="kbd" aria-hidden="true">
+                v
+              </span>
             </button>
           </div>
           {level < 2 ? <p className="jd-verify-note">{t("journal.verify.claimOnly")}</p> : null}

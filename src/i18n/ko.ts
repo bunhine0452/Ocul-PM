@@ -262,6 +262,9 @@ export const ko = {
   "diff.notes.fixed": "반영됨",
   "diff.notes.open": "아직",
   "diff.notes.sent": "보냄",
+  // 앱이 아는 것은 「그 줄의 코드가 바뀌었다」 뿐이다 — 메모마다 그 기준을 말한다(「반영됨」 이 메모대로라고 단정하지 않게).
+  "diff.notes.fixedTitle": "그 줄의 코드가 바뀌었어요. 메모대로인지는 직접 보세요",
+  "diff.notes.openTitle": "그 줄의 코드가 아직 그대로예요",
   "diff.notes.unsureTitle": "흔한 줄이라 바뀌었는지 가리지 않아요",
   "diff.notes.oldSideTitle": "지운 줄의 메모는 바뀌었는지 가리지 않아요",
   "diff.notes.add": "{line}행에 메모",
@@ -731,9 +734,10 @@ export const ko = {
   "journal.period.recent": "최근 14일",
   "journal.period.all": "전체 기간",
   "journal.period.locked": "종류나 검증으로 거르는 동안은 전체 기간에서 찾아요",
-  // 오늘의 「N건 더」 가 그날을 실어 보냈다 (SCR-05) — 눌린 단추 하나가 범위를 말하고, 누르면 모든 날로 넓힌다.
+  // 오늘의 「N건 더」 가 그날을 실어 보냈다 (SCR-05) — 전환 단추 하나가 범위를 말한다. 눌리면 그날, 떼면 모든 날.
   "journal.dayScope": "{day}만",
   "journal.dayScopeTitle": "이 날의 일지만 보여요. 누르면 모든 날의 검증 없는 일지를 보여요",
+  "journal.dayScopeOffTitle": "모든 날의 검증 없는 일지를 보여요. 누르면 이 날로 좁혀요",
   "journal.orderAria": "결과 순서",
   "journal.order.rank": "관련도",
   "journal.order.recent": "최신",

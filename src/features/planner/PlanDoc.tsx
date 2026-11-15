@@ -174,14 +174,15 @@ function JudgeCard({ detail, onRunCheck }: { detail: PlanDetail; onRunCheck: (li
 /**
  * 항목이 다 닫혔을 때의 한 문장 (11-15 RC-02) — 바로 위 판정 카드가 말하는 상태와 같은 말이다. 「아직 통과하지
  * 않았어요」 는 실패 · 안 돌림에만: 통과 뒤 바뀜(호박 ✓) · 다른 기기 통과 · 명령 없는 계획에도 그 문장이 섰고,
- * 명령 없는 계획에는 없는 명령을 돌려 보라고 했다. 통과는 명령이 지워졌어도 통과다(먼저 본다).
+ * 명령 없는 계획에는 없는 명령을 돌려 보라고 했다. 기록된 판정이 먼저다 — 확인 명령 줄을 나중에 지운 계획도 카드는
+ * 「마지막 결과 ✗」 · 호박 ✓ 를 보이는데 「확인 명령이 없으니 닫아도 돼요」 가 섰다. 명령 없음은 판정도 없을 때만.
  */
 function closedLine(detail: PlanDetail, t: ReturnType<typeof useT>["t"]): string {
   const state = verdictStateOf(detail.plan);
   if (state === "pass") return t("plan.nextRow.allClosedPassed");
-  if (!detail.check) return t("plan.nextRow.allClosedNoCheck");
   if (state === "stale") return t("plan.nextRow.allClosedStale");
   if (state === "away" && detail.plan.verdict_from) return t("plan.nextRow.allClosedAway", { os: osLabel(detail.plan.verdict_from) });
+  if (state == null && !detail.check) return t("plan.nextRow.allClosedNoCheck");
   return t("plan.nextRow.allClosed");
 }
 
