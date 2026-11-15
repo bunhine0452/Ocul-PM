@@ -9,7 +9,7 @@
  * 목록은 낡는다(첫 보내기가 연 claude 세션을 두 번째 열 때 몰라 「새 세션」 이 기본이 되던 것).
  *
  * 쓰던 말은 맥락(종류 + 자리)마다 앱이 켜 있는 동안 남는다 — Esc 한 번에 길게 쓴 지시가 사라지지 않게.
- * 보내면 지운다.
+ * 보내면 지운다. 줄에 세운 말을 끝내 넣지 못하면(세션이 끝남 · Claude 가 나감) 되돌린다.
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
@@ -112,10 +112,16 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
       } else {
         const id = Number(chosen);
         const n = sessionNumber(id);
-        const res = await sendOrQueue(id, message, { now, onDelivered: ctx.onSent });
-        if (res.outcome === "absent") {
-          // 연 사이 Claude 가 나갔다 — 셸에 치지 않았다. 쓰던 말과 창은 그대로(받는 곳을 새 세션으로 바꿔 보낼 수 있다).
-          toast.warning(t("terminal.noClaude", { n }));
+        const key = draftKey(ctx);
+        // 줄 세운 말을 끝내 넣지 못하면(세션이 끝남 · Claude 가 나감) 쓰던 말로 되돌린다 — 그사이 새로 쓴 말은 덮지 않는다.
+        const onDropped = () => {
+          if (!drafts.has(key)) drafts.set(key, text);
+        };
+        const res = await sendOrQueue(id, message, { now, onDelivered: ctx.onSent, onDropped });
+        if (res.outcome === "absent" || res.outcome === "unknown") {
+          // 연 사이 Claude 가 나갔거나 목록을 못 읽었다 — 셸에 치지 않았다. 쓰던 말과 창은 그대로(다시 보내거나 받는
+          // 곳을 새 세션으로 바꿔 보낼 수 있다).
+          toast.warning(res.outcome === "absent" ? t("terminal.noClaude", { n }) : t("terminal.noList"));
           return;
         }
         if (res.outcome === "sent") {
@@ -245,6 +251,9 @@ function viewAction(label: string, id: number) {
 /**
  * 줄을 비우는 쪽 — 줄에 무언가 있을 때만, 이 창의 세션이 바뀌거나 상태가 바뀔 때마다 목록을 읽어
  * 손을 놓은 세션에 넣는다. 창마다 하나(대화상자와 함께 산다).
+ *
+ * 목록을 못 읽으면 넣지도 버리지도 않는다 — 빈 목록으로 비우던 때는 IPC 한 번의 실패로 줄 세운 말이 모두 「세션이
+ * 끝나서」 버려졌다. 다음 사건 때 다시 본다. Claude 가 나가 버린 말은 세션마다 개수를 말한다(끝남과 같은 모양).
  */
 function useSendQueueFlusher() {
   const { t } = useT();
@@ -254,8 +263,8 @@ function useSendQueueFlusher() {
     let alive = true;
     const run = async () => {
       if (queuedStore.get().length === 0) return;
-      const all = await terminalApi.list().catch(() => []);
-      const list = Array.isArray(all) ? all : [];
+      const list = await terminalApi.list().catch(() => null);
+      if (!Array.isArray(list)) return;
       const { delivered, dropped, absent } = await flushQueue(list);
       if (!alive) return;
       const tr = tRef.current;
@@ -264,7 +273,10 @@ function useSendQueueFlusher() {
         toast.info(tr("send.queueDelivered", { n: sessionNumber(id) }), { actions: [viewAction(tr("send.view"), id)] });
       }
       if (dropped.length > 0) toast.warning(tr("send.queueDropped", { n: dropped.length }));
-      for (const id of new Set(absent.map((q) => q.sessionId))) toast.warning(tr("terminal.noClaude", { n: sessionNumber(id) }));
+      for (const id of new Set(absent.map((q) => q.sessionId))) {
+        const count = absent.filter((q) => q.sessionId === id).length;
+        toast.warning(tr("terminal.noClaudeQueued", { n: sessionNumber(id), count }));
+      }
     };
     const off = terminalApi.onSessionsChanged(() => void run());
     // 줄에 세우는 사이 세션이 이미 손을 놓았을 수 있다 — 그 뒤엔 사건이 없으니 세울 때도 한 번 본다.

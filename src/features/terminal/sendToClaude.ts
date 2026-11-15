@@ -146,15 +146,22 @@ export interface Queued {
   sessionId: number;
   message: string;
   onDelivered?: () => void;
+  /** 넣지 못하고 줄에서 뺐을 때(세션이 끝남 · Claude 가 나감) — 대화상자가 쓰던 말을 되돌린다. */
+  onDropped?: () => void;
 }
 
 const queue = createStore<readonly Queued[]>([]);
 let seq = 0;
 export const queuedStore = queue;
 
-export function enqueue(sessionId: number, message: string, onDelivered?: () => void): number {
+export function enqueue(
+  sessionId: number,
+  message: string,
+  onDelivered?: () => void,
+  onDropped?: () => void,
+): number {
   const key = ++seq;
-  queue.set([...queue.get(), { key, sessionId, message, onDelivered }]);
+  queue.set([...queue.get(), { key, sessionId, message, onDelivered, onDropped }]);
   return key;
 }
 
@@ -181,6 +188,7 @@ export interface FlushResult {
  *
  * 「손을 놓았다」(쉼 · 끝냄 · 지움)만 보고 넣으면 안 된다 — claude 가 `state=clear` 로 나가거나 그것 없이 죽은 뒤에는
  * 셸이 앞이라, 줄 세운 말(동료가 쓴 일지 제목이 든다)이 셸 명령으로 돌았다. 그 자리에 Claude 가 있을 때만(`canReceive`).
+ * 넣지 못하고 뺀 말(끝남 · 없음 · 넣다 실패)은 `onDropped` 를 부른다 — 줄에 세울 때 지운 쓰던 말이 사라지지 않게.
  */
 export async function flushQueue(
   list: readonly TermInfo[],
@@ -212,28 +220,33 @@ export async function flushQueue(
       dropped.push(...mine);
     }
   }
+  for (const q of [...dropped, ...absent]) q.onDropped?.();
   return { delivered, dropped, absent };
 }
 
 export type SendOutcome =
   | { outcome: "sent" }
   | { outcome: "queued"; key: number; readiness: Readiness }
-  /** 다시 읽어 보니 그 세션에 Claude 가 없다(셸이 앞 · 끝남 · 목록을 못 읽음) — 아무것도 넣지 않았다. */
-  | { outcome: "absent" };
+  /** 다시 읽어 보니 그 세션에 Claude 가 없다(셸이 앞 · 끝남) — 아무것도 넣지 않았다. */
+  | { outcome: "absent" }
+  /** 목록을 못 읽었다 — 그 칸에 Claude 가 있는지 모르니 넣지 않았다. 「없다」 고 말하지 않는다. */
+  | { outcome: "unknown" };
 
 /**
  * 세션에 보내거나 줄에 세운다. 상태는 보내는 순간 다시 읽는다 — 대화상자를 연 뒤 권한 질문이 떴을 수 있다.
  * `now` 는 「지금 끼워 넣기」: 일하는 중이면 바로 넣지만, 묻는 중에는 Enter 가 선택지를 누르니 그래도 줄에 세운다.
  * 다시 읽은 목록에서 그 세션에 Claude 가 없으면(`canReceive`) 넣지 않는다 — 붙여넣기 뒤의 Enter 가 셸에서 그 말을
- * 명령으로 돌린다. 목록을 못 읽어도 넣지 않는다(확인할 수 없는 칸에 치지 않는다).
+ * 명령으로 돌린다. 목록을 못 읽어도 넣지 않는다(확인할 수 없는 칸에 치지 않는다) — 그때는 `unknown` 이다. 「없음」 과
+ * 하나로 두던 때는 IPC 가 한 번 실패해도 멀쩡히 도는 Claude 를 「없다」 고 알리고 띠까지 접었다.
  */
 export async function sendOrQueue(
   id: number,
   message: string,
-  opts: { now?: boolean; onDelivered?: () => void } = {},
+  opts: { now?: boolean; onDelivered?: () => void; onDropped?: () => void } = {},
 ): Promise<SendOutcome> {
-  const all = await terminalApi.list().catch(() => []);
-  const info = (Array.isArray(all) ? all : []).find((s) => s.id === id);
+  const all = await terminalApi.list().catch(() => null);
+  if (!Array.isArray(all)) return { outcome: "unknown" };
+  const info = all.find((s) => s.id === id);
   if (!info || !canReceive(info)) return { outcome: "absent" };
   const readiness = readinessOf(info.status);
   if (readiness === "ready" || (opts.now && readiness === "working")) {
@@ -241,7 +254,7 @@ export async function sendOrQueue(
     opts.onDelivered?.();
     return { outcome: "sent" };
   }
-  return { outcome: "queued", key: enqueue(id, message, opts.onDelivered), readiness };
+  return { outcome: "queued", key: enqueue(id, message, opts.onDelivered, opts.onDropped), readiness };
 }
 
 /**

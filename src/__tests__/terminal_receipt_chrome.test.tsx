@@ -1,10 +1,11 @@
-// Terminal chrome after the final review — one meaning, one look (receipt rules 1 and 4):
-//   RC-12 · V-05  the picked tab and the picked pane head are a grey surface like every other "picked" row, not an
-//                 accent underline that stood even with one session and focus elsewhere;
-//   V-02          the grid sits centred: left and right gaps differ by 8px or less (it was 14px with Claude's box);
-//   RC-13         the empty screen's buttons are the same 30px size as the journal and plan empty screens;
-//   RC-18         key labels inside buttons stay out of the accessible name (aria-hidden + aria-keyshortcuts);
-//   RC-15         the find hint reads "not in the scrollback, so only what is on screen", not "seems missing".
+// 최종 검수 뒤의 터미널 크롬 — 같은 뜻은 같은 모양 (영수증 규칙 1 · 4):
+//   RC-12 · V-05  고른 탭 · 고른 칸 머리는 다른 「고른」 줄처럼 회색 면이다. 강조색 아랫선이던 때는 세션이 하나여도,
+//                 포커스가 딴 데 있어도 초록 선이 서 있었다.
+//   V-02          격자가 가운데 선다 — 좌우 여백 차 8px 이하(Claude 상자에서 14px 였다). 나눈 칸의 경계선은 왼쪽 칸의
+//                 스크롤바를 덮지 않는다.
+//   RC-13         빈 화면의 단추는 일지 · 계획 빈 화면과 같은 30px 다.
+//   RC-18         단추 안의 키 표기는 접근명 밖이다(aria-hidden + aria-keyshortcuts).
+//   RC-15         찾기 안내는 「스크롤백에 없어서 지금 보이는 화면만」 으로 읽힌다(「없어 보이는」 이 아니라).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
@@ -60,7 +61,7 @@ import { TermToolbar } from "@/features/terminal/TermToolbar";
 
 const read = (...parts: string[]) => readFileSync(join(__dirname, "..", ...parts), "utf8");
 const css = read("features", "terminal", "terminal.css");
-/** The declarations of one rule, by its exact selector. */
+/** 선택자가 꼭 같은 규칙 하나의 선언들. */
 const rule = (selector: string) => {
   const at = css.indexOf(`\n${selector} {`);
   expect(at, `${selector} is missing`).toBeGreaterThanOrEqual(0);
@@ -105,8 +106,8 @@ describe("picked is grey, not accent (RC-12 · V-05)", () => {
 });
 
 describe("the grid is centred (V-02)", () => {
-  // Real numbers from the stylesheets: the host's insets (tokens), the scrollbar width xterm leaves free, and the
-  // half-remainder that `termSize.afterFit` moves to the left. Claude's box leaves its last column empty.
+  // 스타일시트의 실제 값으로 잰다: 터미널 칸의 여백(토큰), xterm 이 비워 두는 스크롤바 폭, `termSize.afterFit` 이
+  // 왼쪽으로 옮기는 자투리의 반. Claude 상자는 마지막 칸을 비운다.
   const tokens = read("styles", "tokens.css");
   const space = (v: string) => {
     if (v === "0") return 0;
@@ -118,7 +119,7 @@ describe("the grid is centred (V-02)", () => {
 
   it.each([1440, 960, 520])("pane %ipx: left and right gaps differ by 8px or less", (pane) => {
     expect([top, right, left, scrollbar].every(Number.isFinite)).toBe(true);
-    const cell = 7.8; // D2Coding at the default 13px
+    const cell = 7.8; // 기본 13px 의 D2Coding
     const usable = pane - left - right - scrollbar;
     const cols = Math.floor(usable / cell);
     const shift = Math.floor((usable - cols * cell) / 2);
@@ -126,6 +127,19 @@ describe("the grid is centred (V-02)", () => {
     const rightGap = pane - (left + shift + cols * cell);
     expect(Math.abs(leftGap - rightGap)).toBeLessThanOrEqual(8);
     expect(Math.abs(leftGap - (rightGap + cell))).toBeLessThanOrEqual(8);
+  });
+
+  it("the split divider's grab area stays off the left pane's scrollbar, still 7px wide", () => {
+    // 왼쪽 칸의 스크롤바는 칸 끝(오른쪽 여백 `right`)에 붙는다 — 경계선이 왼쪽 칸으로 넘어가는 폭(-margin-left)이 그
+    // 여백보다 크면 스크롤바 끝을 끌 때 칸 크기가 바뀌었다. CSS 줄임: 값 1 · 2 · 3 · 4개가 (위, 오른, 아래, 왼)으로 펴진다.
+    const divider = rule(".tm-node.is-row > .tm-divider");
+    const sides = (prop: string) => {
+      const v = new RegExp(`${prop}: ([^;]+);`).exec(divider)?.[1].trim().split(/\s+/) ?? [];
+      return [v[0], v[1] ?? v[0], v[2] ?? v[0], v[3] ?? v[1] ?? v[0]].map(parseFloat);
+    };
+    expect(-sides("margin")[3]).toBeLessThanOrEqual(right);
+    const border = sides("border-width");
+    expect(1 + border[1] + border[3]).toBe(7);
   });
 });
 
@@ -189,8 +203,8 @@ describe("the find hint (RC-15)", () => {
   it("says the conversation is not in the scrollback, so only the visible screen is searched", () => {
     for (const key of ["terminal.find.altClaude", "terminal.find.altOther"] as const) {
       const value = ko[key];
-      expect(value, key).toMatch(/없어서 지금 보이는 화면만/); // i18n-ignore -- the wording under test, not a display string
-      expect(value, key).not.toMatch(/없어 보이는/); // i18n-ignore -- the misreading the review found
+      expect(value, key).toMatch(/없어서 지금 보이는 화면만/); // i18n-ignore -- 검사하는 문구, 표시 문자열이 아니다
+      expect(value, key).not.toMatch(/없어 보이는/); // i18n-ignore -- 검수가 찾은 잘못 읽히는 이음
     }
   });
 });
