@@ -55,6 +55,9 @@ pub enum ClaudeThemeOutcome {
     Unchanged { path: String },
     /// `~/.claude` 가 없다 — 아무것도 만들지 않았다. `dir` 은 찾아본 자리.
     NoClaude { dir: String },
+    /// 쓰지 못했다 (11-15 검수) — `path` 는 쓰려던 자리, `error` 는 OS 가 준 이유 원문(`Permission denied …`).
+    /// 오류 문자열 하나로 올리면 설정의 줄이 「쓰지 못했어요」 만 말하고, 어느 경로에서 왜인지는 아무 데도 없었다.
+    Failed { path: String, error: String },
 }
 
 fn is_hex_color(v: &str) -> bool {
@@ -100,6 +103,9 @@ pub fn render(theme: &ClaudeTheme) -> Result<String, String> {
 
 /// `claude_dir`(보통 `~/.claude`) 아래 `themes/ocul.json` 을 맞춘다. 경로를 받는 이유: 시험이 임시 폴더를
 /// 넘긴다 — `HOME` 을 바꾸면 같은 시험 바이너리에서 홈을 읽는 다른 시험과 경합한다.
+///
+/// 쓰려던 자리가 정해진 뒤의 실패(폴더 권한 · 그 이름의 폴더)는 `Err` 가 아니라 [`ClaudeThemeOutcome::Failed`]
+/// 로 자리와 이유를 함께 돌려준다. `Err` 는 테마 모양이 틀렸을 때뿐이다(앱의 잘못 — 사람이 고칠 일이 아니다).
 pub fn write_to(claude_dir: &Path, theme: &ClaudeTheme) -> Result<ClaudeThemeOutcome, String> {
     let text = render(theme)?;
     if !claude_dir.is_dir() {
@@ -108,18 +114,32 @@ pub fn write_to(claude_dir: &Path, theme: &ClaudeTheme) -> Result<ClaudeThemeOut
         });
     }
     let themes = claude_dir.join("themes");
+    let path = themes.join(FILE_NAME);
+    let shown = path.display().to_string();
+    let failed = |error: String| ClaudeThemeOutcome::Failed {
+        path: path.display().to_string(),
+        error,
+    };
     match std::fs::create_dir(&themes) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(e) => return Err(format!("{}: {e}", themes.display())),
+        Err(e) => return Ok(failed(e.to_string())),
     }
-    let path = themes.join(FILE_NAME);
-    let shown = path.display().to_string();
     if std::fs::read(&path).is_ok_and(|old| old == text.as_bytes()) {
         return Ok(ClaudeThemeOutcome::Unchanged { path: shown });
     }
-    crate::oculpm::atomic_io::write_atomic(&path, text.as_bytes()).map_err(|e| e.to_string())?;
+    if let Err(e) = crate::oculpm::atomic_io::write_atomic(&path, text.as_bytes()) {
+        return Ok(failed(io_reason(e)));
+    }
     Ok(ClaudeThemeOutcome::Written { path: shown })
+}
+
+/// OS 가 준 이유만 — 임시 파일 경로(`ocul.json.<uuid>.tmp`)는 사람이 고칠 자리가 아니다. 자리는 `Failed.path`.
+fn io_reason(e: crate::oculpm::OculpmError) -> String {
+    match e {
+        crate::oculpm::OculpmError::Io { source, .. } => source.to_string(),
+        other => other.to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -225,6 +245,28 @@ mod tests {
             }
         );
         assert_eq!(std::fs::metadata(&path).unwrap().modified().unwrap(), old);
+    }
+
+    /// 쓰지 못하면 쓰려던 자리와 OS 의 이유를 함께 (11-15 검수) — `ocul.json` 자리에 폴더가 있으면 rename 이
+    /// 실패한다. 예전엔 오류 문자열(임시 파일 경로가 든)만 올라가 설정의 줄은 「쓰지 못했어요」 만 말했다.
+    #[test]
+    fn a_failed_write_returns_where_and_why() {
+        let (_home, claude) = home(true);
+        let path = claude.join("themes").join(FILE_NAME);
+        std::fs::create_dir_all(&path).unwrap();
+        let out = write_to(&claude, &theme(&[("claude", "#34d095")])).unwrap();
+        let ClaudeThemeOutcome::Failed { path: at, error } = out else {
+            panic!("expected failed, got {out:?}");
+        };
+        assert_eq!(at, path.display().to_string());
+        assert!(!error.is_empty());
+        assert!(
+            !error.contains(".tmp"),
+            "임시 파일 경로가 아니라 이유만: {error}"
+        );
+        // 임시 파일을 남기지 않고, 그 폴더도 그대로다.
+        assert_eq!(names(&claude.join("themes")), vec![FILE_NAME.to_string()]);
+        assert!(path.is_dir());
     }
 
     #[test]
