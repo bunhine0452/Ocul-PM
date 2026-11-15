@@ -29,7 +29,7 @@ import { PlanItems } from "./PlanItems";
 import { PlanLog } from "./PlanLog";
 import { hasOpenLeaves, lastLogAt, nextLeaf, stripUserTag } from "./planMeta";
 import { checkLines, verdictStateOf } from "./verdictState";
-import { prepareCheck } from "@/features/terminal/runCheck";
+import { blockedReason, prepareCheck, revealHidden } from "@/features/terminal/runCheck";
 import { requestSendToClaude } from "@/features/terminal/sendToClaude";
 
 function dateOf(iso: string): string {
@@ -67,15 +67,15 @@ function WarnLines({ warnings, filePath }: { warnings: string[]; filePath: strin
 
 /**
  * 확인 명령 아래 「셸에서 돌리기」 — 보통 단추(채운 단추는 「다음」 하나, 영수증 규칙 3). 누르면 거른 한 줄을 넘기고
- * 부른 쪽이 묻는다. 여러 줄이면 단추를 막고(`blocked` — 포커스는 남아 이유가 읽힌다) 이유를 옆에 문장으로 둔다.
- * 거르고 나니 돌릴 글자가 없으면 단추가 없다.
+ * 부른 쪽이 묻는다. 여러 줄 · 보이지 않는 글자 · 백틱이면 단추를 막고(`blocked` — 포커스는 남아 이유가 읽힌다)
+ * 이유를 옆에 문장으로 둔다(`runCheck.blockedReason`). 거르고 나니 돌릴 글자가 없으면 단추가 없다.
  */
 function CheckRunRow({ check, onRun }: { check: string; onRun: (line: string) => void }) {
   const { t } = useT();
   const reasonId = useId();
   const prep = prepareCheck(check);
   if (prep.kind === "empty") return null;
-  const reason = prep.kind === "multiline" ? t("plan.check.multiline") : null;
+  const reason = blockedReason(t, prep);
   return (
     <div className="plv-check-run">
       <button
@@ -136,7 +136,7 @@ function JudgeCard({ detail, onRunCheck }: { detail: PlanDetail; onRunCheck: (li
                   e.clipboardData.setData("text/plain", text.replace(/\s*\n\s*/g, " "));
                 }}
               >
-                {checkLines(detail.check).join("\n")}
+                {checkLines(revealHidden(detail.check)).join("\n")}
               </code>
               <CheckRunRow check={detail.check} onRun={onRunCheck} />
             </>

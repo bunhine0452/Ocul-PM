@@ -49,10 +49,13 @@ export function TermToolbar(props: TermToolbarProps) {
   return (
     <Toolbar title={t("nav.terminal")}>
       <div className="tm-new" role="group" aria-label={t("terminal.new")}>
-        <button type="button" className="tm-new-main" onClick={onNew}>
+        {/* 키 표기는 접근명에 섞지 않는다(`DialogKey` 규칙) — 화면 읽기는 「새 세션」 과 단축키를 따로 읽는다(RC-18). */}
+        <button type="button" className="tm-new-main" aria-keyshortcuts="Meta+T Control+Shift+T" onClick={onNew}>
           <Plus size={13} aria-hidden="true" />
           {t("terminal.new")}
-          <kbd className="kbd">{kbd("⌘T", "terminal")}</kbd>
+          <kbd className="kbd" aria-hidden="true">
+            {kbd("⌘T", "terminal")}
+          </kbd>
         </button>
         <button
           ref={moreRef}
@@ -120,14 +123,16 @@ function NewMenu({
   useMenuKeys(true, boxRef, close, opener);
   const splitBlock = (dir: PaneDir) =>
     !hasSessions ? t("terminal.needSession") : roomFor(dir) ? null : t("terminal.splitNoRoom");
-  // `keys` 는 이미 이 OS 의 표기다(부르는 쪽이 `kbd()` 를 지난다). `title` 은 막히지 않았을 때의 설명.
+  // `keys` 는 이미 이 OS 의 표기다(부르는 쪽이 `kbd()` 를 지난다) — 보이기만 하고 접근명에는 섞지 않는다. 화면 읽기는
+  // `aria`(aria-keyshortcuts)로 듣는다. `title` 은 막히지 않았을 때의 설명.
   // 고르면 포커스를 ▾ 로 돌려준 뒤 실행한다 — 메뉴가 사라지며 포커스가 body 로 떨어졌다(나누기 풀기). 새 칸 ·
   // 대화상자가 서면 그쪽이 포커스를 가져간다.
-  const item = (label: string, keys: string | null, reason: string | null, run: () => void, title?: string) => (
+  const item = (label: string, keys: [string, string] | null, reason: string | null, run: () => void, title?: string) => (
     <button
       type="button"
       role="menuitem"
       className="tm-menu-item"
+      aria-keyshortcuts={keys?.[1]}
       {...blocked(reason, title)}
       onClick={() => {
         close(true);
@@ -135,7 +140,11 @@ function NewMenu({
       }}
     >
       <span className="tm-menu-label">{label}</span>
-      {keys ? <kbd className="kbd">{keys}</kbd> : null}
+      {keys ? (
+        <kbd className="kbd" aria-hidden="true">
+          {keys[0]}
+        </kbd>
+      ) : null}
     </button>
   );
   return (
@@ -146,8 +155,18 @@ function NewMenu({
       aria-label={t("terminal.newMenu")}
       style={{ top: at.top, right: at.right }}
     >
-      {item(t("terminal.splitRight"), kbd("⌘D", "terminal"), splitBlock("row"), () => onSplit("row"))}
-      {item(t("terminal.splitDown"), kbd("⇧⌘D", "terminal"), splitBlock("col"), () => onSplit("col"))}
+      {item(
+        t("terminal.splitRight"),
+        [kbd("⌘D", "terminal"), "Meta+D Control+Shift+D"],
+        splitBlock("row"),
+        () => onSplit("row"),
+      )}
+      {item(
+        t("terminal.splitDown"),
+        [kbd("⇧⌘D", "terminal"), "Shift+Meta+D Control+Alt+Shift+D"],
+        splitBlock("col"),
+        () => onSplit("col"),
+      )}
       {item(
         t("terminal.unsplit"),
         null,

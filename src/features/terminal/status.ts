@@ -90,6 +90,18 @@ export function sessionWord(tr: Tr, info: TermInfo): string {
 type TitledInfo = TermInfo & { title?: string | null };
 type AppStatus = TermStatus & { app?: string | null };
 
+/**
+ * 안의 프로그램이 Claude 인가 — 엔진이 알린 이름(`status.app`, OSC 7501)이 있으면 그것으로 가린다.
+ * 상태 신호만 보면 Codex 세션도 끼어 Claude 에게 쓴 지시가 Codex 로 갈 수 있었다. 이름을 안 알리는
+ * 프로그램(엔진 합류 전 · 옛 판)은 예전처럼 믿는다. 규칙은 엔진의 `runs_claude` 와 같은 모양이다 —
+ * 엔진이 소문자로 다듬은 이름이 `claude`(· `claude-code`)로 시작하면 Claude. 「보내기」 의 받는 곳과
+ * 상태 띠의 「기록 남기게 하기」 가 같은 판정을 쓴다.
+ */
+export function isClaudeApp(s: TermInfo): boolean {
+  const app = (s.status as AppStatus | null)?.app;
+  return app == null || app.startsWith("claude");
+}
+
 /** 안의 프로그램이 붙인 제목(OSC 0/2) — 없으면 `null`. */
 export function oscTitle(info: TermInfo): string | null {
   return (info as TitledInfo).title?.trim() || null;

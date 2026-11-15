@@ -25,11 +25,9 @@
 .tm-tabs-scroll::-webkit-scrollbar { display: none; }
 .tm-tab { flex: none; position: relative; display: flex; align-items: center; max-width: 260px; height: var(--ctl-3); border-radius: var(--radius-s); }
 .tm-tab:hover { background: var(--bg-hover); }
-/* 고른 탭 — 굵기는 그대로(폭이 튀지 않게), 글자색과 2px 아랫선. */
-.tm-tab.is-active::after {
-  content: ""; position: absolute; left: var(--space-3); right: var(--space-3); bottom: -3px; height: 2px;
-  background: var(--accent);
-}
+/* 고른 탭 — 윗줄의 고른 탭 · 목록의 고른 줄과 같은 회색 면, 굵기는 그대로(폭이 튀지 않게). 강조색 2px 아랫선이던
+   때는 세션이 하나여도, 포커스가 딴 데 있어도 초록 선이 서 있었다 — 강조색은 채운 단추와 포커스에만(영수증 규칙 1 · 4). */
+.tm-tab.is-active { background: var(--bg-active); }
 /* 다른 칸에 떠 있는 세션의 탭은 테만. */
 .tm-tab.is-shown { box-shadow: inset 0 0 0 1px var(--sep-strong); }
 .tm-pick {
@@ -138,14 +136,15 @@
   flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative;
   container-type: inline-size; container-name: tm-leaf;
 }
-/* 머리는 단추 한 단(26px) 높이 — 22px 머리 안에서 26px 닫기가 넘쳤다. 굵기는 고정, 고른 칸은 글자색 + 2px 아랫선. */
+/* 머리는 단추 한 단(26px) 높이 — 22px 머리 안에서 26px 닫기가 넘쳤다. 굵기는 고정, 고른 칸은 글자색 + 탭과 같은
+   회색 면(바탕 위에 --bg-active 한 겹 — 단색 두 겹이지 그라디언트 효과가 아니다). 강조색 아랫선이던 것을 걷었다. */
 .tm-pane-head {
   flex: none; display: flex; align-items: center; gap: var(--space-2);
   height: calc(var(--ctl-3) + 1px); padding: 0 0 0 var(--space-5);
   border-bottom: 1px solid var(--sep); background: var(--bg-window); color: var(--text-2);
 }
 .tm-pane-head .tm-name { color: var(--text-2); }
-.tm-leaf.is-active .tm-pane-head { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.tm-leaf.is-active .tm-pane-head { color: var(--text); background: linear-gradient(var(--bg-active), var(--bg-active)), var(--bg-window); }
 .tm-leaf.is-active .tm-pane-head .tm-name { color: var(--text); }
 .tm-note-sp { flex: 1; }
 /* 기다리는 칸(고른 칸이 아닐 때)은 1px 앰버 테, 끝난 칸의 화면은 흐리게 — 마지막 화면이 산 것처럼 남지 않게. */
@@ -202,9 +201,12 @@
   .tm-find-count, .tm-find-case:not(.tm-find-regex) { display: none; }
 }
 
-/* 터미널 면 — xterm 이 이 칸을 채운다(FitAddon). 여백은 칸 안쪽에 두어 글자가 테두리에 붙지 않게. */
+/* 터미널 면 — xterm 이 이 칸을 채운다(FitAddon). 여백은 칸 안쪽에 두어 글자가 테두리에 붙지 않게.
+   오른쪽은 0 — xterm 의 세로 스크롤바(10px, base.css)가 그 자리를 차지하고 칸 끝에 붙는다(다른 터미널처럼).
+   오른쪽에도 8px 를 두던 때는 왼쪽 12px 에 비해 오른쪽이 8 + 10px 이라 격자가 왼쪽으로 쏠렸다 — Claude 상자처럼
+   마지막 칸을 비우는 화면은 차가 14px 였다(최종 검수 V-02). 자투리의 반은 왼쪽으로 간다(`termSize.afterFit`). */
 .tm-pane { flex: 1; min-width: 0; min-height: 0; position: relative; background: var(--term-bg); }
-.term-host { position: absolute; inset: var(--space-4) var(--space-3) var(--space-3) var(--space-5); }
+.term-host { position: absolute; inset: var(--space-4) 0 var(--space-3) var(--space-5); }
 .term-host .xterm { height: 100%; }
 .term-host .xterm-viewport { background: transparent !important; }
 
