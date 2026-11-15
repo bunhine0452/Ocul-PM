@@ -1109,7 +1109,7 @@ export const ko = {
   "keys.settings": "설정",
   "keys.navHistory": "화면 뒤로 / 앞으로 (트랙패드 두 손가락 쓸기도)",
   "keys.screenCycle": "다음 화면 / 앞 화면",
-  "keys.projectSlot": "프로젝트 창으로 (프로젝트 목록 순서)",
+  "keys.projectSlot": "프로젝트 창으로 (최근 순, 지금 창은 빼고)",
   "keys.windowSwitch": "최근 창으로 (톡 누르면 직전 창, 누르고 있으면 목록)",
   "keys.cheatsheet": "단축키 보기",
   "keys.newWindow": "새 창",
