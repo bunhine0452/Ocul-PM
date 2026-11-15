@@ -34,8 +34,9 @@ export function JournalHead({
   onlyMissing,
   missingCount,
   onToggleMissing,
-  scopeLabel = null,
-  onClearScope,
+  dayLabel = null,
+  dayOnly = false,
+  onToggleDay,
   allPeriod,
   periodLocked,
   onPeriod,
@@ -55,9 +56,14 @@ export function JournalHead({
   /** 켜졌을 때 걸린 수 — warn 숫자로 선다. */
   missingCount: number | null;
   onToggleMissing: () => void;
-  /** 「검증 없는 것만」 이 한 날로 좁혀졌으면 그 날의 말(「오늘만」) — 눌린 단추로 서고, 누르면 모든 날로 넓힌다. */
-  scopeLabel?: string | null;
-  onClearScope?: () => void;
+  /**
+   * 「검증 없는 것만」 에 실어 온 날이 있으면 그 날의 말(「오늘만」) — 그 날로 좁히고 넓히는 전환 단추다. 눌러도
+   * 사라지지 않고 눌림만 바뀐다(포커스가 단추에 남는다).
+   */
+  dayLabel?: string | null;
+  /** 지금 그 날로 좁혔는가 — 좁힌 동안은 기간 라디오가 서지 않는다(목록은 하루치인데 「전체 기간」 이 고른 채였다). */
+  dayOnly?: boolean;
+  onToggleDay?: () => void;
   allPeriod: boolean;
   /** 종류 · 검증으로 거르는 동안은 전체 기간에서만 찾는다 — 「최근 14일」 이 막힌다. */
   periodLocked: boolean;
@@ -90,7 +96,7 @@ export function JournalHead({
             ]}
             onChange={(id) => onRank(id === "rank")}
           />
-        ) : (
+        ) : dayOnly ? null : (
           <RadioSeg
             label={t("journal.periodAria")}
             value={allPeriod ? "all" : "recent"}
@@ -126,9 +132,15 @@ export function JournalHead({
             </>
           ) : null}
         </button>
-        {onlyMissing && scopeLabel ? (
-          <button type="button" className="jl-only" aria-pressed title={t("journal.dayScopeTitle")} onClick={onClearScope}>
-            {scopeLabel}
+        {onlyMissing && dayLabel ? (
+          <button
+            type="button"
+            className="jl-only"
+            aria-pressed={dayOnly}
+            title={t(dayOnly ? "journal.dayScopeTitle" : "journal.dayScopeOffTitle")}
+            onClick={onToggleDay}
+          >
+            {dayLabel}
           </button>
         ) : null}
         {countText ? <span className="jl-count">{countText}</span> : null}

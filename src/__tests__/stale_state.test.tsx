@@ -165,7 +165,7 @@ describe("journal — the detail belongs to the entry on screen", () => {
     await act(async () => {});
     const read = container.querySelector(".jd-read") as HTMLButtonElement;
     expect(read.getAttribute("aria-pressed")).toBe("false");
-    expect(read.textContent).toBe(t("entry.verify"));
+    expect(read.textContent).toBe(`${t("entry.verify")}v`);
     expect(jfx.verified).toEqual([{ relativePath: "20260531/F/1200_a.md", verified: true }]);
   });
 });

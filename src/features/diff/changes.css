@@ -159,5 +159,8 @@
   .chg-list { width: auto; max-width: none; max-height: 38%; border-right: 0; border-bottom: 1px solid var(--sep); }
   .chg-banner { margin: var(--space-4) var(--space-4) 0; }
   .chg-fh { padding: var(--space-3) var(--space-4); }
+  /* 패치 아래 줄(screens.css 의 기준 설명 · 잘린 diff 영수증)도 머리줄과 같은 선으로. 실리는 순서와 무관하게 이기도록 칸을 붙인다. */
+  .chg-main .diff-foot { padding: 14px var(--space-4); }
+  .chg-main .diff-cut { padding: var(--space-4); }
   .chg-keys { display: none; }
 }

@@ -66,12 +66,12 @@ describe("journal detail — evidence first, nothing squeezed", () => {
     expect(btn.getAttribute("title")).toBe(t("entry.verifyTitle"));
     fireEvent.click(btn);
     await waitFor(() => expect(btn.getAttribute("aria-pressed")).toBe("true"));
-    expect(btn.textContent).toBe(t("entry.verified"));
+    expect(btn.textContent).toBe(`${t("entry.verified")}v`);
     expect(btn.getAttribute("title")).toBe(t("entry.unverifyTitle"));
     expect(btn.querySelector("svg")).not.toBeNull();
     fireEvent.click(btn);
     await waitFor(() => expect(btn.getAttribute("aria-pressed")).toBe("false"));
-    expect(btn.textContent).toBe(t("entry.verify"));
+    expect(btn.textContent).toBe(`${t("entry.verify")}v`);
     expect(jfx.verified.map((v) => v.verified)).toEqual([true, false]);
   });
 

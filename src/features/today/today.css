@@ -42,9 +42,8 @@
 .tdy-date { color: var(--text); font-weight: var(--fw-strong); }
 .tdy-day b { color: var(--text); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; }
 .tdy-nums { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); margin-left: auto; }
-/* 수는 누르면 화면을 옮기는 집계라 회색 글자(가리키면 밑줄)다 — 글자 링크(.text-link)가 아니다. */
-.tdy-num { padding: 0; border: 0; background: none; font: inherit; color: var(--text-2); cursor: pointer; }
-.tdy-num:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+/* 수는 누르면 화면을 옮기는 집계 — 앱의 글자 링크 한 벌에 잉크만 회색인 `.text-link.is-quiet`(screens-overflow.css)다.
+   여기 따로 두던 「가리킬 때만 밑줄」 은 누르기 전에는 그냥 글자로 보였다(RC-21 검수). */
 .tdy-num-sep { color: var(--text-2); }
 /* 「올리기 맡기기」 — 수 줄 밖의 보통 단추(터미널 아이콘, V-01). 수 뒤에 같은 글자로 붙어 한 문장처럼 읽혔다. */
 .tdy-handoff { flex: none; }

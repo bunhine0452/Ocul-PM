@@ -139,8 +139,10 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
     }
   };
 
-  // ⌘↩ 보내기(쉬지 않으면 줄 세우기) · ⇧⌘↩ 지금 끼워 넣기(일하는 중일 때만 — 묻는 중엔 여전히 줄로).
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  // ⌘↩ 보내기(쉬지 않으면 줄 세우기) · ⇧⌘↩ 지금 끼워 넣기(일하는 중일 때만 — 묻는 중엔 여전히 줄로). 판이 듣는다 —
+  // 할 말 칸에서만 듣던 때는 받는 곳 칸 · 발의 단추에 포커스를 두고 누르면 아무 일이 없어 단추의 「⌘↩」 표기가
+  // 거짓이었다(11-15 RC-10, 수동 일지 창과 같은 자리).
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void send(e.shiftKey);
@@ -151,7 +153,7 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
   // 경로 맥락(파일)은 이름이 곧 자리다 — 고정폭 한 번만. 일지 · 계획 항목은 사람이 쓴 이름 + 자리(고정폭).
   const refIsLabel = ctx != null && ctx.ref === ctx.label;
   return (
-    <AppDialog open={ctx != null} onClose={close} label={t("send.title")} width={480} initialFocusRef={textRef}>
+    <AppDialog open={ctx != null} onClose={close} label={t("send.title")} width={480} initialFocusRef={textRef} onKeyDown={onKeyDown}>
       {ctx ? (
         <div className="send">
           <div className="send-head">
@@ -174,7 +176,6 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
             autoCorrect="off"
             autoCapitalize="off"
             onChange={(e) => edit(e.target.value)}
-            onKeyDown={onKeyDown}
           />
           {terms.state === "failed" ? (
             <p className="send-hint" role="status">

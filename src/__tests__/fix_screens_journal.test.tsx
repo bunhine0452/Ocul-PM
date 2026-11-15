@@ -20,6 +20,7 @@ import { setLangSetting, t } from "@/i18n";
 import { kbd } from "@/lib/kbd";
 import { localWorkdayKey } from "@/lib/workday";
 import { workdayDate } from "@/lib/workdayLabel";
+import { read } from "./designFs";
 import { entry, jfx, resetJournalFixtures } from "./journalHarness";
 
 function renderDetail(e = entry({ type: "bug", evidence: 2 }), planLinks: Parameters<typeof JournalDetail>[0]["planLinks"] = []) {
@@ -92,6 +93,22 @@ describe("RC-19 — the journal head uses the app's radio group (no local copy)"
     const recent = await within(screen.getByRole("radiogroup", { name: t("journal.periodAria") })).findByRole("radio", { name: t("journal.period.recent") });
     await waitFor(() => expect(recent).toHaveAttribute("aria-disabled", "true"));
     expect(recent).toHaveAttribute("title", t("journal.period.locked"));
+  });
+
+  // 위 DOM 단언은 옛 지역 라디오로도 통과한다 — 「지역 사본 없음」 은 소스가 문다.
+  it("JournalHead draws RadioSeg and keeps no radio role or arrow-key handling of its own", () => {
+    const src = read("features/oculpm/JournalHead.tsx");
+    expect(src).toContain('import { RadioSeg } from "@/components/RadioSeg";');
+    expect(src).not.toMatch(/role=["{]|aria-checked|onKeyDown|"Arrow(?:Left|Right|Up|Down)"/);
+  });
+});
+
+describe("V-06 — 'mark read' carries the same key mark as Today's", () => {
+  it("the detail's read button says v (the key the screen listens to), outside its accessible name", async () => {
+    const { findByRole } = renderDetail(entry({ relative_path: "20260531/B/1000_k.md", type: "bug", evidence: 2 }));
+    const btn = await findByRole("button", { name: t("entry.verify"), pressed: false });
+    expect(btn.querySelector(".kbd[aria-hidden='true']")?.textContent).toBe("v");
+    expect(btn.textContent).toBe(`${t("entry.verify")}v`);
   });
 });
 

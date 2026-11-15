@@ -66,7 +66,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   // 완료 소프트 게이트 (PR-CI6) — 연결된 검증 일지 없이 완료로 바꾸려 하면 한 번 묻는다.
   // 막지는 않는다: 「검증 없이 완료」를 누르면 그대로 간다. 묻는 창은 확인 한 벌(`useConfirm` — 머리 · 본문 · 발,
   // 취소 = 테 없는 단추 + Esc, 확인 = 채운 단추 + ↩)이다(11-15 RC-10). 바로 옆 「셸에서 돌리기」 창과 달리 머리 없는
-  // 옛 모양에 취소가 테 단추였다. 되돌릴 수 있는 보통 질문이라 ↩ 한 번이 답이다.
+  // 옛 모양에 취소가 테 단추였다. 되돌릴 수 있는 보통 질문이라 ↩ 한 번이 답이다 — 첫 포커스가 「취소」 이던 옛 창과
+  // 다른 것은 의도다(확인 한 벌의 규칙, `useConfirm` 머리말). 누른 채 되풀이된 ↩ 는 `useConfirm` 이 답으로 받지 않는다.
   const { confirm, confirmDialog } = useConfirm();
   const applyStatus = (item: PlanItemDto, status: string) => {
     if (busy) return;

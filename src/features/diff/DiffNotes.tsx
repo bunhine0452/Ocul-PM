@@ -49,8 +49,13 @@ export function NoteSlot({
       {note.sent ? (
         <span
           className={"chip sm " + (!isJudged(note) ? "hairline" : note.fixed ? "ok" : "warn")}
+          // 판정한 메모에도 기준을 단다 — 앱이 아는 것은 「그 줄의 코드가 바뀌었다」 뿐이다(RC-07 검수).
           title={
-            note.side === "old" ? t("diff.notes.oldSideTitle") : note.unsure ? t("diff.notes.unsureTitle") : undefined
+            note.side === "old"
+              ? t("diff.notes.oldSideTitle")
+              : note.unsure
+                ? t("diff.notes.unsureTitle")
+                : t(note.fixed ? "diff.notes.fixedTitle" : "diff.notes.openTitle")
           }
         >
           {!isJudged(note) ? t("diff.notes.sent") : note.fixed ? t("diff.notes.fixed") : t("diff.notes.open")}
