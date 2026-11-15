@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { AppDialog, DialogBody, DialogHead } from "@/components/ui/AppDialog";
 import { Keyboard } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/uiV2View";
 import { useT } from "@/i18n";
 import { NAV_ENTRIES } from "@/lib/navRegistry";
-import { onCheatsheetRequest } from "@/lib/projectActions";
+import { noteCheatsheetOpen, onCheatsheetRequest } from "@/lib/projectActions";
 import { buildShortcutGroups, type ShortcutGroup } from "@/lib/shortcutRegistry";
 
 // ⌘/ 단축키 치트시트 (완성도 라운드 Phase 2, 2026-08-30).
@@ -31,9 +31,9 @@ export function viewOnScreen(doc: Document = document): UiV2View | null {
 }
 
 /**
- * 지금 화면의 묶음을 맨 앞으로 — 묶음 id 가 화면 이름과 같으면 그 화면의 키다(journal · diff · terminal,
- * 다른 화면이 묶음을 더하면 그것도). 시작 창(`view` 없음)에서는 시작 화면 묶음이 지금 화면이다.
- * 프로젝트 창에서는 시작 화면 묶음을 뺀다.
+ * 지금 화면의 묶음을 맨 앞으로 — 묶음 id 가 화면 이름과 같으면 그 화면의 키다(다섯 화면 모두 — 계획 묶음이
+ * "plan" 이던 때는 계획 화면에서만 칩이 안 섰다, `cheatsheet_here.test.tsx`). 시작 창(`view` 없음)에서는 시작 화면
+ * 묶음이 지금 화면이다. 프로젝트 창에서는 시작 화면 묶음을 뺀다.
  */
 export function orderShortcutGroups(
   groups: ShortcutGroup[],
@@ -43,6 +43,14 @@ export function orderShortcutGroups(
   const kept = inProject ? groups.filter((g) => g.id !== "start") : groups;
   const here: string = inProject ? (view ?? "") : "start";
   return [...kept.filter((g) => g.id === here), ...kept.filter((g) => g.id !== here)];
+}
+
+/**
+ * 키 칸의 글자 → 누르는 키들. ` · ` 는 같은 일을 하는 다른 길, ` / ` 는 짝이다(`shortcutRegistry` 머리 주석) —
+ * 「j / k · ↑ / ↓」 → [[j, k], [↑, ↓]]. ` / ` 로만 가르던 때는 「k · ↑」 가 한 키캡에 섰다.
+ */
+export function keyGroups(keys: string): string[][] {
+  return keys.split(" · ").map((alt) => alt.split(" / "));
 }
 
 /** 끝의 괄호 덧말을 둘째 줄로 — 「창 닫기 (터미널은 …)」 → [「창 닫기」, 「터미널은 …」]. */
@@ -64,6 +72,11 @@ export function ShortcutCheatsheet() {
       }),
     [],
   );
+  // 떠 있는지 적어 둔다 — 열린 표 위의 ⌘/ 가 모달 가드에 먹히지 않고 표를 닫게(`useGlobalShortcuts` · 시작 창).
+  useEffect(() => {
+    noteCheatsheetOpen(open);
+    return () => noteCheatsheetOpen(false);
+  }, [open]);
   const groups = useMemo(
     () => orderShortcutGroups(buildShortcutGroups(), where.view, where.inProject),
     [where],
@@ -99,10 +112,19 @@ export function ShortcutCheatsheet() {
                         {sub ? <span className="keys-sub">{sub}</span> : null}
                       </dt>
                       <dd>
-                        {row.keys.split(" / ").map((k, i) => (
-                          <kbd className="kbd" key={i}>
-                            {k}
-                          </kbd>
+                        {keyGroups(row.keys).map((alt, i) => (
+                          <Fragment key={i}>
+                            {i > 0 ? (
+                              <span className="keys-or" aria-hidden="true">
+                                ·
+                              </span>
+                            ) : null}
+                            {alt.map((k, j) => (
+                              <kbd className="kbd" key={j}>
+                                {k}
+                              </kbd>
+                            ))}
+                          </Fragment>
                         ))}
                       </dd>
                     </div>

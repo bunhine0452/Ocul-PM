@@ -37,6 +37,11 @@
 .palette-item > svg { flex: none; color: var(--text-2); }
 .palette-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .palette-meta { flex: none; font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 이 창 세션의 번호 — 탭 앞 숫자와 같은 수, 기계 글씨(영수증 규칙 2). 터미널 청크의 .tm-num 은 여기 실리지 않는다. */
+.palette-num {
+  font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2);
+  font-variant-numeric: tabular-nums; font-variant-ligatures: none;
+}
 .palette-project .proj-dot,
 .palette-dot { margin: 0 3px; }
 /* 찾는 중 · 맞는 것 없음 — 움직이지 않는 글자 한 줄(영수증 규칙 6). 맞는 줄이 하나도 없으면 판 가운데로. */

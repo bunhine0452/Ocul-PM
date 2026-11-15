@@ -34,7 +34,7 @@ import { matchScore } from "@/lib/choseong";
 import { isImeComposing } from "@/lib/ime";
 import { isModalOpen, kbd, readChord } from "@/lib/kbd";
 import { tildePath } from "@/lib/osPath";
-import { requestCheatsheet } from "@/lib/projectActions";
+import { isCheatsheetOpen, requestCheatsheet } from "@/lib/projectActions";
 import { dragRegion, isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { localWorkdayKey, shiftWorkday } from "@/lib/workday";
@@ -156,7 +156,8 @@ export function StartWindow() {
     adopt(result.project);
   }, [adopt, busy, reload]);
 
-  // ⌘O 폴더 열기 · ⌘K 팔레트 · ⌘, 설정 · ⌘/ 단축키 (Windows·Linux 는 Ctrl). 모달이 떠 있으면 ⌘K(팔레트 닫기)만.
+  // ⌘O 폴더 열기 · ⌘K 팔레트 · ⌘, 설정 · ⌘/ 단축키 (Windows·Linux 는 Ctrl). 모달이 떠 있으면 ⌘K(팔레트 닫기)와
+  // ⌘/(단축키 표 자신일 때 닫기)만 — 프로젝트 창의 `useGlobalShortcuts` 와 같은 규칙.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const c = readChord(e);
@@ -167,6 +168,11 @@ export function StartWindow() {
         setPaletteOpen(!isModalOpen());
         return;
       }
+      if (c.key === "/" && !c.shift) {
+        e.preventDefault();
+        if (!isModalOpen() || isCheatsheetOpen()) requestCheatsheet();
+        return;
+      }
       if (isModalOpen() || c.shift) return;
       if (key === "o") {
         e.preventDefault();
@@ -174,9 +180,6 @@ export function StartWindow() {
       } else if (c.key === ",") {
         e.preventDefault();
         setView("settings");
-      } else if (c.key === "/") {
-        e.preventDefault();
-        requestCheatsheet();
       }
     };
     window.addEventListener("keydown", onKey);

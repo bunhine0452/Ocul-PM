@@ -342,7 +342,7 @@ describe("kbd — label table", () => {
       "Ctrl+T new tab · Ctrl+D split · Ctrl+Shift+D split down",
       "Ctrl+Shift+T new tab · Ctrl+Shift+D split · Ctrl+Alt+Shift+D split down",
     ],
-    ["↩ next · ⇧↩ previous", "↩ next · Shift+Enter previous", "↩ next · Shift+Enter previous"],
+    ["↩ next · ⇧↩ previous", "Enter next · Shift+Enter previous", "Enter next · Shift+Enter previous"],
     // Hangul right after the glyph ("⌘ + number") — it is not a shell key, so no Shift in the terminal.
     ["⌘번호", "Ctrl+번호", "Ctrl+번호"], // i18n-ignore -- 글리프 바로 뒤의 한글이 검사 재료다
     ["F12", "F12", "F12"],

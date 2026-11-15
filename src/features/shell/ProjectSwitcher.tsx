@@ -20,10 +20,10 @@ import { useOpenInEditor } from "./useOpenInEditor";
 import { addProjectFromFolder } from "@/features/start/addFolder";
 import { PROJECT_COLORS, projectColorOf } from "./projectColor";
 import { byAttention, projectSlotLabel, projectSlotOf, slotsOf } from "./projectKeys";
-import { ProjectRow, distinctWhere } from "./ProjectRow";
+import { HereMark, ProjectRow, distinctWhere } from "./ProjectRow";
 import { useTermOverview } from "@/features/terminal/status";
 import { orderRecent } from "@/features/start/useRecentProjects";
-import { CheckMark, ChevronDown, Code2, FolderPlus, SearchIcon } from "@/components/Icons";
+import { ChevronDown, Code2, FolderPlus, SearchIcon } from "@/components/Icons";
 import { useT } from "@/i18n";
 import type { HomeBrief, Project, ProjectAttention } from "@/lib/bindings";
 import { NAV_BUS } from "@/lib/navRegistry";
@@ -353,10 +353,7 @@ export function ProjectSwitcher({
                     }}
                     meta={
                       isCurrent ? (
-                        <span className="proj-pop-check" title={t("sidebar.currentProject")}>
-                          <CheckMark size={15} strokeWidth={2} aria-hidden="true" />
-                          <span className="sr-only">{t("sidebar.currentProject")}</span>
-                        </span>
+                        <HereMark />
                       ) : slot != null ? (
                         <kbd className="kbd proj-pop-key">{projectSlotLabel(slot)}</kbd>
                       ) : null

@@ -276,6 +276,8 @@ export {
   Check as CheckMark,
   // 단축키 치트시트.
   Keyboard,
+  // 팔레트 「프로젝트 색 바꾸기」 — 다른 동작 줄처럼 선 아이콘이 머리에 선다.
+  Palette as PaletteIcon,
   Filter,
   ShieldCheck,
   // 업데이트 알림 배너.

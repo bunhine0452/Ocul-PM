@@ -61,7 +61,8 @@
 .prefs-act { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); }
 .prefs-dim { font-size: var(--fs-3); color: var(--text-2); }
 .prefs-ver { color: var(--text-2); font-variant-numeric: tabular-nums; }
-.prefs-found { color: var(--text-2); font-weight: var(--fw-label); }
+/* 설명 안의 명령(`/theme`) — 기계 글씨(영수증 규칙 2). 크기는 설명 글자 그대로. */
+.prefs-meta code { font-size: inherit; font-variant-ligatures: none; }
 /* 등록 해제 — 가리킬 때만 붉다(위험한 동작이라는 표시는 응답일 때만). */
 .prefs-unreg:hover { color: var(--danger-text); border-color: color-mix(in srgb, var(--danger) 45%, transparent); background: var(--danger-soft); }
 .prefs-input {

@@ -163,7 +163,7 @@ describe("the cheatsheet knows Today's keys", () => {
   it("lists a Today group with the keys this screen listens to", () => {
     const group = buildShortcutGroups().find((g) => g.id === "today");
     expect(group?.titleKey).toBe("keys.todayGroup");
-    expect(group?.rows.map((r) => r.keys)).toEqual(["j / k", "↑ / ↓", "Home / End", "↩", "v", "r", "Esc"]);
+    expect(group?.rows.map((r) => r.keys)).toEqual(["j / k · ↑ / ↓", "Home / End", "↩", "v", "r", "Esc"]);
   });
 
   it("has no axe violations with the rows and the keyboard hints", async () => {

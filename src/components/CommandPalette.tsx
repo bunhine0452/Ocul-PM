@@ -8,6 +8,7 @@ import {
   FolderPlus,
   Keyboard,
   NotebookText,
+  PaletteIcon,
   SquareTerminal,
   TargetIcon,
   type IconComponent,
@@ -34,7 +35,7 @@ import type { OpenSwitcherDetail } from "@/features/shell/ProjectSwitcher";
 import { useOpenInEditor } from "@/features/shell/useOpenInEditor";
 import { orderRecent } from "@/features/start/useRecentProjects";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
-import { coalesce, countByProject, needsMe, sessionWord } from "@/features/terminal/status";
+import { coalesce, countByProject, needsMe, numberSessions, sessionName, sessionNumber, sessionWord } from "@/features/terminal/status";
 import "./palette.css";
 
 // ⌘K 팔레트 (MASTER-GUIDE §5.9 → 4.0 → 11-15) — 「어디로」 에서 「무엇을」 까지.
@@ -64,9 +65,9 @@ type CommandItem = {
   /** 검색 대상 — 라벨 · 양 언어 별칭. 영어 모드에서도 "일지" 로, 한국어 모드에서도 "journal" 로 찾힌다. */
   keywords: string[];
   icon?: IconComponent;
-  /** 아이콘 대신 앞에 서는 것(프로젝트 색 점). */
-  lead?: ReactNode;
   shortcut?: string;
+  /** 단축키 대신 줄 끝에 서는 것(지금 프로젝트 색 점). 머리는 늘 선 아이콘이다 — 빈 고리가 머리에 서면 줄이 빈 것처럼 보였다. */
+  trail?: ReactNode;
   onSelect: () => void;
 };
 
@@ -80,12 +81,6 @@ const JOURNAL_LIMIT = 8;
  * 그 묶음 혼자라 맨 위에 선다.
  */
 const JOURNAL_SCORE = 0.5;
-
-/** 세션의 이름 — 엔진이 붙이는 제목(선택 필드)이 있으면 그것, 없으면 셸 이름 · `claude`. */
-function sessionName(s: TermInfo): string {
-  const title = (s as TermInfo & { title?: string | null }).title;
-  return title?.trim() || s.label;
-}
 
 /** 세션 줄 순서 — 내 손을 기다리는 것(이 창의 것 먼저, 오래 기다린 순), 이 창의 것, 다른 창의 것. ⌘J 의 차례와 같다. */
 function sessionRank(s: TermInfo, currentProjectId: number | null): number {
@@ -113,6 +108,10 @@ export function CommandPalette({
   const ws = useOptionalWorkspace();
   const currentProjectId = ws?.state.currentProjectId ?? null;
   const currentRoot = ws?.state.currentProjectRoot ?? null;
+  // 일지 줄의 「오늘 · 어제」 는 일지 목록과 같은 오늘로 — 프로젝트 tz · `day_starts_at` 을 아는 백엔드의 작업일
+  // (`lib/workday.ts` 머리 주석). 로컬 달력을 오늘로 치면 04:00 에 날이 바뀌는 프로젝트에서 같은 일지를 목록은
+  // 「오늘」, 팔레트는 「어제」 라 불렀다(11-15 검수). 워크스페이스가 없는 시작 창만 로컬 달력(`dayWord` 의 기본값).
+  const today = ws?.state.workdayKey ?? ws?.state.oculpmStatus?.current_workday ?? undefined;
   const [search, setSearch] = useState("");
   const [journal, setJournal] = useState<{ query: string; hits: JournalSearchHit[] }>({ query: "", hits: [] });
   const [plans, setPlans] = useState<PlanSummary[]>([]);
@@ -308,7 +307,9 @@ export function CommandPalette({
             id: "act-color",
             label: t("palette.projectColor"),
             keywords: [...tAll("palette.projectColor"), ...tAll("sidebar.projectColor")],
-            lead: <span className="proj-dot palette-dot" data-pc={currentColor} aria-hidden="true" />,
+            icon: PaletteIcon,
+            // 지금 색 점은 줄 끝(단축키 자리)에 — 머리에 7px 빈 고리가 서면 밝은 테마에서 줄 머리가 빈 것처럼 보였다(11-15 검수).
+            trail: <span className="proj-dot palette-dot" data-pc={currentColor} aria-hidden="true" />,
             // 색 견본은 ⌘O 목록 아래 묶음에 산다 — 그 목록을 색 칸에 포커스를 둔 채 연다.
             onSelect: run(() => {
               const detail: OpenSwitcherDetail = { focus: "colors" };
@@ -320,19 +321,20 @@ export function CommandPalette({
   ];
 
   // ── 세션 — 기다림 먼저, 이 창 다음, 다른 창. 끝났어도 안 본 소식이 있으면 남는다.
-  const sessionRows = useMemo(
-    () =>
-      sessions
-        .filter((s) => s.alive || s.unseen)
-        .map((s, i) => ({ s, i }))
-        .sort((a, b) => {
-          const ra = sessionRank(a.s, currentProjectId);
-          const rb = sessionRank(b.s, currentProjectId);
-          return ra - rb || (ra <= 1 ? sinceMs(a.s) - sinceMs(b.s) : a.i - b.i);
-        })
-        .map(({ s }) => s),
-    [sessions, currentProjectId],
-  );
+  // 이 창의 세션은 탭과 같은 번호를 먼저 매긴다(연 순서 = id 순, `numberSessions`) — 팔레트가 일부만 먼저 보고 번호를
+  // 가로채지 않게. 다른 창의 번호는 그 창의 것이라 이 창이 알 수 없다.
+  const sessionRows = useMemo(() => {
+    numberSessions(sessions.filter((s) => s.project_id === currentProjectId));
+    return sessions
+      .filter((s) => s.alive || s.unseen)
+      .map((s, i) => ({ s, i }))
+      .sort((a, b) => {
+        const ra = sessionRank(a.s, currentProjectId);
+        const rb = sessionRank(b.s, currentProjectId);
+        return ra - rb || (ra <= 1 ? sinceMs(a.s) - sinceMs(b.s) : a.i - b.i);
+      })
+      .map(({ s }) => s);
+  }, [sessions, currentProjectId]);
   // 고른 줄 — 기다리는 세션이 오면 그 줄을 고른다(아직 아무것도 안 쳤고 줄을 옮기지도 않았을 때, 연 동안 한 번).
   // 이 창의 기다림이 있으면 ⌘K ↩ 가 ⌘J 의 첫 세션과 같은 곳에 간다. 다른 창의 세션은 그 창을 앞으로 가져올 뿐 그
   // 칸까지 고르지는 못한다. 세션 목록은 늦게 와서 그 사이 cmdk 가 첫 줄(오늘)을 골라 두는데, 사람이 이미 ↓ 로
@@ -381,9 +383,9 @@ export function CommandPalette({
     const Icon = it.icon;
     return (
       <Command.Item key={it.id} value={it.id} keywords={it.keywords} onSelect={it.onSelect} className="palette-item">
-        {it.lead ?? (Icon ? <Icon size={15} aria-hidden="true" /> : null)}
+        {Icon ? <Icon size={15} aria-hidden="true" /> : null}
         <span className="palette-label">{it.label}</span>
-        {it.shortcut ? <kbd className="kbd">{it.shortcut}</kbd> : null}
+        {it.shortcut ? <kbd className="kbd">{it.shortcut}</kbd> : (it.trail ?? null)}
       </Command.Item>
     );
   };
@@ -426,20 +428,34 @@ export function CommandPalette({
               {sessionRows.map((s) => {
                 const word = sessionWord(t, s);
                 const waiting = s.alive && needsMe(s.status);
-                const elsewhere = s.project_id !== currentProjectId ? projectName(s.project_id) : "";
+                const here = s.project_id === currentProjectId;
+                const elsewhere = here ? "" : projectName(s.project_id);
+                // 이름은 탭과 같은 규칙(`status.sessionName` — 레인이면 「시도 n」), 이 창의 세션은 탭 앞 번호까지
+                // (11-15 검수 — 같은 프롬프트로 돈 시도 셋이 같은 제목 세 줄이었다). 기다림은 오늘 · 프로젝트 줄과 같은
+                // 칩 「기다림」 이고, 사유(허락 · 질문 · 로그인)는 회색 글자와 칩의 title 로 내린다.
+                const name = sessionName(t, s);
                 return (
                   <Command.Item
                     key={`session:${s.id}`}
                     value={`session:${s.id}`}
-                    // 「터미널」 은 화면 줄의 이름이다 — 세션이 그 말에 같이 걸리면 화면 줄이 묻힌다.
-                    keywords={[sessionName(s), elsewhere, word]}
+                    // 「터미널」 은 화면 줄의 이름이다 — 세션이 그 말에 같이 걸리면 화면 줄이 묻힌다. 칩의 낱말(기다림)로도 찾힌다.
+                    keywords={[name, elsewhere, word, waiting ? t("palette.waiting") : ""]}
                     onSelect={() => pickSession(s)}
                     className="palette-item"
                   >
                     <SquareTerminal size={15} aria-hidden="true" />
-                    <span className="palette-label">{sessionName(s)}</span>
+                    <span className="palette-label">
+                      {here ? <span className="palette-num">{sessionNumber(s.id)}</span> : null}
+                      {here ? " " : null}
+                      {name}
+                    </span>
                     {elsewhere ? <span className="palette-meta">{elsewhere}</span> : null}
-                    {waiting ? <span className="chip sm warn">{word}</span> : <span className="palette-meta">{word}</span>}
+                    <span className="palette-meta">{word}</span>
+                    {waiting ? (
+                      <span className="chip sm warn" title={word}>
+                        {t("palette.waiting")}
+                      </span>
+                    ) : null}
                   </Command.Item>
                 );
               })}
@@ -507,7 +523,7 @@ export function CommandPalette({
                 >
                   <NotebookText size={15} aria-hidden="true" />
                   <span className="palette-label">{hit.title}</span>
-                  <span className="palette-meta">{dayWord(hit.workday, lang, t)}</span>
+                  <span className="palette-meta">{dayWord(hit.workday, lang, t, today)}</span>
                 </Command.Item>
               ))}
             </Command.Group>
@@ -521,12 +537,14 @@ export function CommandPalette({
             </div>
           ) : null}
         </Command.List>
+        {/* 키 표기는 단축키 표와 한 벌 — ↑ · ↓ 키캡 둘, Enter 는 ↩(그 밖 OS 는 kbd() 가 「Enter」 로). */}
         <div className="palette-foot">
           <span>
-            <kbd className="kbd">↑↓</kbd> {t("palette.foot.move")}
+            <kbd className="kbd">↑</kbd>
+            <kbd className="kbd">↓</kbd> {t("palette.foot.move")}
           </span>
           <span>
-            <kbd className="kbd">⏎</kbd> {t("palette.foot.open")}
+            <kbd className="kbd">{kbd("↩")}</kbd> {t("palette.foot.open")}
           </span>
           {ws ? <span className="palette-foot-hint">{t("palette.footHint")}</span> : null}
         </div>

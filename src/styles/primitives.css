@@ -138,8 +138,10 @@
 /* 상태 이름(열림 · 내 차례 · 일지에 있음)은 머리카락 선 하나. 이름이 `outline` 이던 때(~11-04)는
    Tailwind 의 `outline` 유틸리티(1px 파란 링)와 겹쳐 중립이어야 할 칩에 파란 테가 섰다. */
 .chip.hairline { background: transparent; border: 1px solid var(--sep-strong); color: var(--text-2); }
-/* 읽지 않은 터미널 소식의 점 — 프로젝트 줄(`ProjectRow`)의 「새 소식」. */
-.terms-unseen { display: inline-block; width: 6px; height: 6px; margin-right: var(--space-1); border-radius: 50%; background: var(--info); }
+/* 읽지 않은 터미널 소식의 점 — 프로젝트 줄(`ProjectRow`)의 「새 소식」. 회색이다(영수증 규칙 1, 11-15 검수):
+   파란(--info) 점이 ⌘O · 시작 창 · ⌘K · ⌥Tab 의 줄마다 섰는데, 영수증 팔레트에 파랑은 없다 — 예외(실패 · 기다림)가
+   아닌 소식은 중립 칩 안의 점 하나로 「안 봤다」 만 말한다. */
+.terms-unseen { display: inline-block; width: 6px; height: 6px; margin-right: var(--space-1); border-radius: 50%; background: var(--text-2); }
 /* 영수증 규칙 1 (11-04) — 색은 예외에만. 통과 · 연결됨 · 최신은 회색 ✓ 하나로 조용히 선다.
    초록 바탕 딱지가 줄마다 서면 「다 됐습니다」 를 외치는 화면이 된다 — 그건 영수증이 아니라 광고다.
    .chip.accent 는 10-29 에 걷었다. */
@@ -147,7 +149,6 @@
 .chip.ok::before { content: "✓"; font-family: var(--mono); font-weight: var(--fw-strong); }
 .chip.warn { background: var(--warn-soft); color: var(--warn-text); }
 .chip.danger { background: var(--danger-soft); color: var(--danger-text); }
-.chip.info { background: var(--info-soft); color: var(--info-text); }
 /* 단축키는 본문 서체 — 고정폭에서는 ⌘O 의 O 가 숫자 0 처럼 읽혔다(11-04). 키 이름은 사람이 누르는 글자다. */
 .kbd {
   font-family: var(--font); font-variant-numeric: tabular-nums; font-size: var(--fs-2); font-weight: var(--fw-strong); /* design-ignore -- 단축키 표시는 12px 아래 예외 */
@@ -487,11 +488,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .cf .btn.cf-confirm.danger { background: var(--danger); border-color: transparent; color: var(--on-danger); }
 .cf .btn.cf-confirm.danger:hover:not(:disabled, [aria-disabled="true"]) { filter: brightness(0.94); }
 
-/* 채운 단추 안의 키 — 밝은 키캡이 초록 면 위에 따로 떠 보였다(11-04 시작 창). 단추 글자색의 옅은 면으로.
-   빨간 확인 단추도 같다. */
+/* 채운 단추 안의 키 — 밝은 키캡이 초록 면 위에 따로 떠 보였다(11-04 시작 창). 면 없이 단추 글자색의 옅은 테 하나다
+   (11-15 검수): 글자색 18% 면은 밝은 테마에서 흰 글자 아래를 밝혀 3.4:1(작은 글자 AA 미달)이었다. 면이 없으면 키의
+   대비는 단추 이름과 같다 — 두 가족 모두 4.5 를 넘는다(`primary_kbd_contrast.test.ts`). 빨간 확인 단추도 같다. */
 .btn.primary .kbd,
 .cf .btn.cf-confirm.danger .kbd {
-  background: color-mix(in srgb, currentColor 18%, transparent); border-color: transparent; box-shadow: none; color: inherit;
+  background: transparent; border-color: color-mix(in srgb, currentColor 40%, transparent); box-shadow: none; color: inherit;
 }
 
 /* ⌘/ 단축키 표 — 같은 이유로 전역. **CSS 단(columns)** 이다 (11-15): 3열 격자는 묶음 높이를 줄마다
@@ -512,7 +514,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .keys-row dt { flex: 1; min-width: 0; color: var(--text); }
 /* 괄호 안의 덧말은 둘째 줄 보조 회색 — 한 줄에 두면 키 칸을 밀어 줄이 들쭉날쭉했다. */
 .keys-sub { display: block; font-size: var(--fs-3); color: var(--text-2); }
-.keys-row dd { margin: 0; display: flex; gap: var(--space-1); flex: none; }
+.keys-row dd { margin: 0; display: flex; align-items: center; gap: var(--space-1); flex: none; }
+/* 같은 일을 하는 다른 길(`j / k · ↑ / ↓`)의 사이 — 키캡이 아니라 회색 점 하나. */
+.keys-or { padding: 0 var(--space-1); font-size: var(--fs-3); color: var(--text-2); }
 
 /* ── 오류 카드 — 한 벌 (ErrorCard · ErrorBoundary, 11-15) ─────────────────────
    제목이 본문보다 작았고(12px, --t-bug 3.83:1) 원문이 본문 서체였다. 이제 제목 13/600 --danger-text,

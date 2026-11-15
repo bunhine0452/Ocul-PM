@@ -16,7 +16,7 @@ import { kbd } from "@/lib/kbd";
 import { isMac } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import type { Project, ProjectAttention } from "@/lib/bindings";
-import { ProjectRow, distinctWhere } from "./ProjectRow";
+import { HereMark, ProjectRow, distinctWhere } from "./ProjectRow";
 
 /** 목록을 띄우기까지 — 이보다 빨리 손을 떼면 목록 없이 직전 창으로 간다(⌘Tab 과 같은 손맛). */
 const SHOW_AFTER_MS = 140;
@@ -186,12 +186,12 @@ export function WindowSwitcher({ currentProjectId, projects }: { currentProjectI
                   pick(i);
                 }}
               >
-                {/* 줄은 ⌘O · 시작 창 · ⌘K 와 한 벌 — 경로는 이름이 겹칠 때만 선다(`ProjectRow`). */}
+                {/* 줄은 ⌘O · 시작 창 · ⌘K 와 한 벌 — 경로는 이름이 겹칠 때만 선다(`ProjectRow`). 「지금 창」 도 ⌘O 와 한 모양. */}
                 <ProjectRow
                   project={p}
                   where={where.get(id)}
                   signals={{ attention: attention.get(id) }}
-                  meta={id === currentProjectId ? t("switcher.here") : null}
+                  meta={id === currentProjectId ? <HereMark /> : null}
                 />
               </li>
             );

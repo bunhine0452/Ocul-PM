@@ -56,6 +56,15 @@ export function isLongMeta(text: string): boolean {
   return width > 2 * 236;
 }
 
+/**
+ * 설명 글자 안의 `…` 는 명령 · 경로라 기계 글씨(`<code>`)로 — 영수증 규칙 2 (11-15 검수: 「/theme」 이 본문 서체였다).
+ * 사전 값은 글자로 남고(`isLongMeta` 가 그대로 잰다), 그릴 때만 가른다.
+ */
+export function metaText(meta: ReactNode): ReactNode {
+  if (typeof meta !== "string" || !meta.includes("`")) return meta;
+  return meta.split(/`([^`]+)`/).map((part, i) => (i % 2 ? <code key={i} className="mono">{part}</code> : part));
+}
+
 export function PrefsRow({
   label,
   meta,
@@ -68,16 +77,16 @@ export function PrefsRow({
   actions?: ReactNode;
   children?: ReactNode;
 }) {
-  const long = typeof meta === "string" && isLongMeta(meta);
+  const long = typeof meta === "string" && isLongMeta(meta.replace(/`/g, ""));
   return (
     <div className={"prefs-row" + (long ? " has-long-meta" : "") + (actions ? "" : " no-act")}>
       <div className="prefs-label">
         <div className="prefs-name">{label}</div>
-        {meta && !long ? <div className="prefs-meta">{meta}</div> : null}
+        {meta && !long ? <div className="prefs-meta">{metaText(meta)}</div> : null}
       </div>
       <div className="prefs-val">{children}</div>
       {actions ? <div className="prefs-act">{actions}</div> : null}
-      {meta && long ? <div className="prefs-meta prefs-meta-long">{meta}</div> : null}
+      {meta && long ? <div className="prefs-meta prefs-meta-long">{metaText(meta)}</div> : null}
     </div>
   );
 }
