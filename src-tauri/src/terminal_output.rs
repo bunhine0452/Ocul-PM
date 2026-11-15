@@ -99,7 +99,8 @@ fn apply_message(
             let next = r.state.map(|state| TermStatus {
                 state: state.as_str().to_string(),
                 kind: r.kind.map(|k| k.as_str().to_string()),
-                msg: r.msg.clone(),
+                // 까닭 글도 제목처럼 거른다 — 띠 · 툴팁 · OS 알림 본문에 앱이 덧붙인 말과 한 줄로 선다(SEC-03).
+                msg: r.msg.as_deref().and_then(program_status::clean_msg),
                 since: prev
                     .filter(|p| p.state == state.as_str())
                     .map(|p| p.since.clone())
@@ -328,6 +329,27 @@ mod tests {
         let working = pump(b"\x1b]0;login fix\x07\x1b]7501;state=working\x1b\\");
         assert_eq!(working.as_deref(), Some("login fix"));
         assert_eq!(pump(b"\x1b]7501;state=clear\x1b\\"), None);
+        sessions.close_all();
+    }
+
+    /// SEC-03 — 프로그램이 보낸 까닭 글의 RLO · 폭 0 글자는 상태에 실리지 않는다. 그대로 실리면 OS 알림 본문
+    /// `msg · 허락을 기다려요` 에서 앱의 말까지 오른쪽에서 왼쪽으로 뒤집혀 그려졌다(띠 · 탭 툴팁도 같은 글을 그린다).
+    #[test]
+    fn a_reported_message_is_cleaned_before_it_reaches_the_status() {
+        use base64::Engine;
+        let sessions = TermSessions::default();
+        let info = sessions
+            .start(spec("w", 1), sh("sleep 10"), "sh".into(), None, |_| {})
+            .unwrap();
+        let msg = base64::engine::general_purpose::STANDARD
+            .encode("\u{202E}approve Read: \u{200B}notes.md");
+        let report = format!("\x1b]7501;state=blocked:kind=permission:msg={msg}\x1b\\");
+        let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(1);
+        tx.send(report.into_bytes()).unwrap();
+        drop(tx);
+        pump_output(&rx, &sessions.inner, info.id, &|_| {}, &Flow::new(None));
+        let status = sessions.list("w")[0].status.clone().unwrap();
+        assert_eq!(status.msg.as_deref(), Some("approve Read: notes.md"));
         sessions.close_all();
     }
 }

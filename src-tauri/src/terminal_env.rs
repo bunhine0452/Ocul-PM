@@ -12,17 +12,30 @@
 //!
 //! 「다음」 은 예전에 셸이 rc 를 읽기도 전에 `claude "$OCULPM_PROMPT"` 를 tty 에 쳐 넣었다. oh-my-zsh 업데이트
 //! `[Y/n]` · p10k 마법사 · conda 질문이 앞 글자를 먹으면 나머지(`laude …`)가 명령으로 돌았다. 이제 셸이 그 줄을
-//! **명령 인자**로 받는다 — `$SHELL -l -i -c 'claude "$OCULPM_PROMPT"⏎⏎exec "$SHELL" -l -i'`. rc 의 질문은
-//! 질문대로 묻고, claude 가 끝나면 같은 자리(같은 pid)에 로그인 셸이 선다. 달라진 것 하나: claude 줄이 셸
-//! 기록(history)에 남지 않는다. 프롬프트는 여전히 환경 변수로 넘겨 셸 문법으로 이스케이프할 일이 없다.
+//! **명령 인자**로 받는다 — `$SHELL -l -i -c '<스크립트>'`. rc 의 질문은 질문대로 묻고, claude 가 끝나면 같은
+//! 자리(같은 pid)에 로그인 셸이 선다. 달라진 것 하나: claude 줄이 셸 기록(history)에 남지 않는다. 프롬프트는
+//! 여전히 환경 변수로 넘겨 셸 문법으로 이스케이프할 일이 없다.
 //!
 //! 계획의 확인 명령(11-15 사용자 결정 「누를 때만 돌리기」, [`Launch::Check`])도 같은 길로 간다. 사람이 확인 창에서
-//! 전문을 본 한 줄을 argv 원소 그대로 `-c` 에 싣는다 — 셸을 한 번 더 거치지 않으니 따옴표를 이스케이프할 일도,
-//! 환경 변수 + `eval` 로 감출 일도 없다. tty 에 쳐 넣으면 rc 의 질문이 첫 글자를 먹어 `pnpm test` 가 `npm test`
-//! 로, 사람이 본 것과 다른 명령이 돌 수 있었다. 맞바꾼 것은 「다음」 과 같다: 그 줄도 셸 기록에 남지 않는다 — 사람이
-//! 보는 자리는 확인 창의 전문과 탭 이름 「확인 명령」 이다. 줄과 `exec` 사이는 `;` 가 아니라 빈 줄이다. 사람이 쓴 줄
-//! 끝의 `# 메모` 가 `;` 뒤의 `exec` 까지 주석으로 삼키거나 끝의 `\` 가 `exec` 를 줄 잇기로 끌어당기면, 명령이
-//! 끝나자마자 세션이 닫히거나 명령에 엉뚱한 인자가 붙었다.
+//! 전문을 본 한 줄은 환경 변수(`OCULPM_CHECK`)로 넘기고 셸이 `eval "$OCULPM_CHECK"` 로 **따로** 읽는다. tty 에
+//! 쳐 넣으면 rc 의 질문이 첫 글자를 먹어 `pnpm test` 가 `npm test` 로 돌 수 있었다. 맞바꾼 것은 「다음」 과 같다:
+//! 그 줄도 셸 기록에 남지 않는다 — 사람이 보는 자리는 확인 창의 전문과 탭 이름 「확인 명령」 이다.
+//!
+//! 처음(11-15 오전)에는 그 줄을 `-c` 스크립트에 그대로 싣고 빈 줄 뒤에 `exec` 를 붙였다. 사람이 쓴 글과 앱이 붙인
+//! 글이 한 문법으로 읽혀, 줄이 `|` · `&&` · `||` 로 끝나거나 `<<EOF` · 닫히지 않은 따옴표를 품으면 앱의 `exec` 가
+//! 그 줄의 일부가 됐다 — `cat NOTES.md |` 면 새 셸이 파이프로 NOTES.md 를 받아 **명령으로 돌렸다**(최종 검수 X-02).
+//! `eval` 은 그 글만 따로 해석한다: 문법이 틀리면 아무것도 돌지 않고 셸이 남는다. 따옴표를 이스케이프할 일도 없다.
+//!
+//! 스크립트의 나머지 둘 (최종 검수 TERM-1, 셸마다 진짜 PTY 로 잼):
+//! - **Ctrl+C 뒤에도 셸이 남는다.** zsh 는 작업 제어가 켜진 채 앞의 작업이 SIGINT 로 죽으면 자기도 그 신호를 받은
+//!   것처럼 `-c` 의 나머지를 건너뛰고 끝났다 — 길게 도는 `pnpm test` 를 멈추면 세션이 「끝남 · 코드 130」 이 됐다.
+//!   그래서 SIGINT · SIGQUIT 에 「로그인 셸로 돌아가기」(`exec`)를 건다. 문자열 트랩이라 하위 셸 `( … )` 에는
+//!   물려지지 않는다(zsh 는 함수 트랩 `TRAPINT` 만 물려준다). `read` 를 끊는 bash 도 같은 길로 남는다.
+//! - **Ctrl+Z 로 멈춘 작업을 잃지 않는다.** `exec` 는 작업 표를 버린다 — zsh 는 멈춘 작업을 T 상태 고아로, bash 는
+//!   그 작업을 죽였다. 이 세션에는 작업을 붙잡아 둘 셸이 없으니 멈춘 작업은 앞으로 되돌려(`fg`) 끝까지 돌린다.
+//!   zsh 는 자기 작업 표(`$jobstates`)의 번호로 — 반복문 안에서 다시 멈추면 그 작업이 「현재 작업」 이 아니게 되어
+//!   맨 `fg` 가 「no current job」 으로 헛돌았다. bash 는 반복문 안에서 작업이 멈추면 반복문을 빠져나오므로 함수의
+//!   되부름으로 돈다. `jobs -s` 가 없는 셸(dash · ksh)은 아무것도 하지 않는다 — 예전 그대로다.
 //!
 //! 맞바꾼 것 하나: rc 가 다른 프로그램을 `exec` 하면(oh-my-zsh tmux 플러그인의 `ZSH_TMUX_AUTOSTART`,
 //! `[ -z "$TMUX" ] && exec tmux` — Finder 로 띄운 앱에는 `TMUX` 가 없어 늘 참이다) `-c` 의 명령은 아예 돌지
@@ -31,7 +44,7 @@
 
 use portable_pty::CommandBuilder;
 
-use super::PROMPT_ENV;
+use super::{CHECK_ENV, PROMPT_ENV};
 
 /// 셋이 다 비었을 때만 `LANG` 을 정한다 — 사용자가 고른 로캘은 무엇이든 그대로.
 const LOCALE_VARS: [&str; 3] = ["LANG", "LC_ALL", "LC_CTYPE"];
@@ -125,6 +138,7 @@ pub(super) enum Launch<'a> {
     /// 업데이트 전 대화를 잇는다 — 그 폴더의 가장 최근 대화(`claude --continue`).
     Resume,
     /// 계획의 확인 명령 한 줄 — 확인 창에 보인 그대로(`OpenSpec::check`). 부르는 쪽이 [`is_one_line`] 을 지났다.
+    /// 인자로 받는 셸에는 이 글이 아니라 `eval "$OCULPM_CHECK"` 가 간다(글은 환경 변수로, `start` 가 싣는다).
     Check(&'a str),
 }
 
@@ -158,39 +172,122 @@ impl<'a> Launch<'a> {
     }
 }
 
-/// 확인 명령으로 받을 한 줄인가 — 비지 않고, 줄을 나누거나 터미널을 움직이는 글자(제어 문자 · U+2028 · U+2029)가
-/// 없다. 웹뷰가 먼저 거르고 막지만(`features/terminal/runCheck.ts`) 셸 인자를 만드는 이 자리가 마지막 문이다 — 확인
-/// 창에 한 줄로 보인 것과 셸이 읽는 것이 같아야 한다. 탭도 막는다: 쳐 넣는 셸(nushell 등)에서는 자동 완성 키다.
+/// 확인 명령으로 받을 한 줄인가 — 비지 않고, 줄을 나누거나 터미널을 움직이는 글자(제어 문자 · U+2028 · U+2029)도,
+/// 보이지 않는 글자([`is_invisible`])도 없다. 웹뷰가 먼저 막고 이유를 말하지만(`features/terminal/runCheck.ts`) 셸
+/// 인자를 만드는 이 자리가 마지막 문이다 — 확인 창에 한 줄로 보인 것과 셸이 읽는 것이 같아야 한다. 탭도 막는다:
+/// 쳐 넣는 셸(nushell 등)에서는 자동 완성 키다.
 pub(super) fn is_one_line(line: &str) -> bool {
     !line.trim().is_empty()
         && !line
             .chars()
-            .any(|c| c.is_control() || matches!(c, '\u{2028}' | '\u{2029}'))
+            .any(|c| c.is_control() || matches!(c, '\u{2028}' | '\u{2029}') || is_invisible(c))
+}
+
+/// 확인 창에 그려지지 않거나 둘레 글자의 순서 · 자리를 바꾸는 글자 — 유니코드 서식 글자(Cf: 양방향 덮어쓰기 ·
+/// 격리 · 폭 0 · BOM · 태그 …), 기본 무시 글자(변형 선택자 · 한글 채움 글자 …), ASCII 밖의 공백, 점자 빈칸.
+///
+/// 확인 창은 줄을 유니코드 양방향 알고리즘대로 그린다. `pnpm test <RLO><LRI>; curl … ;<PDI><LRI>#<PDI>`
+/// 꼴(Trojan Source)이면 창에는 `#` 뒤가 주석인 줄이 보이는데 셸은 가운데 명령을 돌렸고, 끊기지 않는 공백 수천
+/// 개면 뒤의 `; curl … | sh` 가 스크롤 아래로 밀려났다(최종 검수 TERM-2 · SEC-01 · X-02). 지우지 않고 거절한다 — 지우면 사람이 본 줄과 다른 줄이 돈다.
+/// 웹뷰 쪽 표(`runCheck.ts` 의 `HIDDEN`)와 같은 범위다 — `terminal_check_cases.json` 이 둘을 같은 사례로 문다.
+/// 탭 제목 정화(`program_status::is_hidden`)는 보여 주기만 하는 글이라 지우고, 범위도 이보다 좁다.
+pub(super) fn is_invisible(c: char) -> bool {
+    matches!(
+        c,
+        '\u{00A0}'
+            | '\u{00AD}'
+            | '\u{034F}'
+            | '\u{0600}'..='\u{0605}'
+            | '\u{061C}'
+            | '\u{06DD}'
+            | '\u{070F}'
+            | '\u{0890}'..='\u{0891}'
+            | '\u{08E2}'
+            | '\u{115F}'..='\u{1160}'
+            | '\u{1680}'
+            | '\u{17B4}'..='\u{17B5}'
+            | '\u{180B}'..='\u{180F}'
+            | '\u{2000}'..='\u{200F}'
+            | '\u{202A}'..='\u{202F}'
+            | '\u{205F}'..='\u{206F}'
+            | '\u{2800}'
+            | '\u{3000}'
+            | '\u{3164}'
+            | '\u{FE00}'..='\u{FE0F}'
+            | '\u{FEFF}'
+            | '\u{FFA0}'
+            | '\u{FFF0}'..='\u{FFFB}'
+            | '\u{110BD}'
+            | '\u{110CD}'
+            | '\u{13430}'..='\u{1343F}'
+            | '\u{1BCA0}'..='\u{1BCA3}'
+            | '\u{1D173}'..='\u{1D17A}'
+            | '\u{E0000}'..='\u{E0FFF}'
+    )
 }
 
 /// `-l -i -c` 를 같은 뜻으로 읽는 셸 — POSIX 셸들과 fish.
 const ARGV_SHELLS: [&str; 7] = ["zsh", "bash", "fish", "sh", "dash", "ksh", "mksh"];
 
+/// 스크립트 끝 — 같은 셸의 로그인 셸로 돌아온다(부르는 쪽이 `SHELL` 을 그 셸로 둔다).
+const BACK: &str = "exec \"$SHELL\" -l -i";
+
+/// Ctrl+C · Ctrl+\ 로 앞의 작업이 죽어도 로그인 셸로 돌아온다(머리말 — zsh 는 신호를 받은 것처럼 `-c` 의 나머지를
+/// 건너뛰었다). 문자열 트랩이라 하위 셸에는 물려지지 않는다.
+const ON_SIGNAL_BACK: &str = "trap 'exec \"$SHELL\" -l -i' INT QUIT";
+
+/// zsh — Ctrl+Z 로 멈춘 작업을 앞으로 되돌린다. 작업 번호로 고른다: 반복문 안에서 다시 멈춘 작업은 「현재 작업」 이
+/// 아니어서 맨 `fg` 는 실패했다. 되돌린 작업이 다시 멈추면(상태 128 넘음) 한 번 더, 그 밖의 실패는 그친다(헛돌지 않게).
+const RESUME_ZSH: &str = "while oculpm_job=${(k)jobstates[(r)suspended:*]}; [[ -n $oculpm_job ]]; do fg %$oculpm_job || (( $? > 128 )) || break; done";
+
+/// POSIX 셸 — 같은 일을 함수의 되부름으로. bash 는 반복문 안에서 작업이 멈추면 반복문을 빠져나온다.
+/// `jobs -s` 를 모르는 셸(dash · ksh)에서는 빈 글이라 곧장 돌아온다.
+const RESUME_POSIX: &str = "oculpm_fg() { [ -n \"$(jobs -s 2>/dev/null)\" ] || return 0; fg || [ $? -gt 128 ] || return 0; oculpm_fg; }\noculpm_fg";
+
 /// 셸 이름(`zsh` · `pwsh` …)에 맞는 실행 인자. `None` 이면 그 셸은 줄을 인자로 받지 못한다 — 문법이 다른
 /// nushell · 로그인 깃발을 홀로만 받는 csh 계열 등은 예전처럼 줄을 쳐 넣는다([`typed_line`]).
 ///
-/// unix 는 `exec "$SHELL" -l -i` 로 같은 셸에 돌아온다 — 부르는 쪽이 `SHELL` 을 그 셸로 둔다. 줄과 그 사이는
-/// 빈 줄이다(위 머리말 — 끝의 `# 메모` · `\` 가 `exec` 를 먹지 않게). PowerShell 은 `-NoExit` 이 같은 일을 한다
-/// (프로필은 한 번만 읽는다).
+/// unix 는 [`script`] 끝에서 `exec "$SHELL" -l -i` 로 같은 셸에 돌아온다. PowerShell 은 `-NoExit` 이 같은 일을
+/// 한다(프로필은 한 번만 읽는다). 사람이 쓴 줄 뒤에 붙는 것이 없으니 줄을 그대로 넘긴다.
 pub(super) fn launch_args(shell: &str, launch: Launch<'_>) -> Option<Vec<String>> {
-    match shell {
-        "pwsh" | "powershell" => Some(vec![
+    args_for(shell, launch, cfg!(unix))
+}
+
+/// [`launch_args`] 의 몸 — `unix` 를 받아 시험이 두 갈래를 다 본다. unix 의 pwsh 는 `-l`(`-Login`)이 **첫 인자**여야
+/// 로그인 프로필(/etc/profile · ~/.profile)의 PATH 를 받는다 — 빠지면 빈 세션(`pwsh -l`)만 받고 「다음」 · 확인
+/// 명령 세션은 Finder 로 뜬 앱의 최소 PATH 로 떠 claude · pnpm 을 못 찾았다(최종 검수 TERM-4). Windows 는 뜻이 없다.
+fn args_for(shell: &str, launch: Launch<'_>, unix: bool) -> Option<Vec<String>> {
+    if matches!(shell, "pwsh" | "powershell") {
+        let login = unix.then(|| "-l".to_string());
+        let rest = [
             "-NoExit".to_string(),
             "-Command".to_string(),
             launch.command(true),
-        ]),
-        name if ARGV_SHELLS.contains(&name) => Some(vec![
+        ];
+        return Some(login.into_iter().chain(rest).collect());
+    }
+    ARGV_SHELLS.contains(&shell).then(|| {
+        vec![
             "-l".to_string(),
             "-i".to_string(),
             "-c".to_string(),
-            format!("{}\n\nexec \"$SHELL\" -l -i", launch.command(false)),
-        ]),
-        _ => None,
+            script(shell, launch),
+        ]
+    })
+}
+
+/// 셸이 `-c` 로 받을 스크립트 — 신호 트랩 · 할 일 · 멈춘 작업 되돌리기 · 로그인 셸로 돌아오기(머리말).
+/// 확인 명령은 글이 아니라 `eval "$OCULPM_CHECK"` 다 — 사람이 쓴 글이 앱이 붙인 줄과 한 문법으로 읽히지 않게.
+/// fish 는 문법이 달라 할 일과 돌아오기만 둔다.
+fn script(shell: &str, launch: Launch<'_>) -> String {
+    let run = match launch {
+        Launch::Check(_) => format!("eval \"${CHECK_ENV}\""),
+        other => other.command(false),
+    };
+    match shell {
+        "fish" => format!("{run}\n{BACK}"),
+        "zsh" => format!("{ON_SIGNAL_BACK}\n{run}\n{RESUME_ZSH}\n{BACK}"),
+        _ => format!("{ON_SIGNAL_BACK}\n{run}\n{RESUME_POSIX}\n{BACK}"),
     }
 }
 
@@ -218,6 +315,10 @@ pub(super) fn attach_launch(
     }
     typed
 }
+
+#[cfg(test)]
+#[path = "terminal_launch_tests.rs"]
+mod launch_tests;
 
 #[cfg(test)]
 mod tests {
@@ -310,32 +411,29 @@ mod tests {
         let run = Launch::of(Some("다음 항목"), false, None).unwrap();
         let args = launch_args("zsh", run).unwrap();
         assert_eq!(&args[..3], ["-l", "-i", "-c"]);
+        let claude = format!("claude \"${PROMPT_ENV}\"");
         assert_eq!(
             args[3],
-            format!("claude \"${PROMPT_ENV}\"\n\nexec \"$SHELL\" -l -i")
+            format!("{ON_SIGNAL_BACK}\n{claude}\n{RESUME_ZSH}\n{BACK}")
         );
-        for shell in ["bash", "fish", "sh", "dash", "ksh"] {
-            assert_eq!(
-                launch_args(shell, run).as_deref(),
-                Some(&args[..]),
-                "{shell}"
-            );
+        for shell in ["bash", "sh", "dash", "ksh"] {
+            let posix = format!("{ON_SIGNAL_BACK}\n{claude}\n{RESUME_POSIX}\n{BACK}");
+            assert_eq!(launch_args(shell, run).unwrap()[3], posix, "{shell}");
         }
         assert_eq!(
-            launch_args("zsh", Launch::Resume).unwrap()[3],
-            "claude --continue\n\nexec \"$SHELL\" -l -i"
+            launch_args("fish", run).unwrap()[3],
+            format!("{claude}\n{BACK}")
         );
+        assert!(launch_args("zsh", Launch::Resume).unwrap()[3].contains("\nclaude --continue\n"));
         let empty = Launch::of(Some(""), false, None).unwrap();
+        assert!(launch_args("bash", empty).unwrap()[3].contains("\nclaude\n"));
+        // Windows 의 PowerShell — 붙는 줄이 없어 그대로(unix 의 pwsh 는 `-l` 이 앞에 선다, launch_tests).
         assert_eq!(
-            launch_args("bash", empty).unwrap()[3],
-            "claude\n\nexec \"$SHELL\" -l -i"
-        );
-        assert_eq!(
-            launch_args("pwsh", run).unwrap(),
+            args_for("pwsh", run, false).unwrap(),
             ["-NoExit", "-Command", "claude $env:OCULPM_PROMPT"]
         );
         assert_eq!(
-            launch_args("powershell", Launch::Resume).unwrap()[2],
+            args_for("powershell", Launch::Resume, false).unwrap()[2],
             "claude --continue"
         );
         // nushell · csh 계열은 문법이 달라 쳐 넣는다.
@@ -351,20 +449,26 @@ mod tests {
         assert_eq!(Launch::of(Some("x"), true, None), Some(Launch::Resume));
     }
 
-    /// 확인 명령은 사람이 본 글 그대로 셸 인자가 된다 — 셸마다 바꾸지 않고, 이스케이프도 감싸기도 없다.
-    /// 인자를 못 받는 셸만 그 한 줄을 쳐 넣는다.
+    /// 확인 명령은 사람이 본 글 그대로 환경 변수로 가고, 셸은 그 글만 따로 읽는다(`eval`) — 앱이 붙인 줄과 한
+    /// 스크립트에 섞이지 않는다. 이스케이프도 감싸기도 없다. 인자를 못 받는 셸만 그 한 줄을 쳐 넣는다.
     #[test]
     fn a_check_line_goes_in_as_written() {
         let line = r#"pnpm test && cd src-tauri && cargo test -- "a b" $HOME # 메모 \"#;
         let check = Launch::of(None, false, Some(line)).unwrap();
         assert_eq!(check, Launch::Check(line));
-        let joined = format!("{line}\n\nexec \"$SHELL\" -l -i");
+        for shell in ["zsh", "bash", "fish", "sh"] {
+            let script = &launch_args(shell, check).unwrap()[3];
+            assert!(
+                script.contains("\neval \"$OCULPM_CHECK\"\n")
+                    || script.starts_with("eval \"$OCULPM_CHECK\"\n")
+            );
+            assert!(
+                !script.contains("pnpm test"),
+                "{shell}: 사람이 쓴 글은 스크립트에 들지 않는다"
+            );
+        }
         assert_eq!(
-            launch_args("zsh", check).unwrap(),
-            ["-l", "-i", "-c", joined.as_str()]
-        );
-        assert_eq!(
-            launch_args("pwsh", check).unwrap(),
+            args_for("pwsh", check, false).unwrap(),
             ["-NoExit", "-Command", line]
         );
         assert_eq!(launch_args("nu", check), None);
@@ -534,7 +638,7 @@ mod tests {
     #[test]
     fn a_check_line_runs_as_written_and_a_shell_stays() {
         use super::super::tests::{spec, wait_until};
-        use super::super::TermSessions;
+        use super::super::{OpenSpec, TermCheck, TermSessions};
         let zsh = std::path::Path::new("/bin/zsh");
         if !zsh.exists() {
             eprintln!("zsh 가 없다 — 건너뛴다");
@@ -555,8 +659,24 @@ mod tests {
         cmd.env("ZDOTDIR", &zdot);
         cmd.env("SHELL", zsh);
         let sessions = TermSessions::default();
+        let (label, check) = (
+            "check".to_string(),
+            Some(TermCheck {
+                line: line.clone(),
+                label: "check".into(),
+            }),
+        );
         let info = sessions
-            .start(spec("w", 1), cmd, "check".into(), None, |_| {})
+            .start(
+                OpenSpec {
+                    check,
+                    ..spec("w", 1)
+                },
+                cmd,
+                label,
+                None,
+                |_| {},
+            )
             .unwrap();
         // 사람이 rc 의 질문에 답한다 — 명령 줄은 그 답과 섞이지 않는다.
         sessions.write(info.id, "y").unwrap();
