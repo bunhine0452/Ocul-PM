@@ -1136,8 +1136,8 @@ export const ko = {
   "keys.rowMove": "줄 사이 이동",
   // 오늘 (11-15) — `TodayScreenV2` 의 keydown 이 듣는 키. 화면 안에서만, v · r · ↩ 는 포커스가 행에 있을 때만.
   "keys.todayGroup": "오늘",
-  "keys.todayEnds": "처음 · 끝 행으로",
-  "keys.todayAct": "그 행의 동작 (질문은 답 칸으로)",
+  "keys.todayEnds": "처음 · 끝 줄로",
+  "keys.todayAct": "그 줄의 동작 (질문은 답 칸으로)",
   "keys.todayRead": "검증 없는 일지 읽음",
   "keys.todayRun": "다음을 터미널에서 실행",
   "keys.todayLeave": "목록에서 나가기",

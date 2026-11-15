@@ -4,7 +4,8 @@
  *  - 일지 줄의 「오늘 · 어제」 는 일지 목록과 같은 오늘(백엔드의 프로젝트 작업일)로 — 로컬 달력을 오늘로 치면
  *    04:00 에 날이 바뀌는 프로젝트에서 같은 일지를 목록은 「오늘」, 팔레트는 「어제」 라 불렀다.
  *  - 이 창의 세션은 탭과 같은 이름 · 번호 — 같은 프롬프트로 돈 시도 셋이 같은 제목 세 줄이었고, 제목 없는 codex
- *    세션은 「zsh」 로 섰다. 기다림 칩은 오늘 · 프로젝트 줄과 같은 「기다림」, 사유는 회색 글자 · title.
+ *    세션은 「zsh」 로 섰다. 기다림 칩은 오늘 · 프로젝트 줄과 같은 「기다림」, 사유는 회색 글자 · title. 사유를 모르면
+ *    칩만(회색 「내 차례」 가 칩과 같은 것을 다른 낱말로 불렀다). 「시도 n」 이라 불러도 그 제목으로 찾힌다.
  *  - 「프로젝트 색 바꾸기」 의 머리도 다른 동작처럼 선 아이콘이고, 지금 색 점은 줄 끝.
  *  - 바닥의 키 표기는 단축키 표와 한 벌 — ↑ · ↓ 키캡 둘, ↩ (그 밖 OS 는 Enter).
  */
@@ -166,6 +167,33 @@ describe("session rows — the tab's name and number", () => {
     expect(chip.getAttribute("title")).toBe(t("terminal.state.permission"));
     const metas = [...waiting.querySelectorAll(".palette-meta")].map((m) => m.textContent);
     expect(metas).toEqual(["naeri", t("terminal.state.permission")]);
+  });
+
+  it("a wait with no known reason wears only the chip — no grey word beside it, no title", async () => {
+    fx.sessions = [
+      session(11, { status: { state: "blocked", kind: null, msg: null, since: "2026-11-15T09:20:00Z" } as TermInfo["status"] }),
+    ];
+    renderPalette();
+    const group = await screen.findByRole("group", { name: t("palette.group.sessions") });
+    const row = within(group).getAllByRole("option")[0];
+    const chip = row.querySelector(".chip.warn")!;
+    expect(chip.textContent).toBe(t("palette.waiting"));
+    expect(chip.hasAttribute("title")).toBe(false);
+    expect(row.querySelectorAll(".palette-meta")).toHaveLength(0);
+    expect(row.textContent).not.toContain(t("terminal.state.blocked"));
+  });
+
+  it("a lane named 「attempt n」 is still found by the title its program gave it", async () => {
+    fx.sessions = [
+      session(11, { title: "fix flaky cache test", status: { ...WORKING, app: "claude" } } as Partial<TermInfo>),
+      session(21, { label: "zsh" }),
+    ];
+    renderPalette();
+    await screen.findByRole("group", { name: t("palette.group.sessions") });
+    fireEvent.change(screen.getByPlaceholderText(t("palette.placeholder")), { target: { value: "flaky" } });
+    const group = await screen.findByRole("group", { name: t("palette.group.sessions") });
+    const labels = () => within(group).queryAllByRole("option").map((o) => o.querySelector(".palette-label")!.textContent);
+    await waitFor(() => expect(labels()).toEqual([`1 ${t("race.lane", { n: 1 })}`]));
   });
 });
 

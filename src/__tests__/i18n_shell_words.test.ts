@@ -43,4 +43,12 @@ describe("one word, one meaning", () => {
     expect(ko["today.nums.mine"]).toContain(MY_TURN);
     expect(ko["plan.item.user"]).toContain(MY_TURN);
   });
+
+  // 단축키 표의 줄은 「줄」 하나로 — 「줄 사이 이동」 바로 아래 「처음 · 끝 행으로」 · 「그 행의 동작」 이 같은 것을 두 낱말로
+  // 불렀다(11-15 재검수). 「실행」 처럼 낱말 가운데의 글자는 행이 아니다 — 낱말 머리의 「행」 만 본다.
+  it("the shortcut sheet has one word for a row", () => {
+    const rowWord = /(?<![가-힣])행/; // i18n-ignore -- 사전 낱말이 검사 재료다
+    const named = Object.entries(ko).filter(([key, value]) => key.startsWith("keys.") && rowWord.test(value));
+    expect(named).toEqual([]);
+  });
 });
