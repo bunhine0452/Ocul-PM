@@ -32,7 +32,7 @@ owner: claude-code
 
 ## 이월 {#carry}
 - [x] 도착 줄 — 다른 기기에서 한 일 N건 {#arrival}
-- [ ] v4.11.0 릴리스 — 2026-11-14 이후(사용자 지시 11-13 「내일 4.11 내도록 해」). CHANGELOG 의 Unreleased 절: 올리기 맡기기 · 오늘 받아 온 일지 · 주고받은 지 N일 {#release-411}
+- [x] v4.11.0 릴리스 — 2026-11-14 이후(사용자 지시 11-13 「내일 4.11 내도록 해」). CHANGELOG 의 Unreleased 절: 올리기 맡기기 · 오늘 받아 온 일지 · 주고받은 지 N일 {#release-411}
 - [ ] [사용자] 윈도우·맥 설치본에서 눈 확인 {#eyes}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -49,4 +49,6 @@ owner: claude-code
 | 2026-11-13T05:27:18+09:00 | #handoff | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0527_feature_two-machines-handoff-arrived.md | 「올리기 맡기기」 — 앱은 올리지 않고 앱 안 터미널의 Claude 에게 넘긴다 |
 | 2026-11-13T05:27:22+09:00 | #synced | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0527_feature_two-machines-handoff-arrived.md | 24시간 넘게 안 주고받았을 때만 · 다른 곳의 일지를 받은 적 없는 저장소는 조용 |
 | 2026-11-13T05:27:26+09:00 | #arrival | claude-code | ☐→x | .oculpm/journal/20261113/Features_to_add/0527_feature_two-machines-handoff-arrived.md | 판정 ✓ pnpm test 1109 passed · cargo test 1157 passed 0 failed · typecheck/lint/build/clippy exit 0 · 설치본 눈 확인은 안 함 |
+| 2026-11-15T12:41:13+09:00 | #release-411 | claude-code | ☐→~ |  | 태그 v4.11.0 → a0f803c9 (CI · E2E 초록), release run 43673415294 진행 중 — 업그레이드 라운드(PR #176)와 묶어 나간다(사용자 결정 11-15) |
+| 2026-11-15T17:14:12+09:00 | #release-411 | claude-code | ~→x | .oculpm/journal/20261115/Chores/1714_chore_release-v4-11-0.md | 판정 ✓ release run 43673415294 success · Latest v4.11.0 · 업그레이드 라운드와 묶음 · mac |
 <!-- oculpm:plan-log end -->

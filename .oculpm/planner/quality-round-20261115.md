@@ -32,7 +32,7 @@ Orca(소스) · 동종 앱 열한 개 · 터미널 기술 조사와 다섯 화�
 
 ## 합류 · 출시 {#ship}
 - [x] 합류 · 전체 게이트 · 전후 스크린샷 {#integrate}
-- [ ] v4.11.0 릴리스 {#release-411}
+- [x] v4.11.0 릴리스 {#release-411}
 - [ ] [사용자] 설치본에서 눈 확인 {#eyes}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -51,4 +51,6 @@ Orca(소스) · 동종 앱 열한 개 · 터미널 기술 조사와 다섯 화�
 | 2026-11-15T08:26:21+09:00 | #check-in-shell | claude-code | ☐→x | .oculpm/journal/20261115/Features_to_add/0825_feature_plan-check-in-shell.md | 5680088c — 확인 창 뒤에만 새 셸의 명령 인자로, 한 줄 · 정화, 판정은 Claude 몫 |
 | 2026-11-15T08:26:27+09:00 | #claude-theme | claude-code | ☐→x | .oculpm/journal/20261115/Features_to_add/0825_feature_claude-code-theme-file.md | 013544ea · 40c3bfa7 — ~/.claude 가 있을 때만 원자적으로 ocul.json, settings.json 무변경, 설정 줄 + 끄기 |
 | 2026-11-15T11:34:44+09:00 | #integrate | claude-code | ~→x | .oculpm/journal/20261115/Bugs/1134_bug_launch-line-ctrl-c-hidden-chars.md | 판정 ✓ cargo test 1227 passed 0 failed · pnpm test 1968 passed · typecheck/lint/build/clippy/fmt exit 0 · 최종 검수 major 8 고침 · 설치본 눈 확인은 안 함 · mac |
+| 2026-11-15T12:41:13+09:00 | #release-411 | claude-code | ☐→~ |  | PR #176 머지(9e658492) → E2E 언어 선택자 고침(a837e41e) → 릴리스 커밋 a0f803c9 (CI · E2E 초록) → 태그 v4.11.0, release run 43673415294 진행 중 |
+| 2026-11-15T17:14:12+09:00 | #release-411 | claude-code | ~→x | .oculpm/journal/20261115/Chores/1714_chore_release-v4-11-0.md | 판정 ✓ release run 43673415294 success · 설치본 E2E win/linux 통과 · Latest v4.11.0 · mac |
 <!-- oculpm:plan-log end -->
