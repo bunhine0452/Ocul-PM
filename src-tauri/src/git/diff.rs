@@ -27,13 +27,16 @@ pub struct CappedPatch {
 }
 
 impl CappedPatch {
-    /// `max_bytes` 안으로 — 넘으면 마지막 줄바꿈까지만 남긴다(줄 중간에서 끊지 않는다). 한 줄이
-    /// 예산보다 길면 그 줄을 글자 경계에서 자른다 — 빈 패치보다 낫다.
+    /// `max_bytes` 안으로 — 넘으면 마지막 줄바꿈까지만 남긴다(줄 중간에서 끊지 않는다). 남긴 글의 마지막
+    /// 덩이에 바뀐 줄이 하나도 없으면(예산보다 긴 줄이 그 덩이의 첫 바뀐 줄이면) 그 줄을 글자 경계에서
+    /// 잘라 잇는다 — 빈 덩이보다 낫다.
     ///
     /// git 출력은 늘 짧은 머리줄(`diff --git` · `---` · `+++` · `@@`)로 시작해서, 예산보다 긴 한 줄(압축 JS ·
-    /// 한 줄 JSON · 소스맵)이 그 뒤에 오면 줄 끝까지만 남긴 글이 덩이 머리로 끝나 내용 줄이 0 이었다(11-15
-    /// 검수 — 화면에 덩이 머리 하나와 「0.1 KB / 195 KB 만 보여요」 만 남았다). 그때는 잘린 다음 줄을 예산까지
-    /// 글자 경계에서 넣고 줄바꿈을 붙인다 — 보인 바이트는 그 길이다.
+    /// 한 줄 JSON · 소스맵)이 그 뒤에 오면 줄 끝까지만 남긴 글에 내용 줄이 0 이었다(11-15 검수 — 화면에 덩이
+    /// 머리 하나와 「0.1 KB / 195 KB 만 보여요」 만 남았다). `-U3` 은 바뀐 줄 앞에 맥락 줄을 세 줄까지 넣으므로
+    /// 남긴 글이 덩이 머리가 아니라 맥락 줄로 끝나기도 한다(라이선스 머리줄이 붙은 압축 번들, `@charset` 뒤의
+    /// 압축 CSS — 11-15 재검수). 그때는 잘린 다음 줄을 예산까지 글자 경계에서 넣고 줄바꿈을 붙인다 — 보인
+    /// 바이트는 그 길이다.
     pub fn cap(text: String, max_bytes: usize) -> Self {
         if text.len() <= max_bytes {
             return Self { text, cut: None };
@@ -41,7 +44,7 @@ impl CappedPatch {
         let total = text.len();
         let head = truncate_at_char_boundary(&text, max_bytes);
         let mut kept = head.rfind('\n').map_or(head, |i| &head[..=i]).to_string();
-        if ends_with_hunk_header(&kept) {
+        if last_hunk_has_no_change(&kept) {
             // 줄바꿈 한 자리를 남긴다. 남긴 글이 예산 안의 마지막 줄바꿈이라 이 조각에는 줄바꿈이 없다.
             let room = max_bytes.saturating_sub(kept.len() + 1);
             let part = truncate_at_char_boundary(&text[kept.len()..], room);
@@ -70,15 +73,23 @@ impl CappedPatch {
     }
 }
 
-/// 줄 끝까지 남긴 글의 마지막 줄이 덩이 머리(`@@ … @@`)인가 — 그 덩이에 내용 줄이 하나도 없다.
-/// 줄바꿈으로 끝나지 않으면(첫 줄부터 예산보다 길어 글자 경계에서 잘랐으면) 아니다.
-fn ends_with_hunk_header(kept: &str) -> bool {
-    let Some(body) = kept.strip_suffix('\n') else {
+/// 줄 끝까지 남긴 글의 마지막 덩이(마지막 `@@ … @@` 줄 뒤)에 더한 줄 · 뺀 줄이 하나도 없는가 — 덩이 머리와
+/// 맥락 줄만 섰다. 마지막 줄만 보면 맥락 줄로 끝난 덩이를 놓친다. 덩이 안에서는 첫 글자만 본다(`+++` · `---`
+/// 로 시작해도 바뀐 줄이다) — 프런트 `countPatchStats` 의 위치 규칙과 같다. 줄바꿈으로 끝나지 않으면(첫 줄부터
+/// 예산보다 길어 글자 경계에서 잘랐으면) · 덩이 머리가 아직 없으면 아니다.
+fn last_hunk_has_no_change(kept: &str) -> bool {
+    if !kept.ends_with('\n') {
         return false;
-    };
-    body.rsplit('\n')
-        .next()
-        .is_some_and(|last| last.starts_with("@@"))
+    }
+    for line in kept.lines().rev() {
+        if line.starts_with("@@") {
+            return true;
+        }
+        if line.starts_with('+') || line.starts_with('-') {
+            return false;
+        }
+    }
+    false
 }
 
 /// Unified-diff for a single tracked path. `from`/`to` are commit-ish refs;
@@ -595,6 +606,36 @@ mod tests {
         assert!(capped.cut.expect("cut").shown <= budget);
         assert!(capped.text.ends_with("가\n"));
         assert_eq!(content_lines(&capped.text), 1);
+    }
+
+    /// 맥락 줄 뒤의 긴 줄 (11-15 재검수) — `-U3` 은 바뀐 줄 앞에 맥락 줄을 넣어서, 라이선스 머리줄이 붙은 압축
+    /// 번들은 남긴 글이 `@@` 가 아니라 맥락 줄로 끝나 내용 줄이 여전히 0 이었다. 마지막 덩이에 바뀐 줄이 없으면
+    /// 그때도 다음 줄을 잇는다.
+    #[test]
+    fn a_long_line_after_context_lines_still_shows_its_start() {
+        let head = "diff --git a/main.js b/main.js\nindex 1111111..2222222 100644\n--- a/main.js\n+++ b/main.js\n@@ -1,2 +1,2 @@\n /*! For license information please see main.js.LICENSE.txt */\n";
+        let text = format!("{head}-{}\n+{}\n", "a".repeat(100_000), "b".repeat(100_000));
+        let budget = 64 * 1024;
+        let capped = CappedPatch::cap(text.clone(), budget);
+        let cut = capped.cut.expect("cut");
+        assert_eq!(cut.total, text.len());
+        assert_eq!(capped.text.len(), cut.shown);
+        assert!(cut.shown <= budget, "{}", cut.shown);
+        assert!(capped.text.starts_with(head));
+        assert!(capped.text.ends_with("aaaa\n"), "줄바꿈으로 끝난다");
+        assert_eq!(content_lines(&capped.text), 1);
+
+        // 맥락 줄이 셋이어도(-U3 의 끝) 같다. 덩이 안의 `+++` 로 시작하는 줄은 바뀐 줄이라 그 덩이는 잇지 않는다.
+        let three = format!(
+            "@@ -1,4 +1,4 @@\n one\n two\n three\n+{}\n",
+            "c".repeat(100_000)
+        );
+        let capped = CappedPatch::cap(three, budget);
+        assert!(capped.text.len() <= budget);
+        assert_eq!(content_lines(&capped.text), 1);
+        let text = format!("@@ -1,3 +1,3 @@\n ctx\n+++i;\n {}\n", "d".repeat(5_000));
+        let capped = CappedPatch::cap(text, 1_024);
+        assert_eq!(capped.text, "@@ -1,3 +1,3 @@\n ctx\n+++i;\n");
     }
 
     /// 내용 줄이 이미 선 덩이는 그대로 줄 끝에서 — 다음 덩이 머리로 끝날 때만 그 덩이의 줄을 잇는다.
