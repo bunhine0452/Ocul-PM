@@ -5,6 +5,9 @@
  *  - 일지 없이 손을 놓았다: 「일지 없음」 + 「기록 남기게 하기」 — 오늘의 「다음」 이 여는 claude 세션 하나가
  *    가장 흔한 배치인데, 세션이 하나면 「일지 없음」 이 어디에도 안 떴다. 코드를 안 바꾼 문답이면 ×로 접는다
  *    — 접지 못하던 때는 턴 사이 내내 앰버 띠가 Claude 화면 윗줄을 덮고 있었다. 다음 차례가 끝나면 다시 선다.
+ *    단추는 안의 프로그램이 Claude 일 때만 선다(`isClaudeApp` — Codex 에게 Claude 용 부탁을 넣지 않게). 누르면
+ *    부르는 쪽이 목록을 다시 읽어 그 칸에 아직 Claude 가 있는지 보고, 셸이 앞이면 넣지 않고 띠를 접는다
+ *    (`TerminalScreen.askRecord` — 상태는 claude 가 지우지 않고 죽어도 남는다, 최종 검수 TERM-3 · SEC-02).
  *  - 끝났다: 「끝남 · 코드 n」(0 이 아니면 빨강) + 「다시 열기」 + 「닫기」 — 닫기뿐인 막다른 길이었다.
  *
  * 줄로 끼우지 않고 `.tm-pane` 안에 겹친다(`PaneTree`) — 띠가 서고 질 때마다 터미널 높이가 31px 바뀌어
@@ -14,7 +17,7 @@ import type { TermInfo } from "@/api/terminal";
 import { X } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { createStore } from "@/lib/createStore";
-import { sessionLabel, type SessionView } from "./status";
+import { isClaudeApp, sessionLabel, type SessionView } from "./status";
 
 export interface StatusBandProps {
   info: TermInfo;
@@ -31,6 +34,11 @@ export interface StatusBandProps {
  * 다시 선다. 창(웹뷰) 하나에 하나 — 화면을 오가도 접은 채로 남는다.
  */
 const folded = createStore<ReadonlySet<number>>(new Set());
+
+/** 그 세션의 「일지 없음」 띠를 접는다 — ×, 또는 「기록 남기게 하기」 를 눌렀는데 그 칸에 Claude 가 없을 때. */
+export function foldBand(id: number): void {
+  folded.update((s) => new Set(s).add(id));
+}
 
 /** 세션 목록이 바뀔 때마다 — 다시 일하는(또는 닫힌) 세션의 접음을 거둔다. 화면이 모든 세션을 넘긴다. */
 export function unfoldWorking(list: readonly TermInfo[]): void {
@@ -60,7 +68,7 @@ export function StatusBand({ info, view, resumes, onAskRecord, onReopen, onClose
   const norecLive = view.norec && !ended && !waiting;
   if (norecLive && foldedIds.has(info.id)) return null;
   const msg = waiting ? info.status?.msg : null;
-  const fold = () => folded.update((s) => new Set(s).add(info.id));
+  const fold = () => foldBand(info.id);
   return (
     <div className={"tm-band" + (waiting || norecLive ? " is-warn" : "") + (ended ? " is-ended" : "")} role="status">
       {ended || waiting ? (
@@ -75,9 +83,11 @@ export function StatusBand({ info, view, resumes, onAskRecord, onReopen, onClose
       <span className="tm-band-sp" />
       {norecLive ? (
         <>
-          <button type="button" className="btn sm" onClick={() => onAskRecord(info.id)}>
-            {t("terminal.askRecord")}
-          </button>
+          {isClaudeApp(info) ? (
+            <button type="button" className="btn sm" onClick={() => onAskRecord(info.id)}>
+              {t("terminal.askRecord")}
+            </button>
+          ) : null}
           <button
             type="button"
             className="iconbtn sm"

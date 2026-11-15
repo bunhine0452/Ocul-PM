@@ -186,9 +186,9 @@ describe("run the check command in a shell — only when pressed", () => {
 });
 
 describe("prepareCheck", () => {
-  it("leaves backticks inside a command alone — only one span around the whole line is markdown", () => {
-    expect(prepareCheck("test `uname` = Darwin")).toEqual({ kind: "ok", line: "test `uname` = Darwin" });
-    expect(prepareCheck("`a` && `b`")).toEqual({ kind: "ok", line: "`a` && `b`" });
+  it("blocks a backtick left after the one span around the whole line — the shell would run it first", () => {
+    expect(prepareCheck("test `uname` = Darwin")).toEqual({ kind: "backtick" });
+    expect(prepareCheck("`a` && `b`")).toEqual({ kind: "backtick" });
   });
 
   it("finds a line break in the raw text, before the sanitizer folds CR or drops NEL", () => {

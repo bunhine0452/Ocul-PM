@@ -67,7 +67,7 @@ import { TermFileMenuHost } from "./TermFileMenu";
 import { runPromptInTerminal } from "./runPrompt";
 import { sendOrQueue, toastQueued } from "./sendToClaude";
 import { SessionDot, SessionTabs, SessionWord } from "./SessionTabs";
-import { StatusBand, __resetStatusBandForTests, hasBand, unfoldWorking } from "./StatusBand";
+import { StatusBand, __resetStatusBandForTests, foldBand, hasBand, unfoldWorking } from "./StatusBand";
 import { TermToolbar } from "./TermToolbar";
 import {
   __resetSessionNumbersForTests,
@@ -431,13 +431,18 @@ export function TerminalScreen({
     [projectId, resumes, setView, t],
   );
 
-  // 「기록 남기게 하기」 — 일지 없이 손을 놓은 Claude 에게 기록을 부탁한다(쉬지 않으면 줄에 세운다).
+  // 「기록 남기게 하기」 — 일지 없이 손을 놓은 Claude 에게 기록을 부탁한다(쉬지 않으면 줄에 세운다). 띠는 낡은 상태로도
+  // 선다 — claude 가 `state=clear` 없이 죽으면 idle 이 남고 셸이 앞에 선다. `sendOrQueue` 가 목록을 다시 읽어 그 칸에
+  // Claude 가 없으면 넣지 않는다(셸에 그 부탁이 명령으로 들어갔다) — 그러면 띠를 접고 까닭을 알린다.
   const askRecord = useCallback(
     async (id: number) => {
       try {
         const res = await sendOrQueue(id, t("terminal.askRecordPrompt"));
         if (res.outcome === "sent") toast.info(t("send.sent", { n: sessionNumber(id) }));
-        else toastQueued(t, sessionNumber(id), res.key);
+        else if (res.outcome === "absent") {
+          foldBand(id);
+          toast.warning(t("terminal.noClaude", { n: sessionNumber(id) }));
+        } else toastQueued(t, sessionNumber(id), res.key);
       } catch (e) {
         toast.destructive(t("send.failed", { error: tError(toAppError(e)) }));
       }
@@ -652,7 +657,7 @@ export function TerminalScreen({
               density="rich"
               className="tm-empty-state"
               actions={
-                <button type="button" className="btn primary sm" onClick={() => void add()}>
+                <button type="button" className="btn primary" onClick={() => void add()}>
                   {t("common.retry")}
                 </button>
               }
@@ -664,19 +669,27 @@ export function TerminalScreen({
               density="rich"
               className="tm-empty-state"
               actions={
+                // 빈 화면의 단추는 일지 · 계획의 빈 화면과 같은 크기(30px) — 터미널만 26px 이었다(RC-13).
                 next ? (
                   <>
-                    <button type="button" className="btn primary sm" onClick={() => void runNext()}>
+                    <button type="button" className="btn primary" onClick={() => void runNext()}>
                       {t("terminal.runNext")}
                     </button>
-                    <button type="button" className="btn sm" onClick={() => void add()}>
+                    <button type="button" className="btn" onClick={() => void add()}>
                       {t("terminal.emptyShell")}
                     </button>
                   </>
                 ) : (
-                  <button type="button" className="btn primary sm" onClick={() => void add()}>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    aria-keyshortcuts="Meta+T Control+Shift+T"
+                    onClick={() => void add()}
+                  >
                     {t("terminal.new")}
-                    <kbd className="kbd">{kbd("⌘T", "terminal")}</kbd>
+                    <kbd className="kbd" aria-hidden="true">
+                      {kbd("⌘T", "terminal")}
+                    </kbd>
                   </button>
                 )
               }

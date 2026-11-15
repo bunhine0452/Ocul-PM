@@ -5,11 +5,12 @@
  * 화면 어디서든 `requestSendToClaude(맥락)` 만 부르고, 대화상자는 창마다 하나(`SendToClaudeHost`).
  * xterm 을 들이지 않는다 — 넣는 일은 백엔드(`term_write`)가 한다.
  */
-import { terminalApi, type TermInfo, type TermStatus } from "@/api/terminal";
+import { terminalApi, type TermInfo } from "@/api/terminal";
 import { t, type I18nKey, type TVars } from "@/i18n";
 import { createIntentSlot, createStore } from "@/lib/createStore";
 import { toast } from "@/lib/toast";
 import { sanitizePaste } from "./pasteSafe";
+import { isClaudeApp } from "./status";
 
 export interface SendContext {
   kind: "journal" | "plan" | "file" | "notes" | "terminal";
@@ -87,19 +88,18 @@ export function composeMessage(tr: Tr, ctx: SendContext, text: string): string {
 }
 
 /**
- * 안의 프로그램이 Claude 인가 — 엔진이 알린 이름(`status.app`, OSC 7501)이 있으면 그것으로 가린다.
- * 상태 신호만 보면 Codex 세션도 끼어 Claude 에게 쓴 지시가 Codex 로 갈 수 있었다. 이름을 안 알리는
- * 프로그램(엔진 합류 전 · 옛 판)은 예전처럼 믿는다. 규칙은 엔진의 `runs_claude` 와 같은 모양이다 —
- * 엔진이 소문자로 다듬은 이름이 `claude`(· `claude-code`)로 시작하면 Claude.
+ * 지금 받을 수 있는 세션인가 — 셸 위에서 claude 가 돈다(상태 신호를 보냈거나 「다음」으로 띄운 것, 이름이 Claude).
+ * `busy` 는 백엔드가 목록을 읽을 때 잰 값이다 — 넣기 직전에 다시 읽은 목록으로 물어야 한다. claude 가
+ * `state=clear` 없이 죽으면 상태(idle)는 남고 셸이 다시 앞에 선다(`agentScreen.ts` 머리말) — 상태만 보면 앱이 쓴
+ * 말이 셸 명령으로 실행됐다(최종 검수 TERM-3 · SEC-02).
  */
-function isClaudeApp(s: TermInfo): boolean {
-  const app = (s.status as (TermStatus & { app?: string | null }) | null)?.app;
-  return app == null || app.startsWith("claude");
+export function canReceive(s: TermInfo): boolean {
+  return s.alive && s.busy && (s.status != null || s.label === "claude") && isClaudeApp(s);
 }
 
-/** 받을 수 있는 세션 — 셸 위에서 claude 가 돈다(상태 신호를 보냈거나 「다음」으로 띄운 것). */
+/** 받을 수 있는 세션들 — `canReceive`. */
 export function receiversOf(list: readonly TermInfo[]): TermInfo[] {
-  return list.filter((s) => s.alive && s.busy && (s.status != null || s.label === "claude") && isClaudeApp(s));
+  return list.filter(canReceive);
 }
 
 /** 먼저 고를 받는 곳 — 쉬는(입력 대기 · 끝냄) 세션, 없으면 첫 세션. */
@@ -170,27 +170,34 @@ export interface FlushResult {
   delivered: Queued[];
   /** 세션이 끝나 넣을 곳이 없어진 말. */
   dropped: Queued[];
+  /** 세션은 살아 있는데 손을 놓은 자리에 Claude 가 없다(셸이 다시 앞에 섰다) — 셸에 넣지 않고 버린 말. */
+  absent: Queued[];
 }
 
 /**
  * 쉬게 된 세션에 그 세션 몫을 **한 번에** 넣는다 — 하나씩 넣으면 첫 말에 claude 가 다시 일하는 사이
  * 나머지가 또 턴 중간에 끼므로, Claude Code 가 제 줄을 합치듯 빈 줄로 이어 한 턴으로 보낸다.
  * 넣기 전에 줄에서 먼저 빼서, 사건이 겹쳐 두 번 불려도 같은 말이 두 번 가지 않는다.
+ *
+ * 「손을 놓았다」(쉼 · 끝냄 · 지움)만 보고 넣으면 안 된다 — claude 가 `state=clear` 로 나가거나 그것 없이 죽은 뒤에는
+ * 셸이 앞이라, 줄 세운 말(동료가 쓴 일지 제목이 든다)이 셸 명령으로 돌았다. 그 자리에 Claude 가 있을 때만(`canReceive`).
  */
 export async function flushQueue(
   list: readonly TermInfo[],
   deliver: (id: number, message: string) => Promise<void> = deliverToSession,
 ): Promise<FlushResult> {
   const cur = queue.get();
-  if (cur.length === 0) return { delivered: [], dropped: [] };
+  if (cur.length === 0) return { delivered: [], dropped: [], absent: [] };
   const byId = new Map(list.map((s) => [s.id, s]));
   const dropped = cur.filter((q) => !byId.get(q.sessionId)?.alive);
-  const ready = cur.filter((q) => {
+  const settled = cur.filter((q) => {
     const s = byId.get(q.sessionId);
     return s?.alive && readinessOf(s.status) === "ready";
   });
-  if (dropped.length === 0 && ready.length === 0) return { delivered: [], dropped: [] };
-  const taken = new Set([...dropped, ...ready]);
+  const ready = settled.filter((q) => canReceive(byId.get(q.sessionId) as TermInfo));
+  const absent = settled.filter((q) => !ready.includes(q));
+  if (dropped.length === 0 && settled.length === 0) return { delivered: [], dropped: [], absent: [] };
+  const taken = new Set([...dropped, ...settled]);
   queue.set(cur.filter((q) => !taken.has(q)));
 
   const delivered: Queued[] = [];
@@ -205,14 +212,20 @@ export async function flushQueue(
       dropped.push(...mine);
     }
   }
-  return { delivered, dropped };
+  return { delivered, dropped, absent };
 }
 
-export type SendOutcome = { outcome: "sent" } | { outcome: "queued"; key: number; readiness: Readiness };
+export type SendOutcome =
+  | { outcome: "sent" }
+  | { outcome: "queued"; key: number; readiness: Readiness }
+  /** 다시 읽어 보니 그 세션에 Claude 가 없다(셸이 앞 · 끝남 · 목록을 못 읽음) — 아무것도 넣지 않았다. */
+  | { outcome: "absent" };
 
 /**
  * 세션에 보내거나 줄에 세운다. 상태는 보내는 순간 다시 읽는다 — 대화상자를 연 뒤 권한 질문이 떴을 수 있다.
  * `now` 는 「지금 끼워 넣기」: 일하는 중이면 바로 넣지만, 묻는 중에는 Enter 가 선택지를 누르니 그래도 줄에 세운다.
+ * 다시 읽은 목록에서 그 세션에 Claude 가 없으면(`canReceive`) 넣지 않는다 — 붙여넣기 뒤의 Enter 가 셸에서 그 말을
+ * 명령으로 돌린다. 목록을 못 읽어도 넣지 않는다(확인할 수 없는 칸에 치지 않는다).
  */
 export async function sendOrQueue(
   id: number,
@@ -221,7 +234,8 @@ export async function sendOrQueue(
 ): Promise<SendOutcome> {
   const all = await terminalApi.list().catch(() => []);
   const info = (Array.isArray(all) ? all : []).find((s) => s.id === id);
-  const readiness = readinessOf(info?.status);
+  if (!info || !canReceive(info)) return { outcome: "absent" };
+  const readiness = readinessOf(info.status);
   if (readiness === "ready" || (opts.now && readiness === "working")) {
     await deliverToSession(id, message);
     opts.onDelivered?.();

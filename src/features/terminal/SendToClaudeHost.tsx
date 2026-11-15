@@ -113,6 +113,11 @@ export function SendToClaudeHost({ projectId }: { projectId: number }) {
         const id = Number(chosen);
         const n = sessionNumber(id);
         const res = await sendOrQueue(id, message, { now, onDelivered: ctx.onSent });
+        if (res.outcome === "absent") {
+          // 연 사이 Claude 가 나갔다 — 셸에 치지 않았다. 쓰던 말과 창은 그대로(받는 곳을 새 세션으로 바꿔 보낼 수 있다).
+          toast.warning(t("terminal.noClaude", { n }));
+          return;
+        }
         if (res.outcome === "sent") {
           toast.info(t("send.sent", { n }), { actions: [viewAction(t("send.view"), id)] });
         } else {
@@ -251,7 +256,7 @@ function useSendQueueFlusher() {
       if (queuedStore.get().length === 0) return;
       const all = await terminalApi.list().catch(() => []);
       const list = Array.isArray(all) ? all : [];
-      const { delivered, dropped } = await flushQueue(list);
+      const { delivered, dropped, absent } = await flushQueue(list);
       if (!alive) return;
       const tr = tRef.current;
       numberSessions(list);
@@ -259,6 +264,7 @@ function useSendQueueFlusher() {
         toast.info(tr("send.queueDelivered", { n: sessionNumber(id) }), { actions: [viewAction(tr("send.view"), id)] });
       }
       if (dropped.length > 0) toast.warning(tr("send.queueDropped", { n: dropped.length }));
+      for (const id of new Set(absent.map((q) => q.sessionId))) toast.warning(tr("terminal.noClaude", { n: sessionNumber(id) }));
     };
     const off = terminalApi.onSessionsChanged(() => void run());
     // 줄에 세우는 사이 세션이 이미 손을 놓았을 수 있다 — 그 뒤엔 사건이 없으니 세울 때도 한 번 본다.
