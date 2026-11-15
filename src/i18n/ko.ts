@@ -427,7 +427,7 @@ export const ko = {
   "terminal.state.idle": "입력을 기다려요",
   "terminal.state.done": "끝냈어요",
   "terminal.state.error": "오류가 났어요",
-  "terminal.state.blocked": "내 차례",
+  "terminal.state.blocked": "기다려요",
   "terminal.state.permission": "허락을 기다려요",
   "terminal.state.question": "답을 기다려요",
   "terminal.state.auth": "로그인을 기다려요",

@@ -422,7 +422,7 @@ export const en: Record<keyof typeof ko, string> = {
   "terminal.state.idle": "Waiting for input",
   "terminal.state.done": "Done",
   "terminal.state.error": "Hit an error",
-  "terminal.state.blocked": "Your turn",
+  "terminal.state.blocked": "Waiting",
   "terminal.state.permission": "Needs permission",
   "terminal.state.question": "Has a question",
   "terminal.state.auth": "Needs sign-in",
