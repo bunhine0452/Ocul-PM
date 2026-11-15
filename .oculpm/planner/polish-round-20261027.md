@@ -84,6 +84,12 @@ owner: claude-code
 - [x] 개발 캐시 — src-tauri/target 증분(pnpm clean:target) · node_modules/.vite · ~/Library/Caches/ai-pm(옛 dev 웹뷰) · pnpm store prune {#cache-dev}
 - [ ] [사용자 결정] app-data 의 ocul-pm.db.bak-v40(735MB, 10-14 마이그레이션 백업) 삭제 · 진단 탭 compact(DB 837MB) {#cache-app-decision}
 
+## 업그레이드 라운드 결정 · 눈 확인 (11-15) {#quality-decisions}
+- [ ] [사용자 결정] 변경 화면 메모 판정 낱말 — 「바뀜/그대로」 가 오늘의 「통과 뒤 바뀜」 과 겹친다. 「반영됨/아직」 으로 바꿀지 (← quality-round-20261115) {#memo-verdict-words}
+- [ ] [사용자 결정] 목록 칸의 고른 줄 면이 고전 스크롤바 앞 10px 에서 끊긴다 — 설치본에서 보고 스크롤바 폭 0 · 가리킬 때만 등 고르기 (← quality-round-20261115) {#list-scrollbar-gutter}
+- [ ] [사용자 결정] 오늘 화면에서 Claude 권한 요청에 답하기 — 보안 설계(한 번만 · 경로 잠금 · 출처) 먼저 (← quality-round-20261115) {#answer-permission}
+- [ ] [사용자 결정] 업데이트 재시작 뒤 셸 출력 다시 보이기 — 11-15 엔 안 함(화면의 비밀이 디스크에 남을 수 있음) (← quality-round-20261115) {#replay-after-update}
+
 <!-- oculpm:plan-log begin v1 -->
 <!-- oculpm:plan-log archived: 10 rows → polish-round-20261027.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -129,4 +135,8 @@ owner: claude-code
 | 2026-10-29T14:32:21+09:00 | #carry-ship-eyes | claude-code | ☐→☐ |  | ← terminal-v4-20261029 #ship-eyes (사용자 결정으로 그 플랜을 닫으며 이월) |
 | 2026-10-29T14:32:27+09:00 | #eyes-v4-shell | claude-code | ☐→☐ |  | ← v4-major-20261028 (v4.0.0 공개, 그 플랜을 닫으며 — macOS 설치본 육안은 아직 0건) |
 <!-- oculpm:plan-log archived: 10 rows → polish-round-20261027.log.md -->
+| 2026-11-15T11:33:35+09:00 | #memo-verdict-words | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #list-scrollbar-gutter | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #answer-permission | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #replay-after-update | claude-code | →☐ |  | ← quality-round-20261115 이월 |
 <!-- oculpm:plan-log end -->

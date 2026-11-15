@@ -34,6 +34,20 @@ owner: claude-code
 - [~] Windows 한글 입력이 부하 중 음절마다 두 번 찍힘 — 2026-11-11 병렬 빌드(CPU 100%) 중 앱 터미널의 Claude 에 「갑갑자자기기」. 다음 재현 때 ⌃⌥⇧I 덤프를 받아 원인부터. 11-10 덤프: Windows IME 는 Backspace 에 줄 전체를 다시 조합해 브리지가 DEL×N + 재전송한다 {#ime-double-windows}
 - [ ] git 띄우기 수가 macOS · Linux 에서 캡처마다 하나 더 — 윈도우에서는 상한(따로 6파일 10 · 한 커밋 5)에 맞는데 CI 의 유닉스에서 11 · 6. 캐시 열쇠(`path_form::cache_key` 가 유닉스에서 경로를 펴지 않음)나 첫 `config --list` 를 의심 (← 2026-11-11 Windows 성능 라운드) {#spawn-count-unix}
 
+## 업그레이드 라운드 이월 (11-15) {#quality-carry}
+- [ ] Linux 의 Ctrl+Shift+V 붙여넣기 — WebKitGTK 가 묶는지 설치본으로 확인, 안 되면 navigator.clipboard.readText 를 같은 정화 · 경고 길로 (← quality-round-20261115) {#linux-ctrl-shift-v}
+- [ ] Windows PowerShell 5.1(pwsh 없음)은 && 를 몰라 && 로 이은 확인 명령이 구문 오류 — 「셸에서 돌리기」 에서 막거나 알리기 (← quality-round-20261115) {#ps51-and-and}
+- [ ] ⌘K 에서 다른 창의 세션을 고르면 창만 앞으로 — 창을 건너는 세션 초점 요청 (← quality-round-20261115) {#palette-cross-window-focus}
+- [ ] 오늘 화면이 fg 확인 없이 alive && blocked 를 센다 — claude 가 죽은 칸이 줄로 남고 배지만 내려감 (← quality-round-20261115) {#today-crashed-claude}
+- [ ] 터미널 상태 띠가 전체 화면 TUI 의 맨 위 약 31px 를 덮는다 — 격자를 줄일지 띠 자리를 옮길지 (← quality-round-20261115) {#status-band-overlay}
+- [ ] 터미널 탭 닫기 × 표적 15px(WCAG 2.5.8) — 넓히면 창 번호를 덮어 탭 배치부터 (← quality-round-20261115) {#tab-close-target}
+- [ ] Claude 외부 편집기(Ctrl+G)에서 돌아온 직후 다음 상태 신호까지 Shift+Enter 가 CR(vim 오탐 막는 맞바꿈) (← quality-round-20261115) {#shift-enter-ctrl-g}
+- [ ] [P2] xterm 6 + 애드온 짝 + DEC 2026 동기 출력 · 출력 원시 바이트 채널 · OSC 52 쓰기 · OSC 9;4 진행 숫자 · 빠른 선택(hints) (← quality-round-20261115) {#p2-terminal-next}
+- [ ] [P2] 업데이트 뒤 정확히 그 대화로 · 하위 에이전트 수 · 탭 세부 카드 · 셸 통합 없이 명령 사이 이동 · 칸 나누기 폴더 잇기 (← quality-round-20261115) {#p2-terminal-agents}
+- [ ] [P2] Finder 복사 파일 ⌘V → 경로 · 보내기의 쓰다 만 입력 보호 · 레인 전체 방송 · 오른쪽 ⌥ 는 글자 · 화면 낭독기 모드 (← quality-round-20261115) {#p2-terminal-input}
+- [ ] [P2] Windows 깊은 손질 — Alt 메뉴 모드 · ConPTY 사이드로드 · FULL_REPAINT (← quality-round-20261115) {#p2-windows-deep}
+- [ ] [P2] diff 「내가 본 뒤로」 검토 지점 · 계획 줄 메모 → Claude · ⌘K 이 화면 동작 묶음 · 레인 준비 .worktreeinclude · 첫 실행 claude 찾기 · 일하는 동안 잠자기 막기 (← quality-round-20261115) {#p2-flow}
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
@@ -42,4 +56,16 @@ owner: claude-code
 | 2026-11-01T15:49:50+09:00 | #fastembed7 | claude-code | ☐→- |  | 근거 소멸 — fastembed·ort 는 4.0 에서 의존성째 걷었다 |
 | 2026-11-01T16:17:33+09:00 | #history-purge | claude-code | !→x | .oculpm/journal/20261101/Chores/1617_chore_purge-local-history-folders.md | 판정 ✓ 추적 프로젝트 12곳 .oculpm/index/history 삭제 (약 1.5GB), 쓰는 코드는 a7b576da 에서 걷음 |
 | 2026-11-12T03:28:00+09:00 | #ime-double-windows | claude-code | ☐→~ | .oculpm/journal/20261112/Bugs/0326_bug_ime-double-after-alt-v.md | 판정 ✓ pnpm test Tests 1098 passed (1098). 조건은 부하가 아니라 Alt+V(사용자 11-12) — 한글 keypress 를 xterm 에 넘기지 않는다. 설치본 확인 전이라 ~ |
+| 2026-11-15T11:33:35+09:00 | #linux-ctrl-shift-v | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #ps51-and-and | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #palette-cross-window-focus | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #today-crashed-claude | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #status-band-overlay | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #tab-close-target | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #shift-enter-ctrl-g | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #p2-terminal-next | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #p2-terminal-agents | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #p2-terminal-input | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #p2-windows-deep | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-15T11:33:35+09:00 | #p2-flow | claude-code | →☐ |  | ← quality-round-20261115 이월 |
 <!-- oculpm:plan-log end -->
