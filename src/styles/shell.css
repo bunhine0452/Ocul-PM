@@ -152,7 +152,6 @@
 /* 그 줄을 부르는 키 — 평소엔 옅게, 고른 줄에서는 읽힌다. */
 .proj-pop-key { flex: none; color: var(--text-2); opacity: 0.55; transition: opacity var(--dur-1) var(--ease-out); }
 .proj-pop-item[aria-selected="true"] .proj-pop-key, .proj-pop-act:hover .proj-pop-key { opacity: 1; }
-.proj-pop-check { flex: none; display: inline-flex; color: var(--accent-text); }
 .proj-pop-none { margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-2); font-size: var(--fs-3); }
 .proj-pop-foot {
   flex: none; border-top: 1px solid var(--sep); padding: var(--space-2);

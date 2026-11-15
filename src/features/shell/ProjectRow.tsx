@@ -90,6 +90,15 @@ const TONE_CLASS: Record<ChipTone, string> = {
   unknown: "prow-unknown",
 };
 
+/**
+ * 「지금 창」 — 이 창의 프로젝트 줄 끝(⌘O 목록 · ⌥Tab 창 전환기가 같은 모양, 11-15 검수). 현재 상태는 회색 ✓ 다
+ * (영수증 규칙 1 · 4, `.chip.ok`) — ⌘O 는 강조색 ✓ 아이콘, ⌥Tab 은 회색 글자로 같은 것을 다르게 말했다.
+ */
+export function HereMark() {
+  const { t } = useT();
+  return <span className="chip sm ok">{t("switcher.here")}</span>;
+}
+
 export function RowChipView({ chip, id }: { chip: RowChip; id?: string }) {
   return (
     <span className={"prow-chip " + TONE_CLASS[chip.tone]} title={chip.title} id={id}>

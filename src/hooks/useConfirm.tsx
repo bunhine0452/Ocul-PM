@@ -129,7 +129,7 @@ export function useConfirm(): {
               onClick={() => settle(true)}
             >
               <span>{options.confirmLabel ?? (danger ? t("common.delete") : t("common.confirm"))}</span>
-              <DialogKey>{danger ? kbd("⌘↩") : "↩"}</DialogKey>
+              <DialogKey>{danger ? kbd("⌘↩") : kbd("↩")}</DialogKey>
             </button>
           </DialogFoot>
         </div>

@@ -101,7 +101,7 @@ describe("start window — no dead ends", () => {
 
   it("the cheatsheet lists ↑↓ and Enter for the start window", () => {
     const start = buildShortcutGroups().find((g) => g.id === "start")!;
-    expect(start.rows.map((r) => r.keys)).toEqual(expect.arrayContaining(["↑ / ↓", "Enter"]));
+    expect(start.rows.map((r) => r.keys)).toEqual(expect.arrayContaining(["j / k · ↑ / ↓", "↩"]));
   });
 });
 

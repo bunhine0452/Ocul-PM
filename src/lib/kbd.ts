@@ -237,6 +237,11 @@ const MOD_GLYPHS = /[⌃⌥⇧⌘]+/;
 /** 수정키 묶음 + 뒤따르는 키 하나 (이름 있는 키는 통째로). */
 const CHORD = /([⌃⌥⇧⌘]+)(Tab|Enter|Esc|Space|Backspace|Delete|F1[0-2]|F[1-9]|[↩⏎⌫⌦]|[^\s⌃⌥⇧⌘])?/gu;
 const KEY_NAMES: Record<string, string> = { "↩": "Enter", "⏎": "Enter", "⌫": "Backspace", "⌦": "Delete" };
+/**
+ * 수정키 없이 홀로 선 Enter 글리프 (11-15 검수) — 맥 표기 「↩」 가 정본이고 그 밖 OS 는 「Enter」 다. 예전엔
+ * 수정키가 붙은 것(⇧⌘↩)만 옮겨, 단축키 표의 오늘 줄 · 확인 창의 확정 키 · 오늘 답 칸 안내가 Windows 에서도 「↩」 였다.
+ */
+const LONE_ENTER = /[↩⏎]/gu;
 
 /**
  * 맥 표기의 수정키 조합을 이 OS 의 표기로 — 문장 안의 조합도 전부.
@@ -246,10 +251,15 @@ const KEY_NAMES: Record<string, string> = { "↩": "Enter", "⏎": "Enter", "⌫
  *   터미널   "⌘D 분할"        → "Ctrl+Shift+D 분할"   (셸 키에 Shift 를 얹는다)
  *
  * 원문(맥 표기)이 정본이다. 사전(`ko.ts`·`en.ts`)과 단축키 표는 맥 표기로 적고,
- * `t()` 와 치트시트가 그릴 때 이 함수를 지난다.
+ * `t()` 와 치트시트가 그릴 때 이 함수를 지난다. 수정키 없는 `↩` · `⏎` 도 「Enter」 로 옮긴다(`LONE_ENTER`).
  */
 export function kbd(text: string, context: "app" | "terminal" = "app"): string {
-  if (isMac() || !MOD_GLYPHS.test(text)) return text;
+  if (isMac()) return text;
+  const named = MOD_GLYPHS.test(text) ? replaceChords(text, context) : text;
+  return named.replace(LONE_ENTER, "Enter");
+}
+
+function replaceChords(text: string, context: "app" | "terminal"): string {
   return text.replace(CHORD, (_whole, mods: string, rawKey: string | undefined) => {
     let ctrl = mods.includes("⌘") || mods.includes("⌃");
     let alt = mods.includes("⌥");

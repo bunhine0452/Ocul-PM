@@ -60,13 +60,15 @@ export function UpdateRow() {
   else if (status.kind === "packageManaged") state = t("prefs.data.packageManaged", { format: status.format });
   else if (status.kind === "noBuild") state = t("prefs.data.noBuild");
 
-  const primary =
+  // 줄의 동작은 테두리 단추 하나다 — 설치 · 재시작도 채우지 않는다(영수증 규칙 3, 11-15 검수): 「기록 켜기」 와 한
+  // 쪽에 채운 단추가 둘 섰다. 할 일이라는 표시는 맨 위 「고칠 것」 줄이 한다.
+  const action =
     status.kind === "awaiting" ? (
-      <button type="button" className="btn sm primary" onClick={() => void restartNow()}>
+      <button type="button" className="btn sm" onClick={() => void restartNow()}>
         {t("update.restartNow")}
       </button>
     ) : status.kind === "available" ? (
-      <button type="button" className="btn sm primary" onClick={() => void install()}>
+      <button type="button" className="btn sm" onClick={() => void install()}>
         {t("prefs.data.install", { version: status.version })}
       </button>
     ) : status.kind === "packageManaged" || status.kind === "noBuild" ? (
@@ -85,7 +87,7 @@ export function UpdateRow() {
     );
 
   return (
-    <PrefsRow label={t("prefs.data.app")} actions={primary}>
+    <PrefsRow label={t("prefs.data.app")} actions={action}>
       {/* 판 번호는 기계 글씨 — mono (영수증 규칙 2). */}
       <span>
         Ocul <span className="mono">{version ?? ""}</span>

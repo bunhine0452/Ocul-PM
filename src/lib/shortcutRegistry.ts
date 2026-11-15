@@ -17,6 +17,13 @@ import { isMac } from "@/lib/platform";
 // `buildShortcutGroups` 가 `kbd()` 로 옮긴다 — 터미널 그룹은 터미널 가족
 // (⌘D → Ctrl+Shift+D, 셸이 Ctrl+글자를 갖는다). 그 OS 에 없는 키는 `nonMac`
 // 으로 다른 표기를 주거나 `null` 로 뺀다.
+//
+// 표기는 한 벌이다 (11-15 검수 — 묶음마다 ↩ · Enter · 두 줄 · 덧말로 갈렸다):
+//   - Enter 는 `↩`. 그 밖 OS 는 `kbd()` 가 「Enter」 로 옮긴다.
+//   - ` / ` 는 짝(앞 · 뒤), ` · ` 는 같은 일을 하는 다른 길. 줄 옮기기는 한 줄 — `j / k` 에 그 화면이 듣는
+//     화살표를 잇는다(`j / k · ↑ / ↓`). 화살표를 안 듣는 화면(계획 · 변경)은 `j / k` 만.
+//   - 화면 묶음의 id 는 화면 id(`navRegistry` · `uiV2View`)와 같다 — 치트시트가 그 id 로 「지금 화면」 묶음을
+//     맨 앞에 세운다(`orderShortcutGroups`). 계획 묶음이 "plan" 이라 계획 화면에서만 칩이 안 섰다.
 
 export interface ShortcutRow {
   /** 표시용 키 — `⌘K`, `⇧⌘F`, `⌃Tab`, `j / k`. 맥 표기가 정본이다. */
@@ -43,6 +50,7 @@ const GLOBAL: ShortcutGroup = {
   rows: [
     { keys: "⌘K", labelKey: "keys.palette" },
     // 기다리는 세션으로 — 다시 누르면 다음 (features/shell/jumpWaiting.ts). 터미널 안의 그 밖 OS 는 Ctrl+Shift+J.
+    // 이름은 「기다림」 계열이다 — 「내 차례」 는 오늘 화면의 계획 사람 몫(누르면 계획으로)이라 다른 것을 가리켰다.
     { keys: "⌘J", labelKey: "keys.jumpWaiting" },
     { keys: "⌘O", labelKey: "keys.switchProject" },
     // ⌃숫자 · ⇧⌘숫자는 화면 전환 · 스크린샷과 겹친다 (features/shell/projectKeys.ts).
@@ -73,8 +81,7 @@ const TODAY: ShortcutGroup = {
   id: "today",
   titleKey: "keys.todayGroup",
   rows: [
-    { keys: "j / k", labelKey: "keys.todayMove" },
-    { keys: "↑ / ↓", labelKey: "keys.todayMove" },
+    { keys: "j / k · ↑ / ↓", labelKey: "keys.rowMove" },
     { keys: "Home / End", labelKey: "keys.todayEnds" },
     { keys: "↩", labelKey: "keys.todayAct" },
     { keys: "v", labelKey: "keys.todayRead" },
@@ -84,15 +91,15 @@ const TODAY: ShortcutGroup = {
 };
 
 // 일지 (11-15) — `JournalScreenV2` 의 컨테이너가 듣는 키. 예전 표는 j/k 를 「파일 이동」, / 를 「파일 필터」 라
-// 적었고 v(읽음)는 툴팁만 약속했다.
+// 적었고 v(읽음)는 툴팁만 약속했다. ↑ · ↓ 는 목록에 포커스가 있을 때 듣는다.
 const JOURNAL: ShortcutGroup = {
   id: "journal",
   titleKey: "keys.g.journal",
   rows: [
-    { keys: "j / k", labelKey: "keys.entryMove" },
+    { keys: "j / k · ↑ / ↓", labelKey: "keys.entryMove" },
     { keys: "/ · ⌘F", labelKey: "keys.entryFilter" },
     { keys: "v", labelKey: "keys.entryRead" },
-    { keys: "Enter", labelKey: "keys.entryOpen" },
+    { keys: "↩", labelKey: "keys.entryOpen" },
     { keys: "Esc", labelKey: "keys.entryBack" },
     { keys: "[ / ]", labelKey: "keys.entryFiles" },
     { keys: "⌘N", labelKey: "keys.journalNew" },
@@ -100,13 +107,14 @@ const JOURNAL: ShortcutGroup = {
 };
 
 // 계획 (11-15) — `PlannerScreenV2` 의 본문이 듣는 키. 예전엔 계획 화면에 단축키가 하나도 없었다.
+// id 는 화면 id 그대로 "planner" 다(머리 주석 — "plan" 이면 계획 화면에서 「지금 화면」 이 안 섰다).
 const PLAN: ShortcutGroup = {
-  id: "plan",
+  id: "planner",
   titleKey: "nav.planner",
   rows: [
     { keys: "j / k", labelKey: "keys.planItems" },
     { keys: "[ / ]", labelKey: "keys.planSwitch" },
-    { keys: "Enter", labelKey: "keys.planStatus" },
+    { keys: "↩", labelKey: "keys.planStatus" },
     { keys: "r", labelKey: "keys.planRun" },
   ],
 };
@@ -157,8 +165,9 @@ const START: ShortcutGroup = {
   titleKey: "keys.g.start",
   rows: [
     { keys: "⌘O", labelKey: "keys.startAdd" },
-    { keys: "↑ / ↓", labelKey: "start.keysMove" },
-    { keys: "Enter", labelKey: "start.keysOpen" },
+    // j · k 는 거르기 칸이 비었을 때만 듣는다(치면 글자가 칸으로 간다).
+    { keys: "j / k · ↑ / ↓", labelKey: "keys.rowMove" },
+    { keys: "↩", labelKey: "start.keysOpen" },
   ],
 };
 

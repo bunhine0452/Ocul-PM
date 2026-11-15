@@ -107,8 +107,9 @@ export function ProjectSection({ id, arrived }: { id: string; arrived?: number }
   let rulesAction = null;
   if (!recording) {
     rules = <span className="chip sm">{t("prefs.project.off")}</span>;
+    // 테두리 단추 — 줄의 동작은 다 같은 모양이다(영수증 규칙 3 · DataSection 의 설치 단추와 같은 이유).
     rulesAction = (
-      <button type="button" className="btn sm primary" onClick={() => requestOculpmActivate()}>
+      <button type="button" className="btn sm" onClick={() => requestOculpmActivate()}>
         {t("prefs.project.turnOn")}
       </button>
     );

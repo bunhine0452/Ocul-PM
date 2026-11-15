@@ -93,8 +93,8 @@ describe("planner keys", () => {
   });
 
   it("the cheatsheet lists the planner keys", () => {
-    const g = buildShortcutGroups().find((x) => x.id === "plan")!;
-    expect(g.rows.map((r) => r.keys)).toEqual(["j / k", "[ / ]", "Enter", "r"]);
+    const g = buildShortcutGroups().find((x) => x.id === "planner")!;
+    expect(g.rows.map((r) => r.keys)).toEqual(["j / k", "[ / ]", "↩", "r"]);
   });
 });
 

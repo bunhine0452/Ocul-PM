@@ -28,6 +28,15 @@ export const onOculpmActivateRequest = activateBus.subscribe;
 export const requestCheatsheet = cheatsheetBus.request;
 export const onCheatsheetRequest = cheatsheetBus.subscribe;
 
+// 치트시트가 지금 떠 있나 (11-15 검수) — 표도 aria-modal 이라 전역 키의 모달 가드가 열린 표 위의 두 번째 ⌘/ 를
+// 먹었다(Esc 로만 닫혔다). ⌘/ 는 가드 앞에서 이것을 보고 표 자신일 때만 토글한다. 표(`ShortcutCheatsheet`)가
+// 열고 닫을 때 적는다 — 창(웹뷰)마다 하나.
+let cheatsheetOpen = false;
+export const noteCheatsheetOpen = (open: boolean) => {
+  cheatsheetOpen = open;
+};
+export const isCheatsheetOpen = () => cheatsheetOpen;
+
 /** 팔레트 「처음 쓰는 법」 — 창에 하나 떠 있는 첫 실행 안내를 다시 연다. */
 export const requestTour = tourBus.request;
 export const onTourRequest = tourBus.subscribe;
