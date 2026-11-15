@@ -17,9 +17,9 @@
 //! 여전히 환경 변수로 넘겨 셸 문법으로 이스케이프할 일이 없다.
 //!
 //! 계획의 확인 명령(11-15 사용자 결정 「누를 때만 돌리기」, [`Launch::Check`])도 같은 길로 간다. 사람이 확인 창에서
-//! 전문을 본 한 줄은 환경 변수(`OCULPM_CHECK`)로 넘기고 셸이 `eval "$OCULPM_CHECK"` 로 **따로** 읽는다. tty 에
-//! 쳐 넣으면 rc 의 질문이 첫 글자를 먹어 `pnpm test` 가 `npm test` 로 돌 수 있었다. 맞바꾼 것은 「다음」 과 같다:
-//! 그 줄도 셸 기록에 남지 않는다 — 사람이 보는 자리는 확인 창의 전문과 탭 이름 「확인 명령」 이다.
+//! 전문을 본 한 줄은 환경 변수(`OCULPM_CHECK`)로 넘기고 셸이 하위 셸 하나에서 `( eval "$OCULPM_CHECK" )` 로 **따로**
+//! 읽는다. tty 에 쳐 넣으면 rc 의 질문이 첫 글자를 먹어 `pnpm test` 가 `npm test` 로 돌 수 있었다. 맞바꾼 것은
+//! 「다음」 과 같다: 그 줄도 셸 기록에 남지 않는다 — 사람이 보는 자리는 확인 창의 전문과 탭 이름 「확인 명령」 이다.
 //!
 //! 처음(11-15 오전)에는 그 줄을 `-c` 스크립트에 그대로 싣고 빈 줄 뒤에 `exec` 를 붙였다. 사람이 쓴 글과 앱이 붙인
 //! 글이 한 문법으로 읽혀, 줄이 `|` · `&&` · `||` 로 끝나거나 `<<EOF` · 닫히지 않은 따옴표를 품으면 앱의 `exec` 가
@@ -30,12 +30,17 @@
 //! - **Ctrl+C 뒤에도 셸이 남는다.** zsh 는 작업 제어가 켜진 채 앞의 작업이 SIGINT 로 죽으면 자기도 그 신호를 받은
 //!   것처럼 `-c` 의 나머지를 건너뛰고 끝났다 — 길게 도는 `pnpm test` 를 멈추면 세션이 「끝남 · 코드 130」 이 됐다.
 //!   그래서 SIGINT · SIGQUIT 에 「로그인 셸로 돌아가기」(`exec`)를 건다. 문자열 트랩이라 하위 셸 `( … )` 에는
-//!   물려지지 않는다(zsh 는 함수 트랩 `TRAPINT` 만 물려준다). `read` 를 끊는 bash 도 같은 길로 남는다.
+//!   물려지지 않는다(zsh 는 함수 트랩 `TRAPINT` 만 물려준다) — 확인 명령의 하위 셸은 Ctrl+C 에 그대로 죽어 사슬의
+//!   뒤가 돌지 않고, 바깥 셸이 트랩으로 돌아온다. `read` 를 끊는 bash 도 같은 길로 남는다.
 //! - **Ctrl+Z 로 멈춘 작업을 잃지 않는다.** `exec` 는 작업 표를 버린다 — zsh 는 멈춘 작업을 T 상태 고아로, bash 는
 //!   그 작업을 죽였다. 이 세션에는 작업을 붙잡아 둘 셸이 없으니 멈춘 작업은 앞으로 되돌려(`fg`) 끝까지 돌린다.
 //!   zsh 는 자기 작업 표(`$jobstates`)의 번호로 — 반복문 안에서 다시 멈추면 그 작업이 「현재 작업」 이 아니게 되어
 //!   맨 `fg` 가 「no current job」 으로 헛돌았다. bash 는 반복문 안에서 작업이 멈추면 반복문을 빠져나오므로 함수의
 //!   되부름으로 돈다. `jobs -s` 가 없는 셸(dash · ksh)은 아무것도 하지 않는다 — 예전 그대로다.
+//!   확인 명령이 하위 셸 작업 하나인 까닭: 사슬(`pnpm test && cargo test`)을 셸이 직접 돌리면 Ctrl+Z 는 `a` 만
+//!   멈추고, `&&` 가 그 멈춤을 실패로 읽어 `b` 를 조용히 건너뛰었다(zsh · bash, PTY 로 잼). 하위 셸째 멈추면 `fg` 가
+//!   사슬째 잇는다. 맞바꾼 것: 확인 명령 안의 `cd` 는 뒤에 서는 로그인 셸로 넘어가지 않는다 — 셸은 확인 창의 「폴더」
+//!   (프로젝트 폴더)에 선다.
 //!
 //! 맞바꾼 것 하나: rc 가 다른 프로그램을 `exec` 하면(oh-my-zsh tmux 플러그인의 `ZSH_TMUX_AUTOSTART`,
 //! `[ -z "$TMUX" ] && exec tmux` — Finder 로 띄운 앱에는 `TMUX` 가 없어 늘 참이다) `-c` 의 명령은 아예 돌지
@@ -138,7 +143,8 @@ pub(super) enum Launch<'a> {
     /// 업데이트 전 대화를 잇는다 — 그 폴더의 가장 최근 대화(`claude --continue`).
     Resume,
     /// 계획의 확인 명령 한 줄 — 확인 창에 보인 그대로(`OpenSpec::check`). 부르는 쪽이 [`is_one_line`] 을 지났다.
-    /// 인자로 받는 셸에는 이 글이 아니라 `eval "$OCULPM_CHECK"` 가 간다(글은 환경 변수로, `start` 가 싣는다).
+    /// 인자로 받는 셸에는 이 글이 아니라 `( eval "$OCULPM_CHECK" )`(fish 는 `eval …`)가 간다(글은 환경 변수로,
+    /// `start` 가 싣는다).
     Check(&'a str),
 }
 
@@ -233,7 +239,8 @@ const ARGV_SHELLS: [&str; 7] = ["zsh", "bash", "fish", "sh", "dash", "ksh", "mks
 const BACK: &str = "exec \"$SHELL\" -l -i";
 
 /// Ctrl+C · Ctrl+\ 로 앞의 작업이 죽어도 로그인 셸로 돌아온다(머리말 — zsh 는 신호를 받은 것처럼 `-c` 의 나머지를
-/// 건너뛰었다). 문자열 트랩이라 하위 셸에는 물려지지 않는다.
+/// 건너뛰었다). 문자열 트랩이라 하위 셸에는 물려지지 않는다 — 확인 명령의 하위 셸이 그 신호에 죽어야 사슬의 뒤가
+/// 돌지 않는다(물려졌다면 하위 셸 안에 로그인 셸이 섰다).
 const ON_SIGNAL_BACK: &str = "trap 'exec \"$SHELL\" -l -i' INT QUIT";
 
 /// zsh — Ctrl+Z 로 멈춘 작업을 앞으로 되돌린다. 작업 번호로 고른다: 반복문 안에서 다시 멈춘 작업은 「현재 작업」 이
@@ -277,11 +284,13 @@ fn args_for(shell: &str, launch: Launch<'_>, unix: bool) -> Option<Vec<String>> 
 }
 
 /// 셸이 `-c` 로 받을 스크립트 — 신호 트랩 · 할 일 · 멈춘 작업 되돌리기 · 로그인 셸로 돌아오기(머리말).
-/// 확인 명령은 글이 아니라 `eval "$OCULPM_CHECK"` 다 — 사람이 쓴 글이 앱이 붙인 줄과 한 문법으로 읽히지 않게.
-/// fish 는 문법이 달라 할 일과 돌아오기만 둔다.
+/// 확인 명령은 글이 아니라 `( eval "$OCULPM_CHECK" )` 다 — 사람이 쓴 글이 앱이 붙인 줄과 한 문법으로 읽히지 않게,
+/// 그리고 사슬이 하위 셸 작업 하나로 돌아 Ctrl+Z 가 사슬째 멈추고 `fg` 가 사슬째 잇게.
+/// fish 는 문법이 달라(`( … )` 는 명령 치환이다) `eval` 과 돌아오기만 둔다.
 fn script(shell: &str, launch: Launch<'_>) -> String {
     let run = match launch {
-        Launch::Check(_) => format!("eval \"${CHECK_ENV}\""),
+        Launch::Check(_) if shell == "fish" => format!("eval \"${CHECK_ENV}\""),
+        Launch::Check(_) => format!("( eval \"${CHECK_ENV}\" )"),
         other => other.command(false),
     };
     match shell {
@@ -449,8 +458,8 @@ mod tests {
         assert_eq!(Launch::of(Some("x"), true, None), Some(Launch::Resume));
     }
 
-    /// 확인 명령은 사람이 본 글 그대로 환경 변수로 가고, 셸은 그 글만 따로 읽는다(`eval`) — 앱이 붙인 줄과 한
-    /// 스크립트에 섞이지 않는다. 이스케이프도 감싸기도 없다. 인자를 못 받는 셸만 그 한 줄을 쳐 넣는다.
+    /// 확인 명령은 사람이 본 글 그대로 환경 변수로 가고, 셸은 하위 셸 하나에서 그 글만 따로 읽는다(`eval`) — 앱이
+    /// 붙인 줄과 한 스크립트에 섞이지 않는다. 이스케이프도 감싸기도 없다. 인자를 못 받는 셸만 그 한 줄을 쳐 넣는다.
     #[test]
     fn a_check_line_goes_in_as_written() {
         let line = r#"pnpm test && cd src-tauri && cargo test -- "a b" $HOME # 메모 \"#;
@@ -459,8 +468,8 @@ mod tests {
         for shell in ["zsh", "bash", "fish", "sh"] {
             let script = &launch_args(shell, check).unwrap()[3];
             assert!(
-                script.contains("\neval \"$OCULPM_CHECK\"\n")
-                    || script.starts_with("eval \"$OCULPM_CHECK\"\n")
+                script.contains("\n( eval \"$OCULPM_CHECK\" )\n")
+                    || (shell == "fish" && script.starts_with("eval \"$OCULPM_CHECK\"\n"))
             );
             assert!(
                 !script.contains("pnpm test"),

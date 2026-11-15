@@ -139,8 +139,10 @@ mod pty {
     }
 
     /// 그 셸을 앱과 같은 인자로 띄운다 — `SHELL` 은 그 셸, rc 는 빈 임시 폴더(zsh 는 ZDOTDIR, bash 는 HOME).
-    /// 확인 명령이면 `start` 가 그 줄을 `OCULPM_CHECK` 로 싣는다(앱과 같은 길).
+    /// 확인 명령이면 `start` 가 그 줄을 `OCULPM_CHECK` 로 싣는다(앱과 같은 길). 빈 `.zshenv` 를 둔다 — 시작 파일이
+    /// 하나도 없으면 zsh/newuser 가 설치 메뉴를 띄워 키를 기다린다(그 스크립트를 싣는 데비안 · 우분투 zsh).
     fn launch(shell: &Path, how: Launch<'_>, spec: OpenSpec, rc: &Path) -> Pty {
+        std::fs::write(rc.join(".zshenv"), "").unwrap();
         let name = shell.file_name().unwrap().to_string_lossy().into_owned();
         let mut cmd = CommandBuilder::new(shell);
         cmd.args(launch_args(&name, how).unwrap());
@@ -192,29 +194,34 @@ mod pty {
 
     /// TERM-1 — 도는 확인 명령을 Ctrl+C 로 멈춰도 셸이 남아 다음 줄을 받는다. zsh 는 예전에 그 신호를 자기도 받은
     /// 것처럼 `-c` 의 나머지(`exec`)를 건너뛰고 끝나, 세션이 「끝남 · 코드 130」 이 됐다. Ctrl+\ 도 같은 길이다.
+    /// 사슬의 뒤(`&& b`)는 돌지 않는다 — 사람이 멈춘 것은 확인 명령 전체다.
     #[test]
     fn ctrl_c_on_a_running_check_leaves_a_shell_behind() {
         for shell in shells() {
             for key in ["\x03", "\x1c"] {
                 let rc = tempfile::tempdir().unwrap();
-                let pty = launch_check(shell, "printf READY; sleep 30", rc.path());
+                let ran = rc.path().join("ran");
+                let line = format!("printf READY; sleep 30 && printf ran > '{}'", ran.display());
+                let pty = launch_check(shell, &line, rc.path());
                 pty.wait_running(&format!("{shell:?}: 확인 명령이 앞에 서지 않았다"));
                 pty.write(key);
                 let why = format!("{shell:?} {key:?}: 신호 뒤에 셸이 남지 않았다");
                 pty.takes_the_next_line(rc.path(), &why);
+                assert!(!ran.exists(), "{shell:?} {key:?}: 멈춘 사슬의 뒤가 돌았다");
             }
         }
     }
 
-    /// TERM-1 — Ctrl+Z 로 멈춘 확인 명령을 잃지 않는다. 앞으로 되돌려 끝까지 돌리고(두 번 멈춰도), 그 뒤에 셸이 남는다.
-    /// 예전에는 `exec` 가 작업 표를 버려 zsh 는 멈춘 작업을 T 상태 고아로 남기고, bash 는 그 작업을 죽였다.
+    /// TERM-1 — Ctrl+Z 로 멈춘 확인 명령을 잃지 않는다. 사슬(`a && b`)째 앞으로 되돌려 끝까지 돌리고(두 번 멈춰도),
+    /// 그 뒤에 셸이 남는다. 예전에는 `exec` 가 작업 표를 버려 zsh 는 멈춘 작업을 T 상태 고아로 남기고, bash 는 그
+    /// 작업을 죽였다. 멈춘 `a` 만 되살리던 때는 `b` 를 조용히 건너뛰었다(이 저장소의 확인 명령이 `… && …` 사슬이다).
     #[test]
     fn ctrl_z_on_a_running_check_is_resumed_not_orphaned() {
         for shell in shells() {
             let rc = tempfile::tempdir().unwrap();
             let done = rc.path().join("done");
             let line = format!(
-                "printf READY; sh -c 'sleep 2; printf resumed > \"{}\"'",
+                "printf READY; sleep 2 && printf resumed > '{}'",
                 done.display()
             );
             let pty = launch_check(shell, &line, rc.path());
