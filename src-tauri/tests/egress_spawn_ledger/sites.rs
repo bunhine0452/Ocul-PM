@@ -39,7 +39,7 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         func: "shell_command",
         call: "CommandBuilder::new(&shell)",
         reach: Reach::Network("사용자가 터미널 탭에서 연 세션 — 친 명령, 「다음」 실행이 셸에 넘기는 claude 한 줄, 또는 사용자가 확인 창에서 전문을 보고 누른 계획의 확인 명령 한 줄"),
-        reason: "앱 안 터미널의 셸(macOS·Linux, $SHELL -l) — portable-pty 가 앱 프로세스 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 스스로 시키는 것은 사용자가 누른 단추의 두 줄뿐이다: 「다음」 실행의 `claude \"$OCULPM_PROMPT\"`, 그리고 계획의 「셸에서 돌리기」 — 확인 창에 전문(기계 글씨)과 폴더를 보이고 사용자가 「돌리기」 를 눌러야만 그 계획의 확인 명령 한 줄을 프로젝트 폴더의 새 셸 세션에서 돌린다(2026-11-15, 같은 기동 자리 · 새 자식 프로세스 자리 없음). 둘 다 쳐 넣지 않고 `$SHELL -l -i -c` 의 인자로 넘긴다(rc 의 질문이 먹지 않게, terminal_env.rs). 인자로 못 받는 셸(nushell 등)만 예전처럼 쳐 넣는다. 맞바꾼 것: rc 가 다른 프로그램을 exec 하면(tmux 자동 시작) 그 인자는 돌지 않는다 — 앱이 시키는 줄이 줄 뿐 늘지 않는다.",
+        reason: "앱 안 터미널의 셸(macOS·Linux, $SHELL -l) — portable-pty 가 앱 프로세스 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 스스로 시키는 것은 사용자가 누른 단추의 두 줄뿐이다: 「다음」 실행의 `claude \"$OCULPM_PROMPT\"`, 그리고 계획의 「셸에서 돌리기」 — 확인 창에 전문(기계 글씨)과 폴더를 보이고 사용자가 「돌리기」 를 눌러야만 그 계획의 확인 명령 한 줄을 프로젝트 폴더의 새 셸 세션에서 돌린다(2026-11-15, 같은 기동 자리 · 새 자식 프로세스 자리 없음). 둘 다 쳐 넣지 않고 `$SHELL -l -i -c` 의 인자로 넘긴다(rc 의 질문이 먹지 않게, terminal_env.rs) — 확인 명령 한 줄은 환경 변수 `OCULPM_CHECK` 로 가고 셸이 `eval` 로 그 글만 따로 읽는다(앱이 붙인 줄과 섞이지 않게). 스크립트에 앱이 더하는 것은 셸 안의 일뿐이다: Ctrl+C 뒤 로그인 셸로 돌아오는 트랩, Ctrl+Z 로 멈춘 작업을 되돌리는 fg. 인자로 못 받는 셸(nushell 등)만 예전처럼 쳐 넣는다. 맞바꾼 것: rc 가 다른 프로그램을 exec 하면(tmux 자동 시작) 그 인자는 돌지 않는다 — 앱이 시키는 줄이 줄 뿐 늘지 않는다.",
     },
     Launch {
         path: "terminal.rs",
@@ -271,6 +271,11 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
             ("the_next_line_survives_an_rc_file_that_asks_a_question", "CommandBuilder::new(zsh)"),
             ("a_check_line_runs_as_written_and_a_shell_stays", "CommandBuilder::new(zsh)"),
         ],
+    ),
+    (
+        "terminal_launch_tests.rs",
+        "실행 줄의 진짜 PTY 시험 — /bin/zsh · /bin/bash 를 앱과 같은 인자로 빈 임시 rc(ZDOTDIR · HOME)에서 띄워, 확인 명령 줄(printf · sleep · sh -c · cat · true)에 Ctrl+C · Ctrl+\\ · Ctrl+Z 를 보내거나 끝이 | · || 인 줄을 넘긴 뒤 셸이 남아 다음 줄(printf 로 임시 파일 쓰기)을 받는지 본다. 「다음」 줄은 PATH 맨 앞의 가짜 claude(sleep 하는 sh 스크립트)로 — 진짜 claude 는 돌지 않는다. 기기 밖에 닿지 않는다.",
+        &[("launch", "CommandBuilder::new(shell)")],
     ),
     (
         "git/safe.rs",

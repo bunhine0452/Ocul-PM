@@ -127,6 +127,8 @@ pub enum Message {
 pub const TITLE_CHARS: usize = 60;
 /// 알림 글의 상한(글자).
 pub const NOTICE_CHARS: usize = 200;
+/// OSC 7501 `msg=` 의 상한(글자) — 띠 한 줄 · 탭 툴팁 · OS 알림 본문(`msg · 상태 말`)에 선다. 알림 글과 같은 몫이다.
+pub const MSG_CHARS: usize = 200;
 
 fn is_key(s: &str) -> bool {
     !s.is_empty() && s.bytes().all(|b| b.is_ascii_lowercase())
@@ -264,7 +266,18 @@ pub fn parse_body(body: &[u8]) -> Option<Message> {
 /// 내거나 보이지 않는 글자로 같은 이름을 둘로 만드는 길을 막는다. Claude Code 는 제목 앞에 도는 스피너를
 /// 붙여 프레임마다 다시 보낸다 — 떼어야 같은 제목이 같은 제목이다.
 pub fn clean_text(raw: &[u8], max: usize) -> Option<String> {
-    let text = String::from_utf8_lossy(raw);
+    tidy(&String::from_utf8_lossy(raw), max, true)
+}
+
+/// OSC 7501 `msg=` 를 화면에 실을 수 있게 — [`clean_text`] 와 같은 정화에서 앞머리 스피너 떼기만 뺀다(까닭 글은
+/// 프레임마다 다시 오지 않고, `·` 로 시작하는 글을 자르지 않게). 예전에는 제목만 걸렀다: 프로그램이 보낸 RLO 가
+/// 알림 본문 끝까지 이어져 앱이 덧붙인 「허락을 기다려요」 까지 뒤집혀 그려졌다(최종 검수 SEC-03).
+pub fn clean_msg(msg: &str) -> Option<String> {
+    tidy(msg, MSG_CHARS, false)
+}
+
+/// [`clean_text`] · [`clean_msg`] 의 몸 — `spinner` 면 앞머리 스피너도 뗀다.
+fn tidy(text: &str, max: usize, spinner: bool) -> Option<String> {
     let kept: String = text
         .chars()
         .map(|c| {
@@ -277,7 +290,7 @@ pub fn clean_text(raw: &[u8], max: usize) -> Option<String> {
         .filter(|&c| !is_hidden(c))
         .collect();
     let trimmed = kept
-        .trim_start_matches(|c: char| is_spinner(c) || c.is_whitespace())
+        .trim_start_matches(|c: char| (spinner && is_spinner(c)) || c.is_whitespace())
         .trim_end();
     if trimmed.is_empty() {
         return None;
@@ -611,6 +624,24 @@ mod tests {
         assert_eq!(title(&mut s, "\x1b]0;\x07"), None, "빈 제목은 지움");
         let long = title(&mut s, &format!("\x1b]0;{}\x07", "가".repeat(80))).unwrap();
         assert_eq!(long.chars().count(), TITLE_CHARS);
+        assert!(long.ends_with('…'));
+    }
+
+    /// SEC-03 — 까닭 글(`msg=`)도 양방향 · 폭 0 글자를 지운다. 앞머리 스피너 모양 글자는 떼지 않는다(제목과 다른 점).
+    #[test]
+    fn messages_drop_bidi_and_invisible_characters_but_keep_a_leading_dot() {
+        assert_eq!(
+            clean_msg("\u{202E}approve Read: notes.md").as_deref(),
+            Some("approve Read: notes.md")
+        );
+        assert_eq!(
+            clean_msg("a\u{2066}b\u{200B}c\u{2069}").as_deref(),
+            Some("abc")
+        );
+        assert_eq!(clean_msg("· 3 files").as_deref(), Some("· 3 files"));
+        assert_eq!(clean_msg("\u{200B}\u{FEFF}"), None);
+        let long = clean_msg(&"가".repeat(300)).unwrap();
+        assert_eq!(long.chars().count(), MSG_CHARS);
         assert!(long.ends_with('…'));
     }
 
