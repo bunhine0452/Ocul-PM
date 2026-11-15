@@ -29,13 +29,27 @@ pub struct CappedPatch {
 impl CappedPatch {
     /// `max_bytes` 안으로 — 넘으면 마지막 줄바꿈까지만 남긴다(줄 중간에서 끊지 않는다). 한 줄이
     /// 예산보다 길면 그 줄을 글자 경계에서 자른다 — 빈 패치보다 낫다.
+    ///
+    /// git 출력은 늘 짧은 머리줄(`diff --git` · `---` · `+++` · `@@`)로 시작해서, 예산보다 긴 한 줄(압축 JS ·
+    /// 한 줄 JSON · 소스맵)이 그 뒤에 오면 줄 끝까지만 남긴 글이 덩이 머리로 끝나 내용 줄이 0 이었다(11-15
+    /// 검수 — 화면에 덩이 머리 하나와 「0.1 KB / 195 KB 만 보여요」 만 남았다). 그때는 잘린 다음 줄을 예산까지
+    /// 글자 경계에서 넣고 줄바꿈을 붙인다 — 보인 바이트는 그 길이다.
     pub fn cap(text: String, max_bytes: usize) -> Self {
         if text.len() <= max_bytes {
             return Self { text, cut: None };
         }
         let total = text.len();
         let head = truncate_at_char_boundary(&text, max_bytes);
-        let kept = head.rfind('\n').map_or(head, |i| &head[..=i]).to_string();
+        let mut kept = head.rfind('\n').map_or(head, |i| &head[..=i]).to_string();
+        if ends_with_hunk_header(&kept) {
+            // 줄바꿈 한 자리를 남긴다. 남긴 글이 예산 안의 마지막 줄바꿈이라 이 조각에는 줄바꿈이 없다.
+            let room = max_bytes.saturating_sub(kept.len() + 1);
+            let part = truncate_at_char_boundary(&text[kept.len()..], room);
+            if !part.is_empty() {
+                kept.push_str(part);
+                kept.push('\n');
+            }
+        }
         let shown = kept.len();
         Self {
             text: kept,
@@ -54,6 +68,17 @@ impl CappedPatch {
             None => self.text,
         }
     }
+}
+
+/// 줄 끝까지 남긴 글의 마지막 줄이 덩이 머리(`@@ … @@`)인가 — 그 덩이에 내용 줄이 하나도 없다.
+/// 줄바꿈으로 끝나지 않으면(첫 줄부터 예산보다 길어 글자 경계에서 잘랐으면) 아니다.
+fn ends_with_hunk_header(kept: &str) -> bool {
+    let Some(body) = kept.strip_suffix('\n') else {
+        return false;
+    };
+    body.rsplit('\n')
+        .next()
+        .is_some_and(|last| last.starts_with("@@"))
 }
 
 /// Unified-diff for a single tracked path. `from`/`to` are commit-ish refs;
@@ -528,6 +553,66 @@ mod tests {
             .ends_with(&format!("\n\n... (truncated, {} bytes total)", text.len())));
         let small = CappedPatch::cap("+a\n".into(), 64);
         assert_eq!(small.cut, None);
+    }
+
+    /// 덩이의 내용 줄 수 — `+++` · `---` 머리줄은 빼고 센다.
+    fn content_lines(patch: &str) -> usize {
+        patch
+            .lines()
+            .filter(|l| {
+                (l.starts_with('+') && !l.starts_with("+++"))
+                    || (l.starts_with('-') && !l.starts_with("---"))
+            })
+            .count()
+    }
+
+    /// 압축 파일 (11-15 검수) — 머리줄 뒤에 예산보다 긴 한 줄이 오면 줄 끝까지만 남긴 글은 `@@` 로 끝나 내용
+    /// 줄이 0 이었다. 그 줄의 앞을 예산 안에서 보여 주고, 보인 바이트는 그 길이다.
+    #[test]
+    fn a_line_longer_than_the_budget_after_the_headers_still_shows_its_start() {
+        let head = "diff --git a/app.min.js b/app.min.js\nindex 1111111..2222222 100644\n--- a/app.min.js\n+++ b/app.min.js\n@@ -1 +1 @@\n";
+        let text = format!("{head}-{}\n+{}\n", "a".repeat(100_000), "b".repeat(100_000));
+        let budget = 64 * 1024;
+        let capped = CappedPatch::cap(text.clone(), budget);
+        let cut = capped.cut.expect("cut");
+        assert_eq!(cut.total, text.len());
+        assert_eq!(capped.text.len(), cut.shown);
+        assert!(cut.shown <= budget, "{}", cut.shown);
+        assert!(
+            cut.shown > head.len() + 60_000,
+            "앞 64KB 를 보여야 한다: {}",
+            cut.shown
+        );
+        assert!(capped.text.starts_with(head));
+        assert!(capped.text.ends_with("aaaa\n"), "줄바꿈으로 끝난다");
+        assert_eq!(content_lines(&capped.text), 1);
+        // 사이드카의 옛 꼴도 같은 몸통 — 표지 문장만 붙는다.
+        assert!(content_lines(&capped.clone().with_marker()) >= 1);
+
+        // 한글 한 줄 — 글자 경계에서 자른다(문자열이 깨지지 않는다).
+        let ko = format!("{head}+{}\n", "가".repeat(40_000));
+        let capped = CappedPatch::cap(ko, budget);
+        assert!(capped.cut.expect("cut").shown <= budget);
+        assert!(capped.text.ends_with("가\n"));
+        assert_eq!(content_lines(&capped.text), 1);
+    }
+
+    /// 내용 줄이 이미 선 덩이는 그대로 줄 끝에서 — 다음 덩이 머리로 끝날 때만 그 덩이의 줄을 잇는다.
+    #[test]
+    fn only_an_empty_hunk_at_the_cut_borrows_the_next_line() {
+        let text = format!("@@ -1,2 +1,2 @@\n-x\n+{}\n", "y".repeat(5_000));
+        let capped = CappedPatch::cap(text, 1_024);
+        assert_eq!(capped.text, "@@ -1,2 +1,2 @@\n-x\n");
+        let text = format!("@@ -1 +1 @@\n-x\n+y\n@@ -9 +9 @@\n+{}\n", "z".repeat(5_000));
+        let capped = CappedPatch::cap(text, 1_024);
+        assert!(capped
+            .text
+            .starts_with("@@ -1 +1 @@\n-x\n+y\n@@ -9 +9 @@\n+zzz"));
+        assert!(capped.text.len() <= 1_024 && capped.text.ends_with("z\n"));
+        // 첫 줄부터 예산보다 길면 예전처럼 글자 경계에서 자른 그 줄 하나(줄바꿈을 지어내지 않는다).
+        let capped = CappedPatch::cap("w".repeat(5_000), 1_024);
+        assert_eq!(capped.text.len(), 1_024);
+        assert!(!capped.text.ends_with('\n'));
     }
 
     /// 새 파일은 앞부분만 더한 줄로 — 끝 줄바꿈 뒤 빈 조각은 줄이 아니고, 줄바꿈이 없으면 표식.

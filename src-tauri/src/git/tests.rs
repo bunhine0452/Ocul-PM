@@ -192,6 +192,88 @@ fn ignore_whitespace_empties_a_whitespace_only_patch() {
     assert!(quiet.text.trim().is_empty(), "{}", quiet.text);
 }
 
+/// 커밋 하나가 선 임시 저장소 — `files` 를 쓰고 커밋한다. git 이 없으면 `false`.
+fn committed_repo(root: &Path, files: &[(&str, &str)]) -> bool {
+    if git(root, &["init", "-q"]).is_err() {
+        return false;
+    }
+    for args in [
+        ["config", "user.email", "t@t.dev"],
+        ["config", "user.name", "t"],
+        ["config", "core.autocrlf", "false"],
+    ] {
+        git(root, &args).unwrap();
+    }
+    for (rel, text) in files {
+        std::fs::write(root.join(rel), text).unwrap();
+    }
+    git(root, &["add", "."]).unwrap();
+    git(
+        root,
+        &["-c", "commit.gpgsign=false", "commit", "-qm", "base"],
+    )
+    .unwrap();
+    true
+}
+
+/// 공백 무시의 두 번째 git 실행 (11-15 검수) — `-w` 로 빈 패치가 나오면 `-w` 없이 한 번 더 물어 「공백만 바뀐
+/// 추적 파일」 과 「git 이 모르는 파일」 을 가른다. 그 갈래가 없으면 들여쓰기만 고친 추적 파일이 빈 답 → 스냅샷
+/// 없음 → 새 파일 갈래로 빠져, 파일 전체가 더한 줄로 그려졌다(`commands::diff::compute_diff`).
+#[test]
+fn working_patch_tells_a_whitespace_only_file_from_an_untracked_one() {
+    use crate::commands::diff::{working_patch, Working};
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    if !committed_repo(root, &[("a.ts", "if (x) {\n  run();\n}\n")]) {
+        return; // git unavailable
+    }
+    std::fs::write(root.join("a.ts"), "if (x) {\n      run();\n}\n").unwrap();
+    std::fs::write(root.join("new.ts"), "export const fresh = 1;\n").unwrap();
+
+    let ws = working_patch(root, "a.ts", 65_536, true);
+    assert!(matches!(ws, Ok(Working::WhitespaceOnly)), "{ws:?}");
+    let untracked = working_patch(root, "new.ts", 65_536, true);
+    assert!(matches!(untracked, Ok(Working::Empty)), "{untracked:?}");
+    let plain = working_patch(root, "a.ts", 65_536, false);
+    assert!(
+        matches!(&plain, Ok(Working::Patch(p)) if p.text.contains("+      run();")),
+        "{plain:?}"
+    );
+}
+
+/// 압축된 한 줄 파일 (11-15 검수) — 실제 git 출력에서도 100,000자 한 줄이 바뀐 파일의 패치가 머리줄과 `@@`
+/// 만 남지 않는다. 그 줄의 앞이 예산 안에서 보이고, 보인 바이트는 예산을 넘지 않는다.
+#[test]
+fn a_minified_one_line_file_keeps_part_of_its_changed_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let before = format!("{}\n", "a".repeat(100_000));
+    if !committed_repo(root, &[("app.min.js", before.as_str())]) {
+        return; // git unavailable
+    }
+    std::fs::write(
+        root.join("app.min.js"),
+        format!("{}\n", "b".repeat(100_000)),
+    )
+    .unwrap();
+
+    let capped = diff_patch_capped(root, "app.min.js", None, None, 65_536, false).unwrap();
+    let cut = capped.cut.expect("200KB 패치는 잘린다");
+    assert!(cut.total > 200_000, "{}", cut.total);
+    assert!(cut.shown <= 65_536, "{}", cut.shown);
+    assert_eq!(capped.text.len(), cut.shown);
+    let content = capped
+        .text
+        .lines()
+        .filter(|l| {
+            (l.starts_with('-') && !l.starts_with("---"))
+                || (l.starts_with('+') && !l.starts_with("+++"))
+        })
+        .count();
+    let shown: String = capped.text.chars().take(200).collect();
+    assert!(content >= 1, "내용 줄이 없다:\n{shown}");
+}
+
 #[test]
 fn unquote_git_path_handles_plain_quoted_and_octal_forms() {
     use super::repo::unquote_git_path;
