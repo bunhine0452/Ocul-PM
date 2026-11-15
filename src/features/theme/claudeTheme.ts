@@ -186,11 +186,14 @@ export function claudeThemeFrom(input: ClaudeThemeInput): ClaudeTheme {
   return theme;
 }
 
-/** 이 창이 마지막으로 맞춘 결과 — 설정의 줄이 읽는다. `idle` 은 아직 맞추지 않았다. */
+/**
+ * 이 창이 마지막으로 맞춘 결과 — 설정의 줄이 읽는다. `idle` 은 아직 맞추지 않았다. 실패는 이유 원문과 쓰려던
+ * 자리(백엔드가 실패에도 돌려준다 · 11-15 검수)를 함께 든다 — 자리를 모르면(홈을 못 찾음) `null`.
+ */
 export type ClaudeThemeStatus =
   | { kind: "idle" }
   | { kind: "done"; outcome: ClaudeThemeOutcome | null }
-  | { kind: "failed"; error: string };
+  | { kind: "failed"; error: string; path: string | null };
 
 export const claudeThemeStatus = createStore<ClaudeThemeStatus>({ kind: "idle" });
 
@@ -201,9 +204,10 @@ export async function syncClaudeTheme(colorTheme: string, root?: HTMLElement): P
   const mine = ++latest;
   let next: ClaudeThemeStatus;
   try {
-    next = { kind: "done", outcome: await claudeThemeApi.write(claudeThemeFrom(claudeThemeInput(colorTheme, root))) };
+    const outcome = await claudeThemeApi.write(claudeThemeFrom(claudeThemeInput(colorTheme, root)));
+    next = outcome?.state === "failed" ? { kind: "failed", error: outcome.error, path: outcome.path } : { kind: "done", outcome };
   } catch (e) {
-    next = { kind: "failed", error: errorDetail(e) };
+    next = { kind: "failed", error: errorDetail(e), path: null };
   }
   if (mine === latest) claudeThemeStatus.set(next);
 }
@@ -214,14 +218,15 @@ const SETTLE_MS = 300;
 /**
  * 앱 테마(라이트 · 다크 · 시스템 전환 · 강조색)가 바뀌면 300ms 뒤에 파일을 맞춘다. 끄면 아무것도 하지 않는다 —
  * 이미 있는 파일도 그대로 둔다. `SettingsContext` 가 창마다 부른다: 창 여럿이 같은 내용을 보내도 백엔드가 쓰지 않는다.
+ * `ready` 는 설정을 **읽어 냈다**는 뜻이다 — 읽지 못한 동안의 「켜짐」 은 기본값이라 믿지 않는다(11-15 검수).
  */
 export function useClaudeThemeSync(
   settings: Pick<Settings, "theme" | "colorTheme" | "claudeTheme">,
-  loaded: boolean,
+  ready: boolean,
 ): void {
   const { theme, colorTheme, claudeTheme } = settings;
   useEffect(() => {
-    if (!loaded || claudeTheme === "off") return;
+    if (!ready || claudeTheme === "off") return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => {
       clearTimeout(timer);
@@ -235,5 +240,5 @@ export function useClaudeThemeSync(
       clearTimeout(timer);
       mq?.removeEventListener?.("change", schedule);
     };
-  }, [loaded, theme, colorTheme, claudeTheme]);
+  }, [ready, theme, colorTheme, claudeTheme]);
 }

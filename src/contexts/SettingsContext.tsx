@@ -21,7 +21,13 @@ import { useClaudeThemeSync } from "@/features/theme/claudeTheme";
 
 interface SettingsContextValue {
   settings: Settings;
+  /** 첫 읽기가 끝났다 — 읽기가 실패해도 참이다(화면은 기본값으로 연다). */
   loaded: boolean;
+  /**
+   * 설정을 실제로 읽어 냈다 (11-15 검수). 읽지 못한 동안의 값은 기본값이라, 기본값이 「켜짐」 인 프로젝트 밖 쓰기
+   * (Claude Code 테마 파일)는 `loaded` 가 아니라 이것을 본다 — `loaded` 만 보면 끈 사람의 파일을 다시 만들었다.
+   */
+  ready: boolean;
   set: <K extends keyof Settings>(field: K, value: Settings[K]) => Promise<void>;
   reload: () => Promise<void>;
   resetAll: () => Promise<void>;
@@ -58,11 +64,14 @@ export async function bootSettings(): Promise<string | null> {
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
   const [loaded, setLoaded] = useState(false);
+  // 한 번이라도 읽어 냈는가 — 나중의 다시 읽기가 실패해도 알던 값은 그대로라 참으로 남는다.
+  const [ready, setReady] = useState(false);
 
   const reload = useCallback(async () => {
     const res = await commands.settingsGetAll();
     if (res.status === "ok") {
       setSettings(entriesToSettings(res.data));
+      setReady(true);
     }
     setLoaded(true);
   }, []);
@@ -184,7 +193,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [loaded, settings.theme, settings.colorTheme, projectColor]);
 
   // Claude Code 테마 파일(`~/.claude/themes/ocul.json`)도 앱 테마를 따른다 (11-15) — 창과 무관한 색으로 만든다.
-  useClaudeThemeSync(settings, loaded);
+  // 설정을 읽어 낸 뒤에만(`ready`) — 읽기가 실패한 채 기본값(켜짐)으로 쓰면 끈 사람의 파일을 다시 만든다.
+  useClaudeThemeSync(settings, ready);
 
   // Windows — 네이티브 창(제목줄 없는 창의 1px 위 테두리 · 시스템 메뉴)도 같은 테마로 (2026-11-10).
   // 「시스템」 은 `null` 이라 창이 OS 를 따르고, 웹뷰의 prefers-color-scheme 도 OS 값으로 돌아온다 —
@@ -209,8 +219,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, [settings.uiScale, loaded]);
 
   const value = useMemo<SettingsContextValue>(
-    () => ({ settings, loaded, set, reload, resetAll }),
-    [settings, loaded, set, reload, resetAll]
+    () => ({ settings, loaded, ready, set, reload, resetAll }),
+    [settings, loaded, ready, set, reload, resetAll]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

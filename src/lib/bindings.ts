@@ -1103,7 +1103,12 @@ export type ClaudeThemeOutcome =
 /**  같은 내용이라 손대지 않았다. */
 { state: "unchanged"; path: string } | 
 /**  `~/.claude` 가 없다 — 아무것도 만들지 않았다. `dir` 은 찾아본 자리. */
-{ state: "no_claude"; dir: string };
+{ state: "no_claude"; dir: string } | 
+/**
+ *  쓰지 못했다 (11-15 검수) — `path` 는 쓰려던 자리, `error` 는 OS 가 준 이유 원문(`Permission denied …`).
+ *  오류 문자열 하나로 올리면 설정의 줄이 「쓰지 못했어요」 만 말하고, 어느 경로에서 왜인지는 아무 데도 없었다.
+ */
+{ state: "failed"; path: string; error: string };
 
 /**
  *  바깥(또는 앱 안) 터미널의 Claude 가 사람을 기다린다 — 플러그인 Notification 훅 (ocul-next
