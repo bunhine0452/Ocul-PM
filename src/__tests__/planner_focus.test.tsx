@@ -77,7 +77,7 @@ describe("planner focus after the status menu", () => {
     await frames();
     // 단계 「One」 이 끝나 접혔다 — 상자는 사라졌고 같은 자리의 상자(Charlie)가 포커스를 받는다.
     expect(screen.queryByRole("button", { name: t("plan.item.statusAria", { title: "Bravo", status: t("plan.status.done") }) })).toBeNull();
-    expect(document.activeElement).toBe(box("Charlie", "todo"));
+    await waitFor(() => expect(document.activeElement).toBe(box("Charlie", "todo"))); // 느린 러너에선 접힌 단계가 두 프레임 뒤에 선다
   });
 
   it("a status that folds the phase (item with a journal, no dialog) also keeps focus on a box", async () => {
@@ -96,7 +96,7 @@ describe("planner focus after the status menu", () => {
     fireEvent.keyDown(document.activeElement!, { key: "3" });
     await waitFor(() => expect(pfx.edits).toHaveLength(1));
     await frames();
-    expect(document.activeElement).toBe(box("Charlie", "todo"));
+    await waitFor(() => expect(document.activeElement).toBe(box("Charlie", "todo")));
     // 키가 다시 먹는다 — 포커스가 본문 안이라 k 가 그대로 상자 사이를 걷는다.
     fireEvent.keyDown(document.activeElement!, { key: "k" });
     expect(container.querySelector(".plv-body")?.contains(document.activeElement)).toBe(true);
