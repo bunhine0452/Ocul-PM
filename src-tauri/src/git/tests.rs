@@ -241,19 +241,18 @@ fn working_patch_tells_a_whitespace_only_file_from_an_untracked_one() {
     );
 }
 
-/// 압축된 한 줄 파일 (11-15 검수) — 실제 git 출력에서도 100,000자 한 줄이 바뀐 파일의 패치가 머리줄과 `@@`
-/// 만 남지 않는다. 그 줄의 앞이 예산 안에서 보이고, 보인 바이트는 예산을 넘지 않는다.
-#[test]
-fn a_minified_one_line_file_keeps_part_of_its_changed_line() {
+/// `banner` 줄 뒤의 100,000자 한 줄을 바꾼 파일의 실제 git 패치를 64KB 로 자른다 — 머리줄과 덩이 머리 · 맥락
+/// 줄만 남지 않고 그 줄의 앞이 예산 안에서 보이며, 보인 바이트는 예산을 넘지 않는다. git 이 없으면 넘어간다.
+fn assert_long_line_patch_shows_a_changed_line(banner: &str) {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    let before = format!("{}\n", "a".repeat(100_000));
+    let before = format!("{banner}{}\n", "a".repeat(100_000));
     if !committed_repo(root, &[("app.min.js", before.as_str())]) {
         return; // git unavailable
     }
     std::fs::write(
         root.join("app.min.js"),
-        format!("{}\n", "b".repeat(100_000)),
+        format!("{banner}{}\n", "b".repeat(100_000)),
     )
     .unwrap();
 
@@ -272,6 +271,21 @@ fn a_minified_one_line_file_keeps_part_of_its_changed_line() {
         .count();
     let shown: String = capped.text.chars().take(200).collect();
     assert!(content >= 1, "내용 줄이 없다:\n{shown}");
+}
+
+/// 압축된 한 줄 파일 (11-15 검수) — 바뀐 줄이 파일 첫 줄이라 남긴 글이 `@@` 로 끝나던 꼴.
+#[test]
+fn a_minified_one_line_file_keeps_part_of_its_changed_line() {
+    assert_long_line_patch_shows_a_changed_line("");
+}
+
+/// 라이선스 머리줄 + 압축 한 줄 (11-15 재검수) — `-U3` 이 바뀐 줄 앞에 머리줄을 맥락으로 넣어 남긴 글이 맥락
+/// 줄로 끝나던 꼴. webpack · terser 번들의 흔한 모양이다.
+#[test]
+fn a_bannered_minified_file_keeps_part_of_its_changed_line() {
+    assert_long_line_patch_shows_a_changed_line(
+        "/*! For license information please see main.js.LICENSE.txt */\n",
+    );
 }
 
 #[test]
