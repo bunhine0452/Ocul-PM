@@ -35,7 +35,7 @@ import type { OpenSwitcherDetail } from "@/features/shell/ProjectSwitcher";
 import { useOpenInEditor } from "@/features/shell/useOpenInEditor";
 import { orderRecent } from "@/features/start/useRecentProjects";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
-import { coalesce, countByProject, needsMe, numberSessions, sessionName, sessionNumber, sessionWord } from "@/features/terminal/status";
+import { coalesce, countByProject, needsMe, numberSessions, oscTitle, sessionName, sessionNumber, sessionWord } from "@/features/terminal/status";
 import "./palette.css";
 
 // ⌘K 팔레트 (MASTER-GUIDE §5.9 → 4.0 → 11-15) — 「어디로」 에서 「무엇을」 까지.
@@ -428,6 +428,10 @@ export function CommandPalette({
               {sessionRows.map((s) => {
                 const word = sessionWord(t, s);
                 const waiting = s.alive && needsMe(s.status);
+                // 사유를 모르는 기다림은 칩 하나로 — 그때 `sessionWord` 가 돌려주는 말(terminal.state.blocked)은 칩
+                // 「기다림」 과 같은 것을 다른 낱말로 불렀다(회색 「내 차례」 + 칩 「기다림」, 11-15 재검수). 「내 차례」 는
+                // 계획의 사람 몫이다(단어표).
+                const reason = waiting && word === t("terminal.state.blocked") ? "" : word;
                 const here = s.project_id === currentProjectId;
                 const elsewhere = here ? "" : projectName(s.project_id);
                 // 이름은 탭과 같은 규칙(`status.sessionName` — 레인이면 「시도 n」), 이 창의 세션은 탭 앞 번호까지
@@ -439,7 +443,17 @@ export function CommandPalette({
                     key={`session:${s.id}`}
                     value={`session:${s.id}`}
                     // 「터미널」 은 화면 줄의 이름이다 — 세션이 그 말에 같이 걸리면 화면 줄이 묻힌다. 칩의 낱말(기다림)로도 찾힌다.
-                    keywords={[name, elsewhere, word, waiting ? t("palette.waiting") : ""]}
+                    // 보이는 이름이 「시도 n」 인 레인도 안의 프로그램이 붙인 제목 · 프로그램 이름 · 셸 이름으로 찾힌다 — 예전엔
+                    // 그 제목이 이름이라 그것으로 찾았다(11-15 재검수).
+                    keywords={[
+                      name,
+                      oscTitle(s) ?? "",
+                      s.status?.app ?? "",
+                      s.label,
+                      elsewhere,
+                      reason,
+                      waiting ? t("palette.waiting") : "",
+                    ]}
                     onSelect={() => pickSession(s)}
                     className="palette-item"
                   >
@@ -450,9 +464,9 @@ export function CommandPalette({
                       {name}
                     </span>
                     {elsewhere ? <span className="palette-meta">{elsewhere}</span> : null}
-                    <span className="palette-meta">{word}</span>
+                    {reason ? <span className="palette-meta">{reason}</span> : null}
                     {waiting ? (
-                      <span className="chip sm warn" title={word}>
+                      <span className="chip sm warn" title={reason || undefined}>
                         {t("palette.waiting")}
                       </span>
                     ) : null}
