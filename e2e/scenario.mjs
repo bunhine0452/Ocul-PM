@@ -132,19 +132,23 @@ export async function runScenario(ctx) {
   });
 
   /**
-   * 설정 한 쪽(4.0)의 「표시 → 언어」 세그먼트를 누른다 — 0 = 한국어, 1 = English.
-   * 설정은 윗줄 끝의 톱니고(`header.topbar .topbar-settings`), 표시 칸은 `#prefs-display`
-   * 다. 첫 `.seg` 가 언어다 (언어 · 밝기 · 글자 크기 순).
+   * 설정의 「언어」 세그먼트를 누른다 — 0 = 한국어, 1 = English.
+   * 설정은 윗줄 끝의 톱니다(`header.topbar .topbar-settings`). 언어 줄은 11-15 에 「표시」 칸에서 「앱」 칸으로
+   * 옮겨 갔다 — 칸 순서에 기대면 그날처럼 밝기를 누르고 한국어 단계 일곱이 줄줄이 실패한다. 그래서 칸이 아니라
+   * 접근성 이름(radiogroup 의 aria-label = 「언어」 · "Language", 지금 어느 말이든)으로 찾는다.
    */
+  const langSeg = [dict.ko("prefs.display.language"), dict.en("prefs.display.language")]
+    .map((label) => `.prefs [role="radiogroup"][aria-label="${label}"] .seg-item`)
+    .join(", ");
   const setLanguage = async (rec, index, marker) => {
     await clickCss(wd, "header.topbar .topbar-settings", 0);
-    await waitFor(wd, "return document.querySelectorAll('#prefs-display .seg .seg-item').length >= 2;", [], { desc: "설정 — 표시 · 언어" });
+    await waitFor(wd, "return document.querySelectorAll(arguments[0]).length >= 2;", [langSeg], { desc: "설정 — 앱 · 언어" });
     // 일지의 「열기」 토스트가 오른쪽 아래에 15초 남는다 — 그 자리를 가로막지 않게 기다린다
     // (v3.17.0 run, Windows·Linux 27건 연쇄 실패).
     const t0 = Date.now();
     await waitNoToasts(wd);
     rec.notes.push(`토스트 소거 대기 ${Date.now() - t0}ms`);
-    await clickCss(wd, "#prefs-display .seg .seg-item", index);
+    await clickCss(wd, langSeg, index);
     await waitFor(wd, "return !!document.querySelector('header.topbar') && document.querySelector('header.topbar').innerText.includes(arguments[0]);", [marker], {
       desc: "윗줄 언어가 바뀌었다",
     });
@@ -152,7 +156,7 @@ export async function runScenario(ctx) {
   };
 
   // 시작 창에는 언어 고르기가 없다 — 러너 OS 의 로케일을 따르므로 한국어를 못박는다.
-  await report.step("한국어로 (설정 → 표시 → 한국어)", async (rec) => {
+  await report.step("한국어로 (설정 → 앱 → 한국어)", async (rec) => {
     await setLanguage(rec, 0, dict.ko("nav.journal"));
   });
 
@@ -246,7 +250,7 @@ export async function runScenario(ctx) {
     }
   });
 
-  await report.step("영어 모드 전환 (설정 → 표시 → English)", async (rec) => {
+  await report.step("영어 모드 전환 (설정 → 앱 → English)", async (rec) => {
     await setLanguage(rec, 1, dict.en("nav.journal"));
     await report.shot(wd, { phase: "05 영어", key: "en", screen: "settings-en", caption: "설정 — English 로 바꾼 직후" });
   });
