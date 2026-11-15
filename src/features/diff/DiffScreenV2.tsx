@@ -440,7 +440,7 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
                   list.hasLastCommit ? (
                     <button
                       type="button"
-                      className={"btn sm" + (drafts.length === 0 ? " primary" : "")}
+                      className={"btn" + (drafts.length === 0 ? " primary" : "")}
                       onClick={() => list.pinBaseline("last_commit")}
                     >
                       {t("diff.lastCommit")}

@@ -34,6 +34,8 @@ describe("one word, one meaning", () => {
   it("no shortcut name says 「my turn」 — ⌘J is named for the waiting session", () => {
     const shortcutNames = Object.entries(ko).filter(([key, value]) => key.startsWith("keys.") && value.includes(MY_TURN));
     expect(shortcutNames).toEqual([]);
+    // 터미널 상태 띠도 기다리는 세션을 「기다려요」 로 — 같은 세션을 ⌘K 칩은 「기다림」, 띠는 「내 차례」 라 불렀다.
+    expect(Object.entries(ko).filter(([key, value]) => key.startsWith("terminal.") && value.includes(MY_TURN))).toEqual([]);
     expect(ko["keys.jumpWaiting"]).toContain("기다리는"); // i18n-ignore -- 사전 낱말이 검사 재료다
     expect(en["keys.jumpWaiting"]).not.toMatch(/\b(my|your) turn\b/i);
     expect(en["keys.jumpWaiting"]).toMatch(/waiting/);
