@@ -153,11 +153,11 @@ fn journal_write_adopts_the_live_watcher_session() {
     // Stage a sessions.json the way the watcher would, opened an hour ago.
     let cfg = load_config(root);
     let resolver = resolver_of(&cfg);
-    let now = Utc::now();
+    let now = crate::clock::now();
     let workday = resolver.workday_of(now);
-    let started = (now - chrono::Duration::hours(1))
-        .with_timezone(&resolver.tz)
-        .to_rfc3339_opts(SecondsFormat::Secs, false);
+    let started = crate::clock::zoned_rfc3339_secs(
+        &(now - crate::clock::SignedDuration::from_hours(1)).to_zoned(resolver.tz.clone()),
+    );
     let index_dir = resolver.index_dir(root, &workday);
     std::fs::create_dir_all(&index_dir).unwrap();
     std::fs::write(
@@ -212,7 +212,7 @@ fn journal_write_explicit_session_id_beats_disk_lookup() {
     std::fs::create_dir_all(root.join(".oculpm")).unwrap();
     let cfg = load_config(root);
     let resolver = resolver_of(&cfg);
-    let workday = resolver.workday_of(Utc::now());
+    let workday = resolver.workday_of(crate::clock::now());
     let index_dir = resolver.index_dir(root, &workday);
     std::fs::create_dir_all(&index_dir).unwrap();
     std::fs::write(
@@ -221,9 +221,7 @@ fn journal_write_explicit_session_id_beats_disk_lookup() {
             "schema_version": 1,
             "sessions": [{
                 "id": format!("{workday}-002"),
-                "started_at": (Utc::now() - chrono::Duration::hours(1))
-                    .with_timezone(&resolver.tz)
-                    .to_rfc3339_opts(SecondsFormat::Secs, false),
+                "started_at": crate::clock::zoned_rfc3339_secs(&(crate::clock::now() - crate::clock::SignedDuration::from_hours(1)).to_zoned(resolver.tz.clone())),
                 "ended_at": null, "ended_reason": null,
                 "active_window_ms": 0, "file_event_count": 0, "files_unique": 0,
                 "git_head_at_start": null, "git_head_at_end": null,

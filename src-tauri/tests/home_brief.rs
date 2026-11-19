@@ -10,22 +10,21 @@
 //!   - 일지 0건이어도 플랜/정체성만 있는 프로젝트가 결과에서 빠지면 안 된다
 //!     (그린필드 직후가 정확히 그 상태다).
 
-use chrono::{Duration, Local};
-
 use ocul_pm_lib::db::Db;
 use ocul_pm_lib::home;
 
 /// 로컬 캘린더 기준 YYYYMMDD — `home::workday_key` 와 같은 규약.
 fn workday(offset_days: i64) -> String {
-    (Local::now().date_naive() - Duration::days(offset_days))
-        .format("%Y%m%d")
-        .to_string()
+    ocul_pm_lib::clock::ymd(ocul_pm_lib::clock::add_days(
+        ocul_pm_lib::clock::local_today(),
+        -offset_days,
+    ))
 }
 
 /// RFC3339 created_at — 워크데이와 어긋나지 않게 같은 오프셋에서 만든다.
 fn created_at(offset_days: i64, hhmm: &str) -> String {
-    let d = Local::now().date_naive() - Duration::days(offset_days);
-    format!("{}T{}:00+09:00", d.format("%Y-%m-%d"), hhmm)
+    let d = ocul_pm_lib::clock::add_days(ocul_pm_lib::clock::local_today(), -offset_days);
+    format!("{}T{}:00+09:00", d.strftime("%Y-%m-%d"), hhmm)
 }
 
 async fn empty_db() -> (tempfile::TempDir, Db) {

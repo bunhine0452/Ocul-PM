@@ -36,7 +36,7 @@ pub fn default_timezone() -> String {
 
 /// 후보를 순서대로 보고 **IANA 이름으로 읽히는** 첫 값을 고른다.
 ///
-/// 1. `TZ` 환경 변수 — C 라이브러리·`chrono::Local` 이 따르는 값. POSIX 는
+/// 1. `TZ` 환경 변수 — C 라이브러리·시스템 시각이 따르는 값. POSIX 는
 ///    `:Area/City` 꼴도 허용한다. `EST5EDT`·`KST-9` 같은 POSIX 규칙 문자열은
 ///    IANA 이름이 아니라 건너뛴다.
 /// 2. 운영체제 설정 (`iana-time-zone` — macOS CFTimeZone · Windows
@@ -49,7 +49,7 @@ pub(crate) fn resolve(tz_env: Option<&str>, system: Option<&str>) -> String {
         .into_iter()
         .flatten()
         .map(str::trim)
-        .find(|name| !name.is_empty() && name.parse::<chrono_tz::Tz>().is_ok())
+        .find(|name| !name.is_empty() && crate::clock::zone(name).is_some())
         .map_or_else(|| FALLBACK_TIMEZONE.to_string(), str::to_string)
 }
 

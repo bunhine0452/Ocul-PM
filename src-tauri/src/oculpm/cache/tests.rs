@@ -544,7 +544,7 @@ async fn with_tz_backfills_offset_and_warns_disk_unchanged() {
     let abs = write_entry(&journal_root, rel, fm, "[x] body\n");
     let on_disk_before = std::fs::read_to_string(&abs).unwrap();
 
-    let seoul: Tz = "Asia/Seoul".parse().unwrap();
+    let seoul = crate::clock::zone("Asia/Seoul").unwrap();
     JournalCache::with_redaction(&db, default_redact())
         .with_tz(seoul)
         .reindex_full(1, &journal_root)
@@ -643,7 +643,7 @@ async fn incremental_recoerces_version_stale_row_then_skips() {
     // prevent the walk-level skip so the row gets re-coerced. (The re-coerce
     // returns MtimeOnly, which the report folds into skipped_unchanged — so
     // the *values* below are the real proof it was re-processed, not skipped.)
-    let seoul: Tz = "Asia/Seoul".parse().unwrap();
+    let seoul = crate::clock::zone("Asia/Seoul").unwrap();
     JournalCache::new(&db)
         .with_tz(seoul)
         .reindex_incremental(1, &journal_root)

@@ -8,8 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
-use chrono::Utc;
-use chrono_tz::Tz;
+use crate::clock::TimeZone;
 use ignore::gitignore::Gitignore;
 use notify::EventKind;
 use notify_debouncer_full::DebouncedEvent;
@@ -57,7 +56,7 @@ pub(super) struct WatcherInner {
     /// Project timezone (from `config.workday.timezone`). Threaded into the
     /// redacting [`JournalCache`] so read-time `created_at` offset backfill
     /// (F7a-B) interprets tz-less agent timestamps as project-local.
-    pub(super) tz: Tz,
+    pub(super) tz: TimeZone,
     /// PR-CI0 — Claude Code 훅 인박스의 소비 오프셋. `None` = 아직 DB 에서
     /// 로드 전 (lazy). 값은 소비할 때마다 DB(`claude_hooks_inbox`)에 영속 —
     /// 앱 재시작 후 큐잉된 이벤트를 정확히 이어서 소비한다. 테스트처럼
@@ -534,7 +533,7 @@ impl WatcherInner {
 
     fn touch_last_event_at(&self) {
         if let Ok(mut s) = self.stats.write() {
-            s.last_event_at = Some(Utc::now());
+            s.last_event_at = Some(crate::clock::now());
         }
     }
 

@@ -12,10 +12,10 @@ use std::time::SystemTime;
 /// 판정 시각보다 늦게 저장된 파일 (프로젝트 루트 기준 상대경로, 정렬). 없어진 파일·`.oculpm/`·
 /// 루트 밖을 가리키는 경로는 보지 않는다. 판정 시각을 못 읽으면 빈 목록 — 모르는 것을 낡았다고 하지 않는다.
 pub fn changed_after(root: &Path, files: &[String], verdict_ts: &str) -> Vec<String> {
-    let Ok(at) = chrono::DateTime::parse_from_rfc3339(verdict_ts) else {
+    let Some(at) = crate::clock::parse_rfc3339(verdict_ts) else {
         return Vec::new();
     };
-    let at: SystemTime = at.with_timezone(&chrono::Utc).into();
+    let at: SystemTime = at.into();
     let mut out: Vec<String> = files
         .iter()
         .filter(|f| inside_project(f))
@@ -61,8 +61,8 @@ mod tests {
     #[test]
     fn files_saved_after_the_verdict_are_stale() {
         let dir = tempfile::tempdir().unwrap();
-        let verdict = chrono::DateTime::parse_from_rfc3339("2026-11-02T10:00:00+09:00").unwrap();
-        let t: SystemTime = verdict.with_timezone(&chrono::Utc).into();
+        let verdict = crate::clock::parse_rfc3339("2026-11-02T10:00:00+09:00").unwrap();
+        let t: SystemTime = verdict.into();
         touch(dir.path(), "src/before.ts", t - Duration::from_secs(60));
         touch(dir.path(), "src/after.ts", t + Duration::from_secs(60));
         touch(

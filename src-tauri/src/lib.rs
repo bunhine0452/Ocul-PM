@@ -12,6 +12,8 @@ mod app_icon;
 pub mod baseline;
 // Claude Code 테마 파일 `~/.claude/themes/ocul.json` — 프로젝트 밖에 쓰는 두 번째 파일 (11-15).
 mod claude_theme;
+// 시각 한 곳 — chrono 를 걷고 jiff 위에서 같은 글자를 낸다 (2026-11-19).
+pub mod clock;
 mod commands;
 // W5-PR8 — `db` and `oculpm` are made public so `src-tauri/tests/`
 // integration tests can drive the manager directly with a temp DB. None

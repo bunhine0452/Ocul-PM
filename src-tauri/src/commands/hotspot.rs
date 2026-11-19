@@ -2,8 +2,6 @@
 //! 데이터원. 집계·잡음 제거 규칙은 `db::hotspot::Db::file_hotspots` 의 doc
 //! comment 를 SSOT 로 삼는다 — 여기는 `days` → workday 컷오프 변환과 기본
 //! limit 만 얹는 얇은 오케스트레이션이다.
-
-use chrono::{Duration, Local};
 use tauri::State;
 
 use crate::db::{hotspot::FileHotspot, Db};
@@ -22,9 +20,10 @@ pub async fn oculpm_file_hotspots(
     limit: Option<u32>,
 ) -> Result<Vec<FileHotspot>, String> {
     let since_workday = days.map(|d| {
-        (Local::now().date_naive() - Duration::days(d.max(1) as i64 - 1))
-            .format("%Y%m%d")
-            .to_string()
+        crate::clock::ymd(crate::clock::add_days(
+            crate::clock::local_today(),
+            -(i64::from(d.max(1)) - 1),
+        ))
     });
     db.file_hotspots(project_id, since_workday, limit.unwrap_or(DEFAULT_LIMIT))
         .await

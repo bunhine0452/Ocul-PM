@@ -10,8 +10,6 @@
 
 use std::path::Path;
 
-use chrono::{SecondsFormat, Timelike, Utc};
-
 /// 이 서버를 띄운 쪽이 알려 주는 호출자 id (앱의 ACP 커맨드가 세션마다 넘긴다).
 ///
 /// 도구 인자의 `agent_id` 가 없을 때 쓰는 기본값을 정한다. 이게 없던 동안에는
@@ -590,9 +588,9 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     let cfg = load_config(root);
     let checked = self::title::checked_title(root, args, cfg.agents.template_language == "en")?;
     let resolver = resolver_of(&cfg);
-    let now = Utc::now();
+    let now = crate::clock::now();
     let workday = resolver.workday_of(now);
-    let local = now.with_timezone(&resolver.tz);
+    let local = now.to_zoned(resolver.tz.clone());
 
     // files_touched(저장 모양 `/` 로 — #fs-files-touched-norm) + forbidden 검사 (manager 의 create 경로와 동일 계약).
     // 못 읽은 원소는 조용히 버리지 않고 warnings 로 알린다 (files_touched.rs).
@@ -652,7 +650,7 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         slug: slug.clone(),
         status,
         difficulty,
-        created_at: local.to_rfc3339_opts(SecondsFormat::Secs, false),
+        created_at: crate::clock::zoned_rfc3339_secs(&local),
         updated_at: None,
         // Session id, best first: an explicit argument, then the watcher's own
         // live session read off `sessions.json`, then a synthetic fallback.
@@ -668,13 +666,10 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
             .map(str::to_string)
             .or_else(|| {
                 let sessions = read_sessions_sync(root, &resolver, &workday);
-                resolve_session_for_timestamp(
-                    &sessions,
-                    &local.to_rfc3339_opts(SecondsFormat::Secs, false),
-                )
+                resolve_session_for_timestamp(&sessions, &crate::clock::zoned_rfc3339_secs(&local))
             })
             .unwrap_or_else(|| {
-                crate::oculpm::session_id::SessionId::mcp(&workday, local).into_string()
+                crate::oculpm::session_id::SessionId::mcp(&workday, local.time()).into_string()
             }),
         agent: AgentRef {
             id: arg_str(args, "agent_id")

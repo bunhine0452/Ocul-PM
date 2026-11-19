@@ -253,7 +253,7 @@ impl OculpmManager {
                 .map_err(OculpmError::InvalidConfig)?;
 
         let redact = compile_redact_patterns(&redact_strings);
-        let tz = chrono_tz_from(&resolver);
+        let tz = tz_of(&resolver);
 
         // Durable processed-SHA set for idempotency.
         let sidecar = root.join(".oculpm").join("index").join("git-backfill.json");
@@ -274,10 +274,10 @@ impl OculpmManager {
                 skipped += 1;
                 continue;
             }
-            let Some(commit_utc) = chrono::DateTime::from_timestamp(c.timestamp as i64, 0) else {
+            let Some(commit_utc) = crate::clock::from_unix(c.timestamp as i64) else {
                 continue;
             };
-            let local = commit_utc.with_timezone(&tz);
+            let local = commit_utc.to_zoned(tz.clone());
             let workday = resolver.workday_of(commit_utc);
             let hhmm = format!("{:02}{:02}", local.hour(), local.minute());
             let entry_type = infer_entry_type(&c.subject);
@@ -301,7 +301,7 @@ impl OculpmManager {
                 slug: slug.clone(),
                 status: EntryStatus::Done,
                 difficulty: None,
-                created_at: local.to_rfc3339(),
+                created_at: crate::clock::zoned_rfc3339(&local),
                 updated_at: None,
                 session_id: crate::oculpm::session_id::SessionId::git_backfill(&workday)
                     .into_string(),
@@ -343,7 +343,7 @@ impl OculpmManager {
                 .and_then(|m| m.modified().ok())
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs() as i64)
-                .unwrap_or_else(|| commit_utc.timestamp());
+                .unwrap_or_else(|| commit_utc.as_second());
             let (parsed, body_text) = parse_frontmatter_and_body(&text);
             let body_parsed = parse_body(&body_text);
             let _ = cache

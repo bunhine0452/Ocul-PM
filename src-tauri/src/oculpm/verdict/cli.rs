@@ -24,8 +24,6 @@
 
 use std::path::PathBuf;
 
-use chrono::Utc;
-
 use super::{collect_with_transcript, judge, Verdict};
 
 pub fn run(args: &[String]) -> i32 {
@@ -59,11 +57,11 @@ pub fn run(args: &[String]) -> i32 {
         return 0;
     }
 
-    let now = Utc::now();
+    let now = crate::clock::now();
     let verdict = judge(&collect_with_transcript(
         &root,
         conversation.trim(),
-        now.timestamp(),
+        now.as_second(),
         transcript.as_deref(),
     ));
     if ledger {

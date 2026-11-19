@@ -313,9 +313,7 @@ pub fn workday_sessions(root: &Path) -> Vec<WorkdaySession> {
 }
 
 fn parse_ts(s: &str) -> Option<i64> {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .ok()
-        .map(|t| t.timestamp())
+    crate::clock::parse_rfc3339(s).map(|t| t.as_second())
 }
 
 /// 최근 일지들이 **자기 입으로 적은 대화 id** 전부.

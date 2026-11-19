@@ -214,7 +214,7 @@ async fn watcher_start_reclaims_a_lock_that_was_held_at_init() {
     // 살아 있는 pid(= 이 테스트 프로세스) + 방금 찍은 하트비트 →
     // `LockGuard::acquire` 가 Held 를 돌려주는 조건.
     let lock_path = dir.path().join(".oculpm/.lock");
-    let now = chrono::Utc::now().to_rfc3339();
+    let now = crate::clock::rfc3339(crate::clock::now());
     std::fs::write(
         &lock_path,
         format!(
@@ -255,7 +255,7 @@ async fn take_over_policy_starts_watching_despite_a_live_holder() {
     let dir = tempdir().unwrap();
     std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
     let lock_path = dir.path().join(".oculpm/.lock");
-    let now = chrono::Utc::now().to_rfc3339();
+    let now = crate::clock::rfc3339(crate::clock::now());
     std::fs::write(
         &lock_path,
         format!(
@@ -915,9 +915,7 @@ mod journal_w3_pr3 {
         let asked = manager
             .workday_at(
                 7,
-                chrono::DateTime::parse_from_rfc3339("2025-07-14T11:30:00+00:00")
-                    .unwrap()
-                    .with_timezone(&chrono::Utc),
+                crate::clock::parse_rfc3339("2025-07-14T11:30:00+00:00").unwrap(),
             )
             .await
             .unwrap();
@@ -940,9 +938,7 @@ mod journal_w3_pr3 {
         let asked_across = manager
             .workday_at(
                 7,
-                chrono::DateTime::parse_from_rfc3339("2025-07-14T23:00:00+00:00")
-                    .unwrap()
-                    .with_timezone(&chrono::Utc),
+                crate::clock::parse_rfc3339("2025-07-14T23:00:00+00:00").unwrap(),
             )
             .await
             .unwrap();
@@ -1709,7 +1705,7 @@ mod compare_layers_w4_pr5 {
     }
 
     /// The workday `create_manual_journal_entry` will stamp — it uses
-    /// `Utc::now()`, so a fixture that wants its journal entry and its
+    /// `crate::clock::now()`, so a fixture that wants its journal entry and its
     /// watcher session to share a workday must derive the session id from
     /// this rather than hard-coding one.
     async fn today_workday(manager: &OculpmManager) -> String {
@@ -1721,7 +1717,7 @@ mod compare_layers_w4_pr5 {
             .unwrap()
             .resolver
             .clone();
-        resolver.workday_of(chrono::Utc::now())
+        resolver.workday_of(crate::clock::now())
     }
 
     async fn append_index_events_for(manager: &OculpmManager, session_id: &str, paths: &[&str]) {
@@ -1878,11 +1874,9 @@ mod compare_layers_w4_pr5 {
         seed_session(
             &manager,
             &watcher_session,
-            &chrono::Utc::now()
-                .checked_sub_signed(chrono::Duration::hours(1))
-                .unwrap()
-                .fixed_offset()
-                .to_rfc3339(),
+            &crate::clock::rfc3339(
+                crate::clock::now() - crate::clock::SignedDuration::from_hours(1),
+            ),
         )
         .await;
 
@@ -1919,24 +1913,18 @@ mod compare_layers_w4_pr5 {
         let workday = today_workday(&manager).await;
         let older = format!("{workday}-001");
         let newer = format!("{workday}-002");
-        let now = chrono::Utc::now();
+        let now = crate::clock::now();
 
         seed_session(
             &manager,
             &older,
-            &now.checked_sub_signed(chrono::Duration::hours(3))
-                .unwrap()
-                .fixed_offset()
-                .to_rfc3339(),
+            &crate::clock::rfc3339(now - crate::clock::SignedDuration::from_hours(3)),
         )
         .await;
         seed_session(
             &manager,
             &newer,
-            &now.checked_sub_signed(chrono::Duration::hours(1))
-                .unwrap()
-                .fixed_offset()
-                .to_rfc3339(),
+            &crate::clock::rfc3339(now - crate::clock::SignedDuration::from_hours(1)),
         )
         .await;
 
@@ -1964,24 +1952,20 @@ mod compare_layers_w4_pr5 {
     async fn list_sessions_derives_journal_links() {
         let (manager, db, _dir, _root) = fresh().await;
         let workday = today_workday(&manager).await;
-        let now = chrono::Utc::now();
+        let now = crate::clock::now();
         let early = format!("{workday}-001");
         let late = format!("{workday}-002");
 
         seed_session(
             &manager,
             &early,
-            &(now - chrono::Duration::hours(3))
-                .fixed_offset()
-                .to_rfc3339(),
+            &crate::clock::rfc3339(now - crate::clock::SignedDuration::from_hours(3)),
         )
         .await;
         seed_session(
             &manager,
             &late,
-            &(now - chrono::Duration::hours(1))
-                .fixed_offset()
-                .to_rfc3339(),
+            &crate::clock::rfc3339(now - crate::clock::SignedDuration::from_hours(1)),
         )
         .await;
 

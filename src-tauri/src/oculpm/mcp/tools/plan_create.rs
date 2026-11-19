@@ -321,7 +321,9 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
     }
 
     let resolver = resolver_of(&cfg);
-    let today = Utc::now().with_timezone(&resolver.tz).format("%Y-%m-%d");
+    let today = crate::clock::now()
+        .to_zoned(resolver.tz.clone())
+        .strftime("%Y-%m-%d");
     let yaml_title = title.replace('\\', "\\\\").replace('"', "\\\"");
     let mut md = format!(
         "---\noculpm_plan: v1\nid: {plan_id}\ntitle: \"{yaml_title}\"\nstatus: active\n\

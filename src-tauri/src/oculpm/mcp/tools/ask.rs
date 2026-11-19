@@ -56,7 +56,7 @@ fn new_id() -> String {
     static SEQ: AtomicU32 = AtomicU32::new(0);
     format!(
         "q{}-{}-{}",
-        chrono::Utc::now().format("%Y%m%d%H%M%S"),
+        crate::clock::now().strftime("%Y%m%d%H%M%S"),
         std::process::id(),
         SEQ.fetch_add(1, Ordering::Relaxed)
     )
@@ -73,7 +73,7 @@ fn nudge_app(root: &Path, event: &str, id: &str) {
         "hook_event_name": event,
         "session_id": "",
         "question_id": id,
-        "oculpm_ts": chrono::Utc::now().to_rfc3339(),
+        "oculpm_ts": crate::clock::rfc3339(crate::clock::now()),
     });
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
@@ -126,7 +126,7 @@ pub fn ask_user(root: &Path, args: &Value, wait: Duration) -> Result<Value, Stri
         "id": id,
         "question": question,
         "options": options,
-        "asked_at": chrono::Utc::now().to_rfc3339(),
+        "asked_at": crate::clock::rfc3339(crate::clock::now()),
     });
     std::fs::write(question_path(root, &id), body.to_string())
         .map_err(|e| format!("질문 쓰기: {e}"))?;

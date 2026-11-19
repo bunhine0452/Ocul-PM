@@ -14,8 +14,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use chrono::Utc;
-use chrono_tz::Tz;
+use crate::clock::TimeZone;
 use regex::Regex;
 use rusqlite::{params, params_from_iter, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -177,7 +176,7 @@ pub struct JournalCache<'a> {
     /// (F7a-B). `None` (the query-path default) → detect-and-warn only, no
     /// rewrite. Set via [`with_tz`][Self::with_tz] on the indexing/projection
     /// paths. Disk is never touched — only the cached/displayed value.
-    tz: Option<Tz>,
+    tz: Option<TimeZone>,
 }
 
 mod conv;
@@ -220,7 +219,7 @@ impl<'a> JournalCache<'a> {
     /// missing offset onto `created_at`/`updated_at` (F7a-B). Chainable after
     /// [`with_redaction`][Self::with_redaction] on every disk→cache projection
     /// path. Without it the coercion degrades to detect-and-warn (still safe).
-    pub fn with_tz(mut self, tz: Tz) -> Self {
+    pub fn with_tz(mut self, tz: TimeZone) -> Self {
         self.tz = Some(tz);
         self
     }
@@ -313,7 +312,7 @@ impl CacheRowSnapshot {
         body: &ParsedBody,
         relative_path: &str,
         full_text: &str,
-        tz: Option<Tz>,
+        tz: Option<&TimeZone>,
         disk_body_hash: &str,
     ) -> Result<Self, OculpmError> {
         // Hash the full on-disk text so frontmatter-only edits (verified

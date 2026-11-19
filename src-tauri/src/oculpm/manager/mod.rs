@@ -251,10 +251,12 @@ impl OculpmManager {
     /// Resolve a project's timezone for read-time `created_at`/`updated_at`
     /// offset backfill (F7a-B). Falls back to UTC for an unregistered project
     /// or an unparseable tz, so projection never fails on the tz lookup.
-    async fn tz_for(&self, project_id: u32) -> chrono_tz::Tz {
+    async fn tz_for(&self, project_id: u32) -> crate::clock::TimeZone {
         match self.get_config(project_id).await {
-            Ok(cfg) => cfg.workday.timezone.parse().unwrap_or(chrono_tz::UTC),
-            Err(_) => chrono_tz::UTC,
+            Ok(cfg) => {
+                crate::clock::zone(&cfg.workday.timezone).unwrap_or(crate::clock::TimeZone::UTC)
+            }
+            Err(_) => crate::clock::TimeZone::UTC,
         }
     }
 }
@@ -262,8 +264,6 @@ impl OculpmManager {
 // ─────────────────────────────────────────────────────────────────────────────
 // W3-PR3 helpers (file-private)
 // ─────────────────────────────────────────────────────────────────────────────
-
-use chrono::Timelike;
 
 /// W4 dogfooding (2026-05-27) — mirror of `watcher::is_self_suppressed` +
 /// `watcher::is_agent_state_path`, applied retroactively in `compare_layers`
@@ -423,10 +423,7 @@ pub fn create_journal_file(
     let candidates = std::iter::once(format!("{base}.md"))
         .chain((2..=999).map(|n| format!("{base}__{n}.md")))
         .chain(std::iter::once_with(|| {
-            format!(
-                "{base}__{}.md",
-                chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
-            )
+            format!("{base}__{}.md", crate::clock::now().as_nanosecond())
         }));
     let mut last_err = None;
     for name in candidates {
@@ -442,8 +439,8 @@ pub fn create_journal_file(
 
 /// Extract the project tz from a `WorkdayResolver` for local-time
 /// formatting. `WorkdayResolver` exposes `tz` as a public field.
-fn chrono_tz_from(resolver: &WorkdayResolver) -> chrono_tz::Tz {
-    resolver.tz
+fn tz_of(resolver: &WorkdayResolver) -> crate::clock::TimeZone {
+    resolver.tz.clone()
 }
 
 // ─── F5 git-backfill helpers ────────────────────────────────────────────────
@@ -546,7 +543,7 @@ fn reindex_report_to_spec(project_id: u32, r: CacheReindexReport) -> ReindexRepo
         updated: r.updated,
         deleted: r.deleted,
         skipped: r.skipped_unchanged,
-        completed_at: chrono::Utc::now().to_rfc3339(),
+        completed_at: crate::clock::rfc3339(crate::clock::now()),
     }
 }
 

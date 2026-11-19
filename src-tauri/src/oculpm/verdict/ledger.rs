@@ -7,11 +7,9 @@
 //!
 //! 줄은 **세그먼트**마다 하나씩 나가고, 읽는 쪽이 **대화** 단위로 접는다.
 
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
-
-use chrono::{DateTime, SecondsFormat, Utc};
-use serde::{Deserialize, Serialize};
 
 use super::{Undecided, Verdict};
 use crate::oculpm::file_guard::{FileGuard, GuardPolicy};
@@ -65,9 +63,9 @@ struct RawJournalMissingLine {
 /// 카드가 소음이 된다.
 pub fn parse_journal_missing(
     content: &str,
-    cutoff: chrono::DateTime<chrono::Utc>,
+    cutoff: crate::clock::Timestamp,
 ) -> Vec<JournalMissingSignal> {
-    let mut rows: Vec<(chrono::DateTime<chrono::Utc>, String, String)> = content
+    let mut rows: Vec<(crate::clock::Timestamp, String, String)> = content
         .lines()
         .filter_map(|line| {
             let trimmed = line.trim();
@@ -81,9 +79,7 @@ pub fn parse_journal_missing(
             if raw.session_id.is_empty() {
                 return None;
             }
-            let dt = chrono::DateTime::parse_from_rfc3339(&raw.ts)
-                .ok()?
-                .with_timezone(&chrono::Utc);
+            let dt = crate::clock::parse_rfc3339(&raw.ts)?;
             (dt >= cutoff).then_some((dt, raw.ts, raw.session_id))
         })
         .collect();
@@ -115,7 +111,7 @@ pub fn journal_missing_signals(root: &Path, days: u32) -> Vec<JournalMissingSign
         Err(_) => return Vec::new(),
     };
     let days = i64::from(days.clamp(1, 365));
-    let cutoff = chrono::Utc::now() - chrono::Duration::days(days);
+    let cutoff = crate::clock::now() - crate::clock::SignedDuration::from_hours(24 * days);
     let signals = parse_journal_missing(&content, cutoff);
     if signals.is_empty() {
         return signals;
@@ -133,7 +129,7 @@ pub fn journal_missing_signals(root: &Path, days: u32) -> Vec<JournalMissingSign
     // 증거가 살아 있는 상태에서 미기록으로 판정된 것들이다.
     let recorded: BTreeSet<String> = crate::oculpm::verdict::collect_journal_conversations(
         root,
-        (chrono::Utc::now() - chrono::Duration::days(days)).timestamp(),
+        (crate::clock::now() - crate::clock::SignedDuration::from_hours(24 * days)).as_second(),
     );
     signals
         .into_iter()
@@ -150,7 +146,7 @@ const LEDGER_MAX_LINES: usize = 400;
 ///
 /// 세그먼트마다 한 줄이 나간다. 대화 단위 집계는 읽는 쪽
 /// (`claude_hooks::journal_missing_signals`)이 `session_id` 로 접는다.
-pub fn append(root: &Path, conversation: &str, verdict: &Verdict, now: DateTime<Utc>) {
+pub fn append(root: &Path, conversation: &str, verdict: &Verdict, now: crate::clock::Timestamp) {
     let (kind, detail) = match verdict {
         // 기록한 세션은 원장에 남기지 않는다 — 신호 원장이지 감사 로그가 아니다.
         Verdict::Clear(_) => return,
@@ -183,7 +179,7 @@ pub fn append(root: &Path, conversation: &str, verdict: &Verdict, now: DateTime<
     let existing = std::fs::read_to_string(&path).unwrap_or_default();
     let line = format!(
         r#"{{"ts":"{}","session_id":"{}","kind":"session_verdict","verdict":"{kind}"{detail}}}"#,
-        now.to_rfc3339_opts(SecondsFormat::Secs, true),
+        crate::clock::rfc3339_z(now),
         conversation.replace('"', ""),
     );
     let lines: Vec<&str> = existing.lines().filter(|l| !l.trim().is_empty()).collect();
@@ -214,10 +210,8 @@ mod tests {
 
     // ─── H3b — 미기록 세션 신호 파싱 ────────────────────────────────────────
 
-    fn cutoff(s: &str) -> chrono::DateTime<chrono::Utc> {
-        chrono::DateTime::parse_from_rfc3339(s)
-            .unwrap()
-            .with_timezone(&chrono::Utc)
+    fn cutoff(s: &str) -> crate::clock::Timestamp {
+        crate::clock::parse_rfc3339(s).unwrap()
     }
 
     #[test]
@@ -326,9 +320,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let dir = tmp.path().join(".oculpm/hooks");
         std::fs::create_dir_all(&dir).unwrap();
-        let now = chrono::Utc::now();
-        let recent = (now - chrono::Duration::hours(1)).to_rfc3339();
-        let stale = (now - chrono::Duration::days(30)).to_rfc3339();
+        let now = crate::clock::now();
+        let recent = crate::clock::rfc3339(now - crate::clock::SignedDuration::from_hours(1));
+        let stale = crate::clock::rfc3339(now - crate::clock::SignedDuration::from_hours(24 * 30));
         std::fs::write(
             tmp.path().join(JOURNAL_MISSING_REL),
             format!(
@@ -353,7 +347,7 @@ mod tests {
     #[test]
     fn parses_the_exact_ledger_line_the_writer_emits() {
         let line = "{\"ts\":\"2026-07-31T12:00:00Z\",\"session_id\":\"abc-123\",\"kind\":\"session_verdict\",\"verdict\":\"missing\",\"changed\":2}\n";
-        let cutoff = chrono::Utc::now() - chrono::Duration::days(365);
+        let cutoff = crate::clock::now() - crate::clock::SignedDuration::from_hours(24 * 365);
         let got = parse_journal_missing(line, cutoff);
         assert_eq!(got.len(), 1, "원장 라인이 파싱돼야 한다");
         assert_eq!(got[0].session_id, "abc-123");
@@ -372,7 +366,9 @@ mod tests {
         let jdir = root.join(".oculpm/journal/20260731/Chores");
         std::fs::create_dir_all(&jdir).unwrap();
 
-        let ts = (chrono::Utc::now() - chrono::Duration::hours(2)).to_rfc3339();
+        let ts = crate::clock::rfc3339(
+            crate::clock::now() - crate::clock::SignedDuration::from_hours(2),
+        );
         let ledger = |sid: &str| {
             format!(
                 "{{\"ts\":\"{ts}\",\"session_id\":\"{sid}\",\"kind\":\"session_verdict\",\"verdict\":\"missing\"}}\n"

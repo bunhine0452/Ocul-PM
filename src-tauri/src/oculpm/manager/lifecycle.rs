@@ -241,7 +241,7 @@ impl OculpmManager {
                     // re-validates. Future PRs may add disk re-checks here.
                     config_valid: true,
                     lock_state: lock_state_from_guard(&entry.lock),
-                    current_workday: entry.resolver.workday_of(chrono::Utc::now()),
+                    current_workday: entry.resolver.workday_of(crate::clock::now()),
                     // 실제 워처 상태. 예전엔 "W2 가 바꾼다" 는 주석과 함께 `Stopped`
                     // 로 박혀 있어 터미널 상태바가 늘 "감시 꺼짐" 을 그렸다
                     // (2026-08-30 감사) — 워처는 잘 돌고 있었는데도.
@@ -691,7 +691,7 @@ impl OculpmManager {
     /// 감독관(`oculpm::supervisor`)용 스냅샷 — 추적 중인 프로젝트별 감시 상태.
     /// 추적 중인 모든 프로젝트의 (id, 현재 워크데이) — 감독관의 날 넘김 감지용.
     pub async fn current_workdays(&self) -> Vec<(u32, String)> {
-        let now = chrono::Utc::now();
+        let now = crate::clock::now();
         let projects = self.projects.read().await;
         projects
             .iter()
@@ -705,7 +705,7 @@ impl OculpmManager {
         let entry = projects
             .get(&project_id)
             .ok_or(OculpmError::NotInitialized(project_id))?;
-        Ok(entry.resolver.workday_of(chrono::Utc::now()))
+        Ok(entry.resolver.workday_of(crate::clock::now()))
     }
 
     /// **임의 시각**이 속한 워크데이. 지금이 아닌 시각을 묻는 유일한 자리이며,
@@ -717,7 +717,7 @@ impl OculpmManager {
     pub async fn workday_at(
         &self,
         project_id: u32,
-        instant_utc: chrono::DateTime<chrono::Utc>,
+        instant_utc: crate::clock::Timestamp,
     ) -> Result<String, OculpmError> {
         let projects = self.projects.read().await;
         let entry = projects

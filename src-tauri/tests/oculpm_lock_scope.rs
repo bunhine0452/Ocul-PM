@@ -32,7 +32,7 @@ fn lock_file(root: &Path) -> std::path::PathBuf {
 fn plant_foreign_lock(root: &Path, pid: u32) {
     let dir = root.join(".oculpm");
     std::fs::create_dir_all(&dir).unwrap();
-    let now = chrono::Utc::now().to_rfc3339();
+    let now = ocul_pm_lib::clock::rfc3339(ocul_pm_lib::clock::now());
     let body = serde_json::json!({
         "schema_version": 1,
         "pid": pid,

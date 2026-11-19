@@ -112,7 +112,7 @@ fn capture_spawns_for_n_committed_files() {
             rename_from: None,
         })
         .collect();
-    let workday = chrono::Local::now().format("%Y%m%d").to_string();
+    let workday = crate::clock::local_now().strftime("%Y%m%d").to_string();
     let entry = format!("{workday}/Bugs/2359_bug_spawns.md");
     let (n, res) = measure(|| {
         crate::oculpm::entry_diffs::capture_entry_diffs(
@@ -163,7 +163,7 @@ fn capture_spawns_for_files_committed_together() {
             rename_from: None,
         })
         .collect();
-    let workday = chrono::Local::now().format("%Y%m%d").to_string();
+    let workday = crate::clock::local_now().strftime("%Y%m%d").to_string();
     let entry = format!("{workday}/Bugs/2359_bug_together.md");
     let (n, res) = measure(|| {
         crate::oculpm::entry_diffs::capture_entry_diffs(

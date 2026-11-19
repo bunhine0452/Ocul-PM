@@ -88,7 +88,8 @@ impl OculpmManager {
                     // 화면이 워처 왕복을 기다리지 않게 그 자리에서 재투영한다
                     // (`add_journal_related` 와 같은 계약). 실패해도 디스크는
                     // 이미 맞으므로 워처가 곧 따라잡는다.
-                    let projector = JournalCache::with_redaction(db, redact.clone()).with_tz(tz);
+                    let projector =
+                        JournalCache::with_redaction(db, redact.clone()).with_tz(tz.clone());
                     let _ = projector
                         .apply_path_change(
                             project_id,

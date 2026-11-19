@@ -14,8 +14,6 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use chrono::{Local, NaiveDate};
-
 use crate::oculpm::frontmatter::parse_frontmatter_and_body;
 use crate::oculpm::spec::EntryType;
 
@@ -25,7 +23,7 @@ pub struct Hit {
     /// `.oculpm/journal/` 기준.
     pub journal: String,
     pub title: String,
-    pub day: NaiveDate,
+    pub day: crate::clock::civil::Date,
     /// 그 일지 검증 칸의 첫 `코드` — 그때 돌린 확인 명령.
     pub check: Option<String>,
 }
@@ -62,7 +60,7 @@ pub fn project_rel(root: &Path, file: &str) -> Option<String> {
 }
 
 /// 최근 `days` 일(오늘 포함)의 버그 일지 중 `rel` 을 고친 것, 최신 먼저 `SHOWN` 개.
-pub fn find(root: &Path, rel: &str, today: NaiveDate, days: i64) -> Vec<Hit> {
+pub fn find(root: &Path, rel: &str, today: crate::clock::civil::Date, days: i64) -> Vec<Hit> {
     let journal = root.join(".oculpm").join("journal");
     let Ok(read) = std::fs::read_dir(&journal) else {
         return Vec::new();
@@ -70,10 +68,10 @@ pub fn find(root: &Path, rel: &str, today: NaiveDate, days: i64) -> Vec<Hit> {
     let mut hits = Vec::new();
     for day_dir in read.flatten() {
         let name = day_dir.file_name().to_string_lossy().to_string();
-        let Ok(day) = NaiveDate::parse_from_str(&name, "%Y%m%d") else {
+        let Some(day) = crate::clock::parse_ymd(&name) else {
             continue;
         };
-        let age = (today - day).num_days();
+        let age = crate::clock::days_between(today, day);
         if !(0..days).contains(&age) {
             continue;
         }
@@ -159,7 +157,7 @@ pub fn message(rel: &str, hits: &[Hit]) -> String {
     for h in hits {
         s.push_str(&format!(
             "\n- {} {} (.oculpm/journal/{})",
-            h.day.format("%m-%d"),
+            h.day.strftime("%m-%d"),
             h.title,
             h.journal
         ));
@@ -238,7 +236,7 @@ pub fn warning(root: &Path, file: &str, conversation: &str, days: i64) -> Option
         return None;
     }
     let rel = project_rel(root, file)?;
-    let hits = find(root, &rel, Local::now().date_naive(), days);
+    let hits = find(root, &rel, crate::clock::local_today(), days);
     if hits.is_empty() || !first_time(root, conversation.trim(), &rel) {
         return None;
     }

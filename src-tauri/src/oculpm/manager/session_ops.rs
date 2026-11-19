@@ -191,7 +191,7 @@ impl OculpmManager {
             let entry = projects
                 .get(&project_id)
                 .ok_or(OculpmError::NotInitialized(project_id))?;
-            let wd = workday.unwrap_or_else(|| entry.resolver.workday_of(chrono::Utc::now()));
+            let wd = workday.unwrap_or_else(|| entry.resolver.workday_of(crate::clock::now()));
             (entry.index_writer.clone(), wd)
         };
         let mut sessions = writer.list_sessions(&wd).await?;

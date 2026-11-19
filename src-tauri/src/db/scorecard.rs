@@ -16,8 +16,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use chrono::{DateTime, FixedOffset};
-
 use super::*;
 
 /// 일지 한 줄 — `compute` 의 입력.
@@ -74,8 +72,8 @@ pub fn compute(rows: &[ScoreRow], files: &[(String, String)], since_workday: &st
         .map(|(f, _)| *f)
         .collect();
 
-    let ts = |r: &ScoreRow| DateTime::<FixedOffset>::parse_from_rfc3339(&r.created_at).ok();
-    let builds: Vec<(DateTime<FixedOffset>, &HashSet<&str>)> = rows
+    let ts = |r: &ScoreRow| crate::clock::parse_rfc3339(&r.created_at);
+    let builds: Vec<(crate::clock::Timestamp, &HashSet<&str>)> = rows
         .iter()
         .filter(|r| BUILD_TYPES.contains(&r.entry_type.as_str()))
         .filter_map(|r| Some((ts(r)?, by_entry.get(r.relative_path.as_str())?)))
@@ -104,9 +102,9 @@ pub fn compute(rows: &[ScoreRow], files: &[(String, String)], since_workday: &st
             continue;
         }
         let hit = builds.iter().any(|(ets, efiles)| {
-            let gap = bts - *ets;
-            gap > chrono::Duration::zero()
-                && gap <= chrono::Duration::days(7)
+            let gap = bts.duration_since(*ets);
+            gap > crate::clock::SignedDuration::ZERO
+                && gap <= crate::clock::SignedDuration::from_hours(24 * 7)
                 && efiles.iter().any(|f| own.contains(f))
         });
         if hit {

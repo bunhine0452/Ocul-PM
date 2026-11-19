@@ -56,14 +56,15 @@ fn fresh_waiting<R: tauri::Runtime>(app: &AppHandle<R>, project_id: u32) -> u32 
     let Some(state) = app.try_state::<ClaudeWaitingState>() else {
         return 0;
     };
-    let cutoff = chrono::Utc::now() - chrono::Duration::minutes(WAITING_STALE_MINUTES);
+    let cutoff =
+        crate::clock::now() - crate::clock::SignedDuration::from_mins(WAITING_STALE_MINUTES);
     let Ok(all) = state.0.lock() else { return 0 };
     all.get(&project_id).map_or(0, |table| {
         table
             .values()
             .filter(|w| {
-                chrono::DateTime::parse_from_rfc3339(&w.since)
-                    .map(|t| t.with_timezone(&chrono::Utc) >= cutoff)
+                crate::clock::parse_rfc3339(&w.since)
+                    .map(|t| t >= cutoff)
                     .unwrap_or(true)
             })
             .count() as u32
@@ -250,7 +251,7 @@ mod tests {
         let attention =
             |pid| tauri::async_runtime::block_on(super::attention_of(app.handle(), pid)).waiting;
         assert_eq!(attention(7), 0);
-        let since = chrono::Utc::now().to_rfc3339();
+        let since = crate::clock::rfc3339(crate::clock::now());
         let outside = ["a", "b"].map(|id| {
             let w = ClaudeWaiting {
                 session_id: id.into(),

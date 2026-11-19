@@ -36,7 +36,7 @@ impl<'a> JournalCache<'a> {
             body,
             relative_path,
             full_text,
-            self.tz,
+            self.tz.as_ref(),
             &disk_body_hash,
         )?;
         self.upsert_snapshot(project_id, relative_path, snapshot, file_mtime)
@@ -59,7 +59,7 @@ impl<'a> JournalCache<'a> {
             &projected.body,
             relative_path,
             &projected.full_text,
-            self.tz,
+            self.tz.as_ref(),
             &projected.disk_body_hash,
         )?;
         self.upsert_snapshot(project_id, relative_path, snapshot, file_mtime)
@@ -379,7 +379,7 @@ impl<'a> JournalCache<'a> {
                     .ok()
                     .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                     .map(|d| d.as_secs() as i64)
-                    .unwrap_or_else(|| Utc::now().timestamp());
+                    .unwrap_or_else(|| crate::clock::now().as_second());
                 let raw = std::fs::read_to_string(&abs)
                     .map_err(|source| OculpmError::Io { path: abs, source })?;
                 let projected = self.project_text(&raw);

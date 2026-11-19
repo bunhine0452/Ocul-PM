@@ -12,7 +12,7 @@
 
 use std::fmt;
 
-use chrono::Timelike;
+use crate::clock::civil;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
@@ -87,7 +87,7 @@ impl SessionId {
 
     /// `HHMMSS` 는 항상 0 으로 채운다 — 예전 수동 발급은 시(時)를 안 채워
     /// 10시 전엔 한 글자 짧은 id 가 나왔다.
-    pub fn manual(workday: &str, local: impl Timelike) -> Self {
+    pub fn manual(workday: &str, local: civil::Time) -> Self {
         Self(format!(
             "{MANUAL_PREFIX}{workday}-{:02}{:02}{:02}",
             local.hour(),
@@ -96,7 +96,7 @@ impl SessionId {
         ))
     }
 
-    pub fn mcp(workday: &str, local: impl Timelike) -> Self {
+    pub fn mcp(workday: &str, local: civil::Time) -> Self {
         Self(format!(
             "{MCP_PREFIX}{workday}-{:02}{:02}{:02}",
             local.hour(),
@@ -107,7 +107,7 @@ impl SessionId {
 
     /// 스케줄 발동 세션. `manual`/`mcp` 와 같은 모양이라 `kind()`·`workday()`
     /// 가 별도 규칙 없이 읽는다.
-    pub fn schedule(workday: &str, local: impl Timelike) -> Self {
+    pub fn schedule(workday: &str, local: civil::Time) -> Self {
         Self(format!(
             "{SCHEDULE_PREFIX}{workday}-{:02}{:02}{:02}",
             local.hour(),
@@ -117,7 +117,7 @@ impl SessionId {
     }
 
     /// 감시(정착) 발동 세션.
-    pub fn automation(workday: &str, local: impl Timelike) -> Self {
+    pub fn automation(workday: &str, local: civil::Time) -> Self {
         Self(format!(
             "{AUTOMATION_PREFIX}{workday}-{:02}{:02}{:02}",
             local.hour(),
@@ -127,7 +127,7 @@ impl SessionId {
     }
 
     /// 임포트 세션. `workday` 는 **원본 대화의 날짜**다 — 들여온 시각이 아니라.
-    pub fn imported(workday: &str, local: impl Timelike) -> Self {
+    pub fn imported(workday: &str, local: civil::Time) -> Self {
         Self(format!(
             "{IMPORT_PREFIX}{workday}-{:02}{:02}{:02}",
             local.hour(),
@@ -347,7 +347,7 @@ mod tests {
         assert_eq!(suffixed.kind(), SessionKind::Unknown);
         assert_eq!(suffixed.workday(), Some("20260831")); // 색인은 통과 — 그래서 조용하다
 
-        let t = chrono::NaiveTime::from_hms_opt(17, 0, 0).unwrap();
+        let t = civil::time(17, 0, 0, 0);
         assert_eq!(
             SessionId::schedule("20260831", t).kind(),
             SessionKind::Schedule
@@ -391,7 +391,7 @@ mod tests {
 
     #[test]
     fn minting_pads_and_round_trips() {
-        let t = chrono::NaiveTime::from_hms_opt(9, 5, 4).unwrap();
+        let t = civil::time(9, 5, 4, 0);
         assert_eq!(
             SessionId::manual("20260830", t).as_str(),
             "manual-20260830-090504"

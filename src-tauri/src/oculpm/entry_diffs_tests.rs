@@ -188,7 +188,7 @@ fn history_fallback_records_committed_diff() {
     git(&tmp, &["commit", "-qm", "change"]).unwrap();
 
     // Entry dated late today → nearest (most recent) commit = the change.
-    let workday = chrono::Local::now().format("%Y%m%d").to_string();
+    let workday = crate::clock::local_now().strftime("%Y%m%d").to_string();
     let entry = format!("{workday}/Bugs/2359_bug_hist.md");
     let touched = vec![FileTouched {
         path: rel.into(),
@@ -231,7 +231,7 @@ fn history_fallback_records_when_filename_has_no_hhmm() {
     git(&tmp, &["add", "."]).unwrap();
     git(&tmp, &["commit", "-qm", "change"]).unwrap();
 
-    let workday = chrono::Local::now().format("%Y%m%d").to_string();
+    let workday = crate::clock::local_now().strftime("%Y%m%d").to_string();
     let entry = format!("{workday}/Bugs/intl-en-saju.md"); // no HHMM prefix
     assert!(
         entry_unix_time(&entry).is_none(),
@@ -402,7 +402,7 @@ fn capture_records_untracked_new_file_in_git_repo() {
         "untracked file must read as not-in-HEAD"
     );
 
-    let workday = chrono::Local::now().format("%Y%m%d").to_string();
+    let workday = crate::clock::local_now().strftime("%Y%m%d").to_string();
     let entry = format!("{workday}/Features_to_add/1200_feature_new.md");
     let touched = vec![FileTouched {
         path: rel.into(),

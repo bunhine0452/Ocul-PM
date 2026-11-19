@@ -172,7 +172,7 @@ pub async fn plan_create(
     let root = planner_root_of(&db, project_id).await?;
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
     let (id, path) = free_plan_path(&root, &slug_for(&title));
-    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let date = crate::clock::now().strftime("%Y-%m-%d").to_string();
     let md = create_plan_skeleton(&id, title.trim(), "user", &date);
     write_atomic(&path, md.as_bytes()).map_err(|e| e.to_string())?;
 
@@ -228,7 +228,7 @@ async fn rewrite_plan(
     let path =
         find_plan_path(&root, plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
     let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let date = crate::clock::now().strftime("%Y-%m-%d").to_string();
     let new_md = edit(&md, &date)?;
     if new_md != md {
         write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
@@ -263,7 +263,7 @@ pub async fn plan_apply_edit(
     if is_plan_locked(&md, &plan_id) {
         return Err(LOCKED_MSG.to_string());
     }
-    let ts = chrono::Utc::now().to_rfc3339();
+    let ts = crate::clock::rfc3339(crate::clock::now());
 
     let new_md = match op {
         PlanEditOp::SetStatus { item_id, status } => {

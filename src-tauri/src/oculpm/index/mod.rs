@@ -18,7 +18,6 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::oculpm::atomic_io::{append_ndjson, write_atomic, NDJSON_LINE_CAP};
@@ -293,7 +292,7 @@ impl IndexWriter {
         }
 
         if let Some(idx) = corrupted_at {
-            let stamp = Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
+            let stamp = crate::clock::now().strftime("%Y%m%dT%H%M%SZ").to_string();
             let backup = path.with_file_name(format!(
                 "{}.corrupted-tail-{}",
                 path.file_name()
@@ -345,9 +344,9 @@ impl IndexWriter {
 
         let git = collect_git_info(&self.root);
         let tree_summary = compute_tree_summary(&self.root);
-        let captured_at = chrono::Utc::now()
-            .with_timezone(&self.resolver.tz)
-            .to_rfc3339_opts(SecondsFormat::Secs, false);
+        let captured_at = crate::clock::zoned_rfc3339_secs(
+            &crate::clock::now().to_zoned(self.resolver.tz.clone()),
+        );
 
         let snapshot = Snapshot {
             schema_version: SCHEMA_VERSION,

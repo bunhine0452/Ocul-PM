@@ -11,7 +11,7 @@ use super::*;
 /// the on-disk file is never modified here.
 pub(super) fn coerce_timestamp(
     s: &str,
-    tz: Option<Tz>,
+    tz: Option<&TimeZone>,
     field: &str,
     warns: &mut Vec<String>,
 ) -> String {
@@ -19,7 +19,8 @@ pub(super) fn coerce_timestamp(
         Some(tz) => match backfill_tz_offset(s, tz) {
             Some(fixed) => {
                 warns.push(format!(
-                    "{field} '{s}' lacks a timezone offset; backfilled to '{fixed}' ({tz}) for display (disk unchanged)"
+                    "{field} '{s}' lacks a timezone offset; backfilled to '{fixed}' ({}) for display (disk unchanged)",
+                    crate::clock::zone_name(tz)
                 ));
                 fixed
             }
@@ -29,7 +30,8 @@ pub(super) fn coerce_timestamp(
             None => {
                 if iso_lacks_offset(s) {
                     warns.push(format!(
-                        "{field} '{s}' lacks a timezone offset (could not backfill in {tz})"
+                        "{field} '{s}' lacks a timezone offset (could not backfill in {})",
+                        crate::clock::zone_name(tz)
                     ));
                 }
                 s.to_string()

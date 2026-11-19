@@ -2,7 +2,7 @@ use super::*;
 
 /// 오늘 날짜의 버그 일지 — `src/a.ts` 를 고쳤고 검증 칸의 확인 명령이 `pnpm test`.
 fn tracked_with_bug(root: &Path) {
-    let day = chrono::Local::now().format("%Y%m%d").to_string();
+    let day = crate::clock::local_now().strftime("%Y%m%d").to_string();
     let dir = root.join(".oculpm/journal").join(&day).join("Bugs");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(

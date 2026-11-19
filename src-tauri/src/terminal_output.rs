@@ -104,7 +104,7 @@ fn apply_message(
                 since: prev
                     .filter(|p| p.state == state.as_str())
                     .map(|p| p.since.clone())
-                    .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+                    .unwrap_or_else(|| crate::clock::rfc3339(crate::clock::now())),
                 // 이름은 한 번 알리면 남는다 — 매 보고에 싣지 않는 프로그램도 있다.
                 app: r.app.clone().or_else(|| prev.and_then(|p| p.app.clone())),
             });

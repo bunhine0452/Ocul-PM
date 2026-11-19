@@ -40,7 +40,8 @@ pub fn claude_waiting(
     state: State<'_, waiting::ClaudeWaitingState>,
     project_id: u32,
 ) -> Vec<waiting::ClaudeWaiting> {
-    let cutoff = chrono::Utc::now() - chrono::Duration::minutes(waiting::WAITING_STALE_MINUTES);
+    let cutoff = crate::clock::now()
+        - crate::clock::SignedDuration::from_mins(waiting::WAITING_STALE_MINUTES);
     let Ok(mut all) = state.0.lock() else {
         return Vec::new();
     };
@@ -48,8 +49,8 @@ pub fn claude_waiting(
         return Vec::new();
     };
     table.retain(|_, w| {
-        chrono::DateTime::parse_from_rfc3339(&w.since)
-            .map(|t| t.with_timezone(&chrono::Utc) >= cutoff)
+        crate::clock::parse_rfc3339(&w.since)
+            .map(|t| t >= cutoff)
             .unwrap_or(true)
     });
     let mut out: Vec<_> = table.values().cloned().collect();

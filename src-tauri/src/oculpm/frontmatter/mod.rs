@@ -15,8 +15,7 @@
 
 // (W3-PR3).
 
-use chrono::{DateTime, NaiveDateTime, TimeZone};
-use chrono_tz::Tz;
+use crate::clock::{civil, TimeZone};
 use serde_yaml::Value as YamlValue;
 
 mod repair;
@@ -136,15 +135,17 @@ pub fn write_frontmatter_and_body(fm: &JournalFrontmatter, body: &str) -> String
 /// Parse a timezone-less ISO-8601 local datetime (`YYYY-MM-DDThh:mm[:ss]`,
 /// space-separated variant accepted). Returns `None` for anything that already
 /// carries an offset, for date-only strings, or for non-datetime garbage.
-fn parse_naive_local(s: &str) -> Option<NaiveDateTime> {
+fn parse_naive_local(s: &str) -> Option<civil::DateTime> {
     let s = s.trim();
-    NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")
-        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S"))
-        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M"))
-        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f"))
-        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S"))
-        .or_else(|_| NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M"))
-        .ok()
+    // `%.f` 는 소수 초가 있어도 없어도 읽는다 — 예전 여섯 꼴(소수 초 유무 × T/공백 × 초 유무)과 같은 범위.
+    [
+        "%Y-%m-%dT%H:%M:%S%.f",
+        "%Y-%m-%dT%H:%M",
+        "%Y-%m-%d %H:%M:%S%.f",
+        "%Y-%m-%d %H:%M",
+    ]
+    .into_iter()
+    .find_map(|f| civil::DateTime::strptime(f, s).ok())
 }
 
 /// True when `s` is a real ISO datetime that is **missing** a timezone offset
@@ -153,24 +154,24 @@ fn parse_naive_local(s: &str) -> Option<NaiveDateTime> {
 /// false — we only flag the specific "tz dropped" friction, nothing else.
 pub fn iso_lacks_offset(s: &str) -> bool {
     let s = s.trim();
-    if s.is_empty() || DateTime::parse_from_rfc3339(s).is_ok() {
+    if s.is_empty() || crate::clock::parse_rfc3339(s).is_some() {
         return false;
     }
     parse_naive_local(s).is_some()
 }
 
 /// Backfill the project timezone offset onto a no-offset ISO datetime,
-/// DST-correct via `chrono_tz`. Returns `Some(rfc3339_with_offset)` only when
+/// DST-correct via the tz database. Returns `Some(rfc3339_with_offset)` only when
 /// `s` lacked an offset and was successfully interpreted in `tz`; returns
 /// `None` (leave untouched) when it already had an offset or isn't a datetime.
 /// On a DST fold (ambiguous local time) the earliest instant is chosen.
-pub fn backfill_tz_offset(s: &str, tz: Tz) -> Option<String> {
+pub fn backfill_tz_offset(s: &str, tz: &TimeZone) -> Option<String> {
     if !iso_lacks_offset(s) {
         return None;
     }
     let naive = parse_naive_local(s)?;
-    let dt = tz.from_local_datetime(&naive).earliest()?;
-    Some(dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, false))
+    let ts = crate::clock::earliest(tz, naive)?;
+    Some(crate::clock::zoned_rfc3339_secs(&ts.to_zoned(tz.clone())))
 }
 
 /// 제목 → 디스크 이름으로 쓸 kebab slug. **유니코드 alphanumeric 을 살린다** —

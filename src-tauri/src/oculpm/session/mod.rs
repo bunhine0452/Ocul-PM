@@ -19,7 +19,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
-use chrono::{DateTime, SecondsFormat, Utc};
+use crate::clock::Timestamp;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
@@ -185,9 +185,9 @@ impl SessionActor {
 
 struct ActiveSession {
     session: Session,
-    active_start: DateTime<Utc>,
-    last_activity: DateTime<Utc>,
-    last_upsert: DateTime<Utc>,
+    active_start: Timestamp,
+    last_activity: Timestamp,
+    last_upsert: Timestamp,
     files_unique: HashSet<String>,
     /// 이 작업 세션에 붙어 있던 에이전트 대화 id 들. `BTreeSet` 이라 삽입만
     /// 하면 정렬·중복 제거가 공짜다 — 훅은 대화마다 매 턴 신호를 보낸다.
@@ -308,14 +308,14 @@ impl ActorInner {
                 // placeholders since it doesn't know the live session id.
                 let mut stamped = ev;
                 stamped.session_id = active.session.id.clone();
-                stamped.ts = Utc::now()
-                    .with_timezone(&self.resolver.tz)
-                    .to_rfc3339_opts(SecondsFormat::Secs, false);
+                stamped.ts = crate::clock::zoned_rfc3339_secs(
+                    &crate::clock::now().to_zoned(self.resolver.tz.clone()),
+                );
                 if let Err(e) = self.index_writer.append_file_change(&stamped).await {
                     tracing::warn!(target: "oculpm::session", error = ?e, "ndjson append failed");
                 }
 
-                active.last_activity = Utc::now();
+                active.last_activity = crate::clock::now();
                 active.session.file_event_count = active.session.file_event_count.saturating_add(1);
                 active.files_unique.insert(stamped.path.clone());
                 active.session.files_unique = active.files_unique.len() as u32;
@@ -331,10 +331,10 @@ impl ActorInner {
                 // than UPSERT_DEBOUNCE. Other paths flush eagerly.
                 if active
                     .last_upsert
-                    .signed_duration_since(active.last_activity)
-                    .num_milliseconds()
+                    .duration_since(active.last_activity)
+                    .as_millis()
                     .abs()
-                    >= UPSERT_DEBOUNCE.as_millis() as i64
+                    >= UPSERT_DEBOUNCE.as_millis() as i128
                 {
                     let to_save = active.session.clone();
                     active.last_upsert = active.last_activity;
@@ -400,7 +400,7 @@ impl ActorInner {
                     // without it and the debounce window would leave a
                     // label-less row if the agent session is short.
                     let to_save = active.session.clone();
-                    active.last_upsert = Utc::now();
+                    active.last_upsert = crate::clock::now();
                     active.dirty = false;
                     if let Err(e) = self.index_writer.upsert_session(&to_save).await {
                         tracing::warn!(target: "oculpm::session", error = ?e, "hook label upsert failed");
@@ -412,7 +412,7 @@ impl ActorInner {
                     active.session.agent_label_guess = Some(agent_label);
                 }
                 record_agent_session(active, &agent_session);
-                active.last_activity = Utc::now();
+                active.last_activity = crate::clock::now();
                 active.dirty = true;
                 let timeout = inactivity_timeout(&self.config);
                 let new_handle = spawn_inactivity_timer(self.cmd_tx.clone(), timeout);
@@ -465,7 +465,7 @@ impl ActorInner {
         }
         // Prepare today's workday directory + snapshot_open. The next
         // NoteActivity will start a new session under the new workday.
-        let new_workday = self.resolver.workday_of(Utc::now());
+        let new_workday = self.resolver.workday_of(crate::clock::now());
         if let Err(e) = self.index_writer.ensure_workday_dirs(&new_workday).await {
             tracing::warn!(target: "oculpm::session", error = ?e, "ensure_workday_dirs failed");
         }
@@ -520,7 +520,7 @@ impl ActorInner {
         if self.config.session_resume_grace_minutes == 0 {
             return ResumeOutcome::NoCandidate;
         }
-        let now = Utc::now();
+        let now = crate::clock::now();
         let workday = self.resolver.workday_of(now);
 
         let sessions = match self.index_writer.list_sessions(&workday).await {
@@ -541,12 +541,13 @@ impl ActorInner {
         if !matches!(last.ended_reason, Some(EndedReason::InactivityTimeout)) {
             return ResumeOutcome::NoCandidate;
         }
-        let ended_at = match DateTime::parse_from_rfc3339(&ended_at_str) {
-            Ok(t) => t.with_timezone(&Utc),
-            Err(_) => return ResumeOutcome::NoCandidate,
+        let Some(ended_at) = crate::clock::parse_rfc3339(&ended_at_str) else {
+            return ResumeOutcome::NoCandidate;
         };
-        let grace = chrono::Duration::minutes(i64::from(self.config.session_resume_grace_minutes));
-        if (now - ended_at) > grace {
+        let grace = crate::clock::SignedDuration::from_mins(i64::from(
+            self.config.session_resume_grace_minutes,
+        ));
+        if now.duration_since(ended_at) > grace {
             return ResumeOutcome::NoCandidate;
         }
 
@@ -562,9 +563,7 @@ impl ActorInner {
 
         // Append the triggering event under the resumed session id.
         let stamped = FileChangeEvent {
-            ts: now
-                .with_timezone(&self.resolver.tz)
-                .to_rfc3339_opts(SecondsFormat::Secs, false),
+            ts: crate::clock::zoned_rfc3339_secs(&now.to_zoned(self.resolver.tz.clone())),
             session_id: resumed.id.clone(),
             ..ev
         };
@@ -635,16 +634,14 @@ impl ActorInner {
         &mut self,
         first_event: Option<FileChangeEvent>,
     ) -> Result<(), OculpmError> {
-        let now = Utc::now();
+        let now = crate::clock::now();
         let workday = self.resolver.workday_of(now);
 
         self.index_writer.ensure_workday_dirs(&workday).await?;
         let snapshot = self.index_writer.ensure_open_snapshot(&workday).await?;
 
         let id = self.next_session_id(&workday).await?;
-        let started_at = now
-            .with_timezone(&self.resolver.tz)
-            .to_rfc3339_opts(SecondsFormat::Secs, false);
+        let started_at = crate::clock::zoned_rfc3339_secs(&now.to_zoned(self.resolver.tz.clone()));
         let mut files_unique: HashSet<String> = HashSet::new();
         let mut file_event_count: u32 = 0;
         if let Some(ref ev) = first_event {
@@ -717,19 +714,18 @@ impl ActorInner {
         let last_activity = active.last_activity;
 
         let end_instant = match ended_at {
-            EndedAt::Now => Utc::now(),
+            EndedAt::Now => crate::clock::now(),
             EndedAt::LastActivity => last_activity,
         };
-        let end_str = end_instant
-            .with_timezone(&self.resolver.tz)
-            .to_rfc3339_opts(SecondsFormat::Secs, false);
+        let end_str =
+            crate::clock::zoned_rfc3339_secs(&end_instant.to_zoned(self.resolver.tz.clone()));
 
         // Active window: simple wall-clock span. Refining to exclude idle
         // gaps lives in a later perf pass (see PR2 doc §6 #2).
-        let window_ms = (end_instant - active_start)
-            .num_milliseconds()
-            .max(0)
-            .min(u32::MAX as i64) as u32;
+        let window_ms = end_instant
+            .duration_since(active_start)
+            .as_millis()
+            .clamp(0, i128::from(u32::MAX)) as u32;
         session.active_window_ms = window_ms;
         session.git_head_at_end = self.index_writer.current_git_head();
 
@@ -763,11 +759,8 @@ impl ActorInner {
             if !active.dirty {
                 return;
             }
-            let now = Utc::now();
-            if now
-                .signed_duration_since(active.last_upsert)
-                .to_std()
-                .unwrap_or(Duration::ZERO)
+            let now = crate::clock::now();
+            if Duration::try_from(now.duration_since(active.last_upsert)).unwrap_or(Duration::ZERO)
                 < UPSERT_DEBOUNCE
             {
                 return;
@@ -876,17 +869,17 @@ fn spawn_inactivity_timer(
 
 fn spawn_boundary_timer(
     cmd_tx: mpsc::UnboundedSender<SessionCmd>,
-    fires_at: DateTime<Utc>,
+    fires_at: Timestamp,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
         // Wall-clock-jump safe: recompute and re-sleep if the clock moved
         // backwards or the boundary slid forward (DST / NTP adjustment).
         loop {
-            let now = Utc::now();
+            let now = crate::clock::now();
             if now >= fires_at {
                 break;
             }
-            let delta = (fires_at - now).to_std().unwrap_or(Duration::ZERO);
+            let delta = Duration::try_from(fires_at.duration_since(now)).unwrap_or(Duration::ZERO);
             if delta.is_zero() {
                 break;
             }
@@ -928,11 +921,11 @@ pub fn is_watcher_session_id(session_id: &str) -> bool {
 /// guarantees this. Returns `None` when no session had started yet (an entry
 /// written before the day's first agent activity, e.g. hand-authored notes).
 pub fn resolve_session_for_timestamp(sessions: &[Session], ts: &str) -> Option<String> {
-    let ts = DateTime::parse_from_rfc3339(ts).ok()?;
+    let ts = crate::clock::parse_rfc3339(ts)?;
     sessions
         .iter()
         .filter(|s| {
-            DateTime::parse_from_rfc3339(&s.started_at)
+            crate::clock::parse_rfc3339(&s.started_at)
                 .map(|started| started <= ts)
                 .unwrap_or(false)
         })
@@ -940,8 +933,8 @@ pub fn resolve_session_for_timestamp(sessions: &[Session], ts: &str) -> Option<S
         // unsorted slice still gets the right answer rather than a silent
         // mis-attribution.
         .max_by_key(|s| {
-            DateTime::parse_from_rfc3339(&s.started_at)
-                .map(|d| d.timestamp_millis())
+            crate::clock::parse_rfc3339(&s.started_at)
+                .map(|d| d.as_millisecond())
                 .unwrap_or(i64::MIN)
         })
         .map(|s| s.id.clone())

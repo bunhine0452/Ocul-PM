@@ -19,8 +19,6 @@
 //!   #6  planner CRUD round-trip                → invariant_06_*
 //!   #7  project lifecycle                      → invariant_07_*
 
-use chrono::{SecondsFormat, Utc};
-
 use ocul_pm_lib::db::Db;
 use ocul_pm_lib::oculpm::frontmatter::parse_frontmatter_and_body;
 use ocul_pm_lib::oculpm::index::IndexWriter;
@@ -37,7 +35,7 @@ fn resolver() -> WorkdayResolver {
 }
 
 fn now_iso() -> String {
-    Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
+    ocul_pm_lib::clock::rfc3339_millis_z(ocul_pm_lib::clock::now())
 }
 
 // (fresh_project 헬퍼는 v1.18.0 고아 goal/subtask 정리에서 소비자를 잃고
@@ -54,7 +52,7 @@ fn now_iso() -> String {
 async fn invariant_01_index_writer_appends_ndjson_lines() {
     let dir = tempfile::tempdir().unwrap();
     let writer = IndexWriter::new(dir.path().to_path_buf(), resolver());
-    let workday = resolver().workday_of(Utc::now());
+    let workday = resolver().workday_of(ocul_pm_lib::clock::now());
     writer
         .ensure_workday_dirs(&workday)
         .await

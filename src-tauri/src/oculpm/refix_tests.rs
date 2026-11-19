@@ -15,8 +15,8 @@ fn journal(root: &Path, day: &str, name: &str, kind: &str, files: &[&str], body:
     std::fs::write(dir.join(format!("{name}.md")), md).unwrap();
 }
 
-fn day(s: &str) -> NaiveDate {
-    NaiveDate::parse_from_str(s, "%Y%m%d").unwrap()
+fn day(s: &str) -> crate::clock::civil::Date {
+    crate::clock::parse_ymd(s).unwrap()
 }
 
 #[test]

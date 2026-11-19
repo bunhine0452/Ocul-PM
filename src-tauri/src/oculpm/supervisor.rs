@@ -314,7 +314,7 @@ fn write_probe(root: &Path) -> bool {
     }
     // 내용은 아무래도 좋다 — fs 이벤트가 나기만 하면 된다. 타임스탬프를 넣어
     // 두면 같은 바이트 쓰기를 합치는 파일시스템에서도 확실히 이벤트가 난다.
-    let stamp = chrono::Utc::now().to_rfc3339();
+    let stamp = crate::clock::rfc3339(crate::clock::now());
     std::fs::write(&path, stamp.as_bytes()).is_ok()
 }
 

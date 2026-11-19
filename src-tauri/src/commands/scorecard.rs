@@ -6,8 +6,6 @@
 //! 플랜 캐시는 그 두 줄을 투영하지 않고, 디스크가 SSOT 다.
 
 use std::path::Path;
-
-use chrono::{Duration, Local};
 use tauri::State;
 
 use crate::db::{scorecard::JournalScore, Db};
@@ -77,9 +75,10 @@ pub async fn oculpm_promise_scorecard(
     days: Option<u32>,
 ) -> Result<PromiseScorecard, String> {
     let days = days.unwrap_or(DEFAULT_DAYS).clamp(7, 365);
-    let since = (Local::now().date_naive() - Duration::days(days as i64 - 1))
-        .format("%Y%m%d")
-        .to_string();
+    let since = crate::clock::ymd(crate::clock::add_days(
+        crate::clock::local_today(),
+        -(i64::from(days) - 1),
+    ));
     let journal = db
         .journal_score(project_id, since)
         .await

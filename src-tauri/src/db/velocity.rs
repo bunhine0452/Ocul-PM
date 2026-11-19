@@ -19,9 +19,8 @@
 
 use std::collections::HashMap;
 
-use chrono::{DateTime, Datelike, Duration, Local, NaiveDate};
-
 use super::*;
+use crate::clock::{add_days, civil};
 
 /// `weeks` 파라미터 하한 (커맨드 레이어가 clamp 에 쓴다).
 pub const MIN_WEEKS: u32 = 1;
@@ -98,40 +97,40 @@ pub struct Velocity {
 /// 월요일 시작 주 경계 `weeks`개를 오래된 → 최신 순으로. 마지막 항목은
 /// `today` 가 속한 주(진행 중이라도 그대로 포함 — "이번 주는 아직 안 끝나서
 /// 뺀다" 는 판단은 하지 않는다, WeekChart 의 "오늘" 처리와 같은 선).
-fn recent_week_bounds(today: NaiveDate, weeks: u32) -> Vec<(NaiveDate, NaiveDate)> {
-    let this_monday = today - Duration::days(today.weekday().num_days_from_monday() as i64);
+fn recent_week_bounds(today: civil::Date, weeks: u32) -> Vec<(civil::Date, civil::Date)> {
+    let this_monday = add_days(today, -i64::from(today.weekday().to_monday_zero_offset()));
     (0..weeks)
         .rev()
         .map(|back| {
-            let monday = this_monday - Duration::days(7 * back as i64);
-            (monday, monday + Duration::days(6))
+            let monday = add_days(this_monday, -7 * i64::from(back));
+            (monday, add_days(monday, 6))
         })
         .collect()
 }
 
-fn workday_fmt(d: NaiveDate) -> String {
-    d.format("%Y%m%d").to_string()
+fn workday_fmt(d: civil::Date) -> String {
+    crate::clock::ymd(d)
 }
 
-fn iso_week_label(d: NaiveDate) -> String {
-    let iw = d.iso_week();
+fn iso_week_label(d: civil::Date) -> String {
+    let iw = d.iso_week_date();
     format!("{}-W{:02}", iw.year(), iw.week())
 }
 
-fn parse_workday(s: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(s, "%Y%m%d").ok()
+fn parse_workday(s: &str) -> Option<civil::Date> {
+    crate::clock::parse_ymd(s)
 }
 
 /// `bounds` 안에서 `d` 가 속한 주의 인덱스. 경계는 항상 연속·비겹침이라
 /// 선형 탐색으로 충분하다 (많아야 `MAX_WEEKS`=26개).
-fn bucket_index(bounds: &[(NaiveDate, NaiveDate)], d: NaiveDate) -> Option<usize> {
+fn bucket_index(bounds: &[(civil::Date, civil::Date)], d: civil::Date) -> Option<usize> {
     bounds.iter().position(|(from, to)| d >= *from && d <= *to)
 }
 
 /// `(workday, type, agent_id)` 원본 행을 주 버킷에 채운다 — 없는 주도 0 인
 /// 채로 `bounds` 순서 그대로 남는다 (연속·빈 주 보존이 이 함수의 핵심).
 fn bucket_journal_rows(
-    bounds: &[(NaiveDate, NaiveDate)],
+    bounds: &[(civil::Date, civil::Date)],
     rows: &[(String, String, String)],
 ) -> Vec<WeekBucket> {
     let mut buckets: Vec<WeekBucket> = bounds
@@ -179,11 +178,12 @@ fn bucket_journal_rows(
 /// `to_status='done'` 전이 timestamp(RFC3339) 목록 중 `bounds` 창 안에 속한
 /// 개수. 파싱 실패 행은 조용히 건너뛴다 — 플랜 캐시는 마크다운에서 재구성
 /// 가능한 파생값이라 여기서 패닉할 이유가 없다.
-fn count_done_in_window(bounds: &[(NaiveDate, NaiveDate)], done_ts: &[String]) -> u32 {
+fn count_done_in_window(bounds: &[(civil::Date, civil::Date)], done_ts: &[String]) -> u32 {
     done_ts
         .iter()
-        .filter_map(|ts| DateTime::parse_from_rfc3339(ts).ok())
-        .filter(|dt| bucket_index(bounds, dt.date_naive()).is_some())
+        // 적힌 오프셋의 벽시계 날짜로 센다(예전 `DateTime<FixedOffset>::date_naive` 와 같다).
+        .filter_map(|ts| crate::clock::parse_rfc3339_fixed(ts))
+        .filter(|dt| bucket_index(bounds, dt.date()).is_some())
         .count() as u32
 }
 
@@ -201,7 +201,7 @@ fn compute_eta(open_items: u32, weekly_done_avg: f64) -> Option<f64> {
 impl Db {
     pub async fn velocity(&self, project_id: u32, weeks: u32) -> Result<Velocity> {
         let weeks = weeks.clamp(MIN_WEEKS, MAX_WEEKS);
-        let today = Local::now().date_naive();
+        let today = crate::clock::local_today();
         let bounds = recent_week_bounds(today, weeks);
         let earliest = workday_fmt(bounds[0].0);
         let latest = workday_fmt(bounds[bounds.len() - 1].1);
@@ -307,10 +307,10 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
-    fn monday(y: i32, m: u32, d: u32) -> NaiveDate {
-        let date = NaiveDate::from_ymd_opt(y, m, d).unwrap();
+    fn monday(y: i16, m: i8, d: i8) -> civil::Date {
+        let date = civil::date(y, m, d);
         assert_eq!(
-            date.weekday().num_days_from_monday(),
+            date.weekday().to_monday_zero_offset(),
             0,
             "테스트 픽스처가 월요일이 아니다: {date}"
         );
@@ -323,23 +323,14 @@ mod tests {
     #[test]
     fn buckets_rows_into_continuous_weeks_keeping_empty_weeks_at_zero() {
         // 2026-09-07 은 월요일. 3주 창 = [08-24..08-30] [08-31..09-06] [09-07..09-13].
-        let today = NaiveDate::from_ymd_opt(2026, 9, 9).unwrap(); // 수요일, 셋째 주 안
+        let today = civil::date(2026, 9, 9); // 수요일, 셋째 주 안
         let bounds = recent_week_bounds(today, 3);
         assert_eq!(
             bounds,
             vec![
-                (
-                    monday(2026, 8, 24),
-                    NaiveDate::from_ymd_opt(2026, 8, 30).unwrap()
-                ),
-                (
-                    monday(2026, 8, 31),
-                    NaiveDate::from_ymd_opt(2026, 9, 6).unwrap()
-                ),
-                (
-                    monday(2026, 9, 7),
-                    NaiveDate::from_ymd_opt(2026, 9, 13).unwrap()
-                ),
+                (monday(2026, 8, 24), civil::date(2026, 8, 30)),
+                (monday(2026, 8, 31), civil::date(2026, 9, 6)),
+                (monday(2026, 9, 7), civil::date(2026, 9, 13)),
             ],
             "월요일 시작 3주가 연속·오래된순이어야 한다"
         );
@@ -417,7 +408,7 @@ mod tests {
         );
 
         // 4주 창 = [08-17..08-23][08-24..08-30][08-31..09-06][09-07..09-13].
-        let today = NaiveDate::from_ymd_opt(2026, 9, 9).unwrap();
+        let today = civil::date(2026, 9, 9);
         let bounds = recent_week_bounds(today, 4);
         let done_ts = vec![
             "2026-08-10T10:00:00+09:00".to_string(), // 창 밖 — 창 시작(08-17)보다 1주 이르다
@@ -442,14 +433,14 @@ mod tests {
         // 실행 시점의 실제 날짜와 무관하게 안정적이다 (고정 날짜를 박으면
         // 그 날짜의 주가 더 이상 "최근 N주" 창에 안 걸리는 순간 조용히
         // 깨진다).
-        let today = Local::now().date_naive();
-        let monday = today - Duration::days(today.weekday().num_days_from_monday() as i64);
+        let today = crate::clock::local_today();
+        let monday = add_days(today, -i64::from(today.weekday().to_monday_zero_offset()));
         let feature_wd = workday_fmt(monday);
-        let bug_wd = workday_fmt(monday + Duration::days(1));
-        let feature_ts = format!("{}T10:00:00+09:00", monday.format("%Y-%m-%d"));
+        let bug_wd = workday_fmt(add_days(monday, 1));
+        let feature_ts = format!("{}T10:00:00+09:00", monday.strftime("%Y-%m-%d"));
         let bug_ts = format!(
             "{}T10:00:00+09:00",
-            (monday + Duration::days(1)).format("%Y-%m-%d")
+            add_days(monday, 1).strftime("%Y-%m-%d")
         );
         // done 전이도 이번 주 안 — 4주 평균 창에 반드시 걸리게 한다.
         let done_ts = bug_ts.clone();

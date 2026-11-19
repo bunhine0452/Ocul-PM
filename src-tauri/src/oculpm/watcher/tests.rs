@@ -6,7 +6,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use chrono::Utc;
 use tempfile::TempDir;
 use tokio::time::sleep;
 
@@ -53,7 +52,7 @@ pub(super) fn fast_config() -> OculpmConfig {
 }
 
 pub(super) fn today_workday(resolver: &WorkdayResolver) -> String {
-    resolver.workday_of(Utc::now())
+    resolver.workday_of(crate::clock::now())
 }
 
 pub(super) struct Setup {

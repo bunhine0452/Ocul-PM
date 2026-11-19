@@ -2,8 +2,6 @@
 //! 변경 diff 사이드카 캡처와 라인 수 집계, 플랜 화해 잡 발동, 그리고 프런트가
 //! 토스트·낙관적 갱신에 쓰는 JournalAdded / JournalUpdated 방출.
 
-use chrono::Utc;
-
 use crate::db::Db;
 use crate::oculpm::cache::{JournalCache, UpsertOutcome};
 use crate::oculpm::spec::{
@@ -47,8 +45,8 @@ impl WatcherInner {
         // R1 — build the cache with redaction so an agent-authored body carrying
         // a secret is masked on projection (disk SSOT untouched); the count lets
         // us warn the user.
-        let cache =
-            JournalCache::with_redaction(&db_state, self.redact_patterns.clone()).with_tz(self.tz);
+        let cache = JournalCache::with_redaction(&db_state, self.redact_patterns.clone())
+            .with_tz(self.tz.clone());
         match cache
             .apply_path_change(self.project_id, &journal_root, entry_rel, kind)
             .await
@@ -131,7 +129,7 @@ impl WatcherInner {
             project_id: self.project_id,
             root: self.root.clone(),
             redact: self.redact_patterns.clone(),
-            tz: self.tz,
+            tz: self.tz.clone(),
             entry_rel: entry_rel.to_string(),
         };
         self.tasks.spawn(Lane::Capture, job.run());
@@ -193,7 +191,7 @@ impl WatcherInner {
         // 재출현 판정 — 캐시에는 새 행이지만 `created_at` 이 오래됐으면 새 기록이
         // 아니라 되돌아온 것이다 (git 이 폴더째 지웠다 되살린 경우, 백필). 그런
         // 일지는 조용한 갱신으로 내보낸다: 목록은 다시 그려지고 토스트는 없다.
-        let fresh = is_fresh_entry(&summary.created_at, Utc::now().timestamp());
+        let fresh = is_fresh_entry(&summary.created_at, crate::clock::now().as_second());
         if should_emit_added && !fresh {
             tracing::info!(
                 target: "oculpm::watcher",
@@ -248,7 +246,7 @@ struct CaptureJob {
     project_id: u32,
     root: std::path::PathBuf,
     redact: Vec<regex::Regex>,
-    tz: chrono_tz::Tz,
+    tz: crate::clock::TimeZone,
     entry_rel: String,
 }
 
@@ -263,7 +261,7 @@ impl CaptureJob {
         let Some(db) = self.handle.try_state::<Db>() else {
             return;
         };
-        let cache = JournalCache::with_redaction(&db, self.redact.clone()).with_tz(self.tz);
+        let cache = JournalCache::with_redaction(&db, self.redact.clone()).with_tz(self.tz.clone());
         let entry_rel = self.entry_rel.as_str();
         let touched = match cache.get_entry(self.project_id, entry_rel).await {
             Ok(Some(entry)) => entry.frontmatter.files_touched,
@@ -403,9 +401,9 @@ pub(super) const FRESH_ENTRY_WINDOW_SECS: i64 = 30 * 60;
 /// 안인가. **못 읽으면 새것으로** — 토스트 하나가 침묵보다 낫다 (프론트매터가
 /// 깨진 일지는 어차피 parse_warnings 로 따로 보인다).
 pub(super) fn is_fresh_entry(created_at: &str, now: i64) -> bool {
-    match chrono::DateTime::parse_from_rfc3339(created_at) {
-        Ok(t) => now - t.timestamp() <= FRESH_ENTRY_WINDOW_SECS,
-        Err(_) => true,
+    match crate::clock::parse_rfc3339(created_at) {
+        Some(t) => now - t.as_second() <= FRESH_ENTRY_WINDOW_SECS,
+        None => true,
     }
 }
 
@@ -416,9 +414,7 @@ mod fresh_tests {
     const NOW: i64 = 1_800_000_000;
 
     fn iso(t: i64) -> String {
-        chrono::DateTime::<Utc>::from_timestamp(t, 0)
-            .unwrap()
-            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+        crate::clock::rfc3339_z(crate::clock::from_unix(t).unwrap())
     }
 
     /// 방금 쓴 일지는 새것, 어제 쓴 일지가 다시 나타나면 되돌아온 것이다.
@@ -439,10 +435,11 @@ mod fresh_tests {
     /// 오프셋이 붙은 로컬 시각도 같은 순간으로 읽는다 — 프론트매터는 `+09:00` 이다.
     #[test]
     fn offset_timestamps_compare_by_instant() {
-        let local = chrono::DateTime::<Utc>::from_timestamp(NOW - 120, 0)
-            .unwrap()
-            .with_timezone(&chrono::FixedOffset::east_opt(9 * 3600).unwrap())
-            .to_rfc3339_opts(chrono::SecondsFormat::Secs, false);
+        let local = crate::clock::zoned_rfc3339_secs(
+            &crate::clock::from_unix(NOW - 120)
+                .unwrap()
+                .to_zoned(crate::clock::TimeZone::fixed(jiff::tz::offset(9))),
+        );
         assert!(local.ends_with("+09:00"));
         assert!(is_fresh_entry(&local, NOW));
     }

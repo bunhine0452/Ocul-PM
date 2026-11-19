@@ -27,7 +27,7 @@ fn build_writer(root: &std::path::Path) -> Arc<IndexWriter> {
 
 fn make_event(path: &str) -> FileChangeEvent {
     FileChangeEvent {
-        ts: Utc::now().to_rfc3339(),
+        ts: crate::clock::rfc3339(crate::clock::now()),
         session_id: "ignored-by-actor".into(),
         op: FileOp::Update,
         path: path.into(),
@@ -52,7 +52,7 @@ async fn read_only_session(writer: &IndexWriter, workday: &str) -> Session {
 fn today_workday() -> String {
     WorkdayResolver::new("UTC", "00:00")
         .unwrap()
-        .workday_of(Utc::now())
+        .workday_of(crate::clock::now())
 }
 
 /// Case 1 — Idle → Active on first activity. session_id format,

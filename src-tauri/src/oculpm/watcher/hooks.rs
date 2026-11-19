@@ -91,7 +91,7 @@ impl WatcherInner {
         if let Some(handle) = &self.app_handle {
             use tauri::Manager;
             if let Some(state) = handle.try_state::<claude_waiting::ClaudeWaitingState>() {
-                let now = chrono::Utc::now().to_rfc3339();
+                let now = crate::clock::rfc3339(crate::clock::now());
                 // 이벤트를 **모두** 반영한다 — 첫 변화에서 멈추면(`any`) 뒤의 해제가 빠진다.
                 let changed = state.0.lock().is_ok_and(|mut all| {
                     let table = all.entry(self.project_id).or_default();

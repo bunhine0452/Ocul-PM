@@ -394,7 +394,7 @@ impl TermSessions {
             id,
             project_id: spec.project_id,
             label,
-            started_at: chrono::Utc::now().to_rfc3339(),
+            started_at: crate::clock::rfc3339(crate::clock::now()),
             alive: true,
             exit_code: None,
             status: None,

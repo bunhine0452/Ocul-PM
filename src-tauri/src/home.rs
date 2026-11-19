@@ -29,11 +29,9 @@
 //! 홈의 용도(어디서 이어서 일할지 고르기)에는 충분하고, 프로젝트를 열면
 //! 그 시점에 워처가 붙어 최신화된다.
 
-use std::collections::HashMap;
-
-use chrono::{Duration, Local};
 use rusqlite::params;
 use serde::Serialize;
+use std::collections::HashMap;
 
 use crate::db::{Db, OpenPlanItem};
 use crate::error::Result;
@@ -122,8 +120,10 @@ pub struct HomeBrief {
 
 /// 로컬 캘린더 기준 YYYYMMDD. 프런트의 `calToday()` 와 같은 규약.
 fn workday_key(offset_days: i64) -> String {
-    let d = Local::now().date_naive() - Duration::days(offset_days);
-    d.format("%Y%m%d").to_string()
+    crate::clock::ymd(crate::clock::add_days(
+        crate::clock::local_today(),
+        -offset_days,
+    ))
 }
 
 /// 홈 화면 집계 전체. SQL 6문, 프로젝트 수 무관.

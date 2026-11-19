@@ -12,7 +12,7 @@
 //!    calendar date. Otherwise it's the current calendar date.
 //!
 //! DST handling:
-//! - `workday_of` / `hhmm_of` always use the local time chrono-tz resolves
+//! - `workday_of` / `hhmm_of` always use the local time the tz database resolves
 //!   the UTC instant to, so spring-forward / fall-back are handled implicitly.
 //! - `next_boundary` uses `earliest()` on ambiguous fall-back instants and
 //!   advances minute-by-minute through any spring-forward gap so the
@@ -20,8 +20,7 @@
 
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Datelike, NaiveDate, NaiveTime, TimeZone, Timelike, Utc};
-use chrono_tz::Tz;
+use crate::clock::{civil, TimeZone, Timestamp};
 
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::spec::EntryType;
@@ -31,8 +30,18 @@ use crate::oculpm::spec::EntryType;
 /// helpers, so the rest of the subsystem never hard-codes either.
 #[derive(Debug, Clone)]
 pub struct WorkdayResolver {
-    pub tz: Tz,
-    pub day_starts_at: NaiveTime,
+    pub tz: TimeZone,
+    pub day_starts_at: civil::Time,
+}
+
+/// `HH:MM` 24시 — 시 · 분 각 1~2자리, 초는 없다.
+fn parse_hhmm(s: &str) -> Option<civil::Time> {
+    let (h, m) = s.split_once(':')?;
+    let digits = |p: &str| (1..=2).contains(&p.len()) && p.bytes().all(|b| b.is_ascii_digit());
+    if !digits(h) || !digits(m) {
+        return None;
+    }
+    civil::Time::new(h.parse().ok()?, m.parse().ok()?, 0, 0).ok()
 }
 
 impl WorkdayResolver {
@@ -41,31 +50,30 @@ impl WorkdayResolver {
     /// - `tz_name`: IANA timezone (e.g. `Asia/Seoul`, `UTC`, `America/New_York`).
     /// - `day_starts_at_hhmm`: `HH:MM` 24h (e.g. `00:00`, `03:00`).
     pub fn new(tz_name: &str, day_starts_at_hhmm: &str) -> Result<Self, OculpmError> {
-        let tz: Tz = tz_name
-            .parse()
-            .map_err(|_| OculpmError::InvalidTimezone(tz_name.to_string()))?;
-        let day_starts_at = NaiveTime::parse_from_str(day_starts_at_hhmm, "%H:%M")
-            .map_err(|_| OculpmError::InvalidHHMM(day_starts_at_hhmm.to_string()))?;
+        let tz = crate::clock::zone(tz_name)
+            .ok_or_else(|| OculpmError::InvalidTimezone(tz_name.to_string()))?;
+        let day_starts_at = parse_hhmm(day_starts_at_hhmm)
+            .ok_or_else(|| OculpmError::InvalidHHMM(day_starts_at_hhmm.to_string()))?;
         Ok(Self { tz, day_starts_at })
     }
 
     /// Workday key `YYYYMMDD` for a UTC instant.
-    pub fn workday_of(&self, instant_utc: DateTime<Utc>) -> String {
-        let local = instant_utc.with_timezone(&self.tz);
+    pub fn workday_of(&self, instant_utc: Timestamp) -> String {
+        let local = instant_utc.to_zoned(self.tz.clone());
         let date = if local.time() < self.day_starts_at {
             local
-                .date_naive()
-                .pred_opt()
-                .expect("date_naive().pred_opt() only fails at year_min; not reachable")
+                .date()
+                .yesterday()
+                .expect("date().yesterday() only fails at the minimum date; not reachable")
         } else {
-            local.date_naive()
+            local.date()
         };
         format!("{:04}{:02}{:02}", date.year(), date.month(), date.day())
     }
 
     /// Local `HHMM` for a UTC instant. 24h, zero-padded.
-    pub fn hhmm_of(&self, instant_utc: DateTime<Utc>) -> String {
-        let local = instant_utc.with_timezone(&self.tz);
+    pub fn hhmm_of(&self, instant_utc: Timestamp) -> String {
+        let local = instant_utc.to_zoned(self.tz.clone());
         format!("{:02}{:02}", local.hour(), local.minute())
     }
 
@@ -74,15 +82,15 @@ impl WorkdayResolver {
     /// If `instant_utc` is exactly at today's local boundary, the *next* one
     /// (tomorrow at `day_starts_at`) is returned, so callers can schedule a
     /// sleep without re-firing immediately.
-    pub fn next_boundary(&self, instant_utc: DateTime<Utc>) -> DateTime<Utc> {
-        let local = instant_utc.with_timezone(&self.tz);
-        let today_boundary = self.local_boundary_utc(local.date_naive());
+    pub fn next_boundary(&self, instant_utc: Timestamp) -> Timestamp {
+        let local = instant_utc.to_zoned(self.tz.clone());
+        let today_boundary = self.local_boundary_utc(local.date());
         if instant_utc >= today_boundary {
             // Past or exactly at today's boundary — schedule tomorrow's.
             let tomorrow = local
-                .date_naive()
-                .succ_opt()
-                .expect("date_naive().succ_opt() only fails at year_max");
+                .date()
+                .tomorrow()
+                .expect("date().tomorrow() only fails at the maximum date");
             self.local_boundary_utc(tomorrow)
         } else {
             today_boundary
@@ -91,26 +99,27 @@ impl WorkdayResolver {
 
     /// Resolve `local_date + day_starts_at` to a UTC instant, advancing
     /// through any DST spring-forward gap.
-    fn local_boundary_utc(&self, local_date: NaiveDate) -> DateTime<Utc> {
+    fn local_boundary_utc(&self, local_date: civil::Date) -> Timestamp {
         let mut t = self.day_starts_at;
         // In a DST spring-forward gap the wall-clock time we asked for
         // doesn't exist. Advance one minute at a time (≤ 1h covers all known
-        // transitions) until chrono-tz can resolve it. `earliest()` returns
-        // the pre-fold instant for fall-back ambiguity, which is the
-        // convention we want for the *start* of a workday.
+        // transitions) until it resolves. The earliest instant is taken for
+        // fall-back ambiguity, which is the convention we want for the
+        // *start* of a workday (`clock::earliest` — the same rule the old chrono
+        // `from_local_datetime(..).earliest()` had).
         for _ in 0..120 {
-            let naive = local_date.and_time(t);
-            if let Some(dt) = self.tz.from_local_datetime(&naive).earliest() {
-                return dt.with_timezone(&Utc);
+            if let Some(ts) = crate::clock::earliest(&self.tz, local_date.to_datetime(t)) {
+                return ts;
             }
-            t = t.overflowing_add_signed(chrono::Duration::minutes(1)).0;
+            t = t.wrapping_add(jiff::SignedDuration::from_mins(1));
         }
         // Should be unreachable — fall back to UTC midnight of that date so
         // callers don't have to deal with Result.
         local_date
-            .and_hms_opt(0, 0, 0)
-            .expect("00:00:00 is always valid")
-            .and_utc()
+            .to_datetime(civil::Time::midnight())
+            .to_zoned(TimeZone::UTC)
+            .expect("UTC midnight is always valid")
+            .timestamp()
     }
 
     // ─── Path helpers ───────────────────────────────────────────────────────
@@ -368,10 +377,8 @@ pub use tool_config::*;
 mod tests {
     use super::*;
 
-    fn utc(s: &str) -> DateTime<Utc> {
-        DateTime::parse_from_rfc3339(s)
-            .expect("test fixture must be valid rfc3339")
-            .with_timezone(&Utc)
+    fn utc(s: &str) -> Timestamp {
+        crate::clock::parse_rfc3339(s).expect("test fixture must be valid rfc3339")
     }
 
     fn kst() -> WorkdayResolver {

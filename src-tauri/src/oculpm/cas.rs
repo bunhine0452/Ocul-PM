@@ -29,8 +29,6 @@
 
 use std::path::Path;
 
-use chrono::Utc;
-
 use super::file_guard::{FileGuard, GuardError, GuardPolicy};
 
 /// 문서 하나를 쓰는 임계구간의 대기 상한.
@@ -59,7 +57,11 @@ pub fn content_hash(text: &str) -> String {
 pub fn acquire_doc_guard(path: &Path) -> Result<FileGuard, GuardError> {
     let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("doc");
     let lock = path.with_file_name(format!(".{name}.lock"));
-    FileGuard::acquire(&lock, Utc::now(), GuardPolicy::waiting(DOC_GUARD_WAIT_MS))
+    FileGuard::acquire(
+        &lock,
+        crate::clock::now(),
+        GuardPolicy::waiting(DOC_GUARD_WAIT_MS),
+    )
 }
 
 #[cfg(test)]
@@ -96,7 +98,7 @@ mod tests {
         let doc = dir.path().join("plan.md");
         let _held = acquire_doc_guard(&doc).expect("첫 진입자는 잡는다");
         let lock = dir.path().join(".plan.md.lock");
-        let second = FileGuard::acquire(&lock, Utc::now(), GuardPolicy::IMMEDIATE);
+        let second = FileGuard::acquire(&lock, crate::clock::now(), GuardPolicy::IMMEDIATE);
         assert!(second.is_err(), "쥐고 있는 동안 둘째는 거절된다");
     }
 }

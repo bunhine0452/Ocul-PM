@@ -41,11 +41,9 @@
 //! 믿으면서 보호받지 못한다. [`FileGuard::acquire`] 는 조용한 성공을 만들지
 //! 않는다.
 
+use serde::{Deserialize, Serialize};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
-
-use chrono::{DateTime, Duration, Utc};
-use serde::{Deserialize, Serialize};
 
 const LOG_TARGET: &str = "oculpm::file_guard";
 
@@ -139,7 +137,7 @@ impl FileGuard {
     /// 차이가 없다.
     pub fn acquire(
         path: &Path,
-        now: DateTime<Utc>,
+        now: crate::clock::Timestamp,
         policy: GuardPolicy,
     ) -> Result<Self, GuardError> {
         if let Some(parent) = path.parent() {
@@ -162,7 +160,7 @@ impl FileGuard {
                     let nonce = uuid::Uuid::new_v4().simple().to_string();
                     let stamp = Stamp {
                         pid: std::process::id(),
-                        at: now.to_rfc3339(),
+                        at: crate::clock::rfc3339(now),
                         nonce: nonce.clone(),
                     };
                     // nonce 는 흔적이 아니라 소유 증명이다 — 못 적으면 `Drop` 이
@@ -275,10 +273,14 @@ fn wait_one_step(policy: &GuardPolicy, waited_ms: &mut u64) {
     *waited_ms += step;
 }
 
-fn is_stale(path: &Path, now: DateTime<Utc>, stale_after_seconds: i64) -> bool {
+fn is_stale(path: &Path, now: crate::clock::Timestamp, stale_after_seconds: i64) -> bool {
     std::fs::metadata(path)
         .and_then(|m| m.modified())
-        .map(|t| now - DateTime::<Utc>::from(t) > Duration::seconds(stale_after_seconds))
+        .ok()
+        .and_then(|t| crate::clock::Timestamp::try_from(t).ok())
+        .map(|t| {
+            now.duration_since(t) > crate::clock::SignedDuration::from_secs(stale_after_seconds)
+        })
         .unwrap_or(false)
 }
 
@@ -290,7 +292,7 @@ fn is_stale(path: &Path, now: DateTime<Utc>, stale_after_seconds: i64) -> bool {
 /// 대신 나만 아는 이름으로 **먼저 옮긴다**. 옮기기는 원자적이고, 옮긴 파일은
 /// 아무도 찾지 못하므로 거기서 다시 잰 나이가 진짜다 (`rename` 은 mtime 을
 /// 보존한다).
-fn reclaim(path: &Path, now: DateTime<Utc>, stale_after_seconds: i64) -> bool {
+fn reclaim(path: &Path, now: crate::clock::Timestamp, stale_after_seconds: i64) -> bool {
     let staged = staged_path(path);
     match std::fs::rename(path, &staged) {
         Ok(()) => {}
@@ -378,7 +380,7 @@ mod tests {
     fn a_second_holder_is_refused_and_the_first_release_frees_it() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("nested/dir/.thing.lock");
-        let now = Utc::now();
+        let now = crate::clock::now();
 
         let first = FileGuard::acquire(&path, now, GuardPolicy::IMMEDIATE).unwrap();
         assert!(path.exists(), "락 파일이 만들어져야 한다");
@@ -401,11 +403,14 @@ mod tests {
     fn a_stale_lock_is_reclaimed_after_its_age() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(".thing.lock");
-        let now = Utc::now();
+        let now = crate::clock::now();
         std::fs::write(&path, b"").unwrap();
 
         assert!(FileGuard::acquire(&path, now, GuardPolicy::IMMEDIATE).is_err());
-        let later = now + Duration::seconds(GuardPolicy::IMMEDIATE.stale_after_seconds + 1);
+        let later = now
+            + crate::clock::SignedDuration::from_secs(
+                GuardPolicy::IMMEDIATE.stale_after_seconds + 1,
+            );
         let guard = FileGuard::acquire(&path, later, GuardPolicy::IMMEDIATE).unwrap();
         assert!(
             stale_leftovers(dir.path()).is_empty(),
@@ -421,7 +426,7 @@ mod tests {
     fn drop_does_not_remove_a_lock_it_no_longer_owns() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(".thing.lock");
-        let first = FileGuard::acquire(&path, Utc::now(), GuardPolicy::IMMEDIATE).unwrap();
+        let first = FileGuard::acquire(&path, crate::clock::now(), GuardPolicy::IMMEDIATE).unwrap();
 
         // 걷어내기를 흉내낸다: 같은 경로에 다른 nonce 의 락이 들어섰다.
         std::fs::write(&path, foreign_stamp("someone-else")).unwrap();
@@ -441,10 +446,13 @@ mod tests {
     fn a_slow_holder_released_after_reclaim_does_not_open_the_door_for_a_third() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(".thing.lock");
-        let now = Utc::now();
+        let now = crate::clock::now();
         // B 의 시계를 문턱 너머로 앞당기면 A 의 락(mtime = 실제 지금)이 오래돼
         // 보인다 — A 가 문턱보다 오래 쥐고 있는 상황과 같다.
-        let later = now + Duration::seconds(GuardPolicy::IMMEDIATE.stale_after_seconds + 1);
+        let later = now
+            + crate::clock::SignedDuration::from_secs(
+                GuardPolicy::IMMEDIATE.stale_after_seconds + 1,
+            );
 
         let a = FileGuard::acquire(&path, now, GuardPolicy::IMMEDIATE).unwrap();
         let b = FileGuard::acquire(&path, later, GuardPolicy::IMMEDIATE).unwrap();
@@ -466,7 +474,7 @@ mod tests {
     fn reclaim_puts_back_a_lock_that_turned_out_live_after_the_rename() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(".thing.lock");
-        let now = Utc::now();
+        let now = crate::clock::now();
         std::fs::write(&path, foreign_stamp("live-owner")).unwrap();
 
         // 사전 판정은 이미 "오래됐다" 였다고 치고 걷어내기만 부른다.
@@ -507,7 +515,7 @@ mod tests {
     fn reclaim_of_an_already_vacated_path_just_proceeds() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(".thing.lock");
-        assert!(reclaim(&path, Utc::now(), 10));
+        assert!(reclaim(&path, crate::clock::now(), 10));
         assert!(stale_leftovers(dir.path()).is_empty());
     }
 
@@ -516,7 +524,7 @@ mod tests {
     fn waiting_gives_up_instead_of_pretending_it_won() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(".thing.lock");
-        let now = Utc::now();
+        let now = crate::clock::now();
         let _held = FileGuard::acquire(&path, now, GuardPolicy::IMMEDIATE).unwrap();
 
         let started = std::time::Instant::now();
@@ -538,7 +546,7 @@ mod tests {
         let path = Arc::new(dir.path().join(".thing.lock"));
         let inside = Arc::new(AtomicUsize::new(0));
         let peak = Arc::new(AtomicUsize::new(0));
-        let now = Utc::now();
+        let now = crate::clock::now();
 
         let handles: Vec<_> = (0..8)
             .map(|_| {
@@ -610,7 +618,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(80));
             drop(holder);
         });
-        let got = FileGuard::acquire(&path, Utc::now(), GuardPolicy::waiting(3_000));
+        let got = FileGuard::acquire(&path, crate::clock::now(), GuardPolicy::waiting(3_000));
         releaser.join().unwrap();
         assert!(got.is_ok(), "삭제 대기는 기다렸다 잡는다: {:?}", got.err());
     }

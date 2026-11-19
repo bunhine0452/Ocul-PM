@@ -39,7 +39,9 @@ pub async fn race_start(
 ) -> Result<Vec<RaceLane>, AppError> {
     let root = db.project_root(project_id).await?;
     let base = race::base_dir(&data_dir(&app)?, project_id);
-    let stamp = chrono::Local::now().format("%m%d-%H%M%S").to_string();
+    let stamp = crate::clock::local_now()
+        .strftime("%m%d-%H%M%S")
+        .to_string();
     blocking(move || race::start(&root, &base, count, &stamp)).await
 }
 

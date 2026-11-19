@@ -75,14 +75,14 @@ fn iso_lacks_offset_only_flags_real_tz_less_datetimes() {
 
 #[test]
 fn backfill_tz_offset_adds_project_offset_dst_correct() {
-    let seoul: Tz = "Asia/Seoul".parse().unwrap();
+    let seoul = &crate::clock::zone("Asia/Seoul").unwrap();
     // Korea is UTC+9 year-round (no DST).
     assert_eq!(
         backfill_tz_offset("2026-06-22T10:00:00", seoul).as_deref(),
         Some("2026-06-22T10:00:00+09:00")
     );
     // A DST zone: New York in July is EDT (-04:00), in January EST (-05:00).
-    let ny: Tz = "America/New_York".parse().unwrap();
+    let ny = &crate::clock::zone("America/New_York").unwrap();
     assert_eq!(
         backfill_tz_offset("2026-07-01T12:00:00", ny).as_deref(),
         Some("2026-07-01T12:00:00-04:00")

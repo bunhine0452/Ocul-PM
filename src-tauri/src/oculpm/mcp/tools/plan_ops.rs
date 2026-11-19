@@ -392,11 +392,11 @@ pub(crate) fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
     let result = set_item_status_rolled(&md, item_id, new_status)?;
     let cfg = load_config(root);
     let resolver = resolver_of(&cfg);
-    let now_local = Utc::now().with_timezone(&resolver.tz);
+    let now_local = crate::clock::now().to_zoned(resolver.tz.clone());
     // note·journal_path 도 plan-log 에 원문 그대로 남으므로 본문과 동일하게 redact.
     let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
     let row = LogRow {
-        ts: now_local.to_rfc3339_opts(SecondsFormat::Secs, false),
+        ts: crate::clock::zoned_rfc3339_secs(&now_local),
         item_id: item_id.to_string(),
         agent_id,
         from: Some(result.old_status),

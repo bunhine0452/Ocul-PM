@@ -570,9 +570,12 @@ fn the_windows_event_sink_writes_the_same_line_as_the_inline_one() {
     // `TZ=UTC0 printf '%(…)T'` 로 찍는데(11-11, 프로세스 0), `%(…)T` 는 그냥 두면 현지
     // 시각이다. 그 함정이 돌아오면 여기서 몇 시간 어긋난다.
     let ts = a[0]["oculpm_ts"].as_str().unwrap();
-    let at = chrono::NaiveDateTime::parse_from_str(ts, "%Y-%m-%dT%H:%M:%SZ")
-        .unwrap_or_else(|e| panic!("UTC ISO-8601 이 아니다 {ts:?}: {e}"));
-    let drift = (chrono::Utc::now().naive_utc() - at).num_seconds().abs();
+    // 꼴은 정확히 `YYYY-MM-DDTHH:MM:SSZ` — 로컬 시각에 `Z` 만 붙인 것이면 아래 차이로 잡힌다.
+    let at = jiff::civil::DateTime::strptime("%Y-%m-%dT%H:%M:%SZ", ts)
+        .and_then(|dt| dt.to_zoned(jiff::tz::TimeZone::UTC))
+        .unwrap_or_else(|e| panic!("UTC ISO-8601 이 아니다 {ts:?}: {e}"))
+        .timestamp();
+    let drift = ocul_pm_lib::clock::now().duration_since(at).as_secs().abs();
     assert!(
         drift < 600,
         "oculpm_ts 가 UTC 가 아니다: {ts} (차이 {drift}s)"
@@ -895,7 +898,9 @@ fn hook_mode_folds_an_old_binarys_refusal_into_success() {
 fn the_pre_tool_use_hook_warns_through_the_shuttle() {
     let project = tracked_project();
     let root = project.path();
-    let day = chrono::Local::now().format("%Y%m%d").to_string();
+    let day = ocul_pm_lib::clock::local_now()
+        .strftime("%Y%m%d")
+        .to_string();
     let bugs = root.join(".oculpm/journal").join(&day).join("Bugs");
     std::fs::create_dir_all(&bugs).unwrap();
     std::fs::write(

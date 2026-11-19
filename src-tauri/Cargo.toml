@@ -88,14 +88,14 @@ serde_yaml = "0.9"
 # `*a_` 줄의 이차 시간 파싱(#1155)과 HTML 주석 O(n²)(0.12.1)를 고쳤다 — 일지는
 # 에이전트가 쓰는 입력이다.
 pulldown-cmark = { version = "0.13.5", default-features = false }
-chrono = { version = "0.4", features = ["serde"] }
+# 시각 — chrono · chrono-tz 가 관리 중단(RUSTSEC-2026-0543 · 0555)이라 걷고 옮긴 자리 (src/clock.rs, 2026-11-19).
+# 이미 그래프에 있던 0.2 를 쓴다. 시간대 데이터는 예전 chrono-tz 처럼 실행 파일에 굽는다(`tzdb-bundle-always`) —
+# zoneinfo 없는 리눅스에서도 풀리게.
+jiff = { version = "0.2.38", features = ["tzdb-bundle-always"] }
 # 앱 안 터미널 — 사용자의 셸을 PTY 에 띄운다 (src/terminal.rs).
 portable-pty = "0.8"
-# IANA tzdata 를 크레이트에 굽는다 — 0.8.6 은 2024a, 0.10.x 는 2025b (파라과이 상시
-# -03 등). 0.10 의 깨지는 변경(`OffsetName::abbreviation` → Option)은 우리가 안 쓴다.
-chrono-tz = "0.10"
-# 시스템 IANA 시간대 — `.oculpm` workday 기본값 (#oculpm-default-tz). chrono 의
-# `clock` 기능이 이미 끌어오는 크레이트라 의존성 그래프는 그대로다.
+# 시스템 IANA 시간대 — `.oculpm` workday 기본값 (#oculpm-default-tz). 이름을 고르는 순서는
+# `oculpm/config/timezone.rs` 가 정한다.
 iana-time-zone = "0.1"
 toml = "0.8"
 toml_edit = "0.20"

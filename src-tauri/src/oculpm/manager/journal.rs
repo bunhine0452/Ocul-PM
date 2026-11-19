@@ -301,12 +301,12 @@ impl OculpmManager {
             ));
         };
         let mut changed = false;
-        if let Some(fixed) = backfill_tz_offset(&fm.created_at, tz) {
+        if let Some(fixed) = backfill_tz_offset(&fm.created_at, &tz) {
             fm.created_at = fixed;
             changed = true;
         }
         if let Some(u) = fm.updated_at.clone() {
-            if let Some(fixed) = backfill_tz_offset(&u, tz) {
+            if let Some(fixed) = backfill_tz_offset(&u, &tz) {
                 fm.updated_at = Some(fixed);
                 changed = true;
             }
@@ -474,7 +474,7 @@ impl OculpmManager {
             .and_then(|m| m.modified().ok())
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as i64)
-            .unwrap_or_else(|| chrono::Utc::now().timestamp());
+            .unwrap_or_else(|| crate::clock::now().as_second());
         // .with_tz mirrors update_journal_entry_meta — keep the cache row's
         // backfilled created_at offset consistent on a body edit (F7a-B). The
         // body is already masked at-write above, so no redaction needed here.
@@ -569,11 +569,10 @@ impl OculpmManager {
         let now_utc = draft
             .created_at
             .as_deref()
-            .and_then(|raw| chrono::DateTime::parse_from_rfc3339(raw).ok())
-            .map(|dt| dt.with_timezone(&chrono::Utc))
-            .unwrap_or_else(chrono::Utc::now);
+            .and_then(crate::clock::parse_rfc3339)
+            .unwrap_or_else(crate::clock::now);
         let workday = resolver.workday_of(now_utc);
-        let local_now = now_utc.with_timezone(&chrono_tz_from(&resolver));
+        let local_now = now_utc.to_zoned(tz_of(&resolver));
         let hhmm = format!("{:02}{:02}", local_now.hour(), local_now.minute());
 
         // Resolve session_id: explicit → active → sentinel.
@@ -583,7 +582,7 @@ impl OculpmManager {
             sess.id
         } else {
             // 시(時)까지 두 자리로 — 예전 포맷은 10시 전에 한 글자 짧았다.
-            crate::oculpm::session_id::SessionId::manual(&workday, local_now).into_string()
+            crate::oculpm::session_id::SessionId::manual(&workday, local_now.time()).into_string()
         };
 
         // Build the frontmatter.
@@ -593,7 +592,7 @@ impl OculpmManager {
             slug: draft.slug.clone(),
             status: draft.status.unwrap_or(EntryStatus::Planned),
             difficulty: draft.difficulty,
-            created_at: local_now.to_rfc3339(),
+            created_at: crate::clock::zoned_rfc3339(&local_now),
             updated_at: None,
             session_id,
             // PR-CI1 — 자동 초안(journal_draft)이 실측 에이전트를 넘긴다;
@@ -660,7 +659,7 @@ impl OculpmManager {
             .and_then(|m| m.modified().ok())
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as i64)
-            .unwrap_or_else(|| now_utc.timestamp());
+            .unwrap_or_else(|| now_utc.as_second());
         let (parsed, body_text) = parse_frontmatter_and_body(&text);
         let body_parsed = parse_body(&body_text);
         let cache = JournalCache::new(db);

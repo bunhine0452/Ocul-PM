@@ -239,7 +239,7 @@ impl LockGuard {
 
     fn write_fresh(path: &Path, evicted_notify: Arc<Notify>) -> Result<LockGuard, OculpmError> {
         let pid = std::process::id();
-        let now = chrono::Utc::now().to_rfc3339();
+        let now = crate::clock::rfc3339(crate::clock::now());
         let lock = LockFile {
             schema_version: SCHEMA_VERSION,
             pid,
@@ -384,10 +384,11 @@ fn pid_alive(pid: u32) -> Option<bool> {
 }
 
 fn heartbeat_age_seconds(heartbeat_at: &str) -> Result<i64, OculpmError> {
-    let parsed = chrono::DateTime::parse_from_rfc3339(heartbeat_at)
-        .map_err(|_| OculpmError::InvalidConfig(format!("invalid heartbeat_at: {heartbeat_at}")))?;
-    let now = chrono::Utc::now();
-    Ok((now - parsed.with_timezone(&chrono::Utc)).num_seconds())
+    let parsed = crate::clock::parse_rfc3339(heartbeat_at).ok_or_else(|| {
+        OculpmError::InvalidConfig(format!("invalid heartbeat_at: {heartbeat_at}"))
+    })?;
+    let now = crate::clock::now();
+    Ok(now.duration_since(parsed).as_secs())
 }
 
 /// 하트비트 한 틱의 결과 — 아직 우리가 주인인가.
@@ -418,7 +419,7 @@ fn heartbeat_pulse(path: &Path, expected_pid: u32, write: bool) -> Result<Owners
     if !write {
         return Ok(Ownership::Held);
     }
-    lock.heartbeat_at = chrono::Utc::now().to_rfc3339();
+    lock.heartbeat_at = crate::clock::rfc3339(crate::clock::now());
     let new_text = serde_json::to_string_pretty(&lock).map_err(OculpmError::JsonSerialize)?;
     write_atomic(path, new_text.as_bytes())?;
     Ok(Ownership::Held)
@@ -492,7 +493,7 @@ mod tests {
     async fn acquire_held_when_fresh_other_pid() {
         let dir = tempdir().unwrap();
         let path = dir.path().join(".lock");
-        let now = chrono::Utc::now().to_rfc3339();
+        let now = crate::clock::rfc3339(crate::clock::now());
         // 살아있는 타 프로세스여야 한다 — pid 1(launchd/init)은 unix, 4(System)는
         // 윈도우에서 항상 생존. (죽은 pid 는 이제 하트비트가 신선해도 즉시 회수된다
         // — 아래 dead-holder 케이스. 윈도우에는 pid 1 이 없다.)
@@ -518,7 +519,7 @@ mod tests {
     async fn acquire_recovers_immediately_when_holder_pid_is_dead() {
         let dir = tempdir().unwrap();
         let path = dir.path().join(".lock");
-        let fresh = chrono::Utc::now().to_rfc3339();
+        let fresh = crate::clock::rfc3339(crate::clock::now());
         // macOS pid_max(≈99998)·linux 기본(4194304)보다 큰 값 — 존재 불가.
         let dead_pid = 4_999_999u32;
         write_synthetic_lock(&path, dead_pid, &fresh);
@@ -540,7 +541,7 @@ mod tests {
     async fn take_over_policy_claims_a_live_holders_lock() {
         let dir = tempdir().unwrap();
         let path = dir.path().join(".lock");
-        let fresh = chrono::Utc::now().to_rfc3339();
+        let fresh = crate::clock::rfc3339(crate::clock::now());
         // 살아 있는 pid(이 테스트 프로세스) + 신선한 하트비트 = 정상 소유자.
         let holder = std::process::id();
         write_synthetic_lock(&path, holder, &fresh);
@@ -575,7 +576,7 @@ mod tests {
     fn heartbeat_reports_lost_ownership_when_another_pid_holds_the_file() {
         let dir = tempdir().unwrap();
         let path = dir.path().join(".lock");
-        write_synthetic_lock(&path, 1, &chrono::Utc::now().to_rfc3339());
+        write_synthetic_lock(&path, 1, &crate::clock::rfc3339(crate::clock::now()));
 
         // pid 1 의 락인데 우리 pid 로 물어본다 = 인계당한 상황.
         assert_eq!(
@@ -583,7 +584,11 @@ mod tests {
             Ownership::Lost
         );
         // 우리 pid 로 적혀 있으면 계속 우리 것.
-        write_synthetic_lock(&path, std::process::id(), &chrono::Utc::now().to_rfc3339());
+        write_synthetic_lock(
+            &path,
+            std::process::id(),
+            &crate::clock::rfc3339(crate::clock::now()),
+        );
         assert_eq!(
             heartbeat_pulse(&path, std::process::id(), false).unwrap(),
             Ownership::Held
@@ -622,7 +627,11 @@ mod tests {
         };
 
         // 다른 인스턴스가 가져갔다 (파일이 남의 pid 로 바뀐다).
-        write_synthetic_lock(&path, 4_999_999, &chrono::Utc::now().to_rfc3339());
+        write_synthetic_lock(
+            &path,
+            4_999_999,
+            &crate::clock::rfc3339(crate::clock::now()),
+        );
 
         // 우리 가드를 놓아도 남의 락은 그대로 남아야 한다.
         guard.release().await.unwrap();
@@ -711,8 +720,10 @@ mod tests {
     async fn acquire_recovered_when_stale() {
         let dir = tempdir().unwrap();
         let path = dir.path().join(".lock");
-        let stale = (chrono::Utc::now() - chrono::Duration::seconds(STALE_THRESHOLD_SECS + 60))
-            .to_rfc3339();
+        let stale = crate::clock::rfc3339(
+            crate::clock::now()
+                - crate::clock::SignedDuration::from_secs(STALE_THRESHOLD_SECS + 60),
+        );
         write_synthetic_lock(&path, 1, &stale);
 
         let acq = LockGuard::acquire(&path).await.unwrap();

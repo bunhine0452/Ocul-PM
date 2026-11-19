@@ -67,8 +67,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
-use chrono_tz::Tz;
+use crate::clock::{TimeZone, Timestamp};
 use notify::{RecursiveMode, Watcher};
 use notify_debouncer_full::{new_debouncer_opt, DebounceEventResult, Debouncer};
 use tokio::task::JoinHandle;
@@ -108,14 +107,14 @@ pub struct ProjectWatcher {
     /// 곁일 종료 손잡이 — 드롭만으로도 색인·히스토리 태스크가 끊긴다.
     tasks_shutdown: watcher_tasks::WatcherTasksShutdown,
     /// 무장한 시각 — 스케줄링 계수기 전부의 기준점 (`{#scheduling-telemetry}`).
-    started_at: DateTime<Utc>,
+    started_at: Timestamp,
 }
 
 #[derive(Debug, Default)]
 struct WatcherStatsInner {
     events_seen_total: u32,
     events_ignored_total: u32,
-    last_event_at: Option<DateTime<Utc>>,
+    last_event_at: Option<Timestamp>,
 }
 
 impl ProjectWatcher {
@@ -156,7 +155,7 @@ impl ProjectWatcher {
         let redact_patterns = redact::compile_redact_patterns(&config.git.auto_redact_patterns);
         // Config tz already validated by `OculpmConfig::validate` on load; fall
         // back to UTC if somehow unparseable rather than failing watcher start.
-        let tz: Tz = config.workday.timezone.parse().unwrap_or(chrono_tz::UTC);
+        let tz: TimeZone = crate::clock::zone(&config.workday.timezone).unwrap_or(TimeZone::UTC);
 
         let stats = Arc::new(RwLock::new(WatcherStatsInner::default()));
         // 곁일(증분 색인·히스토리)의 동시 상한 + 수명. 워처가 내려가면 함께 끊긴다.
@@ -256,7 +255,7 @@ impl ProjectWatcher {
             debounce_ms,
             queue_metrics,
             tasks_shutdown,
-            started_at: Utc::now(),
+            started_at: crate::clock::now(),
         })
     }
 
@@ -317,7 +316,7 @@ impl ProjectWatcher {
             },
             events_seen_total: stats.events_seen_total,
             events_ignored_total: stats.events_ignored_total,
-            last_event_at: stats.last_event_at.map(|t| t.to_rfc3339()),
+            last_event_at: stats.last_event_at.map(crate::clock::rfc3339),
             debounce_ms: self.debounce_ms,
             dropped_total: sched.dropped_total,
             sched,
@@ -330,7 +329,7 @@ impl ProjectWatcher {
         let m = &self.queue_metrics;
         let sat = |v: u64| u32::try_from(v).unwrap_or(u32::MAX);
         WatcherSchedStats {
-            started_at: Some(self.started_at.to_rfc3339()),
+            started_at: Some(crate::clock::rfc3339(self.started_at)),
             events_total: sat(m.events_total()),
             dropped_total: sat(m.dropped_total()),
             queue_depth: sat(m.queue_depth() as u64),

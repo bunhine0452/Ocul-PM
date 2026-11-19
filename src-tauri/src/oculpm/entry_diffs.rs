@@ -207,7 +207,6 @@ pub fn capture_entry_diffs(
 /// cache-key path `<workday=YYYYMMDD>/<Category>/<HHMM>_<slug>.md`. Used to
 /// anchor the git-history fallback. `None` if either component isn't numeric.
 fn entry_unix_time(entry_rel: &str) -> Option<i64> {
-    use chrono::TimeZone;
     let workday = entry_rel.split('/').next()?;
     let file = entry_rel.rsplit('/').next()?;
     if workday.len() != 8 || !workday.bytes().all(|b| b.is_ascii_digit()) {
@@ -217,15 +216,13 @@ fn entry_unix_time(entry_rel: &str) -> Option<i64> {
     if hhmm.len() != 4 || !hhmm.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
-    let year: i32 = workday[0..4].parse().ok()?;
-    let month: u32 = workday[4..6].parse().ok()?;
-    let day: u32 = workday[6..8].parse().ok()?;
-    let hour: u32 = hhmm[0..2].parse().ok()?;
-    let min: u32 = hhmm[2..4].parse().ok()?;
-    chrono::Local
-        .with_ymd_and_hms(year, month, day, hour, min, 0)
-        .single()
-        .map(|dt| dt.timestamp())
+    let year: i16 = workday[0..4].parse().ok()?;
+    let month: i8 = workday[4..6].parse().ok()?;
+    let day: i8 = workday[6..8].parse().ok()?;
+    let hour: i8 = hhmm[0..2].parse().ok()?;
+    let min: i8 = hhmm[2..4].parse().ok()?;
+    let dt = crate::clock::civil::DateTime::new(year, month, day, hour, min, 0, 0).ok()?;
+    crate::clock::single(&crate::clock::TimeZone::system(), dt).map(|t| t.as_second())
 }
 
 /// Created-file fallback (tier 4) for a single file: synthesise the diff of a
@@ -315,7 +312,7 @@ fn snapshot_patch(
 fn persist(out: &Path, entry_rel: &str, files: Vec<EntryFileDiff>) -> std::io::Result<()> {
     let payload = EntryDiffsFile {
         schema_version: SCHEMA_VERSION,
-        captured_at: chrono::Local::now().to_rfc3339(),
+        captured_at: crate::clock::zoned_rfc3339(&crate::clock::local_now()),
         entry: entry_rel.to_string(),
         files,
     };
