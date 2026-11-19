@@ -92,8 +92,8 @@ async function waitReason(): Promise<string | null> {
 const RECHECK_MS = 10_000;
 
 /**
- * 「다시 여는 중」 을 그릴 틈. Windows 는 다음 줄에서 프로세스가 끝나므로(설치 파일이 이어받는다)
- * 이 틈이 없으면 창이 말없이 사라진다 — 상태 한 줄을 칠할 만큼만 기다린다.
+ * 「새 버전으로 바꾸고 있어요」 를 그릴 틈. 다음 줄에서 창이 닫히므로(macOS · Linux 는 재시작,
+ * Windows 는 설치 파일이 이어받는다) 이 틈이 없으면 창이 말없이 사라진다 — 한 번 칠할 만큼만 기다린다.
  */
 const PAINT_MS = 350;
 
@@ -159,7 +159,7 @@ export function useUpdater() {
   /**
    * 받아 둔 새 버전으로 **지금** 바꾼다 — 끊으면 안 되는 일은 이미 확인했거나 사용자가 넘기기로 했다.
    *
-   * - macOS · Linux: 번들은 이미 깔렸다(`install` 에서) — 창 구성을 적고 다시 띄운다.
+   * - macOS · Linux: 번들은 이미 깔렸다(`install` 에서) — 창 구성을 적고 안내를 보인 뒤 다시 띄운다.
    * - Windows: 설치 파일(NSIS /P /UPDATE /R)이 이어받고 이 프로세스는 `install()` 안에서 끝난다
    *   (플러그인의 `process::exit`). 그 길은 앱의 종료 정리를 지나지 않으므로 창 구성을 적은 뒤
    *   백엔드에 정리(세션 마감 · 터미널)를 먼저 시킨다 — 예전엔 업데이트마다 세션이 크래시로 적혔다.
@@ -167,12 +167,13 @@ export function useUpdater() {
    */
   const apply = useCallback(async (upd: Update) => {
     setStatus({ kind: "restarting" });
+    await saveWindows();
+    // 「바꾸고 있어요」 를 그릴 틈 — 다음 줄에서 창이 닫힌다(재시작이든 설치 파일이든).
+    await paint();
     if (getPlatform() !== "windows") {
-      await restartRestoringWindows();
+      await relaunch();
       return;
     }
-    await saveWindows();
-    await paint();
     await updateExitApi.prepare();
     try {
       await upd.install();

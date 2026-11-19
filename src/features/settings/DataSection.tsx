@@ -12,7 +12,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { toAppError } from "@/api/invoke";
 import { appDataApi } from "@/api/settings";
-import { UpdateProgress } from "@/components/UpdateBanner";
+import { UpdateApplying, UpdateProgress } from "@/components/UpdateBanner";
 import { useSettings } from "@/contexts/SettingsContext";
 import { resolveLang, useT, type Lang } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -106,6 +106,7 @@ export function UpdateRow() {
       {status.kind === "downloading" ? (
         <UpdateProgress percent={status.percent} label={t("prefs.data.downloading")} />
       ) : null}
+      <UpdateApplying status={status} />
     </PrefsRow>
   );
 }

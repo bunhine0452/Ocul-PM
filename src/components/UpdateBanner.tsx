@@ -4,7 +4,7 @@ import { Download, X } from "@/components/Icons";
 import { toasterPinnedSlot } from "@/components/ui/Toaster";
 import { updateGateApi } from "@/api/installKind";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
-import { useUpdater } from "@/lib/updater";
+import { useUpdater, type UpdaterStatus } from "@/lib/updater";
 import { useT } from "@/i18n";
 
 // Launch-time self-update banner. On mount it asks the updater plugin (via the
@@ -139,11 +139,13 @@ export function UpdateBanner() {
 
   // 닫은 배너는 **그 버전**에 대해서만 닫힌 것이다 — 나중에 더 새 버전이
   // 오면 다시 뜬다. 설정을 아직 못 읽었으면 기다린다(닫은 판이 한 번 번쩍이지 않게).
+  // 바꾸는 중에는 배너 대신 창 전체를 덮는 안내 — 닫은 배너여도 보인다(곧 창이 닫혔다 열린다).
+  if (status.kind === "installing" || status.kind === "restarting") return <UpdateApplying status={status} />;
   if (version == null || dismissed === version || (settings && !settings.loaded)) return null;
 
   const failed = status.kind === "error";
-  // 받는 중 · 까는 중 · 다시 여는 중 — 단추 없이 진척만 보인다(누를 것이 없고, 닫아도 일은 계속된다).
-  const working = status.kind === "downloading" || status.kind === "installing" || status.kind === "restarting";
+  // 받는 중 — 단추 없이 진척만 보인다(누를 것이 없고, 닫아도 일은 계속된다).
+  const working = status.kind === "downloading";
   // 새 버전은 이미 받았고 재시작만 남았다 — 끊으면 안 되는 일이 끝나기를 기다린다.
   const awaiting = status.kind === "awaiting" ? status.reason : null;
 
@@ -157,10 +159,6 @@ export function UpdateBanner() {
             {status.percent != null ? <> · <span className="mono">{status.percent}%</span></> : null}
             <UpdateProgress percent={status.percent} label={t("update.downloading", { version })} />
           </>
-        ) : status.kind === "installing" ? (
-          <>{t("update.installing")}</>
-        ) : status.kind === "restarting" ? (
-          <>{t("update.restarting")}</>
         ) : awaiting ? (
           <>{t("update.awaiting", { reason: awaiting })}</>
         ) : failed ? (
@@ -202,5 +200,28 @@ export function UpdateProgress({ percent, label }: { percent: number | null; lab
     >
       <span className="update-progress-fill" style={{ width: `${percent}%` }} />
     </span>
+  );
+}
+
+/**
+ * 「새 버전으로 바꾸고 있어요」 — 받기가 끝나고 창이 닫혔다 다시 열리기까지(11-19).
+ *
+ * Windows 는 설치 파일의 작은 진행 창이 같은 말을 이어서 한다(installer-hooks.nsh 의 진행 쪽 머리).
+ * macOS · Linux 는 그런 창이 없다 — 번들을 까는 몇 초와 재시작 사이에 이것만 보인다. 알림 기둥이 아니라
+ * 창 전체를 덮는다: 곧 사라질 화면이라 누를 것이 없고, 무엇이 일어나는지 한 번에 읽혀야 한다. 도는
+ * 표식은 두지 않는다 — 로딩은 정지 글자다(영수증 규칙 6). 배너와 설정 「업데이트」 줄이 같이 쓴다.
+ */
+export function UpdateApplying({ status }: { status: UpdaterStatus }) {
+  const { t } = useT();
+  if (status.kind !== "installing" && status.kind !== "restarting") return null;
+  return createPortal(
+    <div className="update-applying" role="status" aria-live="polite">
+      <div className="scrim" />
+      <div className="update-applying-card animate-in fade-in zoom-in-95 duration-(--dur-2)">
+        <b>{t("update.applyingTitle")}</b>
+        <span>{status.kind === "restarting" ? t("update.applyingReopen") : t("update.applyingWait")}</span>
+      </div>
+    </div>,
+    document.body,
   );
 }

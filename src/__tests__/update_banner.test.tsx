@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, waitFor, within } from "@testing-library/react";
 
 // ─── Self-update banner (benchmarked from uvws) ───────────────────────────
 // The updater plugin's check() returns an Update (or null). We mock it and
@@ -243,6 +243,23 @@ describe("UpdateBanner", () => {
     expect(view.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "25");
     expect(view.queryByText("지금 업데이트")).toBeNull();
     expect(view.queryByRole("button", { name: "알림 닫기" })).toBeNull();
+  });
+
+  it("받은 뒤 바꾸는 동안은 창 전체에 「바꾸고 있어요」 — 깔기 중엔 기다리라고, 재시작 직전엔 다시 열린다고", async () => {
+    // macOS · Linux: 받기 → 깔기(이 동안 멈춰 둔다) → 재시작. jsdom 은 Windows 가 아니다.
+    let finishInstall: () => void = () => {};
+    const install = vi.fn(() => new Promise<void>((r) => (finishInstall = r)));
+    fx.update = { version: "9.2.0", download: vi.fn(() => Promise.resolve()), install };
+    const view = render(<UpdateBanner />);
+    (await view.findByText("지금 업데이트")).click();
+
+    expect(await within(document.body).findByText("Ocul 을 새 버전으로 바꾸고 있어요")).toBeInTheDocument();
+    expect(within(document.body).getByText("잠시만 기다려 주세요.")).toBeInTheDocument();
+    expect(view.container.querySelector(".update-banner")).toBeNull();
+
+    await act(async () => finishInstall());
+    expect(await within(document.body).findByText("끝나면 Ocul 이 저절로 다시 열려요.")).toBeInTheDocument();
+    await waitFor(() => expect(relaunch).toHaveBeenCalledTimes(1));
   });
 
   it("stays hidden when there is no update", async () => {

@@ -74,7 +74,7 @@ owner: claude-code
 - [ ] [사용자] 새 플러그인 판으로 /oculpm:redteam 한 번 — 반례 보고를 이 플랜 로그에 (← ambition-round-20261027) {#redteam-dogfood}
 - [ ] [사용자] 4.0 설치본 — 윗줄(탭 다섯 · 찾기 · 설정 톱니) · 창 버튼(신호등)이 윗줄 가운데 · 오늘 한 칼럼 · 계획의 끝난 단계 접힘을 눈으로 (← v4-major-20261028) {#eyes-v4-shell}
 - [ ] [사용자] 4.0 터미널 — 설치본에서 한글 입력 · Claude Code 박스 문자(WebGL) · 창 닫기 뒤 셸 정리를 눈으로 (← terminal-v4-20261029 #ship-eyes) {#carry-ship-eyes}
-- [ ] [사용자] Windows 설치본 — 새 설치 화면(그림 · 안내 문구 · 마침 쪽 자동 넘김)과 앱 안 업데이트(받기 % → 작은 진행 창 → 다시 열림)를 눈으로 {#eyes-win-installer}
+- [ ] [사용자] Windows 설치본 — 새 설치 화면(그림 · 안내 문구 · 마침 쪽 자동 넘김)과 앱 안 업데이트(받기 % → 작은 진행 창 → 다시 열림), macOS 의 「바꾸고 있어요」 덮개를 눈으로 {#eyes-win-installer}
 
 ## 사용자 액션 (닫은 플랜에서 옮김) {#user-actions}
 - [ ] [사용자 액션] release 환경 보호 — 필수 승인자 + 배포 정책(태그 v*) → 서명 비밀 7개(APPLE_* 6 · TAURI_PRIVATE_KEY)를 환경 비밀로 옮기고 저장소 비밀에서 삭제. 비밀을 옮기지 않으면 승인자는 막는 것이 없다. 키 재발급 금지 (← external-review-2026-10-08 #release-env) {#release-env}
@@ -136,6 +136,7 @@ owner: claude-code
 | 2026-10-29T14:32:21+09:00 | #carry-ship-eyes | claude-code | ☐→☐ |  | ← terminal-v4-20261029 #ship-eyes (사용자 결정으로 그 플랜을 닫으며 이월) |
 | 2026-10-29T14:32:27+09:00 | #eyes-v4-shell | claude-code | ☐→☐ |  | ← v4-major-20261028 (v4.0.0 공개, 그 플랜을 닫으며 — macOS 설치본 육안은 아직 0건) |
 | 2026-11-19T16:22:00+09:00 | #eyes-win-installer | claude-code | →☐ | .oculpm/journal/20261119/Bugs/1622_bug_windows-install-update-polish.md | 설치 스크립트 컴파일 · 테스트는 통과, 설치 화면과 업데이트 창은 사람 눈이 남았다 |
+| 2026-11-19T16:44:30+09:00 | #eyes-win-installer | claude-code | ☐→☐ | .oculpm/journal/20261119/Bugs/1644_bug_mac-update-applying-overlay.md | macOS 「바꾸고 있어요」 덮개를 눈 확인에 더함 |
 <!-- oculpm:plan-log archived: 10 rows → polish-round-20261027.log.md -->
 | 2026-11-15T11:33:35+09:00 | #memo-verdict-words | claude-code | →☐ |  | ← quality-round-20261115 이월 |
 | 2026-11-15T11:33:35+09:00 | #list-scrollbar-gutter | claude-code | →☐ |  | ← quality-round-20261115 이월 |
