@@ -16,6 +16,20 @@
 ; on it (install-smoke-windows-os.ps1, Test-NoVcRuntimeImports).
 ; Every decision is appended to %TEMP%\ocul-pm-setup.log (the install smoke reads it).
 ;
+; LOOK (2026-11-19) -- the window the user sees, without forking tauri's installer.nsi:
+;   - welcome / finish pages say what Ocul is in our own words (the stock MUI text is
+;     "...(을)를 설치할 것입니다 ... 모든 프로그램을 종료하여 주시기 바랍니다"), and the
+;     finish checkbox reads "Ocul 바로 열기". Set at runtime in .onGUIInit by language,
+;     because the template inserts the language files after this include.
+;   - the progress page header says "installing" or "updating" (the in-app update runs
+;     this installer with /P /UPDATE /R -- that small window is all the user sees of it).
+;   - a successful GUI install moves on to the finish page by itself; the template keeps
+;     the log page open (MUI_FINISHPAGE_NOAUTOCLOSE), but the log is in the file above.
+;   Art: windows/installer-sidebar.bmp (164x314) and installer-header.bmp (150x57), baked by
+;   scripts/build-installer-art.py
+;   from icons/icon.png on the app's ivory (--bg-sidebar #f1eee6). 24-bit BMP, standard
+;   MUI sizes; redraw both when the icon changes.
+;
 ; Test injection (used by .github/scripts/install-smoke-windows.ps1, harmless otherwise):
 ;   OCULPM_TEST_OS_BUILD=<n>        pretend the OS build is <n>
 
@@ -119,10 +133,85 @@ Var OculpmMsg
 !macroend
 
 ; ----------------------------------------------------------------------------------------
+; 3. Page copy
+; ----------------------------------------------------------------------------------------
+; MUI reads these defines when the template inserts the welcome / finish pages (right after
+; this include). The strings are variables, expanded when each page is drawn, so the
+; language picked in .onInit decides them -- LangString cannot be used here: the template
+; inserts MUI_LANGUAGE after this file.
+Var OculpmWelcomeTitle
+Var OculpmWelcomeText
+Var OculpmFinishTitle
+Var OculpmFinishText
+Var OculpmRunText
+!define MUI_HEADERIMAGE_RIGHT
+!define MUI_WELCOMEPAGE_TITLE "$OculpmWelcomeTitle"
+!define MUI_WELCOMEPAGE_TEXT "$OculpmWelcomeText"
+!define MUI_FINISHPAGE_TITLE "$OculpmFinishTitle"
+!define MUI_FINISHPAGE_TEXT "$OculpmFinishText"
+!define MUI_FINISHPAGE_RUN_TEXT "$OculpmRunText"
+!define MUI_CUSTOMFUNCTION_GUIINIT OculpmGuiInit
+
+Function OculpmGuiInit
+  ${If} $LANGUAGE == 1042
+    StrCpy $OculpmWelcomeTitle "Ocul 설치를 시작할게요"
+    StrCpy $OculpmWelcomeText "코딩 에이전트가 무엇을 바꾸고 어떤 명령으로 확인했는지 작업 일지로 남기고, 확인 안 된 것만 골라 보여 주는 앱이에요.$\r$\n$\r$\n기록은 모두 이 PC 의 프로젝트 폴더에만 남아요. 계정도 서버도 필요 없어요.$\r$\n$\r$\n계속하려면 「다음」을 눌러 주세요."
+    StrCpy $OculpmFinishTitle "설치가 끝났어요"
+    StrCpy $OculpmFinishText "Ocul 을 쓸 준비가 됐어요.$\r$\n$\r$\n새 버전이 나오면 앱이 알려 드리고, 버튼 하나로 바꿔 드려요."
+    StrCpy $OculpmRunText "Ocul 바로 열기"
+  ${Else}
+    StrCpy $OculpmWelcomeTitle "Let's install Ocul"
+    StrCpy $OculpmWelcomeText "Ocul keeps what your coding agents changed, and the command that checked it, as a work journal, and shows you only what isn't proven.$\r$\n$\r$\nEverything stays in your project folders on this PC. No account, no server.$\r$\n$\r$\nClick Next to continue."
+    StrCpy $OculpmFinishTitle "Ocul is installed"
+    StrCpy $OculpmFinishText "Ocul is ready to use.$\r$\n$\r$\nWhen a new version comes out, the app tells you and updates with one click."
+    StrCpy $OculpmRunText "Open Ocul now"
+  ${EndIf}
+FunctionEnd
+
+; The progress page header. Runs inside the Install section, while that page is showing;
+; a silent install has no window ($HWNDPARENT 0) and the messages go nowhere.
+!macro OCULPM_PROGRESS_HEADER
+  Push $R7
+  Push $R8
+  ; /R = the updater asked to start the app again afterwards ($R8 "1").
+  ClearErrors
+  ${GetOptions} $CMDLINE "/R" $R7
+  ${If} ${Errors}
+    StrCpy $R8 ""
+  ${Else}
+    StrCpy $R8 "1"
+  ${EndIf}
+  ${If} $UpdateMode = 1
+    ${If} $LANGUAGE == 1042
+      ${If} $R8 == "1"
+        !insertmacro MUI_HEADER_TEXT "Ocul 을 새 버전으로 바꾸고 있어요" "끝나면 Ocul 이 저절로 다시 열려요."
+      ${Else}
+        !insertmacro MUI_HEADER_TEXT "Ocul 을 새 버전으로 바꾸고 있어요" "잠시만 기다려 주세요."
+      ${EndIf}
+    ${Else}
+      ${If} $R8 == "1"
+        !insertmacro MUI_HEADER_TEXT "Updating Ocul" "Ocul reopens by itself when it's done."
+      ${Else}
+        !insertmacro MUI_HEADER_TEXT "Updating Ocul" "This takes a few seconds."
+      ${EndIf}
+    ${EndIf}
+  ${Else}
+    ${If} $LANGUAGE == 1042
+      !insertmacro MUI_HEADER_TEXT "Ocul 을 설치하고 있어요" "잠시만 기다려 주세요."
+    ${Else}
+      !insertmacro MUI_HEADER_TEXT "Installing Ocul" "This takes a few seconds."
+    ${EndIf}
+  ${EndIf}
+  Pop $R8
+  Pop $R7
+!macroend
+
+; ----------------------------------------------------------------------------------------
 ; Hooks
 ; ----------------------------------------------------------------------------------------
 !macro NSIS_HOOK_PREINSTALL
   !insertmacro OCULPM_LOG "preinstall: $CMDLINE"
+  !insertmacro OCULPM_PROGRESS_HEADER
   !insertmacro OCULPM_CHECK_OS
   !insertmacro OCULPM_SIDECAR_ASIDE
 !macroend
@@ -130,6 +219,9 @@ Var OculpmMsg
 !macro NSIS_HOOK_POSTINSTALL
   Delete "$INSTDIR\oculpm-mcp.exe.old-*"
   !insertmacro OCULPM_LOG "postinstall: done"
+  ; Straight on to the finish page (passive / silent already close here -- the template).
+  ; Only a successful install gets this far; an Abort above leaves the log page up.
+  SetAutoClose true
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL

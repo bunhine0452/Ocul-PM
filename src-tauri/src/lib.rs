@@ -287,6 +287,7 @@ use crate::commands::{
     today_teammates,
     update_check_claim,
     update_check_report,
+    update_prepare_exit,
 };
 // 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
 use crate::commands::new_window::new_window;
@@ -469,6 +470,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 업데이트 확인 관문 — 창이 여럿이어도 앱이 한 번 묻는다
             update_check_claim,
             update_check_report,
+            // Windows 업데이트 직전의 정상 종료 정리 (설치 파일이 앱을 `process::exit` 로 끝낸다)
+            update_prepare_exit,
         ])
         .events(collect_events![
             // .oculpm/ subsystem (W1-PR2)
@@ -770,14 +773,8 @@ pub fn run() {
                             return;
                         }
                     }
-                    // 터미널 세션 — 고아 셸을 남기지 않는다.
-                    terms.close_all();
                 }
-                if let Some(manager) =
-                    app_handle.try_state::<crate::oculpm::manager::OculpmManager>()
-                {
-                    manager.shutdown_all_blocking();
-                }
+                teardown_for_exit(app_handle);
             }
             // macOS: Dock 아이콘 클릭 / "모두 앞으로 가져오기".
             //
@@ -813,6 +810,23 @@ pub fn run() {
             _ => {}
         }
     });
+}
+
+/// 프로세스를 끝내기 전의 정리 — 터미널 세션을 닫고(고아 셸 0), 프로젝트마다 세션을 `AppQuit` 으로
+/// 마감하고 락을 놓는다. 두 길이 함께 쓴다:
+/// - `RunEvent::ExitRequested` — ⌘Q · 창 닫기 · 업데이트 뒤 재시작(macOS · Linux).
+/// - Windows 업데이트 — 업데이터 플러그인이 설치 파일을 띄우고 `std::process::exit(0)` 으로 끝내
+///   이 이벤트를 지나지 않는다. 그래서 설치 직전 프런트가 `update_prepare_exit` 로 부른다.
+///
+/// 런타임 밖(run-event 콜백 · 동기 커맨드 = 메인 스레드)에서만 부른다 — 세션 마감이 `block_on` 한다.
+pub(crate) fn teardown_for_exit(app_handle: &tauri::AppHandle) {
+    if let Some(terms) = app_handle.try_state::<crate::terminal::TermSessions>() {
+        // 터미널 세션 — 고아 셸을 남기지 않는다.
+        terms.close_all();
+    }
+    if let Some(manager) = app_handle.try_state::<crate::oculpm::manager::OculpmManager>() {
+        manager.shutdown_all_blocking();
+    }
 }
 
 #[cfg(test)]

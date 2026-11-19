@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { windowApi } from "@/api/window";
-import { installKindApi, updateGateApi } from "@/api/installKind";
+import { installKindApi, updateExitApi, updateGateApi } from "@/api/installKind";
 import { terminalApi } from "@/api/terminal";
 import { t } from "@/i18n";
 import { busyReason, onBusyChange } from "./busyGuard";
@@ -91,12 +91,32 @@ async function waitReason(): Promise<string | null> {
 /** 바쁨이 풀렸는지 다시 볼 간격 — 셸 위의 프로그램이 끝나는 것(포그라운드 그룹)은 사건이 없다. */
 const RECHECK_MS = 10_000;
 
-async function restartRestoringWindows(): Promise<void> {
+/**
+ * 「다시 여는 중」 을 그릴 틈. Windows 는 다음 줄에서 프로세스가 끝나므로(설치 파일이 이어받는다)
+ * 이 틈이 없으면 창이 말없이 사라진다 — 상태 한 줄을 칠할 만큼만 기다린다.
+ */
+const PAINT_MS = 350;
+
+function paint(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, PAINT_MS));
+}
+
+/** 받는 중 진척 — 전체 길이를 모르면(서버가 안 알려 줌) null. */
+export function downloadPercent(received: number, total: number): number | null {
+  if (!(total > 0)) return null;
+  return Math.min(100, Math.floor((received / total) * 100));
+}
+
+async function saveWindows(): Promise<void> {
   try {
     await windowApi.saveSession();
   } catch {
     // 창 구성만 잃는다 — 업데이트 자체는 이어간다.
   }
+}
+
+async function restartRestoringWindows(): Promise<void> {
+  await saveWindows();
   await relaunch();
 }
 
@@ -137,34 +157,77 @@ export function useUpdater() {
   }, []);
 
   /**
-   * 새 버전을 깔고 다시 띄운다. 대기 중인 업데이트가 없으면 아무 일도 안 한다.
+   * 받아 둔 새 버전으로 **지금** 바꾼다 — 끊으면 안 되는 일은 이미 확인했거나 사용자가 넘기기로 했다.
    *
-   * **재시작만 미룬다.** 번들을 디스크에 까는 것은 언제 해도 안전하다 — 도는
-   * 프로세스는 메모리의 옛 코드를 계속 쓴다. 위험한 것은 재시작이다: 우리가
-   * 띄운 터미널 세션이 같이 끝나고, 그때 돌던 claude 의 턴은 끊긴다. 그래서 무언가
-   * 돌면 깔아만 두고 기다린다(「지금 재시작」 이면 claude 는 다시 뜰 때 잇는다).
+   * - macOS · Linux: 번들은 이미 깔렸다(`install` 에서) — 창 구성을 적고 다시 띄운다.
+   * - Windows: 설치 파일(NSIS /P /UPDATE /R)이 이어받고 이 프로세스는 `install()` 안에서 끝난다
+   *   (플러그인의 `process::exit`). 그 길은 앱의 종료 정리를 지나지 않으므로 창 구성을 적은 뒤
+   *   백엔드에 정리(세션 마감 · 터미널)를 먼저 시킨다 — 예전엔 업데이트마다 세션이 크래시로 적혔다.
+   *   정리 뒤 설치 파일을 못 띄우면 앱을 다시 띄운다 — 정리된 채로 계속 쓸 수는 없다.
+   */
+  const apply = useCallback(async (upd: Update) => {
+    setStatus({ kind: "restarting" });
+    if (getPlatform() !== "windows") {
+      await restartRestoringWindows();
+      return;
+    }
+    await saveWindows();
+    await paint();
+    await updateExitApi.prepare();
+    try {
+      await upd.install();
+    } catch (e) {
+      oculpmLog.warn("updater", "apply -> error, relaunching", { version: upd.version, message: errMessage(e) });
+      await relaunch();
+    }
+  }, []);
+
+  /**
+   * 새 버전을 받아 깔고 다시 띄운다. 대기 중인 업데이트가 없으면 아무 일도 안 한다.
+   *
+   * 받기(진척을 보인다) → 바쁨 확인 → 바꾸기. **바꾸기만 미룬다.** 도는 프로세스는 메모리의
+   * 옛 코드를 계속 쓰므로 받는 것은 언제 해도 안전하고, macOS · Linux 는 번들을 디스크에 까는
+   * 것까지 그렇다. 위험한 것은 재시작이다: 우리가 띄운 터미널 세션이 같이 끝나고, 그때 돌던
+   * claude 의 턴은 끊긴다. 그래서 무언가 돌면 받아만 두고 기다린다(「지금 재시작」 이면 claude 는
+   * 다시 뜰 때 잇는다). Windows 는 설치 자체가 앱을 끝내므로 깔기도 그때 한다 — 받은 바이트는
+   * 백엔드가 들고 있다. 서명은 받은 바이트를 앱에 박힌 공개 키로 플러그인이 검증한다.
    */
   const install = useCallback(async () => {
     if (!update) return;
-    setStatus({ kind: "installing" });
+    setStatus({ kind: "downloading", percent: null });
     oculpmLog.info("updater", "install -> start", { version: update.version });
     try {
-      // 받은 바이트의 서명을 앱에 박힌 공개 키로 검증한 뒤에만 깐다 (플러그인). Windows 는
-      // 여기서 설치 파일(NSIS /P /R /UPDATE)을 띄우고 프로세스가 끝난다 — 아래는 안 돈다. 그래서
-      // 창 구성(과 이을 claude 세션)을 먼저 적어 둔다. 묻기는 그 OS 에서 아직 못 한다.
-      if (getPlatform() === "windows") await windowApi.saveSession().catch(() => {});
-      await update.downloadAndInstall();
+      let total = 0;
+      let received = 0;
+      let shown: number | null = null;
+      await update.download((event) => {
+        if (event.event === "Started") {
+          total = event.data.contentLength ?? 0;
+        } else if (event.event === "Progress") {
+          received += event.data.chunkLength;
+          const percent = downloadPercent(received, total);
+          if (percent !== shown) {
+            shown = percent;
+            setStatus({ kind: "downloading", percent });
+          }
+        }
+      });
+      if (getPlatform() !== "windows") {
+        setStatus({ kind: "installing" });
+        await update.install();
+      }
     } catch (e) {
       const message = errMessage(e);
       oculpmLog.warn("updater", "install -> error", { version: update.version, message });
       setStatus({ kind: "error", message });
       return;
     }
+    // 줄 이름은 스모크가 읽는다(updater-smoke-*.sh·ps1) — Windows 에선 「받았고 서명이 맞다」 까지다.
     oculpmLog.info("updater", "install -> installed", { version: update.version });
 
     const why = await waitReason();
     if (!why) {
-      await restartRestoringWindows();
+      await apply(update);
       return;
     }
 
@@ -184,17 +247,18 @@ export function useUpdater() {
       off();
       clearInterval(timer);
       void offTerm.then((u) => u());
-      void restartRestoringWindows();
+      void apply(update);
     };
     const off = onBusyChange(() => void recheck());
     const offTerm = terminalApi.onSessionsChanged(() => void recheck());
     const timer = setInterval(() => void recheck(), RECHECK_MS);
-  }, [update]);
+  }, [update, apply]);
 
-  /** 기다리지 않고 **지금** 띄운다 (사용자가 그러기로 했을 때). */
+  /** 기다리지 않고 **지금** 바꾼다 (사용자가 그러기로 했을 때). */
   const restartNow = useCallback(async () => {
-    await restartRestoringWindows();
-  }, []);
+    if (update) await apply(update);
+    else await restartRestoringWindows();
+  }, [update, apply]);
 
   return { status, update, check, install, restartNow };
 }

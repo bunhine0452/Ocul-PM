@@ -15,6 +15,7 @@
 *.gif binary
 *.webp binary
 *.ico binary
+*.bmp binary
 *.icns binary
 *.woff2 binary
 *.mp4 binary

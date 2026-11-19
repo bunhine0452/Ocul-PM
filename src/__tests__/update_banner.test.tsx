@@ -6,7 +6,7 @@ import { act, cleanup, render, renderHook, waitFor } from "@testing-library/reac
 // assert the banner appears with the version + in-place install button.
 
 const fx = {
-  update: null as null | { version: string; downloadAndInstall: () => Promise<void> },
+  update: null as null | { version: string; download: (onEvent?: unknown) => Promise<void>; install: () => Promise<void> },
   /** 플러그인 check 가 거절할 문장 (IPC 는 오류를 문자열로 싣는다). */
   checkError: null as string | null,
   /** `install_kind` 커맨드의 응답 — null 이면 커맨드가 실패한 것으로 친다. */
@@ -49,7 +49,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { windowApi } from "@/api/window";
 import { UpdateBanner, isNewerVersion } from "@/components/UpdateBanner";
 import { UpdateRow } from "@/features/settings/DataSection";
-import { releaseHighlights, useUpdater } from "@/lib/updater";
+import { downloadPercent, releaseHighlights, useUpdater } from "@/lib/updater";
 import { RELEASES_PAGE } from "@/lib/updaterRoute";
 
 afterEach(() => {
@@ -118,7 +118,7 @@ describe("releaseHighlights", () => {
 
 describe("UpdateBanner", () => {
   it("shows a banner when the updater reports a newer build", async () => {
-    fx.update = { version: "1.2.0", downloadAndInstall: vi.fn(() => Promise.resolve()) };
+    fx.update = { version: "1.2.0", download: vi.fn(() => Promise.resolve()), install: vi.fn(() => Promise.resolve()) };
     const { findByText } = render(<UpdateBanner />);
     expect(await findByText(/v1\.2\.0/)).toBeInTheDocument();
     expect(await findByText("지금 업데이트")).toBeInTheDocument();
@@ -159,7 +159,7 @@ describe("UpdateBanner", () => {
     expect(container.querySelector(".update-banner")).toBeNull();
 
     fx.checkError = null;
-    fx.update = { version: "9.9.0", downloadAndInstall: vi.fn(() => Promise.resolve()) };
+    fx.update = { version: "9.9.0", download: vi.fn(() => Promise.resolve()), install: vi.fn(() => Promise.resolve()) };
     await act(async () => {
       window.dispatchEvent(new Event("online"));
     });
@@ -227,12 +227,40 @@ describe("UpdateBanner", () => {
     await waitFor(() => expect(fx.reports).toEqual(["none"]));
   });
 
+  it("받는 동안 진척(%)과 막대를 보이고, 단추는 걷는다", async () => {
+    // 받기는 끝나지 않은 채로 둔다 — 진척 사건 두 개(200 바이트 중 50)만 보낸다.
+    const download = vi.fn((onEvent?: unknown) => {
+      const emit = onEvent as (e: { event: string; data: Record<string, number> }) => void;
+      emit({ event: "Started", data: { contentLength: 200 } });
+      emit({ event: "Progress", data: { chunkLength: 50 } });
+      return new Promise<void>(() => {});
+    });
+    fx.update = { version: "9.1.0", download, install: vi.fn(() => Promise.resolve()) };
+    const view = render(<UpdateBanner />);
+    (await view.findByText("지금 업데이트")).click();
+
+    expect(await view.findByText(/v9\.1\.0 내려받는 중 · 25%/)).toBeInTheDocument();
+    expect(view.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "25");
+    expect(view.queryByText("지금 업데이트")).toBeNull();
+    expect(view.queryByRole("button", { name: "알림 닫기" })).toBeNull();
+  });
+
   it("stays hidden when there is no update", async () => {
     fx.update = null;
     const { container } = render(<UpdateBanner />);
     await waitFor(() => {
       expect(container.querySelector(".update-banner")).toBeNull();
     });
+  });
+});
+
+describe("downloadPercent", () => {
+  it("받은 몫을 0~100 정수로, 전체 길이를 모르면 null", () => {
+    expect(downloadPercent(0, 200)).toBe(0);
+    expect(downloadPercent(50, 200)).toBe(25);
+    expect(downloadPercent(199, 200)).toBe(99);
+    expect(downloadPercent(260, 200)).toBe(100);
+    expect(downloadPercent(50, 0)).toBeNull();
   });
 });
 
@@ -303,7 +331,7 @@ describe("설치 형식 × 업데이터", () => {
 
   it("설치 형식을 몰라도(커맨드 실패) 예전처럼 확인한다", async () => {
     fx.install = null;
-    fx.update = { version: "9.0.0", downloadAndInstall: vi.fn(() => Promise.resolve()) };
+    fx.update = { version: "9.0.0", download: vi.fn(() => Promise.resolve()), install: vi.fn(() => Promise.resolve()) };
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
       await result.current.check();
@@ -351,11 +379,11 @@ describe("설치 형식 × 업데이터", () => {
 
 describe("업데이터 스모크 빌드 표식 (VITE_OCULPM_UPDATER_SMOKE)", () => {
   it("표식이 없으면(릴리스 빌드) 새 버전을 찾아도 스스로 깔지 않는다", async () => {
-    const downloadAndInstall = vi.fn(() => Promise.resolve());
-    fx.update = { version: "9.0.0", downloadAndInstall };
+    const download = vi.fn(() => Promise.resolve());
+    fx.update = { version: "9.0.0", download, install: vi.fn(() => Promise.resolve()) };
     const { findByText } = render(<UpdateBanner />);
     expect(await findByText(/v9\.0\.0/)).toBeInTheDocument();
-    expect(downloadAndInstall).not.toHaveBeenCalled();
+    expect(download).not.toHaveBeenCalled();
   });
 
   it("표식이 있으면 배너의 install() 을 바로 부른다 — 서명 검증·설치 경로는 같다", async () => {
@@ -363,9 +391,9 @@ describe("업데이터 스모크 빌드 표식 (VITE_OCULPM_UPDATER_SMOKE)", () 
     vi.resetModules();
     const { UpdateBanner: SmokeBanner, SMOKE_AUTO_INSTALL } = await import("@/components/UpdateBanner");
     expect(SMOKE_AUTO_INSTALL).toBe(true);
-    const downloadAndInstall = vi.fn(() => Promise.resolve());
-    fx.update = { version: "9.0.0", downloadAndInstall };
+    const download = vi.fn(() => Promise.resolve());
+    fx.update = { version: "9.0.0", download, install: vi.fn(() => Promise.resolve()) };
     render(<SmokeBanner />);
-    await waitFor(() => expect(downloadAndInstall).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
   });
 });

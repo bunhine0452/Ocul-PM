@@ -12,6 +12,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { toAppError } from "@/api/invoke";
 import { appDataApi } from "@/api/settings";
+import { UpdateProgress } from "@/components/UpdateBanner";
 import { useSettings } from "@/contexts/SettingsContext";
 import { resolveLang, useT, type Lang } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -49,11 +50,20 @@ export function UpdateRow() {
       : null,
   );
 
+  // 확인 · 받기 · 깔기 · 다시 열기 중에는 다시 묻지 않는다 — 진행 중인 일이 상태 글로 보인다.
+  const working =
+    status.kind === "checking" ||
+    status.kind === "downloading" ||
+    status.kind === "installing" ||
+    status.kind === "restarting";
   let state: string | null = null;
   if (status.kind === "checking") state = t("prefs.data.checking");
   else if (status.kind === "uptodate") state = t("prefs.data.upToDate");
   else if (status.kind === "available") state = t("prefs.data.available", { version: status.version });
+  else if (status.kind === "downloading")
+    state = t("prefs.data.downloading") + (status.percent != null ? ` ${status.percent}%` : "");
   else if (status.kind === "installing") state = t("prefs.data.installing");
+  else if (status.kind === "restarting") state = t("prefs.data.restarting");
   // 깔아 두고 재시작을 기다린다 — 무엇 때문인지와 「지금 재시작」 을 여기서도(배너만 보이던 것).
   else if (status.kind === "awaiting") state = t("update.awaiting", { reason: status.reason });
   else if (status.kind === "error") state = t("prefs.data.checkFailed");
@@ -80,7 +90,7 @@ export function UpdateRow() {
         type="button"
         className="btn sm"
         onClick={() => void check()}
-        disabled={status.kind === "checking" || status.kind === "installing"}
+        disabled={working}
       >
         {t("prefs.data.check")}
       </button>
@@ -93,6 +103,9 @@ export function UpdateRow() {
         Ocul <span className="mono">{version ?? ""}</span>
       </span>
       {state ? <span className="prefs-dim">· {state}</span> : null}
+      {status.kind === "downloading" ? (
+        <UpdateProgress percent={status.percent} label={t("prefs.data.downloading")} />
+      ) : null}
     </PrefsRow>
   );
 }

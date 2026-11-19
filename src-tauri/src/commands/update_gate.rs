@@ -87,6 +87,23 @@ pub fn update_check_report(gate: State<'_, UpdateGate>, outcome: String) {
     s.last = Some((Instant::now(), outcome));
 }
 
+/// Windows 업데이트 직전 — 끝내기 전의 정리를 지금 한다 (2026-11-19).
+///
+/// 업데이터 플러그인은 Windows 에서 설치 파일을 띄우고 `std::process::exit(0)` 으로 앱을 끝낸다.
+/// 그 길은 `RunEvent::ExitRequested` 를 지나지 않아, 업데이트마다 프로젝트 세션이 열린 채 남아
+/// 다음 기동이 `crash_recovered` 로 마감했고 터미널 셸은 정리 없이 끊겼다. 프런트가 받은 바이트를
+/// 설치하기 직전에 이것을 불러 ⌘Q 와 같은 정리([`crate::teardown_for_exit`])를 한다 — 바쁨 확인
+/// (도는 claude 턴)은 프런트가 이미 마쳤다.
+///
+/// 동기 커맨드다 — 메인 스레드(런타임 밖)에서 돌아야 세션 마감의 `block_on` 이 안전하다. 그 뒤
+/// 앱은 곧 끝나므로 되돌리지 않는다. 설치가 실패하면 프런트가 앱을 다시 띄워 새로 연다.
+#[tauri::command]
+#[specta::specta]
+pub fn update_prepare_exit(app: tauri::AppHandle) {
+    tracing::info!(target: "oculpm::updater", "update: 설치 파일 직전 — 세션 마감 · 터미널 정리");
+    crate::teardown_for_exit(&app);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

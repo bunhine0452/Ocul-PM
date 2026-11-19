@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 
 // 업데이트와 앱 안 터미널 (10-31) — 4.0 터미널이 「끊으면 안 되는 일」 에 들지 않아 업데이트가
@@ -9,16 +9,20 @@ const fx = vi.hoisted(() => ({
   busy: { busy: 0, claude: 0 },
   onChanged: null as null | (() => void),
   resume: [] as { project_id: number; lane: string | null }[],
+  download: null as unknown as Mock,
+  install: null as unknown as Mock,
+  prepare: null as unknown as Mock,
 }));
 
 vi.mock("@tauri-apps/plugin-updater", () => ({
-  check: vi.fn(() => Promise.resolve({ version: "4.2.1", downloadAndInstall: () => Promise.resolve() })),
+  check: vi.fn(() => Promise.resolve({ version: "4.2.1", download: fx.download, install: fx.install })),
 }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn(() => Promise.resolve()) }));
 vi.mock("@/api/window", () => ({ windowApi: { saveSession: vi.fn(() => Promise.resolve(null)) } }));
 vi.mock("@/api/installKind", () => ({
   installKindApi: { get: () => Promise.resolve(null) },
   updateGateApi: { claim: () => Promise.resolve(true), report: () => {} },
+  updateExitApi: { prepare: () => fx.prepare() },
 }));
 vi.mock("@/lib/oculpmLog", () => ({ oculpmLog: { info: () => {}, warn: () => {} } }));
 vi.mock("@/lib/toast", () => ({ toast: { info: vi.fn() } }));
@@ -40,13 +44,21 @@ import { openTerm } from "@/features/terminal/termStore";
 import { resumeAfterUpdate } from "@/features/terminal/resumeAfterUpdate";
 import { setLangSetting } from "@/i18n";
 import { NAV_BUS } from "@/lib/navRegistry";
+import { __setPlatformForTests } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { useUpdater } from "@/lib/updater";
+
+beforeEach(() => {
+  fx.download = vi.fn(() => Promise.resolve());
+  fx.install = vi.fn(() => Promise.resolve());
+  fx.prepare = vi.fn(() => Promise.resolve());
+});
 
 afterEach(() => {
   fx.busy = { busy: 0, claude: 0 };
   fx.onChanged = null;
   fx.resume = [];
+  __setPlatformForTests(null);
   vi.clearAllMocks();
 });
 
@@ -85,7 +97,69 @@ describe("업데이트 × 터미널", () => {
 
   it("빈 셸만 있으면 묻지 않고 바로 재시작한다", async () => {
     await installed();
+    expect(fx.install).toHaveBeenCalledTimes(1);
     expect(relaunch).toHaveBeenCalledTimes(1);
+    expect(fx.prepare).not.toHaveBeenCalled();
+  });
+});
+
+// Windows 는 설치 자체가 앱을 끝낸다(설치 파일 → `process::exit`) — 예전엔 받기와 깔기가 한 번이라
+// 바쁨을 묻지 못하고 claude 턴을 끊었고, 종료 정리를 건너뛰어 세션이 크래시로 적혔다 (11-19).
+describe("업데이트 × Windows", () => {
+  it("터미널이 돌면 받아만 두고 기다린다 — 끝나면 창 구성 → 정리 → 설치 파일 순서로", async () => {
+    setLangSetting("ko");
+    __setPlatformForTests("windows");
+    fx.busy = { busy: 1, claude: 1 };
+    const { result } = await installed();
+
+    expect(fx.download).toHaveBeenCalledTimes(1);
+    expect(fx.install).not.toHaveBeenCalled();
+    expect(fx.prepare).not.toHaveBeenCalled();
+    expect(result.current.status.kind).toBe("awaiting");
+
+    fx.busy = { busy: 0, claude: 0 };
+    await act(async () => {
+      fx.onChanged?.();
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => expect(fx.install).toHaveBeenCalledTimes(1));
+    const order = (f: unknown) => vi.mocked(f as () => void).mock.invocationCallOrder[0];
+    expect(order(windowApi.saveSession)).toBeLessThan(order(fx.prepare));
+    expect(order(fx.prepare)).toBeLessThan(order(fx.install));
+    // 설치 파일이 다시 띄운다(/R) — 앱이 스스로 relaunch 하지 않는다.
+    expect(relaunch).not.toHaveBeenCalled();
+  });
+
+  it("「지금 재시작」 은 기다리지 않고 바로 설치 파일로 간다", async () => {
+    __setPlatformForTests("windows");
+    fx.busy = { busy: 2, claude: 0 };
+    const { result } = await installed();
+    expect(fx.install).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.restartNow();
+    });
+    expect(result.current.status.kind).toBe("restarting");
+    expect(fx.prepare).toHaveBeenCalledTimes(1);
+    expect(fx.install).toHaveBeenCalledTimes(1);
+  });
+
+  it("정리 뒤 설치 파일을 못 띄우면 앱을 다시 띄운다 — 정리된 채로 쓰게 두지 않는다", async () => {
+    __setPlatformForTests("windows");
+    fx.install = vi.fn(() => Promise.reject(new Error("ShellExecute failed")));
+    await installed();
+    await vi.waitFor(() => expect(relaunch).toHaveBeenCalledTimes(1));
+    expect(fx.prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it("받기가 실패하면 정리도 설치도 하지 않고 오류로 남는다", async () => {
+    __setPlatformForTests("windows");
+    fx.download = vi.fn(() => Promise.reject(new Error("signature mismatch")));
+    const { result } = await installed();
+    expect(result.current.status).toEqual({ kind: "error", message: "signature mismatch" });
+    expect(fx.prepare).not.toHaveBeenCalled();
+    expect(fx.install).not.toHaveBeenCalled();
+    expect(relaunch).not.toHaveBeenCalled();
   });
 });
 

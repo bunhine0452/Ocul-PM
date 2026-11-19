@@ -19,9 +19,14 @@ export type UpdaterStatus =
   | { kind: "checking" }
   | { kind: "uptodate" }
   | { kind: "available"; version: string; notes: string | null }
+  /** 새 버전을 받는 중 — `percent` 는 0~100, 전체 길이를 모르면 null. */
+  | { kind: "downloading"; percent: number | null }
+  /** 받은 번들을 디스크에 까는 중 (macOS · Linux — Windows 는 설치 파일이 재시작과 함께 깐다). */
   | { kind: "installing" }
-  /** 새 버전은 깔렸고, **끊으면 안 되는 일**이 끝나기를 기다리는 중. */
+  /** 새 버전은 받아(·깔아) 뒀고, **끊으면 안 되는 일**이 끝나기를 기다리는 중. */
   | { kind: "awaiting"; reason: string }
+  /** 새 버전으로 다시 여는 중 — 곧 창이 닫혔다 다시 열린다. */
+  | { kind: "restarting" }
   | { kind: "error"; message: string }
   /** 시스템 패키지(deb·rpm)로 깔린 앱 — 앱 안에서 확인·설치하지 않는다. */
   | { kind: "packageManaged"; format: string }

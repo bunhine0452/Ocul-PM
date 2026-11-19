@@ -384,3 +384,21 @@
    CTA(`.update-banner-cta`)는 보통 단추(.btn sm)로 걷었다: 모든 화면에 두 번째 채운 단추가 섰다.
    브랜드 로더(OculSpinner — 세 호가 서로 다른 박자로 끝없이 돌던 것)도 걷었다: 로딩은 300ms 뒤의 정지
    글자 하나다(LoadingState, 영수증 규칙 6). 콜드 스타트의 브랜드 마크는 BootSplash 가 갖는다. */
+/* 받는 중 막대 — 배너에선 글줄 아래 한 줄, 설정 「업데이트」 줄에선 상태 글 옆의 짧은 막대. 진척은 예외가
+   아니라 중립색이다(색은 예외에만 — 알림 기둥). */
+.update-progress {
+  display: block;
+  height: 3px;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+.prefs-row .update-progress { display: inline-block; width: 72px; margin-top: 0; vertical-align: middle; }
+.update-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--text-2);
+  transition: width var(--dur-2) var(--ease-out);
+}

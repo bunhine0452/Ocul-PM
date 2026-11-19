@@ -28,3 +28,16 @@ export const updateGateApi = {
       .then(() => commands.updateCheckReport(outcome))
       .catch(() => {}),
 };
+
+/**
+ * Windows 업데이트 직전의 종료 정리 (11-19, `update_prepare_exit`) — 설치 파일이 앱을 `process::exit`
+ * 로 끝내 `ExitRequested` 를 지나지 않으므로, 세션 마감 · 터미널 정리를 먼저 시킨다. 못 불러도
+ * 업데이트는 막지 않는다 — 다음 기동의 복구가 닫는다(예전과 같다).
+ */
+export const updateExitApi = {
+  prepare: (): Promise<void> =>
+    Promise.resolve()
+      .then(() => commands.updatePrepareExit())
+      .then(() => undefined)
+      .catch(() => undefined),
+};

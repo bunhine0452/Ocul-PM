@@ -141,16 +141,27 @@ export function UpdateBanner() {
   // 오면 다시 뜬다. 설정을 아직 못 읽었으면 기다린다(닫은 판이 한 번 번쩍이지 않게).
   if (version == null || dismissed === version || (settings && !settings.loaded)) return null;
 
-  const installing = status.kind === "installing";
   const failed = status.kind === "error";
-  // 새 버전은 이미 깔렸고 재시작만 남았다 — 끊으면 안 되는 일이 끝나기를 기다린다.
+  // 받는 중 · 까는 중 · 다시 여는 중 — 단추 없이 진척만 보인다(누를 것이 없고, 닫아도 일은 계속된다).
+  const working = status.kind === "downloading" || status.kind === "installing" || status.kind === "restarting";
+  // 새 버전은 이미 받았고 재시작만 남았다 — 끊으면 안 되는 일이 끝나기를 기다린다.
   const awaiting = status.kind === "awaiting" ? status.reason : null;
 
   const banner = (
     <div className="update-banner animate-in fade-in slide-in-from-bottom-2 duration-(--dur-2)" role="status">
       <Download size={15} />
       <div className="update-banner-text">
-        {awaiting ? (
+        {status.kind === "downloading" ? (
+          <>
+            {t("update.downloading", { version })}
+            {status.percent != null ? <> · <span className="mono">{status.percent}%</span></> : null}
+            <UpdateProgress percent={status.percent} label={t("update.downloading", { version })} />
+          </>
+        ) : status.kind === "installing" ? (
+          <>{t("update.installing")}</>
+        ) : status.kind === "restarting" ? (
+          <>{t("update.restarting")}</>
+        ) : awaiting ? (
           <>{t("update.awaiting", { reason: awaiting })}</>
         ) : failed ? (
           <>{t("update.failed")}</>
@@ -160,28 +171,36 @@ export function UpdateBanner() {
           </>
         )}
       </div>
-      <button
-        type="button"
-        className="btn sm"
-        onClick={() => void (awaiting ? restartNow() : install())}
-        disabled={installing}
-      >
-        {awaiting
-          ? t("update.restartNow")
-          : installing
-            ? t("update.installing")
-            : t("update.now")}
-      </button>
-      <button
-        type="button"
-        className="iconbtn sm"
-        onClick={() => dismiss(version)}
-        aria-label={t("update.dismiss")}
-        disabled={installing}
-      >
-        <X size={13} />
-      </button>
+      {working ? null : (
+        <>
+          <button type="button" className="btn sm" onClick={() => void (awaiting ? restartNow() : install())}>
+            {awaiting ? t("update.restartNow") : t("update.now")}
+          </button>
+          <button type="button" className="iconbtn sm" onClick={() => dismiss(version)} aria-label={t("update.dismiss")}>
+            <X size={13} />
+          </button>
+        </>
+      )}
     </div>
   );
   return slot ? createPortal(banner, slot) : banner;
+}
+
+/**
+ * 받는 중 막대 — 전체 길이를 모르면 그리지 않는다(글자만). 배너와 설정 「업데이트」 줄이 같이 쓴다.
+ */
+export function UpdateProgress({ percent, label }: { percent: number | null; label: string }) {
+  if (percent == null) return null;
+  return (
+    <span
+      className="update-progress"
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percent}
+    >
+      <span className="update-progress-fill" style={{ width: `${percent}%` }} />
+    </span>
+  );
 }
