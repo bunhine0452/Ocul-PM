@@ -239,7 +239,9 @@ describe("UpdateBanner", () => {
     const view = render(<UpdateBanner />);
     (await view.findByText("지금 업데이트")).click();
 
-    expect(await view.findByText(/v9\.1\.0 내려받는 중 · 25%/)).toBeInTheDocument();
+    // 퍼센트는 기계 글씨라 따로 감싼다(mono) — 줄 전체의 글로 본다.
+    const pct = await view.findByText("25%");
+    expect(pct.closest(".update-banner-text")).toHaveTextContent("v9.1.0 내려받는 중 · 25%");
     expect(view.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "25");
     expect(view.queryByText("지금 업데이트")).toBeNull();
     expect(view.queryByRole("button", { name: "알림 닫기" })).toBeNull();
