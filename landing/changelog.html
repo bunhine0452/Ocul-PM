@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul (최신 v4.11.1)</title>
+<title>변경 이력 — Ocul (최신 v4.11.2)</title>
 <meta name="description" content="Ocul 의 전체 릴리스 노트 150개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -12,7 +12,7 @@
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul (최신 v4.11.1)" />
+<meta property="og:title" content="변경 이력 — Ocul (최신 v4.11.2)" />
 <meta property="og:description" content="Ocul 의 전체 릴리스 노트 150개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
-    <span class="nav-ver" data-version>v4.11.1</span>
+    <span class="nav-ver" data-version>v4.11.2</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -49,7 +49,7 @@
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
-      <a href="#v4-11-1">v4.11.1</a>
+      <a href="#v4-11-2">v4.11.2</a>
       <a href="#v4-11-0">v4.11.0</a>
       <a href="#v4-10-0">v4.10.0</a>
       <a href="#v4-9-3">v4.9.3</a>
@@ -65,13 +65,14 @@
     </div>
 
     <section class="cl-rel">
-      <h2 id="v4-11-1"><a href="#v4-11-1">v4.11.1</a></h2>
+      <h2 id="v4-11-2"><a href="#v4-11-2">v4.11.2</a></h2>
       <div class="cl-body">
-<p><b>Windows 설치 · 업데이트를 다듬은 패치입니다 — 사용자 결정(2026-11-19, 「업데이트 배포까지해」).</b> 확인 날 기록이 없고 눈 확인 27건이 남았으며, 마지막 외부 리뷰(v3.11.0) 뒤로 판이 많이 지났다는 경고가 떴습니다. Windows 11 에서 프런트 테스트 · typecheck · lint · Rust 테스트 1,210건을 통과했습니다. 설치 화면과 업데이트 창은 설치본에서 사람이 볼 몫으로 남았습니다(설치 파일은 CI 가 굽고 설치 스모크가 돌립니다).</p>
+<p><b>Windows 설치 · 업데이트를 다듬은 패치입니다 — 사용자 결정(2026-11-19, 「업데이트 배포까지해」).</b> 같은 내용의 v4.11.1 태그는 CI 의 의존성 검사(cargo-deny)에 걸려 공개되지 않았습니다 — 날짜 라이브러리 chrono 가 그 사이 「관리 중단」 으로 올라서였고, 무시하는 대신 걷어 낸 뒤 이 판으로 냅니다(사용자 결정 「chrono 를 먼저 걷고 릴리스」). 확인 날 기록이 없고 눈 확인 27건이 남았으며, 마지막 외부 리뷰(v3.11.0) 뒤로 판이 많이 지났다는 경고가 떴습니다. Windows 11 에서 프런트 테스트 · typecheck · lint · Rust 테스트 1,217건을 통과했습니다. 설치 화면과 업데이트 창은 설치본에서 사람이 볼 몫으로 남았습니다(설치 파일은 CI 가 굽고 설치 스모크가 돌립니다).</p>
 <p><b>Windows 에서 업데이트할 때마다 세션이 「크래시」 로 적히던 것.</b> 업데이트는 설치 파일을 띄우면서 앱을 곧바로 끝내는데, 그 길이 평소 종료의 정리를 건너뛰어 다음 실행이 열린 세션을 크래시로 닫았습니다. 이제 설치 파일을 띄우기 직전에 ⌘Q 와 같은 정리를 합니다.</p>
 <p><b>Windows 업데이트가 터미널의 claude 를 묻지 않고 끊던 것.</b> 받기와 설치가 한 번이라 확인할 틈이 없었습니다. 이제 받아만 두고, 앱 안 터미널에서 무언가 돌면 끝날 때까지 기다렸다가 바꿉니다(「지금 재시작」 이면 claude 대화는 다시 열린 뒤 잇습니다).</p>
-<p><b>업데이트가 무엇을 하는지 보입니다.</b> 받는 동안 「v4.11.1 내려받는 중 · 42%」 와 막대가 서고, 바꾸는 동안은 창 전체에 「Ocul 을 새 버전으로 바꾸고 있어요」 가 뜬 뒤 다시 열립니다. 예전에는 「설치 중…」 단추만 보이다 창이 말없이 사라졌습니다. macOS · Linux 도 같습니다.</p>
+<p><b>업데이트가 무엇을 하는지 보입니다.</b> 받는 동안 「v4.11.2 내려받는 중 · 42%」 와 막대가 서고, 바꾸는 동안은 창 전체에 「Ocul 을 새 버전으로 바꾸고 있어요」 가 뜬 뒤 다시 열립니다. 예전에는 「설치 중…」 단추만 보이다 창이 말없이 사라졌습니다. macOS · Linux 도 같습니다.</p>
 <p><b>Windows 설치 파일이 Ocul 의 모양을 입었습니다.</b> 기본 NSIS 그림 대신 앱 아이보리 위의 아이콘, 바닥의 「Nullsoft Install System」 대신 저작권 줄, 「…(을)를 설치할 것입니다 · 모든 프로그램을 종료하여 주시기 바랍니다」 대신 Ocul 이 무엇인지 말하는 환영 문구와 「Ocul 바로 열기」. 설치가 끝나면 로그 쪽에서 「다음」 을 한 번 더 누르지 않아도 마침 쪽으로 넘어갑니다. 앱 안 업데이트가 띄우는 작은 진행 창도 「Ocul 을 새 버전으로 바꾸고 있어요 · 끝나면 저절로 다시 열려요」 라고 말합니다.</p>
+<p><b>날짜 · 시간대 계산을 새 라이브러리로 옮겼습니다.</b> 관리가 끝난 chrono 대신 jiff 가 일지 시각 · 작업일 · 시간대를 맡습니다. 디스크에 적히는 시각 글자는 예전과 한 글자도 같게 맞췄고, 시간대 데이터는 예전처럼 앱에 들어 있습니다. 데이터가 더 새로워져, 2026년에 규칙이 바뀐 캐나다 서부 · 중부와 모로코의 현지 시각이 이제 맞습니다.</p>
       </div>
     </section>
     <section class="cl-rel">
