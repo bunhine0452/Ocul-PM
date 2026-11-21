@@ -769,6 +769,7 @@ export const ko = {
   "diff.unrecorded.label": "일지 없음",
   "diff.fileCount": "{n}개 파일",
   "diff.recorded.label": "일지에 있음",
+  "diff.allClear": "볼 것이 없어요. 모든 변경이 일지에 있고 검증이 섰어요.",
   "diff.recorded.count": "{files}개 파일 · 일지 {n}",
   "diff.openEntry": "일지 열기",
   "diff.unrecorded.title": "이 변경을 남긴 일지가 없어요",

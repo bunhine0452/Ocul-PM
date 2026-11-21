@@ -12,6 +12,7 @@ import { projectFileApi } from "@/api/projectFile";
 import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { ManualEntryModalV2 } from "@/features/oculpm/ManualEntryModalV2";
+import { normalizeJournalRef } from "@/features/oculpm/useJournalPlanLinks";
 import { useJournalEvents } from "@/features/oculpm/useOculpmLive";
 import { requestSendToClaude } from "@/features/terminal/sendToClaude";
 import { useT } from "@/i18n";
@@ -95,6 +96,15 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
   }, [list.groups, changes, entries]);
   const generated = useMemo(() => generatedSet(changes, list.marked), [changes, list.marked]);
   const missing = useMemo(() => new Set(missingGroupKeys(buckets.groups, entries)), [buckets.groups, entries]);
+  // 볼 것이 없다(11-22) — 일지 없는 변경이 없고, 모든 묶음의 일지 요약을 읽었고, 검증 없는 묶음이 없다. 요약을 못
+  // 읽은 묶음이 하나라도 있으면 말하지 않는다(못 읽으면 빈 지도라 「검증 없음」 도 안 선다 — 모르는 것이다).
+  const allClear =
+    buckets.known &&
+    entriesReady &&
+    changes.length > 0 &&
+    buckets.unrecorded.length === 0 &&
+    missing.size === 0 &&
+    buckets.groups.every((g) => g.entry_path != null && entries.has(normalizeJournalRef(g.entry_path)));
 
   // 처음 고르기는 묶음 · 생성 표지가 올 때까지(최대 300ms) 미룬다 — 가장 최근 파일을 먼저 골랐다가 일지
   // 없는 첫 파일로 다시 튀며 첫 진입이 세 번 흔들렸다. 표지를 안 기다리면 `bindings.ts` 를 처음 골랐다.
@@ -471,6 +481,7 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
             noteCounts={noteCounts}
             commit={baseline === "last_commit" && lastCommit ? lastCommit : null}
             viewedCount={viewedN > 0 ? { n: viewedN, m: changes.length } : null}
+            allClear={allClear}
           />
           <div className="chg-main">
             {list.enrichError ? (

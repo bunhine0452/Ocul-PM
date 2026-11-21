@@ -28,6 +28,13 @@
 .chg-commit .mono { color: var(--text); font-variant-numeric: tabular-nums; }
 .chg-viewed { flex: none; margin-left: auto; white-space: nowrap; }
 .chg-viewed .mono { color: var(--text); font-variant-numeric: tabular-nums; }
+/* 볼 것 없음(11-22) — 목록 머리의 회색 ✓ 한 줄. 긴 문장은 줄을 바꾼다(목록 칸은 좁다). */
+.chg-clear {
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  margin: 0; padding: var(--space-4) var(--space-6) 0;
+  font-size: var(--fs-3); color: var(--text-2);
+}
+.chg-clear > svg { flex: none; margin-top: var(--space-1); }
 /* 묶음 머리 — 칩 하나 + 개수. 스크롤 중 붙는다 (불투명이 아니면 행이 비친다). */
 .chg-bh {
   position: sticky; top: 0; z-index: var(--z-sticky);

@@ -1,5 +1,5 @@
 import { memo, useMemo, type Ref } from "react";
-import { ChevronDown, ChevronRight } from "@/components/Icons";
+import { CheckMark, ChevronDown, ChevronRight } from "@/components/Icons";
 import { evidenceStateOf } from "@/features/oculpm/evidenceState";
 import { timeLabel } from "@/features/oculpm/JournalRow";
 import { TRIGGER_META } from "@/features/oculpm/triggerMeta";
@@ -39,6 +39,11 @@ interface ChangeFileListProps {
   commit: { short_sha: string; subject: string } | null;
   /** 본 것 n/m — 하나라도 봤을 때만. */
   viewedCount: { n: number; m: number } | null;
+  /**
+   * 볼 것이 없다(11-22) — 일지 없는 변경이 없고 모든 묶음에 검증이 섰다. 목록 머리에 그 한 줄을 세운다:
+   * 파일 200개가 바뀐 날 「검증 없음」 이 하나도 없는지 묶음 메타를 다 훑어야 알 수 있었다.
+   */
+  allClear?: boolean;
 }
 
 /**
@@ -129,6 +134,7 @@ export function ChangeFileList({
   noteCounts,
   commit,
   viewedCount,
+  allClear = false,
 }: ChangeFileListProps) {
   const { t, lang } = useT();
   const byPath = useMemo(() => new Map(changes.map((c) => [c.path, c] as const)), [changes]);
@@ -199,6 +205,13 @@ export function ChangeFileList({
             </span>
           ) : null}
         </div>
+      ) : null}
+      {allClear ? (
+        // 회색 ✓ 한 줄 — 통과는 색으로 외치지 않는다(영수증 규칙 1). 오늘의 「지금은 볼 것이 없어요」 와 같은 자리의 말.
+        <p className="chg-clear">
+          <CheckMark size={13} aria-hidden="true" />
+          <span>{t("diff.allClear")}</span>
+        </p>
       ) : null}
       {buckets.known ? (
         <>

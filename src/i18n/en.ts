@@ -758,6 +758,7 @@ export const en: Record<keyof typeof ko, string> = {
   "diff.unrecorded.label": "No journal",
   "diff.fileCount": "{n} {n|file|files}",
   "diff.recorded.label": "In journal",
+  "diff.allClear": "Nothing needs you. Every change is in a journal with verification.",
   "diff.recorded.count": "{files} {files|file|files} · {n} {n|entry|entries}",
   "diff.openEntry": "Open entry",
   "diff.unrecorded.title": "No journal entry records this change",
