@@ -165,16 +165,17 @@ function useRowText(ex: TodayException): RowText {
     case "evidence":
       return { title: ex.entry.title, meta: null };
     case "autoBlocked": {
-      // 가장 최근에 막힌 것 한 줄(도구 · 무엇을)과 시각 — 나머지는 수로, 전문은 툴팁으로.
+      // 가장 최근에 막힌 것 — 도구 이름은 본문 서체, 그 도구가 하려던 것(명령 첫 줄 · 경로 · 주소)만 고정폭이다
+      // (영수증 규칙 2: 기계 글씨만 고정폭). 둘을 붙여 그리면 「Bash git push …」 가 명령 한 줄처럼 읽혔다.
+      // 하려던 것을 모르는 도구(MCP)는 이름이 곧 기계 글씨다. 나머지는 수로, 전문은 툴팁으로.
       const [first, ...rest] = ex.items;
-      const line = (b: (typeof ex.items)[number]) => (b.what ? `${b.tool} ${b.what}` : b.tool);
-      const head = line(first);
-      const shown = rest.length > 0 ? t("today.check.autoBlockedMore", { first: head, n: rest.length }) : head;
+      const machine = first.what || first.tool;
+      const shown = rest.length > 0 ? t("today.check.autoBlockedMore", { first: machine, n: rest.length }) : machine;
       const when = whenLabel(first.at);
       return {
         title: t("today.check.autoBlockedTitle", { n: ex.items.length }),
-        meta: metaLine([monoPart(shown, head), mono(when)]),
-        metaTitle: ex.items.map((b) => metaText([line(b), b.reason, whenLabel(b.at)])).join("\n"),
+        meta: metaLine([first.what ? first.tool : null, monoPart(shown, machine), mono(when)]),
+        metaTitle: ex.items.map((b) => metaText([b.tool, b.what, b.reason, whenLabel(b.at)])).join("\n"),
       };
     }
     case "unrecorded": {

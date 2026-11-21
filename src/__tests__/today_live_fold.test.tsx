@@ -51,7 +51,7 @@ describe("Working now — 40 sessions", () => {
     const sessions = Array.from({ length: 40 }, (_, i) => live(i, i % 20));
     const { container } = render(<LiveCard sessions={sessions} now={NOW} term={null} onShowTerminal={vi.fn()} />);
     expect(rows(container)).toHaveLength(0);
-    const fold = screen.getByRole("button", { name: `${t("today.live.noneQuiet", { n: 30 })} 40` });
+    const fold = screen.getByRole("button", { name: t("today.live.noneQuiet", { n: 30 }) });
     expect(fold.getAttribute("aria-expanded")).toBe("false");
     expect(container.querySelector(".tdy-warn")).toBeNull();
     expect((await axe(container, AXE_OPTIONS)).violations).toEqual([]);
@@ -63,7 +63,7 @@ describe("Working now — 40 sessions", () => {
     expect(rows(container)).toHaveLength(LIVE_LIMIT);
     const hiddenQuiet = 12 - LIVE_LIMIT;
     const fold = screen.getByRole("button", {
-      name: `${t("today.live.rest")} · ${t("today.live.restQuiet", { m: hiddenQuiet })} ${40 - LIVE_LIMIT}`,
+      name: `${t("today.live.rest")} ${40 - LIVE_LIMIT} · ${t("today.live.restQuiet", { m: hiddenQuiet })}`,
     });
     // 접힌 조용한 세션이 있다는 것은 색으로도 선다 — 접혀서 예외가 사라지면 안 된다.
     expect(fold.querySelector(".tdy-warn")).not.toBeNull();

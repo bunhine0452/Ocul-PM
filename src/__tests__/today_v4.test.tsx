@@ -440,12 +440,11 @@ describe("확인할 것 — 종류와 순서", () => {
     await waitFor(() => expect(pills()).toEqual([t("today.check.kind.autoBlocked")]));
     const card = checkCard();
     expect(within(card).getByText(t("today.check.autoBlockedTitle", { n: 3 }))).toBeInTheDocument();
-    // 줄에는 가장 최근 것 하나 — 나머지는 수로.
-    expect(within(card).getByText("Bash git push --force origin main")).toBeInTheDocument();
+    // 줄에는 가장 최근 것 하나 — 도구 이름은 본문 서체, 하려던 것만 고정폭. 나머지는 수로.
+    expect(within(card).getByText("git push --force origin main").className).toBe("mono");
+    expect(within(card).getByText("Bash").closest(".mono")).toBeNull();
     expect(within(card).queryByText(/deploy\/prod\.env/)).toBeNull();
-    expect(card.textContent).toContain(
-      t("today.check.autoBlockedMore", { first: "Bash git push --force origin main", n: 2 }),
-    );
+    expect(card.textContent).toContain(t("today.check.autoBlockedMore", { first: "git push --force origin main", n: 2 }));
     fireEvent.click(within(card).getByRole("button", { name: t("today.check.dismissWaiting") }));
     await waitFor(() => expect(fx.blockedDismissed).toBe(1));
   });

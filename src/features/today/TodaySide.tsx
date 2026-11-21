@@ -123,18 +123,19 @@ export function LiveCard({
       {rest.length > 0 ? (
         <Disclosure
           className="tdy-live-rest"
-          label={
+          // 이름 → 수 → 단서 차례다. 단서(접힌 쪽의 조용한 세션)를 이름에 넣으면 「기록 없음 22 35」 처럼 두 수가
+          // 붙어 읽혔다. 조용한 세션이 하나도 없을 때는 문장이 곧 답이라 수를 붙이지 않는다 — 몇 개인지는 카드
+          // 머리가 이미 말한다(「…없어요 40」 은 문장 뒤에 수가 매달렸다).
+          label={restQuiet > 0 || shown.length > 0 ? t("today.live.rest") : t("today.live.noneQuiet", { n: QUIET_MINUTES })}
+          count={
             restQuiet > 0 ? (
               <>
-                {t("today.live.rest")} · <span className="tdy-warn">{t("today.live.restQuiet", { m: restQuiet })}</span>
+                {rest.length} · <span className="tdy-warn">{t("today.live.restQuiet", { m: restQuiet })}</span>
               </>
             ) : shown.length > 0 ? (
-              t("today.live.rest")
-            ) : (
-              t("today.live.noneQuiet", { n: QUIET_MINUTES })
-            )
+              rest.length
+            ) : undefined
           }
-          count={rest.length}
         >
           <ul className="tdy-list">{rest.map(row)}</ul>
         </Disclosure>

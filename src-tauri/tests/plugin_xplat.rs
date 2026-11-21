@@ -1032,6 +1032,8 @@ fn mcp_launch(plugin_root: &Path, project: &Path) -> Command {
 }
 
 /// 플러그인의 `bin/` 을 임시 폴더로 옮긴다 — 리포 안에서 돌리면 개발 빌드 후보가 먼저 잡힌다.
+/// 쓰는 곳이 Windows 실행기 시험뿐이라 그 OS 에서만 짓는다 (macOS clippy 가 안 쓰는 함수로 잡았다).
+#[cfg(windows)]
 fn isolated_plugin_bin(dir: &Path) -> PathBuf {
     let plugin = dir.join("plugin");
     for rel in [

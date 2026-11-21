@@ -664,7 +664,7 @@ export const ko = {
   // 자동 모드가 막은 행동 (플러그인 PermissionDenied 훅, 11-22) — 그때 Claude 는 멈추지 않는다.
   "today.check.kind.autoBlocked": "자동 막음",
   "today.check.autoBlockedTitle": "자동 모드가 행동 {n}건을 막았어요",
-  "today.check.autoBlockedMore": "{first} 외 {n}건",
+  "today.check.autoBlockedMore": "{first} 외 {n}",
   "today.check.dismissBlockedFailed": "막힌 행동을 지우지 못했어요 — {error}",
   "today.unread.more": "{n}건 더",
   "today.unread.allReadPartial": "{n}건 표시 · {m}건 못 함",
