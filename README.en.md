@@ -70,20 +70,21 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
 
-## 🚀 v4.11 — More exact, quieter, faster
+## 🚀 v4.12 — Keeping up when agents run ahead
 
-A pass over the UI, UX and terminal in one go. We read the source and docs of eleven Orca-like apps and the state of terminal tech, audited the five screens and the terminal in code and on real screenshots, and shipped 60 items from that backlog.
+Claude Code no longer asks before every command (auto mode), hooks do the checking, and work runs in the cloud or in worktrees and comes back through git. This release fixes the places where Ocul still assumed a person sitting at the terminal.
 
-- **A terminal built for Claude Code** — Shift+Enter is a newline inside agent screens, a session is named after its conversation, output flow control keeps big output from freezing the window, pastes are cleaned before they go in (and an image-only clipboard reaches Claude), ⌘L sends the selected output to Claude. The app keeps a Claude Code theme file (`~/.claude/themes/ocul.json`) that matches the terminal; you pick it with `/theme`.
-- **⌘J jumps to the waiting session** — longest-waiting first; a notification from a background window lands on that session. ⌘K now reaches sessions, actions and Hangul initial-consonant search, and one-letter keys work on a Korean keyboard layout.
-- **Today in one column, journals evidence-first** — Today is one number line and one "Needs your eyes" list and no longer rebuilds when you switch tabs. The verification box in a journal no longer gets squashed, and the planner speaks the same four verdict states as Today, with "Run in shell" for the check command behind a confirm dialog.
-- **The diff screen is an exact copy** — lines starting with `--` or `++` are no longer dropped; changed words, ignore-whitespace and "viewed" arrived; a cut diff says how much in numbers. Settings is one status table.
-- **Two machines, piled-up records** — "Ask Claude to push", journals pulled in today, days since last sync, journals for code that's gone fold away and drop in search, and a plan with nothing left can be closed.
+- **The plugin's MCP tools on Windows too** — up to 4.11 the server always showed as failed in `/mcp`, so the agent wrote the files by hand. `journal_write` · `plan_update` · `ask_user` now connect on Windows.
+- **Closing without a verdict gets one nudge** — when a conversation closes a plan item but left no record of running the plan's check command, the Stop hook says so once per conversation. The app neither runs the check nor reads its result — it only points.
+- **Actions auto mode denied · new kinds of waiting** — what the classifier blocked shows up as one row in Today's "Needs your eyes" (one row however many), and a background agent's question or an MCP input request now count as "Claude is waiting".
+- **Files you only pulled are not "changed since the pass"** — files rewritten by a clone, pull or worktree stay quiet when their content is what the verdict saw. A cloud session without the app is now asked for a journal entry once, too.
+- **Screens that stay quiet at volume** — with many sessions only the long-silent ones are rows, long lists draw 30 or 50 rows at a time, `u` in the Journal toggles "unverified only", the diff screen says when nothing needs you. The terminal list and the journal detail reread only when they must.
 
 ## Earlier releases at a glance
 
 The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
 
+- **More exact, quieter, faster** (4.11) — a terminal built for Claude Code (Shift+Enter newline · sessions named after their conversation · no freeze on big output · cleaned pastes), ⌘J to the waiting session, Today in one column, an exact diff with "viewed", "Run in shell" for the check command, a Claude Code theme file
 - **A smoother Windows install and update** (4.11.2) — a % bar while downloading and "Updating Ocul" while it swaps, waiting for a running claude in the terminal before swapping, updates no longer logging sessions as crashes, and an installer that looks like Ocul (art · welcome text · "Open Ocul now").
 - **Working across a Mac and a Windows PC** (4.10) — a ✓ pulled in from another machine reads "Not checked here" (the result line ends with the OS it ran on), "Only on this machine" on Today (uncommitted changes · unpushed commits), the project colour follows the repository through `.oculpm/config.toml`, and an older app no longer writes the journaling-spec file (`journal-spec.md`) back.
 - **Windows: Korean typed twice in the terminal, SessionEnd hook cut off** (4.9.3) — the pane where you pressed Alt+V entered every Korean syllable twice, and the plugin hook cut off with "Hook cancelled" when Claude Code exits (it now ends in 0.24s and finishes the verdict and record after).
