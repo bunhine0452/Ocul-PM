@@ -121,7 +121,8 @@ export function JournalHead({
           type="button"
           className="jl-only"
           aria-pressed={onlyMissing}
-          title={t("journal.filterNoEvidenceTitle")}
+          // 키는 툴팁에 — 목록 칸(320)의 이 줄에는 키 표기 한 칸이 설 자리가 없다. 알린 키 = 듣는 키(치트시트도 같다).
+          title={`${t("journal.filterNoEvidenceTitle")} (u)`}
           onClick={onToggleMissing}
         >
           {t("journal.filterNoEvidence")}

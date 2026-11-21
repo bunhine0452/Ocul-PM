@@ -99,6 +99,8 @@ const JOURNAL: ShortcutGroup = {
     { keys: "j / k · ↑ / ↓", labelKey: "keys.entryMove" },
     { keys: "/ · ⌘F", labelKey: "keys.entryFilter" },
     { keys: "v", labelKey: "keys.entryRead" },
+    // 「검증 없는 것만」 켜고 끄기(11-22) — u → v → v … 로 검증 없는 일지를 키보드만으로 차례로 읽는다.
+    { keys: "u", labelKey: "keys.entryOnlyMissing" },
     { keys: "↩", labelKey: "keys.entryOpen" },
     { keys: "Esc", labelKey: "keys.entryBack" },
     { keys: "[ / ]", labelKey: "keys.entryFiles" },

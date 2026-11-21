@@ -437,6 +437,14 @@ export function JournalScreenV2({
     requestAnimationFrame(() => focusRow(listRef.current, first.relative_path));
   }, [query, error, loading, searching, found.forQuery, feed.days, order, choose]);
 
+  // 「검증 없는 것만」 켜고 끄기 — 머리의 단추와 u 키가 같은 길이다. 실어 온 날(오늘의 「N건 더」)은 여기서 풀린다.
+  const toggleMissing = () => {
+    setOnlyMissing((v) => !v);
+    setMissingDay(null);
+    setDayOnly(false);
+    setRowLimit(ROW_LIMIT);
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const chord = readChord(e);
     if (chord.mod || e.altKey) return;
@@ -468,6 +476,11 @@ export function JournalScreenV2({
     } else if (key === "v") {
       e.preventDefault();
       detailActions.current?.toggleVerified();
+    } else if (key === "u") {
+      // 「검증 없는 것만」 을 켜고 끈다(11-22) — 키보드만으로 u → v → v … 로 검증 없는 일지를 차례로 읽는다.
+      // 누르고 있어 되풀이된 키는 받지 않는다(켰다 껐다 깜빡인다).
+      e.preventDefault();
+      if (!e.repeat) toggleMissing();
     } else if (key === "[" || key === "]") {
       e.preventDefault();
       detailActions.current?.stepFile(key === "]" ? 1 : -1);
@@ -634,12 +647,7 @@ export function JournalScreenV2({
               }}
               onlyMissing={onlyMissing}
               missingCount={onlyMissing && days ? vis.total : null}
-              onToggleMissing={() => {
-                setOnlyMissing((v) => !v);
-                setMissingDay(null);
-                setDayOnly(false);
-                setRowLimit(ROW_LIMIT);
-              }}
+              onToggleMissing={toggleMissing}
               dayLabel={onlyMissing && missingDay ? t("journal.dayScope", { day: dayWord(missingDay, lang, t, todayKey ?? undefined) }) : null}
               dayOnly={scopeDay != null}
               onToggleDay={() => {
@@ -676,7 +684,15 @@ export function JournalScreenV2({
                 error ? null : loading && days == null ? (
                   <SkeletonList rows={4} height={36} />
                 ) : (
-                  <p className="jl-empty">{filtered ? t("journal.noMatch") : t("journal.empty")}</p>
+                  // 「검증 없는 것만」 만 건 채 비었으면 볼 것이 없다는 좋은 소식이다 — 「조건에 맞는 일지가 없어요」 는
+                  // 찾다 못 찾은 말투였다. 더 받을 쪽이 남았으면(아직 다 못 봤다) 그렇게 말하지 않는다.
+                  <p className="jl-empty">
+                    {onlyMissing && !searching && filter === "all" && !morePages
+                      ? t(scopeDay != null ? "journal.noneMissingDay" : "journal.noneMissing")
+                      : filtered
+                        ? t("journal.noMatch")
+                        : t("journal.empty")}
+                  </p>
                 )
               }
               footer={
