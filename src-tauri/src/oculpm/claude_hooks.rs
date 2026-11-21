@@ -43,9 +43,16 @@ pub struct HookEvent {
     /// SessionStart 전용 ("startup" 등).
     #[serde(default)]
     pub source: Option<String>,
-    /// SessionEnd 전용.
+    /// SessionEnd 의 끝난 까닭, PermissionDenied 의 분류기가 말한 이유.
     #[serde(default)]
     pub reason: Option<String>,
+    /// PermissionDenied 전용 — 자동 모드가 막은 도구 (`Bash` · `Write` · `mcp__…`).
+    #[serde(default)]
+    pub tool_name: Option<String>,
+    /// PermissionDenied 전용 — 그 도구의 인자. 모양은 도구마다 다르고, 읽는 쪽
+    /// (`claude_blocked::summarize`)이 한 줄만 뽑는다.
+    #[serde(default)]
+    pub tool_input: Option<serde_json::Value>,
     /// Notification 전용 — `permission_prompt`(약 6초 뒤) · `idle_prompt`(60초 뒤) 등.
     #[serde(default)]
     pub notification_type: Option<String>,
@@ -251,6 +258,8 @@ mod tests {
             cwd: None,
             source: None,
             reason: None,
+            tool_name: None,
+            tool_input: None,
             notification_type: None,
             message: None,
             oculpm_ts: None,

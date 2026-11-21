@@ -44,6 +44,7 @@ const PILL: Record<ChipKind, { key: I18nKey; tone: string }> = {
   verdict: { key: "today.check.kind.verdict", tone: "danger" },
   stale: { key: "today.check.kind.stale", tone: "warn" },
   elsewhere: { key: "today.check.kind.elsewhere", tone: "warn" },
+  autoBlocked: { key: "today.check.kind.autoBlocked", tone: "warn" },
   unrecorded: { key: "today.chip.noJournal", tone: "warn" },
   silent: { key: "today.chip.noJournal", tone: "warn" },
   blocked: { key: "today.check.kind.blocked", tone: "danger" },
@@ -163,6 +164,19 @@ function useRowText(ex: TodayException): RowText {
       return { title: t("today.check.elsewhereTitle", { plan: ex.plan.title, os: osLabel(ex.os) }), meta: null };
     case "evidence":
       return { title: ex.entry.title, meta: null };
+    case "autoBlocked": {
+      // 가장 최근에 막힌 것 한 줄(도구 · 무엇을)과 시각 — 나머지는 수로, 전문은 툴팁으로.
+      const [first, ...rest] = ex.items;
+      const line = (b: (typeof ex.items)[number]) => (b.what ? `${b.tool} ${b.what}` : b.tool);
+      const head = line(first);
+      const shown = rest.length > 0 ? t("today.check.autoBlockedMore", { first: head, n: rest.length }) : head;
+      const when = whenLabel(first.at);
+      return {
+        title: t("today.check.autoBlockedTitle", { n: ex.items.length }),
+        meta: metaLine([monoPart(shown, head), mono(when)]),
+        metaTitle: ex.items.map((b) => metaText([line(b), b.reason, whenLabel(b.at)])).join("\n"),
+      };
+    }
     case "unrecorded": {
       const [first, ...rest] = ex.files;
       const files = rest.length > 0 ? t("today.check.moreFiles", { first, n: rest.length }) : first;

@@ -52,7 +52,19 @@ pub fn apply_waiting(
         "Notification" => {
             let kind = match ev.notification_type.as_deref() {
                 Some("permission_prompt") => "permission",
-                Some("idle_prompt") => "idle",
+                // 입력을 기다린다 — 턴이 끝나고 60초(idle_prompt), 백그라운드 에이전트의 물음
+                // (agent_needs_input), MCP 서버의 입력 요청(elicitation_*). 자동 모드에서는 허락
+                // 묻기가 드물어지고 이쪽이 사람을 기다리는 흔한 모양이 된다 (11-22).
+                Some(
+                    "idle_prompt"
+                    | "agent_needs_input"
+                    | "elicitation_dialog"
+                    | "elicitation_url_dialog",
+                ) => "idle",
+                // 그 입력 요청에 답했다 — 더는 기다리지 않는다.
+                Some("elicitation_complete" | "elicitation_response") => {
+                    return waiting.remove(&ev.session_id).is_some();
+                }
                 _ => return false,
             };
             let next = ClaudeWaiting {

@@ -14,6 +14,7 @@ pub mod atomic_io;
 pub mod cache;
 pub mod cas;
 pub mod check_infer;
+pub mod claude_blocked;
 pub mod claude_hooks;
 pub mod claude_waiting;
 pub mod config;

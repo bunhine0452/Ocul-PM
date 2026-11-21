@@ -15,6 +15,7 @@ import type {
   JournalEntrySummary,
   JournalMissingSignal,
   PlanVerdict,
+  ClaudeBlocked,
   ClaudeQuestion,
   ClaudeWaiting,
   TermInfo,
@@ -32,6 +33,7 @@ export type TodayException =
   | { kind: "verdict"; key: string; plan: DigestPlan; verdict: PlanVerdict }
   | { kind: "stale"; key: string; plan: DigestPlan; verdict: PlanVerdict; files: string[] }
   | { kind: "elsewhere"; key: string; plan: DigestPlan; verdict: PlanVerdict; os: string }
+  | { kind: "autoBlocked"; key: string; items: ClaudeBlocked[] }
   | { kind: "evidence"; key: string; entry: JournalEntrySummary }
   | { kind: "unrecorded"; key: string; files: string[] }
   | { kind: "silent"; key: string; signals: JournalMissingSignal[] }
@@ -49,6 +51,7 @@ export const EXCEPTION_ORDER: readonly ExceptionKind[] = [
   "verdict",
   "stale",
   "elsewhere",
+  "autoBlocked",
   "evidence",
   "unrecorded",
   "silent",
@@ -75,6 +78,8 @@ export interface ExceptionInput {
   hookWaiting?: readonly ClaudeWaiting[];
   /** Claude 가 앱에 물은 질문 (MCP ask_user) — 답 칸이 그 줄에 선다. */
   questions?: readonly ClaudeQuestion[];
+  /** 자동 모드가 막은 행동 (플러그인 PermissionDenied 훅), 최근 것부터 — 몇 건이든 한 줄이다. */
+  autoBlocked?: readonly ClaudeBlocked[];
 }
 
 /** 같은 계획의 항목끼리 — 사람 몫이 열 개여도 계획마다 한 행이다. 순서는 처음 본 순서. */
@@ -123,6 +128,11 @@ export function buildExceptions(input: ExceptionInput): TodayException[] {
       out.push({ kind: "elsewhere", key: `elsewhere:${plan.plan_id}`, plan, verdict: plan.last_verdict, os: plan.verdict_from });
     }
   }
+  // 자동 모드가 막은 행동 — 그때 Claude 는 멈추지 않으니 기다림 아래, 판정 다음이다. 막은 것이 옳았는지와
+  // 그 때문에 무엇이 안 됐는지는 사람이 본다. 30건이 막혀도 한 줄이다(화면은 볼 것에 비례한다).
+  if (input.autoBlocked && input.autoBlocked.length > 0) {
+    out.push({ kind: "autoBlocked", key: "auto-blocked", items: [...input.autoBlocked] });
+  }
   for (const entry of input.entries) {
     if (input.verifiedLocally?.has(entry.relative_path)) continue;
     if (evidenceStateOf(entry) === "missing") {
@@ -160,7 +170,7 @@ type ExceptionOf<K extends ExceptionKind> = Extract<TodayException, { kind: K }>
 
 /**
  * 오늘 화면의 세 자리 (화면 검사 {#today-split} · {#today-mine}).
- * - `first`  먼저 볼 것 — 지금 손댈 것(질문 · 기다림 · 실패 · 일지 없는 변경 · 일지 없이 끝난 대화 · 막힘 · 플러그인).
+ * - `first`  먼저 볼 것 — 지금 손댈 것(질문 · 기다림 · 실패 · 자동 모드가 막은 행동 · 일지 없는 변경 · 일지 없이 끝난 대화 · 막힘 · 플러그인).
  * - `unread` 검증 없이 끝난 일지 — 먼저 볼 것 아래 한 묶음(`UNREAD_LIMIT` 행 + 「N건 더」).
  * - `mine`   내 차례 — 계획에 적힌 사람 몫. 날마다 바뀌는 일이 아니라 날짜 줄의 수 하나로만 선다.
  * 키보드 순서(first → 「다음」 → 보이는 unread)는 화면이 쥔다. 배지는 `first` 만 센다(「다음」 행도 세지 않는다).

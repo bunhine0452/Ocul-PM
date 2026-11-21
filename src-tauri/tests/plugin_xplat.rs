@@ -637,9 +637,12 @@ fn every_codex_hook_has_a_windows_variant_calling_the_same_script() {
 /// 넣지 않는다(모르는 키로 훅 설정이 거부되면 Codex 사용자의 훅이 통째로 죽는다). `PreToolUse`(재수정 경고,
 /// 11-02): Codex 에도 이벤트는 있지만 이 훅의 matcher 는 Claude 의 편집 도구 이름(Edit · Write · MultiEdit ·
 /// NotebookEdit)이다 — Codex 는 다른 도구로 고쳐서 걸리지 않는다. 걸리지 않는 훅을 싣지 않는다.
+/// `PermissionDenied`(11-22 #auto-blocked): 자동 모드의 분류기가 도구 호출을 막았을 때만 온다 — 자동
+/// 모드도 그 이벤트도 Claude Code 의 것이다.
 const CLAUDE_ONLY_EVENTS: &[&str] = &[
     "StopFailure",
     "Notification",
+    "PermissionDenied",
     "UserPromptSubmit",
     "PreToolUse",
 ];

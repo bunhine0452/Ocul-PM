@@ -15,7 +15,7 @@ Ocul-PM 은 「일지 앱」이 아니다. **에이전트가 한 일을 사람�
 1. 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심으면, 터미널의 Claude Code 가 작업 하나를 끝낼 때마다 `.oculpm/journal/` 에 사람이 읽는 마크다운 일지를 남긴다.
 2. 그 일지는 앱을 켜 두었을 때 몇 초 안에 작업 일지 화면과 오늘 화면에 뜬다.
 3. 일지마다 그 시점의 변경 diff 가 붙고, 일지 상세와 변경 화면은 네트워크 없이 그 diff 를 줄 단위로 보여 준다.
-4. 오늘 화면은 사람이 볼 것만 펼친다 — 판정 실패 · 명령 증거 없는 일지 · 어느 일지에도 없는 변경 · 막힌 항목 · 사람 몫 결정. 증거가 선 일은 한 줄로 접힌다.
+4. 오늘 화면은 사람이 볼 것만 펼친다 — 판정 실패 · 명령 증거 없는 일지 · 어느 일지에도 없는 변경 · 막힌 항목 · 사람 몫 결정 · Claude 의 자동 모드가 막은 행동. 증거가 선 일은 한 줄로 접힌다.
 5. 다음 날 새 대화를 열면 플러그인의 SessionStart 훅이 최근 계획의 완료 조건 · 확인 명령 · **마지막 판정** · 미완 항목과 마지막 일지 3건을 시작 컨텍스트에 싣는다 — 어제를 다시 설명하지 않는다.
 6. 계획은 `.oculpm/planner/*.md` 마크다운이 원본이고, 에이전트가 `plan_update` 로 갱신하면 계획 화면이 따라 바뀐다. 확인 명령을 돌린 결과는 `판정 ✓|✗ <결과 끝 줄>` 한 줄로 남고, 시작 훅과 앱이 **같은 규칙**으로 읽는다.
 7. 데이터는 전부 프로젝트의 `.oculpm/` 폴더와 로컬 SQLite 캐시에 있고, 서버도 계정도 없다. **앱은 LLM 을 부르지 않고, 웹뷰는 바깥 호스트에 닿지 않는다.** 기기를 떠나는 것은 사용자가 시작한 것(업데이트 확인 · 연 링크)뿐이며 그 목록은 `src-tauri/tests/egress_inventory.rs` 가 빌드에서 지킨다.
@@ -71,8 +71,8 @@ Ocul-PM 은 「일지 앱」이 아니다. **에이전트가 한 일을 사람�
 |---|---|
 | 1 · 6 | `src-tauri/tests/mcp_write_to_cache.rs` — MCP 로 쓴 일지가 디스크를 거쳐 캐시 질의에 선다 |
 | 2 | `watcher_backpressure.rs` · 리눅스 새 폴더 경합(v3.13.7) |
-| 4 | `src/__tests__/today_v4.test.tsx` — 예외 종류별 판정 규칙, 증거가 선 묶음은 접힘, 하루 60건 픽스처에서 확인할 것만 펼쳐짐 |
-| 5 · 6 | `planner/judge.rs` 와 훅 `plan-context.sh` 가 같은 정규식 `^(판정|verdict) (✓|✗)` — `judge::tests` · `plugin_hook_no_plan.rs` 가 양쪽을 문다 |
+| 4 | `src/__tests__/today_v4.test.tsx` — 예외 종류별 판정 규칙, 증거가 선 묶음은 접힘, 하루 60건 픽스처에서 확인할 것만 펼쳐짐 · 자동 모드가 막은 행동은 몇 건이든 한 줄(`oculpm/claude_blocked.rs` 의 테스트가 한 줄만 들고 내용은 들지 않음을 잰다) |
+| 5 · 6 | `planner/judge.rs` 와 훅 `plan-context.sh` 가 같은 정규식 `^(판정|verdict) (✓|✗)` — `judge::tests` · `plugin_hook_no_plan.rs` 가 양쪽을 문다. 항목을 닫고도 판정을 안 남긴 대화는 Stop 훅이 한 번 짚는다(`verdict/check.rs` · `tests/delivery_gate.rs`) |
 | 7 | `egress_inventory.rs` · `egress_spawn_ledger.rs`(새 송출·자식 프로세스는 빌드가 막는다) · `webview_csp.rs`(connect-src 에 바깥 호스트가 돌아오면 실패) · `llm_prompt_ledger.rs` |
 | 9 | `docs/RELEASE.md` §0-2 — 한 달에 한 번 확인 날, 날짜는 아래 「확인 날 기록」. `bump-version` 이 31일 넘은(또는 없는) 확인 날과 미확인 `eyes-` 항목 수를 경고 |
 | 전체 | `SECURITY.md` 외부 리뷰 주기 · `docs/launch/first-user-observation.md` 첫 사용자 관찰 · `/oculpm:redteam` 이 합류 전 반례를 찾는다 |

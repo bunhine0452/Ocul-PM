@@ -1,10 +1,12 @@
 // 지키는 것 둘 — (1) 확장은 네트워크 · 자식 프로세스에 닿지 않는다, (2) 화면 글은 전부 한국어 묶음에 있다.
 // 예외 하나: `bridge.ts` 가 앱 딥링크(`oculpm://`)를 `openExternal(appUri(…))` 로 연다 — 웹 주소는 아니다.
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const SRC = new URL(".", import.meta.url).pathname;
+// `URL.pathname` 은 Windows 에서 `/C:/…` 라 그대로 읽으면 `C:\C:\…` 가 된다 — 파일 경로로 바꿔 쓴다.
+const SRC = fileURLToPath(new URL(".", import.meta.url));
 const files = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? files(join(dir, e.name)) : e.name.endsWith(".ts") && !e.name.endsWith(".spec.ts") ? [join(dir, e.name)] : [],
@@ -24,7 +26,7 @@ describe("egress", () => {
     for (const re of FORBIDDEN) expect(code).not.toMatch(re);
     // 바깥으로 여는 것은 앱 딥링크 하나 — bridge.ts 의 appUri 를 거친 것만.
     const opens = code.match(/openExternal\(/g) ?? [];
-    if (f.endsWith("/bridge.ts")) {
+    if (f.split(sep).join("/").endsWith("/bridge.ts")) {
       expect(opens).toHaveLength(1);
       expect(code).toMatch(/openExternal\(appUri\(/);
     } else expect(opens).toHaveLength(0);

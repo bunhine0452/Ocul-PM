@@ -648,6 +648,11 @@ export const en: Record<keyof typeof ko, string> = {
   "today.check.sent": "Sent",
   "today.check.sendHint": "Press ↩ to send",
   "today.check.dismissFailed": "Couldn't clear it — {error}",
+  // Actions auto mode denied (the plugin's PermissionDenied hook, 11-22) — Claude keeps going when this happens.
+  "today.check.kind.autoBlocked": "Denied",
+  "today.check.autoBlockedTitle": "Auto mode denied {n} {n|action|actions}",
+  "today.check.autoBlockedMore": "{first} and {n} more",
+  "today.check.dismissBlockedFailed": "Couldn't clear the denied actions — {error}",
   "today.unread.more": "{n} more",
   "today.unread.allReadPartial": "Marked {n} · couldn't mark {m}",
   "today.unread.undo": "Undo",

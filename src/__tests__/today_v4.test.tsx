@@ -11,6 +11,7 @@ import type {
   Session,
   TodayDigest,
 } from "@/lib/bindings";
+import { EXCEPTION_ORDER } from "@/features/today/todayModel";
 
 // ─── 4.0 오늘 — 예외만 보여 준다 ─────────────────────────────────────────────
 //
@@ -40,6 +41,8 @@ const fx = vi.hoisted(() => ({
   sessions: [] as unknown[],
   terms: [] as unknown[],
   hookWaiting: [] as unknown[],
+  autoBlocked: [] as unknown[],
+  blockedDismissed: 0,
   dismissed: [] as string[],
   questions: [] as unknown[],
   answers: [] as Array<[string, string]>,
@@ -132,6 +135,15 @@ vi.mock("@/lib/bindings", () => {
             case "claudeWaitingDismiss":
               return (_p: number, sessionId: string) => {
                 fx.dismissed.push(sessionId);
+                return Promise.resolve(null);
+              };
+            // 봉투 없는 명령 — 자동 모드가 막은 행동 (플러그인 PermissionDenied 훅).
+            case "claudeBlocked":
+              return () => Promise.resolve(fx.autoBlocked);
+            case "claudeBlockedDismiss":
+              return () => {
+                fx.blockedDismissed += 1;
+                fx.autoBlocked = [];
                 return Promise.resolve(null);
               };
             default:
@@ -245,6 +257,8 @@ beforeEach(() => {
   fx.sessions = [];
   fx.terms = [];
   fx.hookWaiting = [];
+  fx.autoBlocked = [];
+  fx.blockedDismissed = 0;
   fx.dismissed = [];
   fx.questions = [];
   fx.answers = [];
@@ -412,6 +426,36 @@ describe("확인할 것 — 종류와 순서", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: t("today.check.openTerminal") })).toBeInTheDocument());
     expect(pills()).toEqual([t("today.check.kind.waiting")]);
     expect(screen.queryByRole("button", { name: t("today.check.dismissWaiting") })).toBeNull();
+  });
+
+  it("자동 모드가 막은 행동은 몇 건이든 한 줄 — 가장 최근 것과 수, 「알았어요」로 함께 지운다 (11-22)", async () => {
+    const at = new Date().toISOString();
+    // 최근 것부터 온다(백엔드 `claude_blocked`). 그때 Claude 는 멈추지 않으니 기다림이 아니라 따로 선다.
+    fx.autoBlocked = [
+      { session_id: "s1", tool: "Bash", what: "git push --force origin main", reason: "Blocked by classifier", at },
+      { session_id: "s1", tool: "Write", what: "deploy/prod.env", reason: null, at },
+      { session_id: "s2", tool: "mcp__db__drop_table", what: "", reason: null, at },
+    ];
+    renderToday();
+    await waitFor(() => expect(pills()).toEqual([t("today.check.kind.autoBlocked")]));
+    const card = checkCard();
+    expect(within(card).getByText(t("today.check.autoBlockedTitle", { n: 3 }))).toBeInTheDocument();
+    // 줄에는 가장 최근 것 하나 — 나머지는 수로.
+    expect(within(card).getByText("Bash git push --force origin main")).toBeInTheDocument();
+    expect(within(card).queryByText(/deploy\/prod\.env/)).toBeNull();
+    expect(card.textContent).toContain(
+      t("today.check.autoBlockedMore", { first: "Bash git push --force origin main", n: 2 }),
+    );
+    fireEvent.click(within(card).getByRole("button", { name: t("today.check.dismissWaiting") }));
+    await waitFor(() => expect(fx.blockedDismissed).toBe(1));
+  });
+
+  it("막힌 행동이 없으면 그 줄은 없다 — 기다림 · 판정 실패와 함께면 그 아래에 선다", async () => {
+    renderToday();
+    await waitFor(() => expect(screen.queryByText(t("today.check.kind.autoBlocked"))).toBeNull());
+    expect(EXCEPTION_ORDER.indexOf("autoBlocked")).toBeGreaterThan(EXCEPTION_ORDER.indexOf("hookWaiting"));
+    expect(EXCEPTION_ORDER.indexOf("autoBlocked")).toBeGreaterThan(EXCEPTION_ORDER.indexOf("verdict"));
+    expect(EXCEPTION_ORDER.indexOf("autoBlocked")).toBeLessThan(EXCEPTION_ORDER.indexOf("unrecorded"));
   });
 
   it("증거를 요구하지 않는 종류(잡일·에러 사이클)와 사람이 확인한 일지는 예외가 아니다", async () => {

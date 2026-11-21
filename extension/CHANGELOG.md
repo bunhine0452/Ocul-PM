@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 — 2026-11-22
+
+- **Claude waiting** now also covers the ways Claude waits for a person once auto mode is on and permission prompts get rare: a background agent asking for input (`agent_needs_input`) and an MCP server asking for input (`elicitation_dialog` · `elicitation_url_dialog`, cleared when it is answered). Same rules as the app, checked against the shared case table.
+
 ## 0.3.0 — 2026-11-03
 
 Works hand in hand with the Ocul app and with Claude — still without needing the app.

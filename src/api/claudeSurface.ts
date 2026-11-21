@@ -13,6 +13,7 @@
 import { commands, events } from "@/lib/bindings";
 import { call, subscribe, type Envelope } from "@/api/invoke";
 import type {
+  ClaudeBlocked,
   ClaudeQuestion,
   ClaudeWaiting,
   JournalMissingSignal,
@@ -47,6 +48,19 @@ export const hooksApi = {
   dismissWaiting: (projectId: number, sessionId: string): Promise<void> => commands.claudeWaitingDismiss(projectId, sessionId),
   /** 어느 프로젝트의 기다림이 바뀌었다. */
   onWaitingChanged: (cb: (projectId: number) => void) => subscribe(events.claudeWaitingChanged, (p) => cb(p.project_id)),
+
+  /**
+   * 자동 모드가 막은 행동들 — 플러그인 PermissionDenied 훅이 인박스에 남긴 것 (11-22 #auto-blocked). 최근 것부터.
+   * 그때 Claude 는 멈추지 않으니 기다림이 아니다 — 사람이 나중에 볼 예외다. 봉투 없이 배열을 준다.
+   */
+  blocked: async (projectId: number): Promise<ClaudeBlocked[]> => {
+    const list: unknown = await commands.claudeBlocked(projectId);
+    return Array.isArray(list) ? (list as ClaudeBlocked[]) : [];
+  },
+  /** 「알았어요」 — 이 프로젝트의 막힌 행동을 전부 지운다 (한 줄에 「N건」 으로 서므로 함께). */
+  dismissBlocked: (projectId: number): Promise<void> => commands.claudeBlockedDismiss(projectId),
+  /** 어느 프로젝트의 막힌 행동이 바뀌었다. */
+  onBlockedChanged: (cb: (projectId: number) => void) => subscribe(events.claudeBlockedChanged, (p) => cb(p.project_id)),
 
   /** Claude 가 앱에 물은 질문들 (MCP ask_user, #ask-user) — 오래된 것부터. */
   questions: (projectId: number) =>

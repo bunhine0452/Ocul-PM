@@ -334,6 +334,23 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
           { id: "plan", label: t("today.check.openPlan"), run: () => openPlan(ex.plan.plan_id) },
         ];
       }
+      case "autoBlocked": {
+        // 볼 것은 그 줄에 다 있다 — 갈 곳이 없으니 「알았어요」 하나. 믿는 자리를 알려 주는 것은 Claude 의 자동 모드 설정이다.
+        const id = `dismiss:${ex.key}`;
+        return [
+          {
+            id,
+            label: t("today.check.dismissWaiting"),
+            busy: busy.has(id),
+            run: () =>
+              void busy.run(id, () =>
+                hooksApi
+                  .dismissBlocked(projectId)
+                  .catch((e: unknown) => toast.destructive(t("today.check.dismissBlockedFailed", { error: tError(toAppError(e)) }))),
+              ),
+          },
+        ];
+      }
       case "unrecorded":
         return [{ id: "diff", label: t("today.check.viewChanges"), run: () => onNavigate("diff") }];
       case "silent": {

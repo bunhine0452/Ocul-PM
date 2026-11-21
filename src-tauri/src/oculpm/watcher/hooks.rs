@@ -3,6 +3,7 @@
 //! 자동 초안 PR-CI1 은 4.0 에서 앱 안 LLM 호출과 함께 걷었다.)
 
 use crate::db::Db;
+use crate::oculpm::claude_blocked;
 use crate::oculpm::claude_hooks::{self, HookSignal};
 use crate::oculpm::claude_waiting;
 
@@ -107,6 +108,37 @@ impl WatcherInner {
                         project_id: self.project_id,
                     }
                     .emit(handle);
+                }
+            }
+        }
+        // 자동 모드가 막은 행동 (PermissionDenied 훅, 11-22 #auto-blocked) — 오늘의 예외 한 줄이 된다.
+        if let Some(handle) = &self.app_handle {
+            use tauri::Manager;
+            if events
+                .iter()
+                .any(|ev| ev.hook_event_name == "PermissionDenied")
+            {
+                if let Some(state) = handle.try_state::<claude_blocked::ClaudeBlockedState>() {
+                    let now = crate::clock::rfc3339(crate::clock::now());
+                    // 한 줄에서 비밀을 가린다 — 일지와 같은 패턴(프로젝트 설정 포함).
+                    let patterns = crate::oculpm::redact::patterns_for_project(&self.root);
+                    let redact = |s: &str| crate::oculpm::redact::redact_text(s, &patterns).0;
+                    let changed = state.0.lock().is_ok_and(|mut all| {
+                        let list = all.entry(self.project_id).or_default();
+                        let mut changed = false;
+                        for ev in &events {
+                            changed |=
+                                claude_blocked::apply_blocked(list, ev, &self.root, &now, &redact);
+                        }
+                        changed
+                    });
+                    if changed {
+                        use tauri_specta::Event;
+                        let _ = claude_blocked::ClaudeBlockedChanged {
+                            project_id: self.project_id,
+                        }
+                        .emit(handle);
+                    }
                 }
             }
         }

@@ -40,6 +40,7 @@ import type {
   Arrived,
   ClaudePluginStatus,
   ClaudeQuestion,
+  ClaudeBlocked,
   ClaudeWaiting,
   JournalEntrySummary,
   JournalMissingSignal,
@@ -64,6 +65,8 @@ interface Values {
   plugin: ClaudePluginStatus | null;
   waiting: ClaudeWaiting[];
   questions: ClaudeQuestion[];
+  /** 자동 모드가 막은 행동 (11-22). */
+  blocked: ClaudeBlocked[];
 }
 
 type Key = keyof Values;
@@ -83,7 +86,7 @@ type TodayState = { [K in Key]: Slot<Values[K]> } & {
   verified: ReadonlyMap<string, number>;
 };
 
-const ALL_KEYS: readonly Key[] = ["brief", "digest", "unrecorded", "silent", "team", "local", "arrived", "plugin", "waiting", "questions"];
+const ALL_KEYS: readonly Key[] = ["brief", "digest", "unrecorded", "silent", "team", "local", "arrived", "plugin", "waiting", "questions", "blocked"];
 /** 날이 바뀌면 비우고 다시 읽는 것. */
 const DAY_KEYS: readonly Key[] = ["brief", "unrecorded", "silent", "team", "arrived"];
 const JOURNAL_KEYS: readonly Key[] = ["brief", "unrecorded", "silent", "team", "local", "arrived"];
@@ -95,7 +98,7 @@ const EMPTY_SLOT: Slot<never> = { value: undefined, settled: false, error: null,
 
 function emptyState(): TodayState {
   const e = EMPTY_SLOT;
-  return { brief: e, digest: e, unrecorded: e, silent: e, team: e, local: e, arrived: e, plugin: e, waiting: e, questions: e, verified: new Map() };
+  return { brief: e, digest: e, unrecorded: e, silent: e, team: e, local: e, arrived: e, plugin: e, waiting: e, questions: e, blocked: e, verified: new Map() };
 }
 
 type Loader<T> = (projectId: number, workday: string | null) => (() => Promise<T>) | null;
@@ -146,6 +149,8 @@ const LOADERS: { [K in Key]: Loader<Values[K]> } = {
     const list = await hooksApi.questions(pid);
     return Array.isArray(list) ? list : [];
   },
+  // 못 읽으면 빈 목록 — 그 줄만 안 선다(다른 예외를 막지 않는다).
+  blocked: (pid) => () => hooksApi.blocked(pid).catch(() => []),
 };
 
 interface Entry {
@@ -253,6 +258,7 @@ function listen(projectId: number): () => void {
   keep(oculpmApi.onSessionEnded((p) => p.project_id === projectId && request(projectId, ["silent", "unrecorded"])));
   keep(hooksApi.onWaitingChanged((pid) => pid === projectId && request(projectId, ["waiting"])));
   keep(hooksApi.onQuestionsChanged((pid) => pid === projectId && request(projectId, ["questions"])));
+  keep(hooksApi.onBlockedChanged((pid) => pid === projectId && request(projectId, ["blocked"])));
   return () => {
     alive = false;
     offs.forEach(safeUnlisten);
@@ -398,8 +404,9 @@ export function useTodayExceptions(
       terms,
       hookWaiting: s.waiting.value ?? [],
       questions: s.questions.value ?? [],
+      autoBlocked: s.blocked.value ?? [],
     });
-  }, [enabled, brief, digest, sideSettled, s.unrecorded.value, s.silent.value, pluginBehind, verifiedLocally, terms, s.waiting.value, s.questions.value]);
+  }, [enabled, brief, digest, sideSettled, s.unrecorded.value, s.silent.value, pluginBehind, verifiedLocally, terms, s.waiting.value, s.questions.value, s.blocked.value]);
 
   const on = enabled;
   const data: TodayData = {

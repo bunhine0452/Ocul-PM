@@ -789,6 +789,13 @@ export const commands = {
 	claudeWaiting: (projectId: number) => __TAURI_INVOKE<ClaudeWaiting[]>("claude_waiting", { projectId }),
 	/**  「알았어요」 — 그 기다림을 지운다(바깥 터미널이라 앱 안에서 갈 곳이 없다). 모든 창이 다시 읽는다. */
 	claudeWaitingDismiss: (projectId: number, sessionId: string) => __TAURI_INVOKE<void>("claude_waiting_dismiss", { projectId, sessionId }),
+	/**
+	 *  이 프로젝트에서 자동 모드가 막은 행동들 (플러그인 PermissionDenied 훅, 11-22 #auto-blocked) —
+	 *  최근 것부터. [`blocked::BLOCKED_STALE_HOURS`] 보다 오래된 것은 지우고 돌려준다.
+	 */
+	claudeBlocked: (projectId: number) => __TAURI_INVOKE<ClaudeBlocked[]>("claude_blocked", { projectId }),
+	/**  「알았어요」 — 이 프로젝트의 막힌 행동을 전부 지운다(한 줄에 「N건」 으로 서므로 함께). 모든 창이 다시 읽는다. */
+	claudeBlockedDismiss: (projectId: number) => __TAURI_INVOKE<void>("claude_blocked_dismiss", { projectId }),
 	/**  앱에 떠 있는 Claude 의 질문들 (MCP `ask_user`, #ask-user) — 오래된 것부터. */
 	claudeQuestions: (projectId: number) => typedError<ClaudeQuestion[], string>(__TAURI_INVOKE("claude_questions", { projectId })),
 	/**  사람이 앱에서 답했다 — 기다리던 `ask_user` 가 그 답을 Claude 에게 돌려준다. 모든 창이 다시 읽는다. */
@@ -860,6 +867,7 @@ export const commands = {
 
 /** Events */
 export const events = {
+	claudeBlockedChanged: makeEvent<ClaudeBlockedChanged>("claude-blocked-changed"),
 	claudeQuestionsChanged: makeEvent<ClaudeQuestionsChanged>("claude-questions-changed"),
 	claudeWaitingChanged: makeEvent<ClaudeWaitingChanged>("claude-waiting-changed"),
 	closeKeyPressed: makeEvent<CloseKeyPressed>("close-key-pressed"),
@@ -1065,6 +1073,24 @@ export type ChangePlanRef = {
 	plan_id: string,
 	plan_title: string,
 	item_title: string,
+};
+
+/**  자동 모드가 막은 행동 하나. */
+export type ClaudeBlocked = {
+	session_id: string,
+	/**  도구 이름 (`Bash` · `Write` · `mcp__…`). */
+	tool: string,
+	/**  무엇을 하려 했는가 — 한 줄. 알 수 없으면 빈 문자열. */
+	what: string,
+	/**  분류기가 말한 이유 (없을 수 있다). */
+	reason: string | null,
+	/**  막힌 시각 (RFC 3339). */
+	at: string,
+};
+
+/**  그 프로젝트의 막힌 행동이 바뀌었다 — 오늘 화면이 다시 읽는다. */
+export type ClaudeBlockedChanged = {
+	project_id: number,
 };
 
 export type ClaudePluginStatus = {
@@ -1305,7 +1331,7 @@ export type DigestPlan = {
 	check: string | null,
 	last_verdict: PlanVerdict | null,
 	/**
-	 *  판정이 ✓ 인데 그 뒤에 다시 저장된, 이 계획이 다룬 파일 (`stale::changed_after`). 비었으면 판정이 지금도 산다.
+	 *  판정이 ✓ 인데 그 뒤에 내용이 바뀐, 이 계획이 다룬 파일 (`stale::changed_since_verdict`). 비었으면 판정이 지금도 산다.
 	 *  `build` 는 비워 두고 명령(`today_digest`)이 디스크를 보고 채운다.
 	 */
 	stale_files: string[],

@@ -1,5 +1,5 @@
 {
-  "_doc": "Claude 기다림 규칙 사례표 — 앱(claude_waiting.rs apply_waiting)과 VS Code 확장(extension/src/model/waiting.ts)이 같은 표를 읽는다. 한쪽 규칙을 바꾸면 둘 다 빨개진다. waiting 은 끝난 뒤 남은 [session_id, kind] (session_id 순).",
+  "_doc": "Claude 기다림 규칙 사례표 — 앱(claude_waiting.rs apply_waiting)과 VS Code 확장(extension/src/model/waiting.ts)이 같은 표를 읽는다. 한쪽 규칙을 바꾸면 둘 다 빨개진다. waiting 은 끝난 뒤 남은 [session_id, kind] (session_id 순). kind 는 둘뿐이다 — permission(허락) · idle(입력): 백그라운드 에이전트의 물음(agent_needs_input)과 MCP 의 입력 요청(elicitation_*)도 idle 로 선다(11-22).",
   "cases": [
     {
       "name": "permission prompt waits",
@@ -60,6 +60,45 @@
         { "hook_event_name": "PostToolUse", "session_id": "s1" }
       ],
       "waiting": [["s1", "permission"]]
+    },
+    {
+      "name": "a background agent asking for input waits",
+      "events": [{ "hook_event_name": "Notification", "session_id": "s1", "notification_type": "agent_needs_input", "message": "어느 브랜치로 올릴까요?" }],
+      "waiting": [["s1", "idle"]]
+    },
+    {
+      "name": "an MCP elicitation waits",
+      "events": [
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "elicitation_dialog" },
+        { "hook_event_name": "Notification", "session_id": "s2", "notification_type": "elicitation_url_dialog" }
+      ],
+      "waiting": [["s1", "idle"], ["s2", "idle"]]
+    },
+    {
+      "name": "answering an elicitation clears only its own session",
+      "events": [
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "elicitation_dialog" },
+        { "hook_event_name": "Notification", "session_id": "s2", "notification_type": "elicitation_dialog" },
+        { "hook_event_name": "Notification", "session_id": "s3", "notification_type": "elicitation_url_dialog" },
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "elicitation_response" },
+        { "hook_event_name": "Notification", "session_id": "s3", "notification_type": "elicitation_complete" }
+      ],
+      "waiting": [["s2", "idle"]]
+    },
+    {
+      "name": "completion, quota and plugin notices are ignored",
+      "events": [
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "permission_prompt" },
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "agent_completed" },
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "quota_auto_resume_fired" },
+        { "hook_event_name": "Notification", "session_id": "s1", "notification_type": "plugin_notification" }
+      ],
+      "waiting": [["s1", "permission"]]
+    },
+    {
+      "name": "an action auto mode denied is not a wait",
+      "events": [{ "hook_event_name": "PermissionDenied", "session_id": "s1", "tool_name": "Bash" }],
+      "waiting": []
     }
   ]
 }

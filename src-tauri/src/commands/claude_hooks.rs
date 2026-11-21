@@ -7,6 +7,7 @@
 use tauri::State;
 
 use crate::db::Db;
+use crate::oculpm::claude_blocked as blocked;
 use crate::oculpm::claude_hooks::{self, JournalMissingSignal};
 use crate::oculpm::claude_waiting as waiting;
 
@@ -79,6 +80,46 @@ pub fn claude_waiting_dismiss(
     if removed {
         use tauri_specta::Event;
         let _ = waiting::ClaudeWaitingChanged { project_id }.emit(&app);
+    }
+}
+
+/// 이 프로젝트에서 자동 모드가 막은 행동들 (플러그인 PermissionDenied 훅, 11-22 #auto-blocked) —
+/// 최근 것부터. [`blocked::BLOCKED_STALE_HOURS`] 보다 오래된 것은 지우고 돌려준다.
+#[tauri::command]
+#[specta::specta]
+pub fn claude_blocked(
+    state: State<'_, blocked::ClaudeBlockedState>,
+    project_id: u32,
+) -> Vec<blocked::ClaudeBlocked> {
+    let Ok(mut all) = state.0.lock() else {
+        return Vec::new();
+    };
+    let Some(list) = all.get_mut(&project_id) else {
+        return Vec::new();
+    };
+    blocked::drop_stale(list, crate::clock::now());
+    let mut out = list.clone();
+    out.sort_by(|a, b| b.at.cmp(&a.at));
+    out
+}
+
+/// 「알았어요」 — 이 프로젝트의 막힌 행동을 전부 지운다(한 줄에 「N건」 으로 서므로 함께). 모든 창이 다시 읽는다.
+#[tauri::command]
+#[specta::specta]
+pub fn claude_blocked_dismiss(
+    app: tauri::AppHandle,
+    state: State<'_, blocked::ClaudeBlockedState>,
+    project_id: u32,
+) {
+    let removed = state
+        .0
+        .lock()
+        .ok()
+        .and_then(|mut all| all.remove(&project_id))
+        .is_some_and(|list| !list.is_empty());
+    if removed {
+        use tauri_specta::Event;
+        let _ = blocked::ClaudeBlockedChanged { project_id }.emit(&app);
     }
 }
 

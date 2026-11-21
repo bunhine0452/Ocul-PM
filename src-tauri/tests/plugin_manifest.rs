@@ -58,8 +58,8 @@ fn hooks_json_guards_and_consumes_stdin() {
     let map = hooks["hooks"].as_object().expect("hooks 맵");
     assert_eq!(
         map.len(),
-        8,
-        "구독 이벤트는 SessionStart/Stop/StopFailure/Notification/UserPromptSubmit/SessionEnd(싱크) + SubagentStart(주입) + PreToolUse(재수정 경고) 8종"
+        9,
+        "구독 이벤트는 SessionStart/Stop/StopFailure/Notification/PermissionDenied/UserPromptSubmit/SessionEnd(싱크) + SubagentStart(주입) + PreToolUse(재수정 경고) 9종"
     );
     // 재수정 경고 (11-02) — 고치는 도구에만 걸고, 짚기만 한다: 허가 결정(`permissionDecision`)을
     // 내면 사용자의 권한 묻기를 건너뛴다. 판단은 `oculpm-mcp refix`, 셸은 길만.
@@ -98,11 +98,27 @@ fn hooks_json_guards_and_consumes_stdin() {
     // 대기) · UserPromptSubmit(그 기다림을 푼다)은 10-29 #notify-hook — 바깥 터미널의 기다림을 앱이 안다.
     // StopFailure(2026-10-24): 턴이 API 오류로 끝나면 Stop 대신 이것만 온다 —
     // 없으면 그 턴의 끝이 원장에서 빠진다. 막을 수 없는 이벤트라 배달 게이트는 안 붙인다.
+    // PermissionDenied(2026-11-22 #auto-blocked): 자동 모드의 분류기가 도구 호출을 막았다 — 그때
+    // Claude 는 멈추지 않으므로 「기다림」 으로는 서지 않는다. 오늘의 예외 한 줄이 된다. 종료 코드와
+    // 출력은 무시되는 이벤트라(거부는 이미 끝났다) 적기만 한다 — `retry` 를 내지 않는다.
+    assert!(
+        map["PermissionDenied"][0].get("matcher").is_none(),
+        "PermissionDenied: 도구를 가리지 않는다 — 막힌 것은 전부 사람이 볼 예외다"
+    );
+    assert_eq!(
+        map["PermissionDenied"][0]["hooks"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1,
+        "PermissionDenied: 싱크 하나뿐 — 분류기의 결정을 뒤집는 훅(retry)을 싣지 않는다"
+    );
     for ev in [
         "SessionStart",
         "Stop",
         "StopFailure",
         "Notification",
+        "PermissionDenied",
         "UserPromptSubmit",
     ] {
         let cmd = map[ev][0]["hooks"][0]["command"]
@@ -130,6 +146,7 @@ fn hooks_json_guards_and_consumes_stdin() {
         "Stop",
         "StopFailure",
         "Notification",
+        "PermissionDenied",
         "UserPromptSubmit",
     ] {
         let cmd = map[ev][0]["hooks"][0]["command"].as_str().unwrap();

@@ -24,14 +24,23 @@ export const WAITING_STALE_MINUTES = 30;
 
 const CLEARS = new Set(["UserPromptSubmit", "Stop", "StopFailure", "SessionEnd", "SessionStart"]);
 
+/**
+ * 입력을 기다리는 알림 — 턴이 끝나고 60초(idle_prompt), 백그라운드 에이전트의 물음(agent_needs_input),
+ * MCP 서버의 입력 요청(elicitation_*). 자동 모드에서는 허락 묻기가 드물어지고 이쪽이 흔해진다(0.3.1).
+ */
+const IDLE_KINDS = new Set(["idle_prompt", "agent_needs_input", "elicitation_dialog", "elicitation_url_dialog"]);
+/** 그 입력 요청에 답했다 — 더는 기다리지 않는다. */
+const ELICITATION_DONE = new Set(["elicitation_complete", "elicitation_response"]);
+
 /** 이벤트 하나를 반영한다. 바뀌었으면 `true`. */
 export function applyWaiting(waiting: Map<string, Waiting>, ev: HookEvent, now: string): boolean {
   const id = ev.session_id ?? "";
   if (!id) return false;
   const name = ev.hook_event_name ?? "";
   if (name === "Notification") {
-    const kind =
-      ev.notification_type === "permission_prompt" ? "permission" : ev.notification_type === "idle_prompt" ? "idle" : null;
+    const type = ev.notification_type ?? "";
+    if (ELICITATION_DONE.has(type)) return waiting.delete(id);
+    const kind = type === "permission_prompt" ? "permission" : IDLE_KINDS.has(type) ? "idle" : null;
     if (!kind) return false;
     const message = ev.message && ev.message.trim() ? ev.message : null;
     const next: Waiting = { sessionId: id, kind, message, since: ev.oculpm_ts ?? now };

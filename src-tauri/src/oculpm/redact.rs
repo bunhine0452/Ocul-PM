@@ -108,7 +108,10 @@ use crate::oculpm::spec::OculpmConfig;
 ///
 /// 18 → 14 (4.0 화면 덜어내기, 합류 실측): 논의(`oculpm/discussion/project.rs`)와 스킬·규칙
 /// (`commands/firing_ledger.rs` · `commands/skills.rs` · 승격 모듈)이 화면과 함께 사라졌다.
-pub const CALL_SITE_FILES: usize = 14;
+///
+/// 14 → 15 (2026-11-22): `oculpm/watcher/hooks.rs` — 자동 모드가 막은 행동의 한 줄(명령 첫 줄 ·
+/// 경로 · 주소)을 오늘 화면에 세우기 전에 가린다 (`claude_blocked`).
+pub const CALL_SITE_FILES: usize = 15;
 
 /// One match recorded by [`redact_text`]. Byte offsets reference the
 /// **original** input string (pre-redaction); they are at char boundaries

@@ -28,6 +28,7 @@ function defaults() {
     sessions: [] as unknown[],
     terms: [] as unknown[],
     hookWaiting: [] as unknown[],
+    autoBlocked: [] as unknown[],
     questions: [] as unknown[],
     answers: [] as Array<[string, string]>,
     verifyCalls: [] as Array<[string, boolean]>,
@@ -204,6 +205,10 @@ export function bindingsMock() {
           case "claudeWaiting":
             return () => respond(name, () => fx.hookWaiting, false);
           case "claudeWaitingDismiss":
+            return () => respond(name, () => null, false);
+          case "claudeBlocked":
+            return () => respond(name, () => fx.autoBlocked, false);
+          case "claudeBlockedDismiss":
             return () => respond(name, () => null, false);
           case "claudeQuestions":
             return () => respond(name, () => fx.questions);

@@ -150,6 +150,9 @@ use crate::commands::{
     app_info,
     apply_menu_language,
     // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
+    // 자동 모드가 막은 행동 (PermissionDenied 훅, 11-22 #auto-blocked)
+    claude_blocked,
+    claude_blocked_dismiss,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
     claude_plugin_status,
     claude_question_answer,
@@ -447,6 +450,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // PR-CI0 — Claude Code 훅 브리지
             claude_waiting,
             claude_waiting_dismiss,
+            claude_blocked,
+            claude_blocked_dismiss,
             claude_questions,
             claude_question_answer,
             // H3b — "일지 없이 끝난 세션" 신호 (Today 카드)
@@ -505,6 +510,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::commands::terminal::TermCloseAsked,
             // 바깥 터미널의 Claude 기다림이 바뀜 — 오늘이 다시 읽고 창이 뒤면 알린다
             crate::oculpm::claude_waiting::ClaudeWaitingChanged,
+            // 자동 모드가 막은 행동이 바뀜 — 오늘이 다시 읽는다
+            crate::oculpm::claude_blocked::ClaudeBlockedChanged,
             // Claude 의 질문이 바뀜(물음 · 답함 · 거둠) — 오늘이 다시 읽는다
             crate::oculpm::claude_waiting::ClaudeQuestionsChanged,
             // 도움말 › 처음 쓰는 법 — 포커스된 창이 안내 모달을 연다
@@ -672,6 +679,7 @@ pub fn run() {
             app.manage(crate::terminal::TermSessions::default());
             app.manage(crate::commands::UpdateGate::default());
             app.manage(crate::oculpm::claude_waiting::ClaudeWaitingState::default());
+            app.manage(crate::oculpm::claude_blocked::ClaudeBlockedState::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
 
