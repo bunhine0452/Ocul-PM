@@ -47,7 +47,7 @@ pub struct DigestPlan {
     pub done_when: Option<String>,
     pub check: Option<String>,
     pub last_verdict: Option<super::judge::PlanVerdict>,
-    /// 판정이 ✓ 인데 그 뒤에 다시 저장된, 이 계획이 다룬 파일 (`stale::changed_after`). 비었으면 판정이 지금도 산다.
+    /// 판정이 ✓ 인데 그 뒤에 내용이 바뀐, 이 계획이 다룬 파일 (`stale::changed_since_verdict`). 비었으면 판정이 지금도 산다.
     /// `build` 는 비워 두고 명령(`today_digest`)이 디스크를 보고 채운다.
     pub stale_files: Vec<String>,
     /// 가장 최근 ✓ 가 **다른 OS** 에서 돌았고 이 기기에서는 그 뒤로 확인된 적이 없다 — 그 OS
@@ -243,10 +243,12 @@ pub async fn mark_stale(
             continue;
         };
         let root = root.clone();
-        let changed =
-            tokio::task::spawn_blocking(move || stale::changed_after(&root, &files, &since))
-                .await
-                .unwrap_or_default();
+        let plan_id = plan.plan_id.clone();
+        let changed = tokio::task::spawn_blocking(move || {
+            stale::changed_since_verdict(&root, &files, &since, &plan_id)
+        })
+        .await
+        .unwrap_or_default();
         plan.settle(changed);
     }
 }
