@@ -5,9 +5,12 @@
  * 셋 다 보인다 — 모드가 아니라 `todayModel.initialFold` 한 규칙이다. 묶음 머리를 누르면 펼치고 접는다.
  * 검증 표시는 일지 화면과 같은 모양이다(`JournalRow` 의 `EvidenceMark` — 영수증 규칙 4): 통과는 회색 ✓,
  * 검증 없음은 호박 칩, 검증을 요구하지 않는 종류는 아무것도 없다.
+ *
+ * 편 목록(「시간순」 · 편 묶음)도 한 번에 `WORK_LIMIT` 줄까지만 그린다(11-22) — 하루 300건인 날 「시간순」 한 번이
+ * 300줄(DOM 3,009개)을 세웠다. 나머지는 「N건 더 보기」 가 그만큼씩 더 그린다. 머리의 수는 늘 전부다.
  */
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { ChevronDown, ChevronRight } from "@/components/Icons";
 import { RadioSeg } from "@/components/RadioSeg";
@@ -20,6 +23,9 @@ import { clockOf } from "@/lib/whenLabel";
 import { FOLD_MIN, groupByPlan, initialFold, type GroupFold, type WorkGroup } from "./todayModel";
 
 type WorkView = "plan" | "time";
+
+/** 편 목록 하나가 한 번에 그리는 줄 수 — 넘는 만큼은 「N건 더 보기」 가 이만큼씩 더 그린다. */
+export const WORK_LIMIT = 30;
 
 function EntryRow({ entry, onOpen }: { entry: JournalEntrySummary; onOpen: (e: JournalEntrySummary) => void }) {
   const { t } = useT();
@@ -54,6 +60,47 @@ function GroupHead({ group, open, onToggle }: { group: WorkGroup; open: boolean;
       {/* 묶음 건수는 오른쪽 끝 한 칸 — 제목 길이를 따라 줄마다 다른 자리에 서지 않게. */}
       <span className="tdy-grp-n">{t("today.work.count", { n: group.entries.length })}</span>
     </button>
+  );
+}
+
+/**
+ * 편 목록 하나 — `WORK_LIMIT` 줄까지 그리고, 남으면 「N건 더 보기」 가 그만큼 더 그린다. 접었다 펴거나 보는 방식을
+ * 바꾸면 처음 줄 수로 돌아간다(목록이 새로 선다). 손잡이를 키보드로 눌렀으면 포커스는 새로 그린 첫 줄로 간다 —
+ * 마지막 묶음에서는 손잡이가 사라져 포커스가 body 로 떨어졌다.
+ */
+function EntryList({ entries, onOpen }: { entries: JournalEntrySummary[]; onOpen: (e: JournalEntrySummary) => void }) {
+  const { t } = useT();
+  const [limit, setLimit] = useState(WORK_LIMIT);
+  const listRef = useRef<HTMLUListElement>(null);
+  const focusAt = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const at = focusAt.current;
+    if (at == null) return;
+    focusAt.current = null;
+    listRef.current?.querySelectorAll<HTMLElement>(".tdy-ent")[at]?.focus();
+  }, [limit]);
+  const shown = entries.length > limit ? entries.slice(0, limit) : entries;
+  const hidden = entries.length - shown.length;
+  return (
+    <>
+      <ul className="tdy-ents" ref={listRef}>
+        {shown.map((e) => (
+          <EntryRow key={e.relative_path} entry={e} onOpen={onOpen} />
+        ))}
+      </ul>
+      {hidden > 0 ? (
+        <button
+          type="button"
+          className="tdy-more"
+          onClick={(ev) => {
+            if (document.activeElement === ev.currentTarget) focusAt.current = shown.length;
+            setLimit((n) => n + WORK_LIMIT);
+          }}
+        >
+          {t("journal.rowMore", { n: Math.min(WORK_LIMIT, hidden) })}
+        </button>
+      ) : null}
+    </>
   );
 }
 
@@ -95,25 +142,14 @@ export function TodayWork({ entries, digest, onOpenEntry }: TodayWorkProps) {
         ) : null}
       </header>
       {flat || view === "time" ? (
-        <ul className="tdy-ents">
-          {entries.map((e) => (
-            <EntryRow key={e.relative_path} entry={e} onOpen={onOpenEntry} />
-          ))}
-        </ul>
+        <EntryList entries={entries} onOpen={onOpenEntry} />
       ) : (
         groups.map((g) => {
-          const fold = foldOf(g);
-          const shown = fold === "open" ? g.entries : [];
+          const open = foldOf(g) === "open";
           return (
             <div key={g.key} className="tdy-grp-wrap">
-              <GroupHead group={g} open={fold !== "closed"} onToggle={() => toggle(g)} />
-              {shown.length > 0 ? (
-                <ul className="tdy-ents">
-                  {shown.map((e) => (
-                    <EntryRow key={e.relative_path} entry={e} onOpen={onOpenEntry} />
-                  ))}
-                </ul>
-              ) : null}
+              <GroupHead group={g} open={open} onToggle={() => toggle(g)} />
+              {open && g.entries.length > 0 ? <EntryList entries={g.entries} onOpen={onOpenEntry} /> : null}
             </div>
           );
         })

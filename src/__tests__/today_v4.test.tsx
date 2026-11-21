@@ -614,8 +614,10 @@ describe("오늘 한 일 — 같은 화면, 모드 없음", () => {
     fireEvent.click(within(work).getByRole("button", { name: /4\.0 덜어내기/ }));
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(27);
 
-    // 시간순은 전부 한 줄씩.
+    // 시간순은 한 줄씩 — 한 번에 30줄까지, 나머지는 「N건 더 보기」 (11-22, `today_volume.test.tsx`).
     fireEvent.click(within(work).getByRole("radio", { name: t("today.work.byTime") }));
+    expect(container.querySelectorAll(".tdy-ent")).toHaveLength(30);
+    fireEvent.click(within(work).getByRole("button", { name: t("journal.rowMore", { n: 30 }) }));
     expect(container.querySelectorAll(".tdy-ent")).toHaveLength(60);
 
     const results = await axe(container, AXE_OPTIONS);
