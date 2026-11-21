@@ -255,12 +255,87 @@ export interface WindowTerms {
 /** 아직 못 읽은 목록 — 꺼질 때 이리로 돌아간다. */
 const UNREAD: WindowTerms = { list: [], state: "loading" };
 
+/** 값이 같은가 — 목록은 IPC 가 부를 때마다 새 배열 · 새 객체로 준다. 백엔드가 칸을 더해도 따라간다. */
+function sameJson(a: unknown, b: unknown): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** 읽은 답 — 목록, 못 읽었으면 `null`. */
+type TermsAnswer = TermInfo[] | null;
+
+/**
+ * 이 창의 세션 목록을 읽는 한 곳 (11-22) — 창(웹뷰) 하나에 하나, 모듈 범위.
+ *
+ * 프로젝트 창에는 이 목록을 읽는 훅이 셋이다(셸의 터미널 점 · 셸의 오늘 배지 · 오늘 화면, 열면 「Claude 에게
+ * 보내기」 까지 넷). 훅마다 사건을 듣고 저마다 읽던 때는 사건 한 묶음에 `term_list` 가 셋 갔다 — 읽을 때마다
+ * 백엔드가 「도는 중」 을 재는데(Windows 는 프로세스 스냅숏) 같은 답을 세 번 쟀다. 이제 사건은 여기서 한 번
+ * 듣고 한 번 읽어 듣는 훅 모두에게 준다.
+ *
+ * - 사건이 부른 읽기는 늘 새로 읽는다(읽는 중인 것에 얹지 않는다 — 그 읽기는 이 사건보다 먼저 떠났다).
+ * - 훅이 켜지며 부른 읽기는 읽는 중인 것이 있으면 거기 얹는다(같은 틱에 선 훅 셋이 한 번만 읽는다).
+ * - 답에는 번호가 있다 — 먼저 떠난 느린 읽기가 뒤늦게 와도 새 목록을 덮지 않는다.
+ * - 듣는 훅이 없으면 사건도 듣지 않는다.
+ */
+const windowTermsHub = (() => {
+  const listeners = new Set<(answer: TermsAnswer) => void>();
+  let off: Promise<() => void> | null = null;
+  let sent = 0;
+  let applied = 0;
+  let flying: Promise<void> | null = null;
+
+  const read = (): Promise<void> => {
+    const n = ++sent;
+    const deliver = (answer: TermsAnswer) => {
+      if (n <= applied) return;
+      applied = n;
+      for (const fn of [...listeners]) fn(answer);
+    };
+    const p: Promise<void> = Promise.resolve()
+      .then(() => terminalApi.list())
+      .then(
+        (infos) => deliver(asList(infos)),
+        () => deliver(null),
+      )
+      .finally(() => {
+        if (flying === p) flying = null;
+      });
+    flying = p;
+    return p;
+  };
+  const later = coalesce(() => void read());
+
+  return {
+    /** 듣기 시작한다 — 답이 올 때마다 `fn`. 돌려주는 함수가 그만 듣는다. */
+    watch(fn: (answer: TermsAnswer) => void): () => void {
+      listeners.add(fn);
+      // 구독마다 새 함수 — 앞 구독의 늦은 해제가 같은 함수로 맺은 새 구독을 끊지 않게.
+      if (!off) off = terminalApi.onSessionsChanged(() => later.call());
+      // 빈 셸의 「도는 중」 은 사건 없이 바뀐다 — 켤 때마다 지금 것을 읽는다. 읽는 중이면 그 답을 같이 받는다.
+      if (!flying) void read();
+      return () => {
+        listeners.delete(fn);
+        if (listeners.size > 0) return;
+        later.cancel();
+        // 아무도 안 듣는 동안 떠 있던 읽기에는 다음에 켠 훅이 얹지 않는다 — 그새 낡았다.
+        flying = null;
+        const stop = off;
+        off = null;
+        void stop?.then((unlisten) => unlisten()).catch(() => {});
+      };
+    },
+  };
+})();
+
 /**
  * 이 창의 세션 — 처음 한 번 읽고, 어느 창에서든 세션 · 상태가 바뀌면 다시 읽는다(`REFETCH_COALESCE_MS`).
  * 「Claude 에게 보내기」 는 읽기 전 · 실패를 갈라 말해야 해서 상태도 받는다.
  *
  * 꺼지면(`enabled` → false) 읽지 않은 상태로 돌아간다 — 꺼진 동안 목록은 따라가지 않아 낡는다. 남겨 두면 다시
  * 켠 첫 렌더가 지난번 목록을 「읽음」 으로 보여, 보내기 대화상자가 그 낡은 목록으로 받는 곳을 정했다.
+ *
+ * 읽기는 창에 하나다(`windowTermsHub`) — 훅이 몇이든 사건 한 묶음에 한 번 읽는다. 답이 앞과 같으면 상태를
+ * 바꾸지 않는다(같은 배열 그대로): 다른 창의 세션이 낸 사건 · 같은 상태를 다시 알린 사건에 셸과 지금 화면이
+ * 다시 그려지지 않는다.
  */
 export function useWindowTermsState(enabled = true): WindowTerms {
   const [terms, setTerms] = useState<WindowTerms>(UNREAD);
@@ -269,21 +344,15 @@ export function useWindowTermsState(enabled = true): WindowTerms {
       setTerms(UNREAD);
       return;
     }
-    let alive = true;
     setTerms((t) => (t.state === "loading" ? t : { ...t, state: "loading" }));
-    const load = () =>
-      void terminalApi
-        .list()
-        .then((infos) => alive && setTerms({ list: asList(infos), state: "ready" }))
-        .catch(() => alive && setTerms((t) => ({ list: t.list, state: "failed" })));
-    load();
-    const later = coalesce(load);
-    const off = terminalApi.onSessionsChanged(later.call);
-    return () => {
-      alive = false;
-      later.cancel();
-      void off.then((fn) => fn());
-    };
+    return windowTermsHub.watch((answer) =>
+      setTerms((t) => {
+        if (answer == null) return t.state === "failed" ? t : { list: t.list, state: "failed" };
+        const same = sameJson(t.list, answer);
+        if (same && t.state === "ready") return t;
+        return { list: same ? t.list : answer, state: "ready" };
+      }),
+    );
   }, [enabled]);
   return terms;
 }
@@ -304,7 +373,12 @@ export function useTermOverview(refresh?: unknown): Map<number, ProjectTerms> {
     const load = () =>
       void terminalApi
         .overview()
-        .then((infos) => alive && setCounts(countByProject(asList(infos))))
+        .then((infos) => {
+          if (!alive) return;
+          // 수가 그대로면 앞 표를 둔다 — 프로젝트 목록(윗줄에 늘 서 있다)이 사건마다 다시 그려지지 않게.
+          const next = countByProject(asList(infos));
+          setCounts((prev) => (sameJson([...prev], [...next]) ? prev : next));
+        })
         .catch(() => {});
     load();
     const later = coalesce(load);
