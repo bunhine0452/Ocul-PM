@@ -22,6 +22,10 @@ fn main() {
     if argv.first().map(String::as_str) == Some("verdict") {
         std::process::exit(ocul_pm_lib::oculpm::verdict::cli::run(&argv[1..]));
     }
+    // 게이트(`gate`) — Stop 훅이 배달 판정과 확인 판정을 한 번에 받는다 (`verdict::cli::run_gate`).
+    if argv.first().map(String::as_str) == Some("gate") {
+        std::process::exit(ocul_pm_lib::oculpm::verdict::cli::run_gate(&argv[1..]));
+    }
     // 재수정 경고(`refix`) — PreToolUse 훅이 고치기 직전에 부른다 (`oculpm::refix`).
     if argv.first().map(String::as_str) == Some("refix") {
         std::process::exit(ocul_pm_lib::oculpm::refix::run(&argv[1..]));

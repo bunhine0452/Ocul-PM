@@ -51,87 +51,170 @@ const MAX_PENDING_CALLS: usize = 8192;
 /// 파일 경로를 인자로 받는 편집 도구들. 여기 없는 도구(`Bash` 등)는 안 센다.
 const EDIT_TOOLS: [&str; 4] = ["Edit", "Write", "MultiEdit", "NotebookEdit"];
 
-/// 이 대화가 고친 파일 — `top` 기준 상대경로.
+/// 이 대화가 **성공시킨** `plan_update` 호출 하나 (oculpm MCP 도구).
 ///
-/// `top` 은 git 최상위다. 워킹트리 목록(`git status`)이 그 기준으로 오므로,
-/// 두 쪽이 **같은 어휘**를 써야 교집합이 성립한다. `top` 밖의 편집(다른 저장소·
-/// 임시 파일)은 어차피 이 프로젝트의 더티 목록에 없으므로 버린다.
-pub fn edited_paths(transcript: &Path, top: &Path) -> BTreeSet<String> {
-    let Ok(file) = std::fs::File::open(transcript) else {
-        return BTreeSet::new();
-    };
-    scan(BufReader::new(file), top)
+/// 확인 게이트([`super::check`])의 재료다 — 이 대화가 어느 계획의 항목을 닫았고, 그 계획에
+/// 판정(`판정 ✓|✗ …`)을 남긴 적이 있는가. 편집과 같은 규칙으로 덜 센다: 결과가 오류이거나
+/// 아직 없는 호출은 안 센다.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlanUpdateCall {
+    pub plan_id: String,
+    /// `done` · `in_progress` … (도구 인자 그대로).
+    pub status: String,
+    pub note: Option<String>,
 }
 
-/// 읽는 자리를 떼어낸다 — 테스트가 파일 없이 문자열로 물을 수 있게.
-fn scan(reader: impl BufRead, top: &Path) -> BTreeSet<String> {
-    // 도구 호출 id → 그 호출이 건드린 경로. 결과를 볼 때까지 여기 머문다.
-    let mut pending: HashMap<String, String> = HashMap::new();
-    let mut done: BTreeSet<String> = BTreeSet::new();
-    let mut read = 0usize;
+/// 트랜스크립트를 **한 번** 읽어 얻은 것 — 편집 대상과 `plan_update` 호출.
+///
+/// 게이트는 매 턴 도는 자리라 같은 파일을 두 번 읽지 않는다. 편집 경로는 날것(도구 인자
+/// 그대로)으로 들고 있다가 git 최상위를 안 뒤에 맞춘다([`Self::edited_under`]).
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct Transcript {
+    /// 성공한 편집 도구 호출이 건드린 경로.
+    edits: Vec<String>,
+    /// 성공한 `plan_update` 호출 (일어난 순서).
+    pub plan_updates: Vec<PlanUpdateCall>,
+}
 
-    for line in reader.lines().map_while(Result::ok) {
-        read += line.len() + 1;
-        if read > MAX_BYTES {
-            break;
+impl Transcript {
+    /// 파일을 못 열면 빈 것 — 판정은 "모름"으로 접힌다.
+    pub fn read(transcript: &Path) -> Self {
+        match std::fs::File::open(transcript) {
+            Ok(file) => Self::scan(BufReader::new(file)),
+            Err(_) => Self::default(),
         }
-        let Ok(entry) = serde_json::from_str::<Value>(&line) else {
-            continue;
-        };
-        let Some(blocks) = entry
-            .get("message")
-            .and_then(|m| m.get("content"))
-            .and_then(Value::as_array)
-        else {
-            continue;
-        };
-        for block in blocks {
-            match block.get("type").and_then(Value::as_str) {
-                Some("tool_use") => {
-                    if pending.len() >= MAX_PENDING_CALLS {
-                        continue;
+    }
+
+    /// 이 대화가 고친 파일 — `top` 기준 상대경로.
+    ///
+    /// `top` 은 git 최상위다. 워킹트리 목록(`git status`)이 그 기준으로 오므로,
+    /// 두 쪽이 **같은 어휘**를 써야 교집합이 성립한다. `top` 밖의 편집(다른 저장소·
+    /// 임시 파일)은 어차피 이 프로젝트의 더티 목록에 없으므로 버린다.
+    pub fn edited_under(&self, top: &Path) -> BTreeSet<String> {
+        self.edits
+            .iter()
+            .filter_map(|raw| relative_to(top, Path::new(raw)))
+            .collect()
+    }
+
+    /// 읽는 자리를 떼어낸다 — 테스트가 파일 없이 문자열로 물을 수 있게.
+    fn scan(reader: impl BufRead) -> Self {
+        // 도구 호출 id → 그 호출이 한 일. 결과를 볼 때까지 여기 머문다.
+        let mut pending: HashMap<String, Call> = HashMap::new();
+        let mut out = Self::default();
+        let mut read = 0usize;
+
+        for line in reader.lines().map_while(Result::ok) {
+            read += line.len() + 1;
+            if read > MAX_BYTES {
+                break;
+            }
+            // 도구 호출 · 결과가 없는 줄(긴 본문 · 생각 · 첨부)은 JSON 으로 뜯지 않는다 —
+            // 긴 대화에서 바이트의 대부분이 이쪽이고, 게이트는 매 턴 이 파일을 읽는다.
+            if !line.contains("tool_use") && !line.contains("tool_result") {
+                continue;
+            }
+            let Ok(entry) = serde_json::from_str::<Value>(&line) else {
+                continue;
+            };
+            let Some(blocks) = entry
+                .get("message")
+                .and_then(|m| m.get("content"))
+                .and_then(Value::as_array)
+            else {
+                continue;
+            };
+            for block in blocks {
+                match block.get("type").and_then(Value::as_str) {
+                    Some("tool_use") => {
+                        if pending.len() >= MAX_PENDING_CALLS {
+                            continue;
+                        }
+                        let Some(id) = block.get("id").and_then(Value::as_str) else {
+                            continue;
+                        };
+                        let Some(call) = call_of(block) else {
+                            continue;
+                        };
+                        pending.insert(id.to_string(), call);
                     }
-                    let Some(id) = block.get("id").and_then(Value::as_str) else {
-                        continue;
-                    };
-                    let Some(path) = edited_path_of(block, top) else {
-                        continue;
-                    };
-                    pending.insert(id.to_string(), path);
-                }
-                Some("tool_result") => {
-                    let Some(id) = block.get("tool_use_id").and_then(Value::as_str) else {
-                        continue;
-                    };
-                    let Some(path) = pending.remove(id) else {
-                        continue;
-                    };
-                    // 오류로 끝난 호출은 파일을 안 바꿨다. `is_error` 는 없을
-                    // 수도 있고(성공), 구현에 따라 문자열로 오기도 한다.
-                    if is_error(block) {
-                        continue;
+                    Some("tool_result") => {
+                        let Some(id) = block.get("tool_use_id").and_then(Value::as_str) else {
+                            continue;
+                        };
+                        let Some(call) = pending.remove(id) else {
+                            continue;
+                        };
+                        // 오류로 끝난 호출은 아무것도 안 바꿨다. `is_error` 는 없을
+                        // 수도 있고(성공), 구현에 따라 문자열로 오기도 한다.
+                        if is_error(block) {
+                            continue;
+                        }
+                        match call {
+                            Call::Edit(path) => out.edits.push(path),
+                            Call::PlanUpdate(update) => out.plan_updates.push(update),
+                        }
                     }
-                    done.insert(path);
+                    _ => {}
                 }
-                _ => {}
             }
         }
+        // `pending` 에 남은 것은 **결과를 못 본 호출**이다 — 안 센다.
+        out
     }
-    // `pending` 에 남은 것은 **결과를 못 본 호출**이다 — 안 센다.
-    done
 }
 
-/// 이 `tool_use` 블록이 건드린 파일 (편집 도구가 아니거나 `top` 밖이면 `None`).
-fn edited_path_of(block: &Value, top: &Path) -> Option<String> {
+/// 결과를 기다리는 도구 호출 — 우리가 세는 두 가지뿐이다.
+enum Call {
+    Edit(String),
+    PlanUpdate(PlanUpdateCall),
+}
+
+/// 이 대화가 고친 파일 — `top` 기준 상대경로 ([`Transcript::edited_under`]).
+#[cfg(test)]
+fn edited_paths(transcript: &Path, top: &Path) -> BTreeSet<String> {
+    Transcript::read(transcript).edited_under(top)
+}
+
+/// 편집만 묻는 옛 모양 — 아래 테스트들이 쓴다.
+#[cfg(test)]
+fn scan(reader: impl BufRead, top: &Path) -> BTreeSet<String> {
+    Transcript::scan(reader).edited_under(top)
+}
+
+/// 이 `tool_use` 블록이 우리가 세는 호출이면 그것 (편집 도구 · oculpm 의 `plan_update`).
+fn call_of(block: &Value) -> Option<Call> {
     let name = block.get("name").and_then(Value::as_str)?;
-    if !EDIT_TOOLS.contains(&name) {
-        return None;
-    }
     let input = block.get("input")?;
-    let raw = ["file_path", "notebook_path"]
-        .iter()
-        .find_map(|key| input.get(key).and_then(Value::as_str))?;
-    relative_to(top, Path::new(raw))
+    if EDIT_TOOLS.contains(&name) {
+        let raw = ["file_path", "notebook_path"]
+            .iter()
+            .find_map(|key| input.get(key).and_then(Value::as_str))?;
+        return Some(Call::Edit(raw.to_string()));
+    }
+    if is_plan_update_tool(name) {
+        let text = |key: &str| {
+            input
+                .get(key)
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+        };
+        return Some(Call::PlanUpdate(PlanUpdateCall {
+            plan_id: text("plan_id")?,
+            status: text("status")?,
+            note: text("note"),
+        }));
+    }
+    None
+}
+
+/// oculpm MCP 의 `plan_update` 인가 — 플러그인(`mcp__plugin_oculpm_oculpm__plan_update`)과
+/// 직접 등록(`mcp__oculpm__plan_update`) 양쪽. 다른 서버의 같은 이름 도구는 세지 않는다.
+fn is_plan_update_tool(name: &str) -> bool {
+    name.strip_suffix("__plan_update")
+        .is_some_and(|server| server.starts_with("mcp__") && server.contains("oculpm"))
 }
 
 /// `top` 아래의 경로만 `top` 기준 상대경로로. 밖이면 `None`.
@@ -256,5 +339,85 @@ mod tests {
     #[test]
     fn a_missing_transcript_yields_nothing() {
         assert!(edited_paths(Path::new("/nope/none.jsonl"), Path::new(TOP)).is_empty());
+    }
+
+    // ─── plan_update 호출 (확인 게이트의 재료) ──────────────────────────────
+
+    const PLUGIN_TOOL: &str = "mcp__plugin_oculpm_oculpm__plan_update";
+
+    fn plan_update(id: &str, tool: &str, plan: &str, status: &str, note: Option<&str>) -> String {
+        let note = note
+            .map(|n| format!(r#","note":"{n}""#))
+            .unwrap_or_default();
+        format!(
+            r#"{{"type":"assistant","message":{{"content":[{{"type":"tool_use","id":"{id}","name":"{tool}","input":{{"plan_id":"{plan}","item_id":"a","status":"{status}"{note}}}}}]}}}}"#
+        )
+    }
+
+    /// 성공한 `plan_update` 만, 일어난 순서로 — 플러그인 · 직접 등록 양쪽 이름.
+    #[test]
+    fn successful_plan_updates_are_collected_in_order() {
+        let lines = [
+            plan_update("p1", PLUGIN_TOOL, "round", "in_progress", None),
+            tool_result("p1", "false"),
+            plan_update(
+                "p2",
+                "mcp__oculpm__plan_update",
+                "round",
+                "done",
+                Some("판정 ✓ 12 passed"),
+            ),
+            tool_result("p2", "false"),
+        ];
+        let got = Transcript::scan(lines.join("\n").as_bytes());
+        assert_eq!(
+            got.plan_updates,
+            vec![
+                PlanUpdateCall {
+                    plan_id: "round".into(),
+                    status: "in_progress".into(),
+                    note: None,
+                },
+                PlanUpdateCall {
+                    plan_id: "round".into(),
+                    status: "done".into(),
+                    note: Some("판정 ✓ 12 passed".into()),
+                },
+            ]
+        );
+        assert!(got.edited_under(Path::new(TOP)).is_empty());
+    }
+
+    /// 오류로 끝났거나 결과가 없는 호출, 다른 서버의 같은 이름 도구는 안 센다.
+    #[test]
+    fn failed_unfinished_and_foreign_plan_updates_are_not_counted() {
+        let lines = [
+            plan_update("p1", PLUGIN_TOOL, "round", "done", None),
+            tool_result("p1", "true"),
+            plan_update("p2", PLUGIN_TOOL, "round", "done", None),
+            plan_update("p3", "mcp__linear__plan_update", "round", "done", None),
+            tool_result("p3", "false"),
+            plan_update("p4", "plan_update", "round", "done", None),
+            tool_result("p4", "false"),
+        ];
+        assert!(Transcript::scan(lines.join("\n").as_bytes())
+            .plan_updates
+            .is_empty());
+    }
+
+    /// 도구 호출이 없는 긴 줄은 건너뛰어도 그 앞뒤의 호출은 그대로 읽힌다.
+    #[test]
+    fn lines_without_tool_blocks_are_skipped_without_losing_calls() {
+        let prose = format!(
+            r#"{{"type":"assistant","message":{{"content":[{{"type":"text","text":"{}"}}]}}}}"#,
+            "가".repeat(5000)
+        );
+        let got = scan_lines(&[
+            &prose,
+            &tool_use("t1", "Edit", "/repo/a.rs"),
+            &prose,
+            &tool_result("t1", "false"),
+        ]);
+        assert_eq!(got, BTreeSet::from(["a.rs".to_string()]));
     }
 }

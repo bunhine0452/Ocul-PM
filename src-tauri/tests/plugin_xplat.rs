@@ -1086,7 +1086,10 @@ fn the_mcp_command_lands_on_a_real_entry_point_for_both_families() {
         !Path::new(&windows).exists(),
         "확장자 없는 파일이 있으면 Windows 가 `.cmd` 보다 그것을 먼저 잡는다: {windows}"
     );
-    assert!(Path::new(&format!("{windows}.cmd")).is_file(), "{windows}.cmd");
+    assert!(
+        Path::new(&format!("{windows}.cmd")).is_file(),
+        "{windows}.cmd"
+    );
 
     let entry = std::fs::read_to_string(&unix).unwrap();
     assert!(entry.starts_with("#!/bin/sh"), "POSIX sh — bash 의존 금지");
@@ -1105,7 +1108,8 @@ fn the_mcp_command_lands_on_a_real_entry_point_for_both_families() {
 /// `.cmd` 실행기의 글자 규칙과 탐색 순서 — 셔틀(`bin/oculpm-mcp`)의 Windows 후보와 같은 순서다.
 #[test]
 fn the_windows_launcher_keeps_the_batch_rules_and_the_shuttle_order() {
-    let text = std::fs::read_to_string(claude_plugin().join("bin/Windows_NT/oculpm-mcp.cmd")).unwrap();
+    let text =
+        std::fs::read_to_string(claude_plugin().join("bin/Windows_NT/oculpm-mcp.cmd")).unwrap();
     assert!(
         text.is_ascii(),
         "cmd.exe 는 배치 파일을 OEM 코드페이지로 읽는다 — ASCII 만"
@@ -1148,7 +1152,11 @@ fn the_windows_launcher_keeps_the_batch_rules_and_the_shuttle_order() {
     ];
     let at: Vec<usize> = shuttle_order
         .iter()
-        .map(|c| shuttle.find(c).unwrap_or_else(|| panic!("셔틀에 {c} 가 없다")))
+        .map(|c| {
+            shuttle
+                .find(c)
+                .unwrap_or_else(|| panic!("셔틀에 {c} 가 없다"))
+        })
         .collect();
     assert!(at.windows(2).all(|w| w[0] < w[1]), "셔틀 후보 순서: {at:?}");
 }

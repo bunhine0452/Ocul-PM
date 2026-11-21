@@ -41,6 +41,8 @@
 //! `mcp-lifecycle-hooks` 플랜이 `stop_verdict(state)` 로 옳게 설계해 놓고
 //! "판정이 셸에 있어 하네스가 없다"는 이유로 폐기했던 그 함수다.
 
+/// 확인 게이트 — 항목을 닫고도 확인 명령을 돌린 기록이 없는 대화 (배달 게이트의 짝).
+pub mod check;
 pub mod cli;
 mod collect;
 pub mod ledger;
@@ -50,9 +52,10 @@ mod tests;
 mod transcript;
 
 pub use collect::{
-    collect, collect_journal_conversations, collect_with_transcript, workday_sessions,
-    PEER_LIVE_WINDOW_SECS,
+    collect, collect_journal_conversations, collect_with, collect_with_transcript,
+    segment_started_at, workday_sessions, PEER_LIVE_WINDOW_SECS,
 };
+pub use transcript::{PlanUpdateCall, Transcript};
 
 use std::collections::BTreeSet;
 

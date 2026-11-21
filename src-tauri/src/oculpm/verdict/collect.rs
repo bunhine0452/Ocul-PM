@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
+use super::transcript::Transcript;
 use super::{ChangedFile, JournalRecord, VerdictInput, WorkdaySession};
 use crate::oculpm::frontmatter::parse_frontmatter_and_body;
 use crate::oculpm::spec::Session;
@@ -54,9 +55,31 @@ pub fn collect_with_transcript(
     now: i64,
     transcript: Option<&Path>,
 ) -> VerdictInput {
+    let read = transcript.map(Transcript::read);
+    collect_with(root, conversation, now, read.as_ref())
+}
+
+/// 이 대화의 **현재 세그먼트**가 시작한 시각 (unix 초) — 세그먼트 마커의 mtime. 마커가
+/// 없으면 `None`.
+pub fn segment_started_at(root: &Path, conversation: &str) -> Option<i64> {
+    mtime_of(
+        &root
+            .join(".oculpm")
+            .join("hooks")
+            .join(format!("{SEGMENT_MARKER_PREFIX}{conversation}")),
+    )
+}
+
+/// 이미 읽은 트랜스크립트로 수집한다 — 게이트(`cli::run_gate`)가 같은 파일을 배달 판정과
+/// 확인 판정에 한 번만 읽어 쓰는 길.
+pub fn collect_with(
+    root: &Path,
+    conversation: &str,
+    now: i64,
+    transcript: Option<&Transcript>,
+) -> VerdictInput {
     let hooks = root.join(".oculpm").join("hooks");
-    let segment_started_at =
-        mtime_of(&hooks.join(format!("{SEGMENT_MARKER_PREFIX}{conversation}")));
+    let segment_started_at = segment_started_at(root, conversation);
     let live_peers = live_peers(&hooks, conversation, now);
     let tree = working_tree(root);
     let since = segment_started_at.unwrap_or(now) - JOURNAL_LOOKBACK_SECS;
@@ -65,7 +88,7 @@ pub fn collect_with_transcript(
     // 어휘로 오기 때문이다. 워킹트리를 못 읽었으면 맞출 기준이 없으므로 빈
     // 집합이고, 판정은 예전처럼 판정 불가로 간다.
     let own_edits = match (&tree, transcript) {
-        (Some(tree), Some(path)) => super::transcript::edited_paths(path, &tree.top),
+        (Some(tree), Some(read)) => read.edited_under(&tree.top),
         _ => BTreeSet::new(),
     };
 

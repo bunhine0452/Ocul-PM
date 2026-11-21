@@ -300,3 +300,363 @@ fn a_stale_peer_marker_does_not_mute_the_gate() {
         "잔여 마커 하나로 게이트가 영구 침묵했다"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 확인 게이트 (플랜 `agent-era-20261122` {#check-gate})
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PLAN_UPDATE_TOOL: &str = "mcp__plugin_oculpm_oculpm__plan_update";
+
+/// 훅 payload 에 트랜스크립트 경로를 싣는다 (Windows 경로의 `\` 는 JSON 이 알아서 싼다).
+fn payload_with_transcript(session: &str, transcript: &Path) -> String {
+    serde_json::json!({
+        "session_id": session,
+        "hook_event_name": "Stop",
+        "stop_hook_active": false,
+        "transcript_path": transcript.to_string_lossy(),
+    })
+    .to_string()
+}
+
+/// 성공한 도구 호출 하나 — 호출 줄과 결과 줄.
+fn tool_call(id: &str, name: &str, input: serde_json::Value) -> String {
+    let call = serde_json::json!({"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "id": id, "name": name, "input": input}
+    ]}});
+    let result = serde_json::json!({"type": "user", "message": {"content": [
+        {"type": "tool_result", "tool_use_id": id, "is_error": false}
+    ]}});
+    format!("{call}\n{result}\n")
+}
+
+fn write_transcript(root: &Path, lines: &[String]) -> PathBuf {
+    let path = root.join(".oculpm/hooks/transcript.jsonl");
+    std::fs::write(&path, lines.concat()).unwrap();
+    path
+}
+
+/// 확인 명령이 있는 진행 중 계획 하나.
+fn plan_with_check(root: &Path, check: &str) {
+    let planner = root.join(".oculpm/planner");
+    std::fs::create_dir_all(&planner).unwrap();
+    std::fs::write(
+        planner.join("round.md"),
+        format!(
+            "---\noculpm_plan: v1\nid: round\ntitle: \"라운드\"\nstatus: active\ncreated: 2026-11-22\nupdated: 2026-11-22\nowner: claude-code\n---\n\n**완료 조건:** 초록\n**확인 명령:** {check}\n\n## 단계 {{#p}}\n- [x] 하나 {{#a}}\n\n<!-- oculpm:plan-log begin v1 -->\n| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |\n|---|---|---|---|---|---|\n<!-- oculpm:plan-log end -->\n"
+        ),
+    )
+    .unwrap();
+}
+
+fn close_item(note: Option<&str>) -> String {
+    let mut input = serde_json::json!({"plan_id": "round", "item_id": "a", "status": "done"});
+    if let Some(note) = note {
+        input["note"] = note.into();
+    }
+    tool_call("p1", PLAN_UPDATE_TOOL, input)
+}
+
+/// **이 게이트의 존재 이유** — 항목을 닫았는데 확인 명령을 돌린 기록이 없으면 한 번 짚는다.
+/// 「됐다」 는 주장은 판정이 아니다.
+#[test]
+fn it_asks_for_a_verdict_when_an_item_was_closed_without_one() {
+    let dir = tracked_repo("c1");
+    let root = dir.path();
+    plan_with_check(root, "cargo test --locked");
+    let transcript = write_transcript(root, &[close_item(Some("다 됐다"))]);
+
+    let out = run_gate(root, &payload_with_transcript("c1", &transcript));
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("확인 게이트")
+            && stderr.contains("cargo test --locked")
+            && stderr.contains("plan_update")
+            && stderr.contains("판정 ✓"),
+        "무엇을 돌리고 어디에 남길지 말해야 한다: {stderr}"
+    );
+    assert!(
+        !stderr.contains("배달 게이트"),
+        "바꾼 파일이 없는데 일지를 요구했다: {stderr}"
+    );
+    assert!(root.join(".oculpm/hooks/.check-gate-c1").exists());
+    assert!(
+        !root.join(".oculpm/hooks/.delivery-gate-c1").exists(),
+        "뜨지 않은 게이트의 플래그를 남기면 그 게이트가 이 대화에서 꺼진다"
+    );
+    // 대화당 한 번.
+    let again = run_gate(root, &payload_with_transcript("c1", &transcript));
+    assert_eq!(again.status.code(), Some(0), "확인 게이트가 두 번 떴다");
+}
+
+/// 판정을 남겼으면(실패 판정이어도) 조용하다 — 닫기 전이든 뒤든.
+#[test]
+fn a_verdict_in_the_same_conversation_lets_the_turn_end() {
+    let dir = tracked_repo("c2");
+    let root = dir.path();
+    plan_with_check(root, "cargo test --locked");
+    for note in ["판정 ✓ 1227 passed; 0 failed", "판정 ✗ 2 failed"] {
+        let transcript = write_transcript(root, &[close_item(Some(note))]);
+        let out = run_gate(root, &payload_with_transcript("c2", &transcript));
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{note}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+    assert!(!root.join(".oculpm/hooks/.check-gate-c2").exists());
+}
+
+/// 확인 명령이 없는 계획은 물을 것이 없고, 트랜스크립트가 없으면 모른다 — 둘 다 침묵.
+#[test]
+fn no_check_command_or_no_transcript_is_silent() {
+    let dir = tracked_repo("c3");
+    let root = dir.path();
+    plan_with_check(root, "cargo test");
+    let transcript = write_transcript(root, &[close_item(None)]);
+    // 트랜스크립트 경로가 없는 payload — 예전 모양 그대로.
+    assert_eq!(run_gate(root, &payload("c3", false)).status.code(), Some(0));
+    // 확인 명령 줄을 지운 계획.
+    let plan = root.join(".oculpm/planner/round.md");
+    let text = std::fs::read_to_string(&plan).unwrap();
+    std::fs::write(&plan, text.replace("**확인 명령:** cargo test\n", "")).unwrap();
+    let out = run_gate(root, &payload_with_transcript("c3", &transcript));
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+}
+
+/// 일지도 없고 판정도 없으면 **한 번에** 둘 다 말한다 — 두 번 막아 두 턴을 쓰지 않는다.
+#[test]
+fn both_gates_speak_in_one_block() {
+    let dir = tracked_repo("c4");
+    let root = dir.path();
+    plan_with_check(root, "pnpm test");
+    touch_code(root, "src.rs");
+    let transcript = write_transcript(root, &[close_item(None)]);
+
+    let out = run_gate(root, &payload_with_transcript("c4", &transcript));
+    assert_eq!(out.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("배달 게이트") && stderr.contains("src.rs"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("확인 게이트") && stderr.contains("pnpm test"),
+        "{stderr}"
+    );
+    for flag in [".delivery-gate-c4", ".check-gate-c4"] {
+        assert!(root.join(".oculpm/hooks").join(flag).exists(), "{flag}");
+    }
+    assert_eq!(
+        run_gate(root, &payload_with_transcript("c4", &transcript))
+            .status
+            .code(),
+        Some(0)
+    );
+}
+
+/// 배달 게이트가 먼저 뜬 대화에서도, 나중에 항목을 판정 없이 닫으면 확인 게이트는 따로 한 번 뜬다.
+#[test]
+fn the_check_gate_still_fires_after_the_journal_gate_did() {
+    let dir = tracked_repo("c5");
+    let root = dir.path();
+    plan_with_check(root, "make check");
+    touch_code(root, "src.rs");
+    let empty = write_transcript(root, &[]);
+    assert_eq!(
+        run_gate(root, &payload_with_transcript("c5", &empty))
+            .status
+            .code(),
+        Some(2),
+        "배달 게이트"
+    );
+    let transcript = write_transcript(root, &[close_item(None)]);
+    let out = run_gate(root, &payload_with_transcript("c5", &transcript));
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("확인 게이트") && !stderr.contains("배달 게이트"),
+        "이미 뜬 배달 게이트를 다시 말했다: {stderr}"
+    );
+}
+
+/// 임시 폴더에 훅과 가짜 「바이너리」 를 두고 돌린다 — 옛 판 앱 · 앱이 없는 기기를 흉내 낸다.
+fn run_isolated_gate(
+    plugin: &Path,
+    root: &Path,
+    payload: &str,
+    binary: Option<&Path>,
+    remote: bool,
+) -> Output {
+    use std::io::Write;
+    use std::process::Stdio;
+
+    let home = plugin.join("empty-home");
+    std::fs::create_dir_all(&home).unwrap();
+    let mut cmd = Command::new(hook_shell());
+    cmd.arg(plugin.join("hooks/delivery-gate.sh"))
+        .env("CLAUDE_PROJECT_DIR", root)
+        .env_remove("CLAUDE_PLUGIN_ROOT")
+        .env_remove("OCULPM_MCP_BIN")
+        .env_remove("CLAUDE_CODE_REMOTE")
+        .env("HOME", &home)
+        .env("LOCALAPPDATA", &home);
+    for var in ["XDG_DATA_HOME", "ProgramFiles", "ProgramW6432"] {
+        cmd.env_remove(var);
+    }
+    if let Some(binary) = binary {
+        cmd.env("OCULPM_MCP_BIN", binary);
+    }
+    if remote {
+        cmd.env("CLAUDE_CODE_REMOTE", "true");
+    }
+    let mut child = cmd
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("훅을 띄우지 못했다");
+    child
+        .stdin
+        .as_mut()
+        .expect("stdin")
+        .write_all(payload.as_bytes())
+        .expect("payload 쓰기");
+    child.wait_with_output().expect("훅 종료 대기")
+}
+
+/// 훅과 셔틀만 임시 폴더로 — 리포 안에서 돌리면 셔틀이 개발 빌드를 찾아 버린다.
+fn isolated_plugin() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    for rel in ["hooks/delivery-gate.sh", "bin/oculpm-mcp"] {
+        let to = dir.path().join(rel);
+        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+        std::fs::copy(repo_root().join("plugin/oculpm").join(rel), &to).unwrap();
+        make_executable(&to);
+    }
+    dir
+}
+
+fn make_executable(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+}
+
+/// **플러그인만 먼저 올라간 사용자** — 옛 앱의 바이너리는 `gate` 를 몰라 exit 2 를 낸다.
+/// 그때 훅이 예전 `verdict` 로 물러나 배달 게이트를 그대로 지킨다.
+#[test]
+fn an_old_binary_without_gate_keeps_the_journal_gate() {
+    let dir = tracked_repo("o1");
+    let root = dir.path();
+    let plugin = isolated_plugin();
+    let old = plugin.path().join("old-oculpm-mcp");
+    std::fs::write(
+        &old,
+        "#!/bin/sh\ncase \"$1\" in\n  verdict) echo \"oculpm 배달 게이트: 옛 판의 전문\"; exit 10 ;;\n  *) echo \"oculpm-mcp: unknown argument $1\" >&2; exit 2 ;;\nesac\n",
+    )
+    .unwrap();
+    make_executable(&old);
+    let out = run_isolated_gate(
+        plugin.path(),
+        root,
+        &payload("o1", false),
+        Some(&old),
+        false,
+    );
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    assert!(String::from_utf8_lossy(&out.stderr).contains("옛 판의 전문"));
+    assert!(root.join(".oculpm/hooks/.delivery-gate-o1").exists());
+    assert!(!root.join(".oculpm/hooks/.check-gate-o1").exists());
+}
+
+/// **앱이 없는 클라우드 세션** — 바이너리를 못 찾으면 로컬에서는 예전처럼 침묵하지만, 클라우드
+/// (`CLAUDE_CODE_REMOTE=true`)에서는 셸이 대신 묻는다: 이 대화의 편집이 있는데 마커보다 새 일지가
+/// 없으면 한 번 막고, **도구 없이 할 수 있는 지시**(규격서를 읽고 파일로)를 한다.
+/// macOS 는 개발 기기에 설치본(`/Applications`)이 있을 수 있어 제외한다.
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn a_cloud_session_without_the_app_is_still_asked_for_a_journal() {
+    let dir = tracked_repo("r1");
+    let root = dir.path();
+    let plugin = isolated_plugin();
+    let edit = tool_call(
+        "e1",
+        "Edit",
+        serde_json::json!({"file_path": root.join("src.rs").to_string_lossy()}),
+    );
+    let transcript = write_transcript(root, &[edit]);
+    let stop = payload_with_transcript("r1", &transcript);
+
+    // 로컬(표식 없음) — 침묵. MCP 도구가 없는 곳에서 journal_write 를 시키지 않는다.
+    let local = run_isolated_gate(plugin.path(), root, &stop, None, false);
+    assert_eq!(local.status.code(), Some(0), "{local:?}");
+    assert!(local.stderr.is_empty());
+
+    let out = run_isolated_gate(plugin.path(), root, &stop, None, true);
+    assert_eq!(out.status.code(), Some(2), "{out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("journal-spec.md") && !stderr.contains("journal_write"),
+        "없는 도구를 시키면 안 된다: {stderr}"
+    );
+    assert!(root.join(".oculpm/hooks/.delivery-gate-r1").exists());
+    // 대화당 한 번.
+    assert_eq!(
+        run_isolated_gate(plugin.path(), root, &stop, None, true)
+            .status
+            .code(),
+        Some(0)
+    );
+}
+
+/// 클라우드 폴백이 붙잡지 않는 것 — 일지를 쓴 세션, `.oculpm/` 안만 고친 세션, 읽기만 한 세션.
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn the_cloud_fallback_stays_silent_when_recorded_or_nothing_was_edited() {
+    let plugin = isolated_plugin();
+    let edit_of = |root: &Path, rel: &str| {
+        tool_call(
+            "e1",
+            "Write",
+            serde_json::json!({"file_path": root.join(rel).to_string_lossy().replace('\\', "/")}),
+        )
+    };
+    let run = |root: &Path, session: &str, lines: &[String]| {
+        let transcript = write_transcript(root, lines);
+        run_isolated_gate(
+            plugin.path(),
+            root,
+            &payload_with_transcript(session, &transcript),
+            None,
+            true,
+        )
+    };
+
+    // 일지를 썼다 (마커보다 새 일지).
+    let recorded = tracked_repo("r2");
+    let root = recorded.path();
+    let day = root.join(".oculpm/journal/20261122/Bugs");
+    std::fs::create_dir_all(&day).unwrap();
+    std::fs::write(day.join("1000_bug_x.md"), "[x] 고쳤다\n").unwrap();
+    let out = run(root, "r2", &[edit_of(root, "src.rs")]);
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+
+    // 기록 폴더 안만 고쳤다.
+    let inside = tracked_repo("r3");
+    let root = inside.path();
+    let out = run(root, "r3", &[edit_of(root, ".oculpm/planner/p.md")]);
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+
+    // 읽기만 했다.
+    let read_only = tracked_repo("r4");
+    let root = read_only.path();
+    let read = tool_call("r1", "Read", serde_json::json!({"file_path": "/x/src.rs"}));
+    let out = run(root, "r4", &[read]);
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+}

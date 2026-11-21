@@ -214,6 +214,24 @@ fn hooks_json_guards_and_consumes_stdin() {
         gate.contains(r#"printf '%s\n' "$msg" >&2"#),
         "배달 게이트: 지시 문구는 판정이 만든 것을 그대로 전달"
     );
+    // 확인 게이트 (11-22, 플랜 agent-era-20261122) — 같은 훅이 `gate` 한 번으로 두 판정을 받는다.
+    // 행위는 tests/delivery_gate.rs 가 훅을 실제로 돌려 잰다; 여기는 진입점의 계약만.
+    assert!(
+        gate.contains("gate --root"),
+        "게이트: 두 판정을 한 프로세스에서 (매 턴 도는 자리 — 프로세스를 늘리지 않는다)"
+    );
+    assert!(
+        gate.contains(".check-gate-"),
+        "확인 게이트: 대화당 1회 플래그는 배달 게이트와 따로"
+    );
+    assert!(
+        gate.contains(r#"[ "$rc" -eq 2 ]"#),
+        "게이트: 옛 바이너리(`gate` 를 모른다 = 사용법 오류 2)에서는 예전 verdict 로 물러난다"
+    );
+    assert!(
+        gate.contains("CLAUDE_CODE_REMOTE") && gate.contains("journal-spec.md"),
+        "게이트: 앱이 없는 클라우드 세션에서만 셸이 대신 묻고, 도구 없이 할 수 있는 지시만 한다"
+    );
     for banned in ["curl", "wget", "http://", "https://"] {
         assert!(!gate.contains(banned), "배달 게이트: 네트워크 금지");
     }
