@@ -200,6 +200,10 @@
 .tdy-sess-dot { margin-top: 6px; background: var(--text-2); }
 .tdy-sess-dot.is-quiet { background: var(--warn); }
 .tdy-quiet { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); }
+/* 접힌 나머지(11-22) — 줄과 같은 왼쪽 선에서 시작하는 손잡이 한 줄. 줄이 앞에 서면 그 사이에 선 하나. */
+.tdy-live-rest > .disc-h { padding: var(--space-3) var(--card-pad-x); border-radius: 0; }
+.tdy-list + .tdy-live-rest { border-top: 1px solid var(--border-card); }
+.tdy-live-rest[data-open] > .disc-h { border-bottom: 1px solid var(--border-card); }
 
 /* ── 첫 기록까지 세 걸음 ───────────────────────────────────── */
 .tdy-first-ico { flex: none; color: var(--text-2); }

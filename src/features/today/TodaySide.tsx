@@ -9,6 +9,7 @@
 
 import type { ReactNode } from "react";
 
+import { Disclosure } from "@/components/Disclosure";
 import { NotebookText, SquareTerminal } from "@/components/Icons";
 import type { TermInfo } from "@/api/terminal";
 import { agentLabel } from "@/features/today/agentColor";
@@ -30,6 +31,61 @@ export function liveTerm(terms: readonly TermInfo[]): TermInfo | null {
   return running.length === 1 ? running[0] : null;
 }
 
+/**
+ * 「지금 일하는 중」 이 한 번에 세우는 줄 수 (11-22). 세션이 이만큼 이하면 다 보인다 — 서넛 돌리는 사람에게 접힘은
+ * 클릭 하나를 더 시킬 뿐이다. 넘으면 **조용한 세션만**(이만큼까지) 줄로 서고 나머지는 한 줄로 접힌다: 잘 돌고
+ * 있는 세션은 예외가 아니다. 세션 40개가 도는 날 40줄이 섰고 볼 것(30분 넘게 조용한 셋)이 그 사이에 묻혔다.
+ */
+export const LIVE_LIMIT = 5;
+
+/** 세션 하나가 마지막 기록(없으면 시작)에서 몇 분 지났는가. */
+function quietMinutes(s: LiveSession, now: number): number {
+  return Math.floor((now - (s.lastRecordAt ?? s.startedAt)) / 60_000);
+}
+
+function LiveRow({ s, now, term, onShowTerminal }: { s: LiveSession; now: number; term: TermInfo | null; onShowTerminal: (id: number) => void }) {
+  const { t } = useT();
+  const quietMin = quietMinutes(s, now);
+  const quiet = quietMin >= QUIET_MINUTES;
+  return (
+    <li className="tdy-sess">
+      {/* 평소에는 회색 점 — 돌고 있는 것은 예외가 아니다(영수증 규칙 1). 조용해졌을 때만 호박색. */}
+      <span className={"tdy-dot tdy-sess-dot" + (quiet ? " is-quiet" : "")} aria-hidden="true" />
+      <div className="tdy-grow">
+        <div>
+          {s.agentId ? agentLabel(s.agentId) : t("today.live.unknownAgent")}
+          {s.conversations > 1 ? <span className="tdy-meta"> · {t("today.live.conversations", { n: s.conversations })}</span> : null}
+        </div>
+        {quiet ? (
+          // 묻지 않고 사실만 — 「멈췄는지 볼까요?」 는 볼 곳을 주지 않았다. 볼 곳은 그 터미널이다.
+          <div className="tdy-meta tdy-quiet">
+            <span className="tdy-warn">
+              {quietMin >= 60 ? t("today.live.quietHours", { n: Math.floor(quietMin / 60) }) : t("today.live.quiet", { n: quietMin })}
+            </span>
+            {term ? (
+              <button type="button" className="text-link" onClick={() => onShowTerminal(term.id)}>
+                {t("today.check.openTerminal")}
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="tdy-meta">
+            {s.lastRecordAt != null
+              ? t("today.live.last", { ago: relativeTime(s.lastRecordAt, now) })
+              : t("today.live.noneYet", { ago: relativeTime(s.startedAt, now) })}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * 누가 돌고 있고 누가 조용해졌는가. 조용한 세션(마지막 기록에서 `QUIET_MINUTES` 넘음)이 앞에, 가장 오래 조용한
+ * 것부터 선다. 세션이 `LIVE_LIMIT` 를 넘으면 조용한 것만 줄로 서고 나머지는 접힌 한 줄이 수로 말한다(영수증
+ * 규칙 5) — 조용한 세션이 없으면 그 줄이 「30분 넘게 조용한 세션은 없어요」 다. 접힌 쪽에 조용한 세션이 남으면
+ * 그 수를 경고색으로 적는다(접혀서 예외가 사라지면 안 된다).
+ */
 export function LiveCard({
   sessions,
   now,
@@ -44,52 +100,45 @@ export function LiveCard({
 }) {
   const { t } = useT();
   if (sessions.length === 0) return null;
+  const isQuiet = (s: LiveSession) => quietMinutes(s, now) >= QUIET_MINUTES;
+  // 조용한 것이 앞, 그 안에서는 오래 조용한 순. 나머지는 받은 차례 그대로(sort 는 안정 정렬이다).
+  const ordered = [...sessions].sort((a, b) => {
+    const qa = isQuiet(a);
+    const qb = isQuiet(b);
+    if (qa !== qb) return qa ? -1 : 1;
+    return qa ? quietMinutes(b, now) - quietMinutes(a, now) : 0;
+  });
+  const fold = ordered.length > LIVE_LIMIT;
+  const shown = fold ? ordered.filter(isQuiet).slice(0, LIVE_LIMIT) : ordered;
+  const rest = fold ? ordered.slice(shown.length) : [];
+  const restQuiet = rest.filter(isQuiet).length;
+  const row = (s: LiveSession) => <LiveRow key={s.id} s={s} now={now} term={term} onShowTerminal={onShowTerminal} />;
   return (
     <section className="card tdy-card" aria-labelledby="tdy-live-h">
       <header className="tdy-ch">
         <h2 id="tdy-live-h">{t("today.live.title")}</h2>
         <span className="tdy-cnt">{sessions.length}</span>
       </header>
-      <ul className="tdy-list">
-        {sessions.map((s) => {
-          const since = s.lastRecordAt ?? s.startedAt;
-          const quietMin = Math.floor((now - since) / 60_000);
-          const quiet = quietMin >= QUIET_MINUTES;
-          return (
-            <li key={s.id} className="tdy-sess">
-              {/* 평소에는 회색 점 — 돌고 있는 것은 예외가 아니다(영수증 규칙 1). 조용해졌을 때만 호박색. */}
-              <span className={"tdy-dot tdy-sess-dot" + (quiet ? " is-quiet" : "")} aria-hidden="true" />
-              <div className="tdy-grow">
-                <div>
-                  {s.agentId ? agentLabel(s.agentId) : t("today.live.unknownAgent")}
-                  {s.conversations > 1 ? (
-                    <span className="tdy-meta"> · {t("today.live.conversations", { n: s.conversations })}</span>
-                  ) : null}
-                </div>
-                {quiet ? (
-                  // 묻지 않고 사실만 — 「멈췄는지 볼까요?」 는 볼 곳을 주지 않았다. 볼 곳은 그 터미널이다.
-                  <div className="tdy-meta tdy-quiet">
-                    <span className="tdy-warn">
-                      {quietMin >= 60 ? t("today.live.quietHours", { n: Math.floor(quietMin / 60) }) : t("today.live.quiet", { n: quietMin })}
-                    </span>
-                    {term ? (
-                      <button type="button" className="text-link" onClick={() => onShowTerminal(term.id)}>
-                        {t("today.check.openTerminal")}
-                      </button>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="tdy-meta">
-                    {s.lastRecordAt != null
-                      ? t("today.live.last", { ago: relativeTime(s.lastRecordAt, now) })
-                      : t("today.live.noneYet", { ago: relativeTime(s.startedAt, now) })}
-                  </div>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {shown.length > 0 ? <ul className="tdy-list">{shown.map(row)}</ul> : null}
+      {rest.length > 0 ? (
+        <Disclosure
+          className="tdy-live-rest"
+          label={
+            restQuiet > 0 ? (
+              <>
+                {t("today.live.rest")} · <span className="tdy-warn">{t("today.live.restQuiet", { m: restQuiet })}</span>
+              </>
+            ) : shown.length > 0 ? (
+              t("today.live.rest")
+            ) : (
+              t("today.live.noneQuiet", { n: QUIET_MINUTES })
+            )
+          }
+          count={rest.length}
+        >
+          <ul className="tdy-list">{rest.map(row)}</ul>
+        </Disclosure>
+      ) : null}
     </section>
   );
 }
