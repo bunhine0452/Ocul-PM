@@ -78,6 +78,21 @@ const JOURNAL_CHANNELS: readonly ProjectEvent<{ project_id: number }>[] = [
   events.oculpmJournalPathChanged,
 ];
 
+/** 일지 사건 셋의 페이로드 — 더함 · 고침은 요약을, 경로 바뀜은 경로를 싣는다. */
+type JournalPayload = { project_id: number; summary?: { relative_path?: string }; relative_path?: string };
+
+const ENTRY_CHANNELS = JOURNAL_CHANNELS as readonly ProjectEvent<JournalPayload>[];
+
+/**
+ * 사건이 가리키는 일지 — 일지 루트 기준 경로(`20261122/Bugs/0314_bug_x.md`). 요약의 경로는 이미 그 꼴이고,
+ * 늦게 끝난 diff 캡처가 쏘는 경로 바뀜은 `.oculpm/journal/…` 접두를 단다. 모르면 `null`.
+ */
+export function journalEventPath(payload: JournalPayload): string | null {
+  const raw = payload.summary?.relative_path ?? payload.relative_path;
+  if (typeof raw !== "string" || raw === "") return null;
+  return raw.replace(/\\/g, "/").replace(/^\.oculpm\//, "").replace(/^journal\//, "");
+}
+
 const DATA_CHANNELS = [events.oculpmDataChanged] as const;
 
 /** 작업 일지가 추가/변경/삭제되면 `onChange` 를 부른다 (250ms 병합). */
@@ -87,6 +102,30 @@ export function useJournalEvents(
   onChange: () => void,
 ): void {
   useOculpmEventRefresh(JOURNAL_CHANNELS, projectId, enabled, onChange);
+}
+
+/**
+ * **이 일지**가 바뀌었을 때만 `onChange` 를 부른다 (250ms 병합) — 열어 둔 일지 상세의 다시 읽기 (11-22).
+ *
+ * 상세는 프로젝트의 어느 일지가 바뀌든 본문과 diff 를 다시 읽었다. 에이전트 여럿이 일지를 쓰는 날에는 읽고
+ * 있는 일지와 상관없는 사건마다 IPC 둘(본문 · 기록된 diff 전부)이 갔다. 사건은 어느 일지인지를 싣고 온다
+ * (`journalEventPath`) — 그 일지가 아니면 듣지 않는다. 경로를 못 읽은 사건은 예전처럼 다시 읽는다(모르는 것을
+ * 「상관없다」 고 하지 않는다). 창으로 돌아올 때의 다시 읽기는 그대로다.
+ */
+export function useJournalEntryEvents(
+  projectId: number | null,
+  relativePath: string,
+  enabled: boolean,
+  onChange: () => void,
+): void {
+  const accept = useCallback(
+    (payload: JournalPayload) => {
+      const path = journalEventPath(payload);
+      return path == null || path === relativePath;
+    },
+    [relativePath],
+  );
+  useOculpmEventRefresh(ENTRY_CHANNELS, projectId, enabled, onChange, accept);
 }
 
 /**

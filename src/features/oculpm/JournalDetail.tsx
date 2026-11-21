@@ -23,7 +23,7 @@ import { evidenceStateOf } from "./evidenceState";
 import { TriggerBadge } from "./triggerMeta";
 import { verificationLines, withoutTitle, withoutVerification } from "./verification";
 import { isConfirmed, isStaleVerified } from "./verified";
-import { useJournalEvents } from "./useOculpmLive";
+import { useJournalEntryEvents } from "./useOculpmLive";
 import { useOpenInEditor } from "@/features/shell/useOpenInEditor";
 import { requestSendToClaude } from "@/features/terminal/sendToClaude";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
@@ -90,9 +90,10 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
   }, [entry.verified_by_user, entry.verified_stale]);
 
   // 디스크가 SSOT 다 — 열어 둔 일지를 에이전트가 고치거나 diff 사이드카가 뒤늦게 기록되면 따라온다.
+  // **이 일지**의 사건만 듣는다(11-22) — 다른 에이전트가 다른 일지를 쓸 때마다 본문과 diff 를 다시 읽지 않는다.
   const [reloadTick, setReloadTick] = useState(0);
   const reload = useCallback(() => setReloadTick((n) => n + 1), []);
-  useJournalEvents(projectId, true, reload);
+  useJournalEntryEvents(projectId, entry.relative_path, true, reload);
 
   useEffect(() => {
     let cancelled = false;
