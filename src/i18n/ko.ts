@@ -165,7 +165,7 @@ export const ko = {
   "prefs.agents.updateCmd": "업데이트 명령",
   "prefs.agents.orphan": "마켓플레이스가 빠졌어요",
   "prefs.agents.mcp": "MCP 직접 등록",
-  "prefs.agents.mcpMeta": "플러그인의 MCP 가 뜨지 않을 때만 써요 (Windows 등). 이 프로젝트의 .mcp.json 에 적어요.",
+  "prefs.agents.mcpMeta": "플러그인 없이 쓰거나 플러그인이 4.12 보다 옛 판일 때만 써요. 둘 다 켜면 도구가 두 벌 보여요. 이 프로젝트의 .mcp.json 에 적어요.",
   "prefs.agents.mcpRegistered": "등록됨",
   "prefs.agents.mcpRegister": "등록",
   "prefs.agents.mcpUnregister": "등록 해제",
@@ -978,11 +978,8 @@ export const ko = {
   // 연동 탭 적용 범위 — 프로젝트별 설정과 머신 전역 설정이 한 화면에 섞여
   // 있어 "설치됨" 배지가 어느 범위를 말하는지 알 수 없던 것을 갈랐다.
   "op.mcp.pluginCovers": "플러그인이 이미 같은 도구를 줘요. 여기서 또 등록할 필요가 없어요.",
-  "op.mcp.pluginCovers__win": "Windows 에서는 플러그인의 MCP 서버가 뜨지 않아요. 여기서 등록해야 MCP 도구가 생겨요 (훅은 플러그인이 그대로 돌려요).",
   "op.mcp.pluginConflict": "플러그인과 겹쳐요. 둘 다 등록돼 있어 도구가 두 벌 보여요. 하나를 해제하세요 (플러그인 쪽만 쓰는 것을 권해요).",
-  "op.mcp.pluginConflict__win": "Windows 에서는 이 등록이 MCP 도구가 뜨는 유일한 길이에요. 플러그인의 MCP 서버는 뜨지 않아 겹치지 않으니 그대로 두세요.",
   "op.plugin.warn": "플러그인이 이미 훅과 MCP 를 줘요. 「이 프로젝트에만 적용」의 훅 연동·MCP 등록을 함께 켜면 이벤트가 두 번 쌓이고 도구가 두 벌 보여요. 플러그인 하나만 쓰는 것을 권해요.",
-  "op.plugin.warn__win": "플러그인이 이미 훅을 줘요. 「이 프로젝트에만 적용」의 훅 연동을 함께 켜면 이벤트가 두 번 쌓여요. MCP 는 달라요. Windows 에서는 플러그인의 MCP 서버가 뜨지 않으니 같은 카드의 「MCP 서버」 등록을 켜세요.",
   "today.pluginDrift.title": "플러그인이 옛 판이에요 ({installed} → {bundled})",
   "today.pluginDrift.copy": "업데이트 명령 복사",
   "today.pluginDrift.copied": "복사했어요. Claude Code 에 붙여 넣으세요.",

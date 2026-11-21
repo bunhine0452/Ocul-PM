@@ -91,23 +91,29 @@ describe("Windows · Linux pick their own words", () => {
 
 });
 
-describe("Windows MCP advice — following it must leave MCP working", () => {
-  const WIN_ONLY: I18nKey[] = ["op.mcp.pluginCovers", "op.mcp.pluginConflict", "op.plugin.warn"];
+describe("Windows MCP advice — the plugin's MCP starts there too since 4.12", () => {
+  // 4.11 까지 Windows 에서는 플러그인의 MCP 서버가 뜨지 않아(등록 명령이 sh 셔틀이었다) Windows 판
+  // 문구가 「여기서 등록하세요」 를 권했다. 4.12 에서 등록 명령이 `bin/${OS:-posix}/oculpm-mcp` 가 되어
+  // Windows 도 `.cmd` 실행기로 뜬다(src-tauri/tests/plugin_xplat.rs) — 그 권고는 이제 도구를 두 벌로 만든다.
+  const ONCE_WIN_ONLY: I18nKey[] = ["op.mcp.pluginCovers", "op.mcp.pluginConflict", "op.plugin.warn"];
 
-  it.each(WIN_ONLY)("%s has a Windows variant and Linux keeps the original advice", (key) => {
-    const all = ko as Record<string, string>;
-    expect(all[`${key}__win`]).toBeTruthy();
-    expect(all[`${key}__pc`]).toBeUndefined();
-    expect(all[`${key}__linux`]).toBeUndefined();
-
-    __setPlatformForTests("linux");
+  it.each(ONCE_WIN_ONLY)("%s gives Windows the same advice as everyone", (key) => {
+    for (const dict of [ko, en] as Array<Record<string, string>>) {
+      for (const tag of ["win", "pc", "linux"]) expect(dict[`${key}__${tag}`]).toBeUndefined();
+    }
     setLangSetting("ko");
-    expect(t(key)).toBe(ko[key]);
     __setPlatformForTests("windows");
-    expect(t(key)).toBe(all[`${key}__win`]);
-    // Windows 판은 등록을 권한다 — "해제하라"·"플러그인 하나만" 이 아니다.
-    expect(t(key)).toMatch(/MCP/);
-    setLangSetting("en");
-    expect(t(key)).toMatch(/Windows/);
+    expect(t(key)).toBe(ko[key]);
+    __setPlatformForTests("linux");
+    expect(t(key)).toBe(ko[key]);
+  });
+
+  it("the direct-registration row no longer says the plugin's MCP is broken on Windows", () => {
+    __setPlatformForTests("windows");
+    for (const lang of ["ko", "en"] as const) {
+      setLangSetting(lang);
+      expect(t("prefs.agents.mcpMeta")).not.toMatch(/Windows/);
+      expect(t("prefs.agents.mcpMeta")).toMatch(/4\.12/);
+    }
   });
 });

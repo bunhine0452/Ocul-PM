@@ -559,13 +559,19 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
     );
 }
 
-/// MCP 는 머신 종속 절대경로 대신 플러그인 동봉 셔틀을 가리킨다.
+/// MCP 는 머신 종속 절대경로 대신 플러그인 동봉 진입점을 가리킨다.
+///
+/// `${OS:-posix}` (2026-11-22, 플랜 `agent-era-20261122` {#win-mcp-launch}): Windows 는 늘
+/// `OS=Windows_NT` 라 `bin/Windows_NT/oculpm-mcp.cmd` 로, 그 변수가 없는 macOS · Linux 는
+/// 기본값으로 `bin/posix/oculpm-mcp` 로 간다 — 둘 다 같은 탐색 순서로 실바이너리를 찾는다.
+/// 예전 `bin/oculpm-mcp`(sh 셔틀)를 바로 가리키던 동안 Windows 에서는 MCP 가 뜨지 않았다.
+/// 실제로 띄워 보는 것은 `tests/plugin_xplat.rs` 가 세 OS 에서 한다.
 #[test]
 fn mcp_json_uses_plugin_root_shuttle() {
     let mcp = read_json(".mcp.json");
     assert_eq!(
-        mcp["oculpm"]["command"], "${CLAUDE_PLUGIN_ROOT}/bin/oculpm-mcp",
-        "절대경로 하드코딩 금지 — bin/ 셔틀 경유"
+        mcp["oculpm"]["command"], "${CLAUDE_PLUGIN_ROOT}/bin/${OS:-posix}/oculpm-mcp",
+        "절대경로 하드코딩 금지 — bin/ 진입점 경유 (OS 별 한 줄)"
     );
     let args: Vec<&str> = mcp["oculpm"]["args"]
         .as_array()

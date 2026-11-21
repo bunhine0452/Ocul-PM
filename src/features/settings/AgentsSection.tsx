@@ -171,9 +171,10 @@ function CodexRow({ tick }: { tick: number }) {
 }
 
 /**
- * 플러그인의 MCP 가 뜨지 않는 환경(Windows 등)의 우회로 — 이 프로젝트의 `.mcp.json` 에
- * 사이드카를 직접 등록한다. 플러그인이 MCP 를 띄우는 곳에서 둘 다 켜면 같은 도구가 두 벌
- * 보이므로, 필요할 때만 쓰라고 메타에 적는다.
+ * 플러그인 없이 쓰거나 플러그인이 옛 판(4.12 미만 — Windows 에서 MCP 가 뜨지 않던 판)일 때의
+ * 우회로 — 이 프로젝트의 `.mcp.json` 에 사이드카를 직접 등록한다. 4.12 부터는 플러그인의 MCP 가
+ * Windows 에서도 뜨므로(`plugin/oculpm/bin/Windows_NT/oculpm-mcp.cmd`) 둘 다 켜면 같은 도구가
+ * 두 벌 보인다 — 필요할 때만 쓰라고 메타에 적는다.
  */
 function McpRow({ tick }: { tick: number }) {
   const { t } = useT();
@@ -192,7 +193,7 @@ function McpRow({ tick }: { tick: number }) {
     };
   }, [projectId, tick]);
   if (projectId == null) return null;
-  // Windows 의 우회로다 — 다른 OS 에서는 이미 등록해 둔 경우(풀 수 있어야 한다)에만 선다.
+  // Windows 에서는 옛 플러그인을 쓰는 사람을 위해 늘 선다 — 다른 OS 에서는 이미 등록해 둔 경우(풀 수 있어야 한다)에만.
   const registered = probe.state === "ok" && probe.value.registered;
   if (getPlatform() !== "windows" && !registered) return null;
 

@@ -93,16 +93,23 @@ macOS · Linux · Windows (Linux·Windows 는 베타 — 크로스플랫폼 라�
 |---|---|---|---|
 | macOS | `sh -c` | `/Applications`·`~/Applications` 의 `.app`, `~/.local/bin` | 셔틀 경유로 뜬다 |
 | Linux | `sh -c` | deb `/usr/bin`, AppImage 안정 사본 `${XDG_DATA_HOME:-~/.local/share}/ocul-pm/bin` (앱이 기동 때 마운트 밖으로 복사), `~/.local/bin` | 셔틀 경유로 뜬다 |
-| Windows | **Git Bash** (Claude Code 문서: 없으면 PowerShell 로 돌려 이 훅들이 동작하지 않는다) | `%LOCALAPPDATA%\Ocul-PM`, `…\Programs\Ocul-PM`, `%ProgramFiles%\Ocul-PM` | **뜨지 않는다** — 아래 |
+| Windows | **Git Bash** (Claude Code 문서: 없으면 PowerShell 로 돌려 이 훅들이 동작하지 않는다) | `%LOCALAPPDATA%\Ocul-PM`, `…\Programs\Ocul-PM`, `%ProgramFiles%\Ocul-PM` | `.cmd` 실행기 경유로 뜬다 (4.12 부터) — 아래 |
 
-- **Windows 에서 플러그인 MCP 서버가 뜨지 않는 이유**: Claude Code 는 stdio MCP 서버를
-  셸 없이 직접 실행하는데 Windows 는 sh 셔틀을 실행 파일로 열지 못한다
-  (anthropics/claude-code#58510 — 같은 이유로 `npx` 도 막힌다). `.mcp.json` 은 OS 별로
-  가를 수 없다. 대안은 앱의 설정 → ocul-pm → 연동 → 「이 프로젝트에만 적용」 →
-  **MCP 서버 등록**(프로젝트 `.mcp.json` 에 설치된 `oculpm-mcp.exe` 절대경로)이다 — 같은
-  카드의 훅 연동은 끈 채로(훅은 플러그인이 돌린다). 훅은 그대로 동작한다. 해소 방안은
-  사용자 결정으로 플랜에 올라 있다. (앱의 「플러그인 하나만」 경고 `op.plugin.warn` 은
-  아직 OS 를 가리지 않는다 — Windows 에서는 MCP 등록이 맞는 선택이다.)
+- **Windows 의 플러그인 MCP 서버 (4.12, 플랜 `agent-era-20261122` `{#win-mcp-launch}`)**:
+  Claude Code 는 stdio MCP 서버를 셸 없이 직접 실행한다. 등록 명령이 sh 셔틀이던 4.11
+  까지는 Windows 에서 `#!` 줄을 읽고 PATH 에 없는 `sh` 를 불러 늘 `CONNECTION_CLOSED`
+  였다(2026-11-22 실측, Claude Code 2.1.330 — 로그 9회 중 9회. Git Bash 에서 띄운
+  세션만 `sh` 가 PATH 에 있어 떴다). 「`.mcp.json` 은 OS 별로 가를 수 없다」 는 예전
+  결론은 틀렸다 — `${이름:-기본값}` 보간과 Windows 에만 늘 있는 `OS=Windows_NT` 로
+  갈린다: 명령은 `${CLAUDE_PLUGIN_ROOT}/bin/${OS:-posix}/oculpm-mcp` 이고 Windows 는
+  확장자 없는 그 경로를 PATHEXT 로 풀어 `bin/Windows_NT/oculpm-mcp.cmd` 를,
+  macOS · Linux 는 `bin/posix/oculpm-mcp`(셔틀로 넘기기만 하는 sh)를 돈다. 같은 날
+  조사용 플러그인으로 두 보간을 쟀고, 실제 플러그인은 `claude --plugin-dir … mcp list`
+  에서 `✔ Connected` 였다. `src-tauri/tests/plugin_xplat.rs` 가 세 OS 러너에서 등록
+  명령을 그 OS 의 방식으로 띄운다. 앱의 **MCP 직접 등록**(프로젝트 `.mcp.json` 에
+  `oculpm-mcp.exe` 절대경로)은 플러그인 없이 쓰거나 4.12 미만 플러그인일 때의 우회로로
+  남는다 — 둘 다 켜면 도구가 두 벌이다. `OS` 를 스스로 내보내는 macOS · Linux 환경
+  (드물다)에서는 `bin/<그 값>/` 이 없어 MCP 가 뜨지 않는다 — 그때는 `OS` 를 풀거나 직접 등록.
 - **Codex** 는 Windows 에서 훅을 `%COMSPEC% /C`(cmd.exe)로 돌린다(openai/codex
   `codex-rs/hooks/src/engine/command_runner.rs`). 그래서 `plugin/oculpm-codex` 의
   `hooks.json` 에만 훅마다 `commandWindows` 를 달아 `hooks/run-sh.cmd` → Git Bash →

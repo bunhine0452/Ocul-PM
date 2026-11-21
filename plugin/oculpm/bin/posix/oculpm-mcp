@@ -1,0 +1,16 @@
+#!/bin/sh
+# oculpm-mcp — macOS · Linux 쪽 MCP 진입점 (.mcp.json).
+#
+# `.mcp.json` 의 명령은 `${CLAUDE_PLUGIN_ROOT}/bin/${OS:-posix}/oculpm-mcp` 다.
+# Windows 는 늘 OS=Windows_NT 라 `bin/Windows_NT/oculpm-mcp.cmd` 로 가고, 그 변수가
+# 없는 macOS · Linux 는 기본값 `posix` 로 이 파일에 온다. Windows 의 Claude Code 는
+# 셸 없이 MCP 서버를 띄워서 sh 셔틀을 프로그램으로 열지 못했다 (`#!` 줄을 읽고 PATH
+# 에 없는 `sh` 를 불렀다 — 2026-11-22 실측, Claude Code 2.1.330).
+#
+# 탐색은 한 벌이다 — 옆의 셔틀(`bin/oculpm-mcp`)로 넘기기만 한다. 훅도 그 셔틀을 쓴다.
+# 자식 프로세스를 띄우지 않는다 (매개변수 확장 + exec).
+case $0 in
+  */*) here=${0%/*} ;;
+  *) here=. ;;
+esac
+exec "$here/../oculpm-mcp" "$@"

@@ -952,6 +952,247 @@ fn the_pre_tool_use_hook_warns_through_the_shuttle() {
     assert!(again.stdout.is_empty(), "{}", describe(&again));
 }
 
+// ─── MCP 등록 명령 (`.mcp.json`) — 플랜 `agent-era-20261122` {#win-mcp-launch} ───
+//
+// Windows 의 Claude Code 는 stdio MCP 서버를 셸 없이 띄운다. 등록 명령이 sh 셔틀이던
+// 동안에는 `#!` 줄을 읽고 PATH 에 없는 `sh` 를 불러 9번 중 9번 `CONNECTION_CLOSED` 였다
+// (2026-11-22 실측, Claude Code 2.1.330 — PowerShell 에서 띄운 세션). 등록 명령을
+// `bin/${OS:-posix}/oculpm-mcp` 로 바꿔 Windows 는 `.cmd` 실행기, 그 밖은 sh 진입점으로 간다.
+
+/// `.mcp.json` 의 자리표시자를 Claude Code 가 푸는 대로 푼다 — `${CLAUDE_PLUGIN_ROOT}` ·
+/// `${CLAUDE_PROJECT_DIR}` 와 `${이름:-기본값}`. 같은 날 조사용 플러그인으로 잰 것:
+/// Windows 에서 `${OS:-posix}` → `Windows_NT`, 없는 변수의 `${X:-posix}` → `posix`.
+fn expand_like_claude(raw: &str, plugin_root: &Path, project: &Path, os: Option<&str>) -> String {
+    let mut out = raw
+        .replace("${CLAUDE_PLUGIN_ROOT}", &plugin_root.to_string_lossy())
+        .replace("${CLAUDE_PROJECT_DIR}", &project.to_string_lossy());
+    while let Some(start) = out.find("${") {
+        let end = start + out[start..].find('}').expect("닫는 중괄호");
+        let (name, default) = out[start + 2..end]
+            .split_once(":-")
+            .expect("플러그인 문맥 밖의 변수는 기본값을 달아야 한다 — 못 풀면 글자 그대로 나간다");
+        let value = match (name, os) {
+            ("OS", Some(os)) => os.to_string(),
+            ("OS", None) => default.to_string(),
+            (other, _) => panic!("모르는 변수 {other} — 여기서 값을 정해야 한다"),
+        };
+        out.replace_range(start..=end, &value);
+    }
+    out
+}
+
+/// 이 OS 의 `OS` 환경변수 — Windows 는 늘 `Windows_NT`, macOS · Linux 에는 없다.
+fn platform_os_var() -> Option<&'static str> {
+    cfg!(windows).then_some("Windows_NT")
+}
+
+/// 등록 명령을 이 OS 의 Claude Code 가 띄우는 모양으로 — macOS · Linux 는 그 파일을 바로
+/// 실행하고, Windows 는 확장자 없는 경로를 PATHEXT 로 풀어 `.cmd` 를 `cmd.exe /d /s /c` 로 돌린다.
+fn mcp_launch(plugin_root: &Path, project: &Path) -> Command {
+    let mcp = read_json(&claude_plugin().join(".mcp.json"));
+    let server = &mcp["oculpm"];
+    let command = expand_like_claude(
+        server["command"].as_str().expect("command"),
+        plugin_root,
+        project,
+        platform_os_var(),
+    );
+    let args: Vec<String> = server["args"]
+        .as_array()
+        .expect("args")
+        .iter()
+        .map(|a| expand_like_claude(a.as_str().unwrap(), plugin_root, project, platform_os_var()))
+        .collect();
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let script = PathBuf::from(format!("{command}.cmd"));
+        assert!(
+            !Path::new(&command).exists() && script.is_file(),
+            "Windows: 확장자 없는 경로는 없어야 하고(있으면 그 파일이 먼저 잡힌다) .cmd 가 있어야 한다 — {command}"
+        );
+        let line: Vec<String> = std::iter::once(script.to_string_lossy().into_owned())
+            .chain(args)
+            .map(|a| format!("\"{a}\""))
+            .collect();
+        let mut cmd = Command::new("cmd.exe");
+        cmd.args(["/d", "/s", "/c"])
+            .raw_arg(format!("\"{}\"", line.join(" ")));
+        cmd
+    }
+    #[cfg(not(windows))]
+    {
+        let mut cmd = Command::new(command);
+        cmd.args(args);
+        cmd
+    }
+}
+
+/// 플러그인의 `bin/` 을 임시 폴더로 옮긴다 — 리포 안에서 돌리면 개발 빌드 후보가 먼저 잡힌다.
+fn isolated_plugin_bin(dir: &Path) -> PathBuf {
+    let plugin = dir.join("plugin");
+    for rel in [
+        "bin/oculpm-mcp",
+        "bin/posix/oculpm-mcp",
+        "bin/Windows_NT/oculpm-mcp.cmd",
+    ] {
+        let to = plugin.join(rel);
+        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+        std::fs::copy(claude_plugin().join(rel), &to)
+            .unwrap_or_else(|e| panic!("{rel} 복사 실패: {e}"));
+    }
+    plugin
+}
+
+/// **등록 명령이 이 OS 에서 MCP 서버를 띄운다** — 세 OS 러너에서 Claude Code 가 하는 모양 그대로.
+#[test]
+fn the_registered_mcp_command_starts_the_server_on_this_os() {
+    let project = tempfile::tempdir().unwrap();
+    // Windows 의 흔한 자리 — 공백이 든 사용자 폴더 아래의 프로젝트.
+    let root = project.path().join("my project");
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    let mut cmd = mcp_launch(&claude_plugin(), &root);
+    cmd.current_dir(&root)
+        .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"))
+        .env_remove("OCULPM_ROOT")
+        .env_remove("OCULPM_ACP_HOST");
+    let init = json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+        "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "0"}
+    }});
+    let out = spawn_with_stdin(cmd, &format!("{init}\n"));
+    assert_eq!(out.status.code(), Some(0), "{}", describe(&out));
+    let first = String::from_utf8_lossy(&out.stdout);
+    let resp: Value = serde_json::from_str(first.lines().next().unwrap_or_default())
+        .unwrap_or_else(|e| panic!("stdout 첫 줄이 응답이 아니다 ({e}): {}", describe(&out)));
+    assert_eq!(resp["result"]["serverInfo"]["name"], "oculpm-mcp");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("my project"),
+        "공백이 든 루트가 한 인자로 닿아야 한다: {stderr}"
+    );
+}
+
+/// 같은 한 줄이 OS 마다 다른 진입점을 가리킨다 — 둘 다 저장소에 있어야 한다. 그리고 `OS` 를
+/// 쓰는 까닭: Windows 에만 늘 있는 변수라, 없는 곳에서는 기본값(`posix`)으로 떨어진다.
+#[test]
+fn the_mcp_command_lands_on_a_real_entry_point_for_both_families() {
+    let mcp = read_json(&claude_plugin().join(".mcp.json"));
+    let raw = mcp["oculpm"]["command"].as_str().unwrap();
+    let plugin = claude_plugin();
+    let unix = expand_like_claude(raw, &plugin, &plugin, None);
+    assert!(Path::new(&unix).is_file(), "{unix}");
+    let windows = expand_like_claude(raw, &plugin, &plugin, Some("Windows_NT"));
+    assert!(
+        !Path::new(&windows).exists(),
+        "확장자 없는 파일이 있으면 Windows 가 `.cmd` 보다 그것을 먼저 잡는다: {windows}"
+    );
+    assert!(Path::new(&format!("{windows}.cmd")).is_file(), "{windows}.cmd");
+
+    let entry = std::fs::read_to_string(&unix).unwrap();
+    assert!(entry.starts_with("#!/bin/sh"), "POSIX sh — bash 의존 금지");
+    assert!(
+        entry.contains(r#"exec "$here/../oculpm-mcp" "$@""#),
+        "탐색은 셔틀 한 벌 — 진입점은 넘기기만 한다"
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&unix).unwrap().permissions().mode();
+        assert!(mode & 0o111 != 0, "bin/posix/oculpm-mcp 실행 비트 누락");
+    }
+}
+
+/// `.cmd` 실행기의 글자 규칙과 탐색 순서 — 셔틀(`bin/oculpm-mcp`)의 Windows 후보와 같은 순서다.
+#[test]
+fn the_windows_launcher_keeps_the_batch_rules_and_the_shuttle_order() {
+    let text = std::fs::read_to_string(claude_plugin().join("bin/Windows_NT/oculpm-mcp.cmd")).unwrap();
+    assert!(
+        text.is_ascii(),
+        "cmd.exe 는 배치 파일을 OEM 코드페이지로 읽는다 — ASCII 만"
+    );
+    assert!(!text.contains('\r'), "LF 로 싣는다 (.gitattributes eol=lf)");
+    for line in text.lines() {
+        let line = line.trim_start().to_ascii_lowercase();
+        if line.starts_with("rem ") || line == "rem" {
+            continue;
+        }
+        assert!(
+            !line.starts_with(':') && !line.starts_with("goto") && !line.contains(" goto "),
+            "LF 배치 파일에서 레이블 · goto 는 잘못 읽힌다: {line}"
+        );
+    }
+    let order = [
+        "%OCULPM_MCP_BIN%",
+        r"%LOCALAPPDATA%\Ocul-PM\oculpm-mcp.exe",
+        r"%LOCALAPPDATA%\Programs\Ocul-PM\oculpm-mcp.exe",
+        r"%ProgramFiles%\Ocul-PM\oculpm-mcp.exe",
+        r"%ProgramW6432%\Ocul-PM\oculpm-mcp.exe",
+        r"src-tauri\target\debug\oculpm-mcp.exe",
+        r"src-tauri\target\release\oculpm-mcp.exe",
+    ];
+    let at: Vec<usize> = order
+        .iter()
+        .map(|c| text.find(&format!("exist \"{c}")).or_else(|| text.find(c)))
+        .map(|p| p.expect("후보 누락"))
+        .collect();
+    assert!(at.windows(2).all(|w| w[0] < w[1]), "후보 순서: {at:?}");
+    let shuttle = std::fs::read_to_string(claude_plugin().join("bin/oculpm-mcp")).unwrap();
+    let shuttle_order = [
+        "OCULPM_MCP_BIN:-",
+        "$LOCALAPPDATA/Ocul-PM/oculpm-mcp.exe",
+        "$LOCALAPPDATA/Programs/Ocul-PM/oculpm-mcp.exe",
+        "$program_files/Ocul-PM/oculpm-mcp.exe",
+        "$program_w6432/Ocul-PM/oculpm-mcp.exe",
+        "target/debug/oculpm-mcp",
+        "target/release/oculpm-mcp",
+    ];
+    let at: Vec<usize> = shuttle_order
+        .iter()
+        .map(|c| shuttle.find(c).unwrap_or_else(|| panic!("셔틀에 {c} 가 없다")))
+        .collect();
+    assert!(at.windows(2).all(|w| w[0] < w[1]), "셔틀 후보 순서: {at:?}");
+}
+
+/// Windows — `.cmd` 실행기가 설치 위치 셋을 찾고, 못 찾으면 stdout 은 비운 채 stderr 로만 말한다.
+#[cfg(windows)]
+#[test]
+fn the_windows_launcher_finds_the_install_locations() {
+    use std::os::windows::process::CommandExt;
+    let tmp = tempfile::tempdir().unwrap();
+    let plugin = isolated_plugin_bin(tmp.path());
+    let launcher = plugin.join("bin/Windows_NT/oculpm-mcp.cmd");
+    let run = |vars: &[(&str, &Path)]| {
+        let mut cmd = Command::new("cmd.exe");
+        cmd.args(["/d", "/s", "/c"])
+            .raw_arg(format!("\"\"{}\" --version\"", launcher.display()))
+            .env_remove("OCULPM_MCP_BIN");
+        for var in ["LOCALAPPDATA", "ProgramFiles", "ProgramW6432"] {
+            cmd.env_remove(var);
+        }
+        for (k, v) in vars {
+            cmd.env(k, v);
+        }
+        spawn_with_stdin(cmd, "")
+    };
+    for (case, var, rel) in [
+        ("per-user", "LOCALAPPDATA", "Ocul-PM/oculpm-mcp.exe"),
+        (
+            "multi-user",
+            "LOCALAPPDATA",
+            "Programs/Ocul-PM/oculpm-mcp.exe",
+        ),
+        ("per-machine", "ProgramFiles", "Ocul-PM/oculpm-mcp.exe"),
+    ] {
+        let base = tmp.path().join(case);
+        place_sidecar(&base.join(rel));
+        assert_found(&run(&[(var, base.as_path())]), case);
+    }
+    let out = run(&[]);
+    assert_eq!(out.status.code(), Some(1), "{}", describe(&out));
+    assert!(out.stdout.is_empty(), "stdout 은 MCP 프로토콜 전용");
+    assert!(String::from_utf8_lossy(&out.stderr).contains("OCULPM_MCP_BIN"));
+}
+
 // ─── 사이드카 끝단 (#integ-sidecar) ─────────────────────────────────────────
 
 /// **사이드카 바이너리 자체**가 이 OS 에서 `--root` 로 떠서 일지를 쓴다 — 다른 앱

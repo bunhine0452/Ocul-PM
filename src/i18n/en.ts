@@ -169,7 +169,7 @@ export const en: Record<keyof typeof ko, string> = {
   "prefs.agents.updateCmd": "Update command",
   "prefs.agents.orphan": "Marketplace missing",
   "prefs.agents.mcp": "Direct MCP registration",
-  "prefs.agents.mcpMeta": "Only when the plugin's MCP doesn't start (e.g. Windows) — this project's .mcp.json",
+  "prefs.agents.mcpMeta": "Only without the plugin, or with a plugin older than 4.12 — with both on, every tool shows up twice. Written to this project's .mcp.json",
   "prefs.agents.mcpRegistered": "Registered",
   "prefs.agents.mcpRegister": "Register",
   "prefs.agents.mcpUnregister": "Unregister",
@@ -956,11 +956,8 @@ export const en: Record<keyof typeof ko, string> = {
   // Integration-tab scope — per-project and machine-wide settings shared one
   // card, so a "Installed" badge never said which of the two it meant.
   "op.mcp.pluginCovers": "The plugin already provides the same tools — no need to register this as well.",
-  "op.mcp.pluginCovers__win": "On Windows the plugin's MCP server doesn't start — register here to get the MCP tools (the plugin still runs the hooks).",
   "op.mcp.pluginConflict": "This overlaps with the plugin — both are registered, so each tool shows up twice. Unregister one of them (keeping the plugin is the simpler choice).",
-  "op.mcp.pluginConflict__win": "On Windows this registration is the only way the MCP tools load — the plugin's MCP server doesn't start, so nothing is duplicated. Keep it.",
   "op.plugin.warn": "The plugin already provides hooks and MCP — turning on the hook bridge and MCP registration under \u201cApplies to this project only\u201d as well double-loads events and exposes two copies of each tool. Stick to the plugin alone.",
-  "op.plugin.warn__win": "The plugin already provides the hooks — turning on the hook bridge under \u201cApplies to this project only\u201d as well double-loads events. MCP is different: on Windows the plugin's MCP server doesn't start, so turn on the MCP server registration on the same card.",
   "today.pluginDrift.title": "The plugin is out of date — {installed} → {bundled}",
   "today.pluginDrift.copy": "Copy update command",
   "today.pluginDrift.copied": "Copied — paste it into Claude Code",

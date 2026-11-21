@@ -89,7 +89,7 @@ An app update can raise the rules spec (template version). When Settings → **T
 **Verified** is the latest evidence in the repository's `CHANGELOG.md` and work journal that the tier **actually ran** (app version · date). `—` means the code exists but there's no on-device record; "shipped" in parentheses is the version the CHANGELOG lists.
 
 :::note
-The evidence in the table comes from the macOS build. Windows · Linux are a beta — on Windows the Claude Code plugin's hooks run but its MCP server doesn't start, so the agent writes the files directly by the recording spec.
+The evidence in the table comes from the macOS build. Windows · Linux are a beta — since 4.12 the Claude Code plugin's MCP server starts on Windows too (before that only its hooks ran there, so the agent wrote the files directly by the recording spec).
 :::
 
 On tier 1, glance at **[unrecorded changes](/wiki/en/journal)** on Today now and then. Anything missed shows up there.

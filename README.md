@@ -181,7 +181,7 @@ codex plugin add oculpm-codex@oculpm
 - **MCP 도구 8종** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init`(사용자 확인 시 새 프로젝트 추적 시작) · `ask_user`(사람의 결정을 앱의 오늘 화면에 묻고 답을 기다림, 25분 안). 에이전트가 마크다운 규격을 흉내 내는 대신 구조화 도구로 기록해 frontmatter 오류가 원천 차단되고, 쌓인 수백 건을 **작업 시작 전에 되찾습니다** — 그 파일을 예전에 왜 건드렸는지가 검색 한 번으로 나옵니다.
 - **커맨드 4종 + 스킬 1종** — `/oculpm:inception`(그다음 → 깊이 네 질문 → 분야의 방법 → 어려운 숫자 목표 → 빨간 판정이 첫 항목인 계획) · `/oculpm:next`(잡은 항목을 `[~]` 로 선점 → 구현 → 확인 명령 → 일지 → 플랜, `until-done` 이면 판정이 통과할 때까지) · `/oculpm:redteam`(주장을 직접 돌려 반례만) · `/oculpm:help`, 그리고 도구가 없을 때의 기록 규격 스킬. 겹치던 일곱(self-audit · run-evals · tdd-workflow · standup · board · project_init · project-inception)은 2026-10-28 에 걷었습니다.
 - `.oculpm` 이 있는 추적 프로젝트에서만 동작하고, 비추적 저장소에는 아무 파일도 만들지 않습니다 — [무엇을 읽고 쓰는지 전체 계약](docs/claude-integration/06-plugin-contract.md).
-- 4.0 의 앱 설정에는 프로젝트별 훅 등록 칸이 없습니다 — 플러그인이 그 길이고, 설정의 「에이전트」 칸은 플러그인이 깔렸는지와 설치·업데이트 명령을 보여 줍니다. 그 칸의 「MCP 직접 등록」 은 플러그인의 MCP 가 뜨지 않을 때(Windows 등) 쓰는 우회로로, 이 프로젝트의 `.mcp.json` 에 적습니다.
+- 4.0 의 앱 설정에는 프로젝트별 훅 등록 칸이 없습니다 — 플러그인이 그 길이고, 설정의 「에이전트」 칸은 플러그인이 깔렸는지와 설치·업데이트 명령을 보여 줍니다. 그 칸의 「MCP 직접 등록」 은 플러그인 없이 쓰거나 플러그인이 4.12 보다 옛 판일 때 쓰는 우회로로(4.12 부터는 Windows 에서도 플러그인의 MCP 가 뜨니 둘 다 켜면 도구가 두 벌 보입니다), 이 프로젝트의 `.mcp.json` 에 적습니다.
 
 
 ## 설치
