@@ -940,6 +940,7 @@ export const ko = {
   "plan.item.journal": "일지",
   "plan.item.journalAria": "「{title}」에 연결된 일지 열기",
   "plan.log.rows": "계획 기록 {n}줄",
+  "plan.log.more": "{n}줄 더 보기",
   "plan.log.decisionCount": "결정 {n}",
   "plan.log.decisions": "결정",
   "plan.emptyAgents": "Claude Code 에 하고 싶은 일을 말하면 계획이 생겨요.",

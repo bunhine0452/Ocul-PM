@@ -923,6 +923,7 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.item.journal": "Entry",
   "plan.item.journalAria": "Open the entry linked to “{title}”",
   "plan.log.rows": "Plan log · {n} {n|line|lines}",
+  "plan.log.more": "Show {n} more {n|line|lines}",
   "plan.log.decisionCount": "{n} {n|decision|decisions}",
   "plan.log.decisions": "Decisions",
   "plan.emptyAgents": "Tell Claude Code what you want to do and a plan appears.",

@@ -223,6 +223,8 @@
 .plv-log-r2 { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font-size: var(--fs-3); color: var(--text-2); min-width: 0; }
 .plv-log-note { color: var(--text); overflow-wrap: anywhere; }
 .plv-log-empty { margin: var(--space-3) 0 0; font-size: var(--fs-3); color: var(--text-2); }
+/* 「N줄 더 보기」(11-22) — 목록 끝의 보통 단추 한 줄. */
+.plv-log-more { padding: var(--space-4) 0 0; }
 
 /* ── 닫힌 계획의 미완 (CarryInbox) ─────────────────────────── */
 .plv-carry { margin-top: var(--space-7); padding: var(--space-2) var(--space-3); border: 1px solid var(--border-card); border-radius: var(--radius-m); max-width: var(--read-wide); }

@@ -17,6 +17,13 @@ function stamp(iso: string): string {
 }
 
 /**
+ * 펼친 계획 기록이 한 번에 그리는 줄 수 (11-22) — 최신부터. 끝까지 맡긴 긴 실행은 항목마다 잡음 · 판정 · 닫음을
+ * 적어 기록이 수백 줄이 된다. 펼치는 한 번에 그 전부(400줄 = DOM 4,407개)를 세우지 않고, 나머지는 「N줄 더
+ * 보기」 가 이만큼씩 더 그린다.
+ */
+export const LOG_LIMIT = 50;
+
+/**
  * 「이력 N줄 · 결정 M」 — 계획 문서 끝의 계획 기록(plan-log)과 결정, 한 줄로 접힌 채 시작한다.
  * 0 인 쪽은 쓰지 않고, 둘 다 0 이면(또는 아직 읽는 중이면) 줄 자체를 세우지 않는다 (화면 검사 {#hide-zero}).
  *
@@ -46,6 +53,7 @@ export function PlanLog({
   const { t } = useT();
   const [rows, setRows] = useState<PlanItemUpdateDto[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [limit, setLimit] = useState(LOG_LIMIT);
   const [tick, setTick] = useState(0);
   const reload = useCallback(() => setTick((n) => n + 1), []);
   useOculpmDataEvents("planner", projectId, true, reload);
@@ -72,6 +80,10 @@ export function PlanLog({
   ].filter(Boolean);
   if (!failed && parts.length === 0) return null;
 
+  // 최신이 위 — 펼쳤을 때 한 번에 `LOG_LIMIT` 줄까지만 그린다. 머리의 「계획 기록 N줄」 은 늘 전부를 센다.
+  const newest = rows ? rows.slice(Math.max(0, rows.length - limit)).reverse() : [];
+  const hidden = rows ? rows.length - newest.length : 0;
+
   const titleOf = (id: string) => {
     const it = items.find((i) => i.item_id === id);
     return it ? stripUserTag(it.title) : id;
@@ -95,10 +107,7 @@ export function PlanLog({
       ) : null}
       {rows && rows.length > 0 ? (
         <ul className="plv-log-list" aria-label={t("plan.log.listAria")}>
-          {rows
-            .slice()
-            .reverse()
-            .map((r, i) => (
+          {newest.map((r, i) => (
               <li key={`${r.ts}-${r.item_id}-${i}`} className="plv-log-row">
                 <span className="plv-log-r1">
                   {r.to_status ? <StatusMark status={r.to_status} /> : null}
@@ -119,6 +128,13 @@ export function PlanLog({
                 </span>
               </li>
             ))}
+          {hidden > 0 ? (
+            <li className="plv-log-more">
+              <button type="button" className="btn sm" onClick={() => setLimit((n) => n + LOG_LIMIT)}>
+                {t("plan.log.more", { n: Math.min(LOG_LIMIT, hidden) })}
+              </button>
+            </li>
+          ) : null}
         </ul>
       ) : rows ? (
         <p className="plv-log-empty">{t("plan.log.empty")}</p>
