@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul (최신 v4.12.0)</title>
-<meta name="description" content="Ocul 의 전체 릴리스 노트 151개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
+<title>변경 이력 — Ocul (최신 v4.12.1)</title>
+<meta name="description" content="Ocul 의 전체 릴리스 노트 152개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul (최신 v4.12.0)" />
-<meta property="og:description" content="Ocul 의 전체 릴리스 노트 151개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
+<meta property="og:title" content="변경 이력 — Ocul (최신 v4.12.1)" />
+<meta property="og:description" content="Ocul 의 전체 릴리스 노트 152개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
-    <span class="nav-ver" data-version>v4.12.0</span>
+    <span class="nav-ver" data-version>v4.12.1</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>151개</b>의 전문입니다. 새 판이 나오면 앱의 업데이트 알림과 <b>설정 → 앱</b>의 업데이트 줄이 알려 주고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 둘이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>152개</b>의 전문입니다. 새 판이 나오면 앱의 업데이트 알림과 <b>설정 → 앱</b>의 업데이트 줄이 알려 주고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 둘이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v4-12-1">v4.12.1</a>
       <a href="#v4-12-0">v4.12.0</a>
       <a href="#v4-11-2">v4.11.2</a>
       <a href="#v4-11-0">v4.11.0</a>
@@ -60,10 +61,16 @@
       <a href="#v4-8-0">v4.8.0</a>
       <a href="#v4-7-0">v4.7.0</a>
       <a href="#v4-6-0">v4.6.0</a>
-      <a href="#v4-5-1">v4.5.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v4-12-1"><a href="#v4-12-1">v4.12.1</a></h2>
+      <div class="cl-body">
+<p><b>v4.12.0 과 같은 날 내는 긴급 패치입니다 — 사용자 결정(2026-11-22, 「긴급 업데이트해봐」).</b> 같은 날 셋째 태그(확장 ext-v0.3.1 포함)이고, 확인 날 기록이 없고 눈 확인 27건이 남았으며, 마지막 외부 리뷰(v3.11.0) 뒤로 판이 많이 지났다는 경고가 떴습니다. 바뀐 것은 Windows 설치 파일의 훅 하나입니다. 이 PC 에는 NSIS 컴파일러가 없어, 태그 전에 main 의 Windows 설치 스모크가 컴파일과 업데이트 모양 재설치를 돌렸습니다.</p>
+<p><b>Windows 에서 앱 안 업데이트가 「Ocul-PM을(를) 종료하지 못했습니다」 로 멈추던 것.</b> 업데이트는 설치 파일을 먼저 띄우고 그다음에 앱을 끝냅니다. 그래서 앱이 꺼지는 데 조금 오래 걸리면(로그인 직후처럼 PC 가 바쁠 때), 설치 파일이 이미 꺼지는 중인 앱을 끄려다 실패하고 설치를 취소했습니다. 이제 앱 안 업데이트일 때는 앱이 다 꺼질 때까지 최대 20초 기다렸다가 바꿉니다. 손으로 돌리는 설치는 예전처럼 묻습니다. 이 고침은 v4.12.1 의 설치 파일에 들어 있어 <b>v4.12.1 로 가는 업데이트부터</b> 쓰입니다. 4.12.0 이 이렇게 멈췄다면, 「취소」 뒤 다시 업데이트하거나 앱을 끄고 릴리스의 setup.exe 를 직접 실행하세요.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v4-12-0"><a href="#v4-12-0">v4.12.0</a></h2>
       <div class="cl-body">

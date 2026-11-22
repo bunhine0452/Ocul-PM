@@ -79,6 +79,7 @@ Claude Code no longer asks before every command (auto mode), hooks do the checki
 - **Actions auto mode denied · new kinds of waiting** — what the classifier blocked shows up as one row in Today's "Needs your eyes" (one row however many), and a background agent's question or an MCP input request now count as "Claude is waiting".
 - **Files you only pulled are not "changed since the pass"** — files rewritten by a clone, pull or worktree stay quiet when their content is what the verdict saw. A cloud session without the app is now asked for a journal entry once, too.
 - **Screens that stay quiet at volume** — with many sessions only the long-silent ones are rows, long lists draw 30 or 50 rows at a time, `u` in the Journal toggles "unverified only", the diff screen says when nothing needs you. The terminal list and the journal detail reread only when they must.
+- **Windows updates no longer stop at "couldn't close Ocul-PM"** (4.12.1) — when the app took a moment to exit, the installer tried to close an app that was already closing and cancelled the install. It now waits for the app to finish exiting, then swaps.
 
 ## Earlier releases at a glance
 
