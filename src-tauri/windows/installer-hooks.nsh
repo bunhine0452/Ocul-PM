@@ -9,6 +9,8 @@
 ; PREINSTALL runs, in order:
 ;   1. OS floor      -- refuse Windows older than 10 version 2004 (build 19041)
 ;   2. sidecar aside -- move a running oculpm-mcp.exe out of the way so File can replace it
+;   3. exit wait     -- in update mode, let the old app finish exiting before the template's
+;                       Restart Manager kill step (which fails on a process mid-exit)
 ; There is no VC++ runtime step any more (2026-11-11). Neither executable imports VCRUNTIME140
 ; or MSVCP140: tauri-build links the VC runtime statically (static_vcruntime -- libcmt +
 ; libvcruntime, Universal CRT from Windows itself, in-box since Windows 10), and the only
@@ -133,7 +135,53 @@ Var OculpmMsg
 !macroend
 
 ; ----------------------------------------------------------------------------------------
-; 3. Page copy
+; 3. The app that is still exiting (update mode only)
+; ----------------------------------------------------------------------------------------
+; The in-app updater (tauri-plugin-updater) starts this installer with ShellExecute and only
+; then calls process::exit(0), so the installer races the old app's exit. Right after this
+; hook the template's CheckIfAppIsRunning asks Restart Manager who has ocul-pm.exe in use
+; and RmShutdown(RmForceShutdown)s it -- and a process that is already inside ExitProcess
+; cannot be terminated (access denied), so RmShutdown fails and the user gets
+; "failedToKillApp" ("Ocul-PM을(를) 종료하지 못했습니다") although the app was on its way out.
+; Seen 2026-11-22, 4.11.2 -> 4.12.0, right after a Windows sign-in: the setup log stopped after
+; the OS line, a second or two after the app's "update: 설치 파일 직전" line.
+; So in update mode, wait (up to 20 s) until the image is no longer in use -- a running or
+; exiting exe cannot be opened for writing. A manual install (/S, or the GUI) does not wait:
+; there the app is not exiting by itself and the template's kill/ask step is the right one.
+; If it is still in use after the wait, the template's step runs as before.
+!define OCULPM_EXIT_WAIT_TICKS 80 ; x 250 ms = 20 s
+!macro OCULPM_WAIT_APP_EXIT
+  ${If} $UpdateMode = 1
+  ${AndIf} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
+    Push $R6
+    Push $R7
+    StrCpy $R6 0
+    ${Do}
+      ClearErrors
+      FileOpen $R7 "$INSTDIR\${MAINBINARYNAME}.exe" a
+      ${IfNot} ${Errors}
+        FileClose $R7
+        ${ExitDo}
+      ${EndIf}
+      ${If} $R6 >= ${OCULPM_EXIT_WAIT_TICKS}
+        ${ExitDo}
+      ${EndIf}
+      Sleep 250
+      IntOp $R6 $R6 + 1
+    ${Loop}
+    IntOp $R7 $R6 * 250
+    ${If} $R6 >= ${OCULPM_EXIT_WAIT_TICKS}
+      !insertmacro OCULPM_LOG "app: still in use after $R7 ms, leaving it to the template's kill step"
+    ${Else}
+      !insertmacro OCULPM_LOG "app: not in use (waited $R7 ms)"
+    ${EndIf}
+    Pop $R7
+    Pop $R6
+  ${EndIf}
+!macroend
+
+; ----------------------------------------------------------------------------------------
+; 4. Page copy
 ; ----------------------------------------------------------------------------------------
 ; MUI reads these defines when the template inserts the welcome / finish pages (right after
 ; this include). The strings are variables, expanded when each page is drawn, so the
@@ -214,6 +262,7 @@ FunctionEnd
   !insertmacro OCULPM_PROGRESS_HEADER
   !insertmacro OCULPM_CHECK_OS
   !insertmacro OCULPM_SIDECAR_ASIDE
+  !insertmacro OCULPM_WAIT_APP_EXIT
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
