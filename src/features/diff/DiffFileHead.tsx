@@ -1,5 +1,5 @@
 /**
- * 변경 화면의 파일 머리줄 (11-15) — 경로 · 종류 · +N/−M · 「다시 바뀜」 · 봤음 · 맡기기 · 보기 방식 ·
+ * 변경 화면의 파일 머리줄 (11-15) — 경로 · 종류 · +N/−M · 「다시 바뀜」 · 봤음 · Claude 에게 보내기 · 보기 방식 ·
  * 공백 무시 · 편집기. `DiffScreenV2` 에서 들어냈다(화면 파일이 배치만 갖게).
  *
  *  - 두 묶음이다: 이것이 무엇인가(경로 · 종류 · 숫자)와 동작. 한 줄에 다 서지 못하면 동작 묶음이 다음 줄로
@@ -115,8 +115,10 @@ export function DiffFileHead({
               {viewed ? <CheckMark size={13} aria-hidden="true" /> : null}
               {t("diff.viewed")}
             </button>
+            {/* 파일을 Claude 에게 보내는 것 — 일지 상세와 같은 동사 · 같은 단추(영수증 규칙 4). 「맡기기」 는 일지처럼 Claude 가
+                결과물을 만드는 동작(위 띠의 「일지 맡기기」)에만 쓴다 (11-23 G2). */}
             <button type="button" className="btn sm" onClick={onAsk}>
-              {t("diff.askFile")}
+              {t("send.title")}
             </button>
           </>
         ) : null}

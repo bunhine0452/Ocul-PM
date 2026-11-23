@@ -388,8 +388,9 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
   return (
     <>
       <Toolbar title={t("nav.diff")}>
-        {/* PR 영수증 — 이 가지의 일지 · 확인 명령 결과 · 일지 없는 변경(11-02). ⇧⌘C 한 키 · HTML 저장(11-23). */}
-        <BranchReceiptButton projectId={projectId} />
+        {/* PR 영수증 — 이 가지의 일지 · 확인 명령 결과 · 일지 없는 변경(11-02). ⇧⌘C 한 키 · HTML 저장(11-23).
+            올릴 것이 정말 없으면(커밋 전 변경도 직전 커밋도 없음) 단추도 키도 없다 — 빈 영수증을 복사하게 두지 않는다(11-23 G2). */}
+        {list.listLoading || changes.length > 0 || list.hasLastCommit ? <BranchReceiptButton projectId={projectId} /> : null}
         {noteState.notes.length > 0 ? (
           <>
             {judged.length > 0 ? (
