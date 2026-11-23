@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ocul harness</title>
+    <link rel="stylesheet" href="/boot.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!--
+      화면 하네스(dev 전용 · scripts/harness/README.md). Vite 는 index.html 하나만 빌드하므로 이 파일은
+      dist 에 들어가지 않는다 — dev 서버가 /scripts/harness/harness.html 로 낼 뿐이다.
+      entry.ts 가 IPC 목업을 세운 뒤에 실제 src/main.tsx 를 불러온다.
+    -->
+    <script type="module" src="/scripts/harness/entry.ts"></script>
+  </body>
+</html>

@@ -19,6 +19,9 @@
     "lint:filesize": "node scripts/check-file-sizes.mjs",
     "lint:js": "eslint . --max-warnings=4",
     "clean:target": "node scripts/clean-target.mjs",
+    "harness": "node scripts/harness/fixtures.mjs && vite --port 1434 --strictPort --open /scripts/harness/harness.html",
+    "harness:fixtures": "node scripts/harness/fixtures.mjs",
+    "harness:shots": "node scripts/harness/shots.mjs",
     "lint": "pnpm lint:storage && pnpm lint:i18n && pnpm lint:bindings && pnpm lint:design && pnpm lint:filesize && pnpm lint:js"
   },
   "dependencies": {
