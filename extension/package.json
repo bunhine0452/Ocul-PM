@@ -218,7 +218,8 @@
     "viewsWelcome": [
       {
         "view": "ocul.overview",
-        "contents": "%view.welcome%"
+        "contents": "%view.welcome%",
+        "when": "!ocul.tracked"
       }
     ]
   },

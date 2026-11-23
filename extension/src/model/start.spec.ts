@@ -19,6 +19,8 @@ describe("start guide for a folder without .oculpm/", () => {
     expect(view.when).toBeUndefined();
     const welcome = manifest.contributes.viewsWelcome.filter((w: { view: string }) => w.view === "ocul.overview");
     expect(welcome).toHaveLength(1);
+    // 기록이 있지만 아직 볼 것이 없는 폴더에는 「플러그인을 까세요」 를 띄우지 않는다.
+    expect(welcome[0].when).toBe("!ocul.tracked");
     const key = /^%(.+)%$/.exec(welcome[0].contents)![1];
     for (const lang of ["", ".ko"] as const) {
       const text = nls(lang)[key];
