@@ -11,13 +11,27 @@
  * Sidebar/toolbar labels are also length-constrained — the shell's sidebar is a
  * fixed 248px, so prefer the shorter idiomatic term ("Retro", not
  * "Retrospective") over a faithful-but-clipping one.
+ *
+ * GLOSSARY — one name per thing. `src/__tests__/i18n_copy_terms.test.ts` fails on the left column.
+ *   Journal            the screen and the whole collection ("the journal"); never "Work Journal"
+ *   journal entry      one written piece of work. "entry" alone only where the screen already says journal.
+ *                      Chips say "No entry" (never "No journal")
+ *   journal tools      the MCP tools an agent writes entries with (ko 기록 도구); never "record tools"
+ *   record folder      only the .oculpm/ folder. "record" is otherwise a verb, not a noun for an entry
+ *   check command      a plan's command; its outcome is Passed / Failed (never "verdict")
+ *   plan item          a line of a plan (never "leaf"); "open item" = not done yet
+ *   Carried over       the [>] status and the "Carried" phase it is copied into (ko 이월 — one word in both)
+ *   run                one side-by-side attempt; "worktree" is explained once, where runs are started
+ *   push / pull        plain git words, spelled out as "other machines" in the counts on Today
+ *   Your turn          what is waiting on the person (ko 내 차례)
+ * Chips are one or two short words: Today's chip column is a fixed width (today.css --tdy-lead).
  */
 import type { ko } from "./ko";
 
 export const en: Record<keyof typeof ko, string> = {
   // ── Navigation (navRegistry.ts) ─────────────────────────────────────────
   "nav.today": "Today",
-  "nav.journal": "Work Journal",
+  "nav.journal": "Journal",
   // "문제 해결" is where problems get talked through and decided — "Discussions"
   // carries that; a literal "Problem Solving" reads like a textbook chapter.
   "nav.planner": "Plan",
@@ -68,7 +82,7 @@ export const en: Record<keyof typeof ko, string> = {
   "projectColor.teal": "Teal",
   "projectColor.orange": "Orange",
   "palette.group.plans": "Plans",
-  "palette.group.journal": "Work journal",
+  "palette.group.journal": "Journal",
   "journal.planLinkTitle": "Open this plan",
   "send.title": "Send to Claude",
   "send.context": "Context",
@@ -111,9 +125,9 @@ export const en: Record<keyof typeof ko, string> = {
   "tour.prev": "Back",
   "tour.next": "Next",
   "tour.done": "Start",
-  "tour.p1.title": "Turns what your agents did into journals people can read",
+  "tour.p1.title": "Ocul turns what your coding agent did into a journal you can read",
   "tour.p1.body": "Today shows only what needs your eyes. Work with verification piles up quietly in the journal; failed check commands and changes no journal mentions rise to the top.",
-  "tour.p1.local": "No server, no account. Every record is markdown in your project folder.",
+  "tour.p1.local": "No server, no account. Every journal entry and plan is a markdown file in your project folder.",
   "tour.p2.title": "Five screens",
   "tour.screen.today": "what needs a look now",
   "tour.screen.journal": "what was done and how it was verified",
@@ -121,10 +135,10 @@ export const en: Record<keyof typeof ko, string> = {
   "tour.screen.diff": "changes no journal mentions",
   "tour.screen.terminal": "run claude in this folder",
   "tour.p3.title": "Connect an agent",
-  "tour.p3.body": "Install the Claude Code plugin and journals pile up on their own. Once, in a terminal:",
-  "tour.p3.others": "Codex, Cursor and Gemini CLI read the project's AGENTS.md and journal by the same rules.",
-  "tour.p3.folder": "Opening a folder creates AGENTS.md and .oculpm/ in it. Delete them and it's gone.",
-  "tour.p4.title": "Get the feel",
+  "tour.p3.body": "Install the Claude Code plugin and your agent writes a journal entry whenever it finishes a task. Once, in a terminal:",
+  "tour.p3.others": "Codex, Cursor and Gemini CLI read the project's AGENTS.md and write journal entries by the same rules.",
+  "tour.p3.folder": "Opening a folder adds AGENTS.md and a .oculpm/ folder to it. Delete both and Ocul stops recording there. Nothing else changes.",
+  "tour.p4.title": "A few shortcuts",
   "tour.key.find": "Find",
   "tour.key.screens": "Next screen",
   "tour.key.projects": "Go to project window",
@@ -139,18 +153,18 @@ export const en: Record<keyof typeof ko, string> = {
   "start.today": "{n} today",
   "start.yesterday": "{n} yesterday",
   "start.noRecords": "No journal entries yet",
-  "start.toCheck": "{n} {n|file|files} without a journal",
+  "start.toCheck": "{n} {n|file|files} not in the journal",
   "start.toCheckTitle": "Files an agent changed today without a journal entry",
   "start.forget": "Remove from list",
   "start.forgetAria": "Remove from list — {name}",
   "start.forgetTitle": "Remove from the list? — {name}",
-  "start.forgetBody": "The folder and its records stay as they are. Open the folder again to bring it back.",
+  "start.forgetBody": "The folder and everything in it stay as they are. Open the folder again to bring it back.",
   "start.forgetWipe": "Also move the record folder (.oculpm) to the Trash",
   "start.forgetWipeSub": "Its journals and plans go with it. You can restore them from the Trash, and AGENTS.md stays.",
   "start.forgetWiped": "Moved {name}'s record folder to the Trash",
   "start.empty": "No projects yet. Open a folder and this window becomes that project.",
   "start.footRecent": "One window per project. Other projects open in their own window.",
-  "start.claudeUnseen": "Haven't seen Claude Code on this machine yet. If you use another agent, you can leave this be.",
+  "start.claudeUnseen": "No Claude Code found on this machine yet. If you use another agent, you can ignore this.",
   "start.claudeInstall": "Claude Code install command",
   "start.addFailed": "Couldn't add the folder",
   "start.toCheckUnknown": "Files without a journal entry aren't counted yet",
@@ -161,17 +175,17 @@ export const en: Record<keyof typeof ko, string> = {
   "prefs.unknown": "Couldn't check",
   "prefs.agents.title": "Agents",
   "prefs.agents.claude": "Claude Code plugin",
-  "prefs.agents.claudeMeta": "Hooks · record tools · skills",
+  "prefs.agents.claudeMeta": "Hooks · journal tools · skills",
   "prefs.agents.codex": "Codex",
-  "prefs.agents.codexMeta": "Hooks · record tools",
+  "prefs.agents.codexMeta": "Hooks · journal tools",
   "prefs.agents.notInstalled": "Not installed",
   "prefs.agents.connected": "Connected",
   "prefs.agents.behind": "Update available",
   "prefs.agents.installCmd": "Install command",
   "prefs.agents.updateCmd": "Update command",
-  "prefs.agents.orphan": "Marketplace missing",
+  "prefs.agents.orphan": "Marketplace missing · reinstall",
   "prefs.agents.mcp": "Direct MCP registration",
-  "prefs.agents.mcpMeta": "Only without the plugin, or with a plugin older than 4.12 — with both on, every tool shows up twice. Written to this project's .mcp.json",
+  "prefs.agents.mcpMeta": "Needed only if you don't use the plugin, or it is older than 4.12. With both on, every tool shows up twice. Writes to this project's .mcp.json",
   "prefs.agents.mcpRegistered": "Registered",
   "prefs.agents.mcpRegister": "Register",
   "prefs.agents.mcpUnregister": "Unregister",
@@ -179,7 +193,7 @@ export const en: Record<keyof typeof ko, string> = {
   "prefs.agents.marketplaceOnly": "Marketplace only",
   "prefs.agents.otherProject": "Other projects only",
   "prefs.agents.disabled": "Turned off",
-  "prefs.agents.windowsOld": "Record tools don't start",
+  "prefs.agents.windowsOld": "Journal tools don't start",
   "prefs.agents.unreachable": "Can't find the app",
   "prefs.agents.unreachableMac": "Move the app to the Applications folder so the plugin can find it",
   "prefs.agents.unreachableOther": "The plugin can't find the app's oculpm-mcp. Reinstall the app or set OCULPM_MCP_BIN",
@@ -190,14 +204,14 @@ export const en: Record<keyof typeof ko, string> = {
   "prefs.agents.enableCmd": "Turn-on command",
   "prefs.agents.restartHint": "After running it, restart any open Claude",
   "prefs.agents.cursor": "Cursor",
-  "prefs.agents.cursorMeta": "Gives Cursor the record tools. Writes this machine's path into this project's .cursor/mcp.json.",
+  "prefs.agents.cursorMeta": "Gives Cursor the journal tools. Writes this machine's path into this project's .cursor/mcp.json.",
   "prefs.agents.gemini": "Gemini CLI",
-  "prefs.agents.geminiMeta": "Gives Gemini CLI the record tools. Writes this machine's path into this project's .gemini/settings.json.",
-  "prefs.agents.diag": "Journals not arriving",
+  "prefs.agents.geminiMeta": "Gives Gemini CLI the journal tools. Writes this machine's path into this project's .gemini/settings.json.",
+  "prefs.agents.diag": "Journal entries not arriving",
   "prefs.agents.diagMeta": "Checks live updates and plugin signals",
   "prefs.agents.diagNone": "Nothing blocking seen in this window",
-  "prefs.agents.diagWatcher": "Updates off",
-  "prefs.agents.diagHooks": "No signal",
+  "prefs.agents.diagWatcher": "Live updates off",
+  "prefs.agents.diagHooks": "No plugin signal",
   "prefs.agents.diagHooksBody": "Claude worked in this project's terminal, but no plugin signal arrived. The plugin may be off, or on for other projects only. Check with /plugin inside Claude.",
   // 11-15 Claude Code theme file (~/.claude/themes/ocul.json) — the path shown is the one the backend resolved, in mono.
   "prefs.claudeTheme.label": "Claude Code theme",
@@ -322,7 +336,7 @@ export const en: Record<keyof typeof ko, string> = {
   "diff.notes.send": "Hand {n} {n|note|notes} to Claude",
   "diff.notes.clearAll": "Clear notes",
   "diff.receipt.copy": "Copy receipt",
-  "diff.receipt.copyTitle": "Copy this branch's journals, check results and unrecorded changes as Markdown for a PR description",
+  "diff.receipt.copyTitle": "Copy this branch's journal entries, check results and changes with no entry as Markdown for a PR description",
   "diff.receipt.copied": "Receipt copied. Paste it into the PR description",
   "diff.receipt.failed": "Couldn't build the receipt: {error}",
   "diff.receipt.title": "Ocul receipt",
@@ -336,7 +350,7 @@ export const en: Record<keyof typeof ko, string> = {
   "diff.receipt.noProof": "no command run in verification",
   "diff.receipt.unrecorded": "{n} changes in no journal entry",
   "diff.receipt.more": "{n} more",
-  "diff.receipt.footer": "Built by Ocul from this repository's .oculpm/ records, without an LLM",
+  "diff.receipt.footer": "Built by Ocul from this repository's .oculpm/ files, without an LLM",
   "diff.receipt.entryMeta": "{kind} · {agent} · {when}",
   "diff.receipt.files": "{n} files this entry changed",
   "diff.receipt.entryTitle": "Copy this entry's last verification line, linked plan and changed files as Markdown",
@@ -441,11 +455,8 @@ export const en: Record<keyof typeof ko, string> = {
     "AGENTS.md is on the latest rules (the previous master is backed up as _template.md.bak).",
   "agents.upgrade.failed": "Could not update the rules file — {error}",
 
-  // Theme files (Osaurus benchmark round, phase 4) — gallery, editor, import/export.
   "settings.saveFailed": "Couldn't save that setting: {error}",
 
-  // Terminal font size — separate from app scale (a terminal is a fixed-width
-  // grid, so an exact px value is the right control).
   // ── Deep-link confirmation sheet (Osaurus round Phase 6) ──────────────
   "deeplink.origin": "Origin",
   "deeplink.open.title": "Open this project?",
@@ -501,7 +512,7 @@ export const en: Record<keyof typeof ko, string> = {
   "terminal.quitAsk.title": "{n} terminal sessions are still running",
   "terminal.quitAsk.body": "Quitting ends all of them. Pressing {key} again also quits.",
   "terminal.quitAsk.confirm": "Quit",
-  "terminal.state.quiet": "No news lately",
+  "terminal.state.quiet": "Quiet",
   "terminal.askRecord": "Ask for an entry",
   "terminal.askRecordPrompt": "The work in this session is not in the journal yet. Please write one journal entry covering what changed and why. In `## Verification`, put the command you ran and the last line of its output. If it was a Q&A that changed no code, you can skip it.",
   "terminal.reopen": "Reopen",
@@ -540,23 +551,23 @@ export const en: Record<keyof typeof ko, string> = {
   "today.kbd.hint": "j k move · v read · r run next",
   "today.check.title": "Needs your eyes",
   "today.check.emptyTitle": "Nothing to look at right now",
-  "today.check.emptyBody": "Nothing missing in today's {n} {n|entry|entries}: every one has its verification, and no change is without a journal. A missing verification or a failing check command shows up here first.",
-  "today.check.emptyBodyUnknown": "Nothing missing in today's {n} {n|entry|entries}. Changes without a journal couldn't be read right now.",
+  "today.check.emptyBody": "Nothing missing in today's {n} {n|entry|entries}: every one has its verification, and no change is missing a journal entry. A missing verification or a failing check command shows up here first.",
+  "today.check.emptyBodyUnknown": "Nothing missing in today's {n} {n|entry|entries}. Changes with no journal entry couldn't be read right now.",
   "today.check.emptyBodyQuiet": "No entries yet today. A missing verification or a failing check command shows up here first.",
   "today.check.emptyNoNext": "No plan item is waiting to be picked up.",
   "today.check.openPlans": "Open plans",
   "today.check.kind.waiting": "Waiting",
   "today.check.openTerminal": "Open in terminal",
-  "today.check.dismissWaiting": "Got it",
+  "today.check.dismissWaiting": "Dismiss",
   "today.check.kind.question": "Claude asks",
   "today.check.answerPlaceholder": "Type your answer",
   "today.check.answerOther": "Another answer",
   "today.check.outsideTerminal": "Outside terminal",
   "race.button": "Run side by side",
-  "race.buttonTitle": "Run the same prompt in several worktrees",
+  "race.buttonTitle": "Run the same prompt in several worktrees (separate working folders of this repo)",
   "race.title": "Side-by-side runs",
   "race.startTitle": "Run the same task side by side",
-  "race.startBody": "Each worktree starts from the current commit and gets its own Claude with the same prompt. When they finish, compare the changes and bring one back to your folder.",
+  "race.startBody": "Each run gets its own worktree (a separate working folder of the same repo) from the current commit, with its own Claude and the same prompt. When they finish, compare the changes and bring one back to your folder.",
   "race.placeholder": "What should each Claude do?",
   "race.count": "Runs",
   "race.needsPrompt": "Write the prompt first",
@@ -578,13 +589,13 @@ export const en: Record<keyof typeof ko, string> = {
   "race.clearTitle": "Remove {n} {n|run|runs}?",
   "race.clearBody": "Their worktrees and branches are deleted and their sessions end. Changes you brought back stay.",
   "race.clearFailed": "Couldn't clear: {error}",
-  "race.noJournal": "No journal",
-  "race.recommended": "Pick",
+  "race.noJournal": "No entry",
+  "race.recommended": "Suggested",
   "race.recommendedTitle": "Of the runs whose journal shows commands it ran, this one changed the fewest lines",
   "race.loading": "Loading changes",
   "race.summary": "{n} side by side",
   "race.summaryWaiting": "{n} waiting",
-  "race.summaryPick": "Pick: run {n}",
+  "race.summaryPick": "Suggested: run {n}",
   "race.viewTitle": "See this run's changes · {path}",
   "race.focusSession": "Go to run {n}'s terminal",
   "race.noPrev": "This is the first run",
@@ -598,7 +609,7 @@ export const en: Record<keyof typeof ko, string> = {
   "state.staleSince": "Couldn't read since {time}",
   "state.verdict.staleSub": "changed since the pass: {files}",
   "state.verdict.awaySub": "passed on {os} · not on this machine yet",
-  "terminal.noRecord": "no journal",
+  "terminal.noRecord": "no entry",
   "terminal.noRecordTitle": "Claude worked in this session, but no journal entry was written since it started. Fine if it was a Q&A that changed no code",
   "terminal.find.aria": "Find in terminal",
   "terminal.find.placeholder": "Find in output",
@@ -624,7 +635,7 @@ export const en: Record<keyof typeof ko, string> = {
   "terminal.peek.close": "Close (Esc)",
   "terminal.notify.title": "Claude is waiting",
   "terminal.notify.titleIn": "{project} · Claude is waiting",
-  "terminal.notify.bell": "Rang the bell",
+  "terminal.notify.bell": "Terminal bell",
   "terminal.notify.skipped": "Skipped {mb} MB of output the screen could not keep up with",
   "terminal.writeBusy": "Earlier input is still going in. Paste again once it is done",
   "terminal.link.modHint": "In programs that use the whole screen, like Claude, {mod}-click to open links",
@@ -636,15 +647,15 @@ export const en: Record<keyof typeof ko, string> = {
   "terminal.imeTrace.redacted": "typed text masked except Hangul",
   "today.check.kind.verdict": "Failed",
   "today.check.kind.evidence": "No verification",
-  "today.check.kind.unrecorded": "No journal",
+  "today.check.kind.unrecorded": "No entry",
   "today.check.kind.blocked": "Blocked",
-  "today.check.kind.plugin": "Update",
+  "today.check.kind.plugin": "Plugin",
   "today.check.verdictTitle": "The check command of plan “{plan}” failed",
-  "today.check.kind.stale": "Changed",
+  "today.check.kind.stale": "Edited",
   "today.check.teammate": "pushed by {name}",
   "today.check.staleTitle": "Files changed after plan “{plan}” passed",
   "today.check.recheck": "Check again",
-  "today.check.kind.elsewhere": "Elsewhere",
+  "today.check.kind.elsewhere": "Other OS",
   "today.check.elsewhereTitle": "Plan “{plan}” passed on {os}",
   "today.check.recheckHerePrompt": "Run the check command `{check}` of plan {plan} on this machine and record its last output line in that plan's plan-log, in the AGENTS.md format. The last ✓ ran on {os}, so it has not been confirmed on this machine yet.",
   "today.check.recheckPrompt": "Re-run the check command `{check}` of plan {plan} on the current code and record its last output line in that plan's plan-log, in the AGENTS.md format. Files changed since the last ✓: {files}",
@@ -652,9 +663,9 @@ export const en: Record<keyof typeof ko, string> = {
   "today.check.evidenceSection": "No command was run under Verification",
   "today.check.evidenceNone": "No Verification section",
   "today.check.evidenceStale": "Changed after you read it",
-  "today.check.unrecordedTitle": "{n} {n|file isn't|files aren't} in any entry",
+  "today.check.unrecordedTitle": "{n} {n|file isn't|files aren't} in any journal entry",
   "today.check.moreFiles": "{first} and {n} more",
-  "today.check.silentTitle": "{n} {n|conversation|conversations} ended without an entry",
+  "today.check.silentTitle": "{n} {n|conversation|conversations} ended without a journal entry",
   "today.check.silentMeta": "last at {time} · conversation {id}",
   "today.check.moreItems": "{title} and {n} more",
   "today.check.inPlan": "Plan “{plan}”",
@@ -668,14 +679,14 @@ export const en: Record<keyof typeof ko, string> = {
   "today.mine.line": "Your turn: {n} {n|item|items} in {p} {p|plan|plans}",
   "today.closable.hint": "These plans have nothing left to do but are still listed as in progress. You can close them on the Plan screen.",
   "today.local.unpushed": "{n} unpushed {n|commit|commits}",
-  "today.local.hint": "Until you push, the other machine cannot see these. Unpushed commits are counted against the remote branches as last fetched.",
+  "today.local.hint": "Until you push, other machines can't see these. Unpushed commits are counted against the remote branches as last fetched.",
   "today.local.handoff": "Ask Claude to push",
   "today.local.handoffHint": "Asks Claude in the in-app terminal to commit and push. The app itself never pushes.",
   "today.local.handoffPrompt":
-    "Push what exists only on this machine so my other machine can see it. First check git status and the commits the remote does not have yet. Commit the records under .oculpm/ (journal entries · plans) following this repository's commit rules; for changes that are not records, tell me what they are first and commit only after I say yes. Then push the current branch to its remote. Never force-push, and if the remote is ahead or there is no upstream to push to, stop and tell me.",
-  "today.arrived.line": "{n} {n|entry|entries} arrived today",
-  "today.arrived.hint": "Entries in today's pulled commits that another machine or a teammate wrote. Entries from commits made on this machine are not counted.",
-  "today.arrived.stale": "Synced {n} {n|day|days} ago",
+    "Push what exists only on this machine so my other machine can see it. First check git status and the commits the remote does not have yet. Commit the journal entries and plans under .oculpm/ following this repository's commit rules; for changes that are not journal entries or plans, tell me what they are first and commit only after I say yes. Then push the current branch to its remote. Never force-push, and if the remote is ahead or there is no upstream to push to, stop and tell me.",
+  "today.arrived.line": "{n} {n|entry|entries} from other machines today",
+  "today.arrived.hint": "Entries in the commits you pulled today that another machine or a teammate wrote. Entries from commits made on this machine are not counted.",
+  "today.arrived.stale": "Last pushed or pulled {n} {n|day|days} ago",
   "today.arrived.staleHint": "Counted from the last time this machine pulled or pushed. Pull first if you worked on another machine. The app never fetches.",
   "today.check.openPlan": "Open plan",
   "today.work.title": "Done today",
@@ -705,12 +716,12 @@ export const en: Record<keyof typeof ko, string> = {
   "today.nums.aria": "Today's counts",
   "today.nums.mine": "Your turn {n}",
   "today.nums.closable": "Plans to close {n}",
-  "today.nums.arrived": "Arrived {n}",
-  "today.nums.local": "Only here {n}",
+  "today.nums.arrived": "From other machines {n}",
+  "today.nums.local": "Not on other machines {n}",
   "today.local.files": "{n} uncommitted {n|file|files}, {r} {r|is a journal or plan file|are journal or plan files}",
   "today.local.unpushedRecords": "{n} unpushed {n|commit|commits}, {r} journal or plan {r|file|files} in them",
   "today.chip.question": "Question",
-  "today.chip.noJournal": "No journal",
+  "today.chip.noJournal": "No entry",
   "today.check.noCheck": "This plan has no check command",
   "today.check.recheckFailPrompt": "Re-run the check command `{check}` of plan {plan} on the current code and record its last output line in that plan's plan-log, in the AGENTS.md format. The last result line was: {summary}",
   "today.check.silentLast": "last at {time}",
@@ -733,16 +744,16 @@ export const en: Record<keyof typeof ko, string> = {
   "today.busy.opening": "Opening",
   "today.first.step1": "Connect an agent",
   "today.first.step1Body": "Start with the agent you already use",
-  "today.first.connectNotInstalled": "Run these two lines in a terminal and Claude Code records in this project",
+  "today.first.connectNotInstalled": "Run these two lines in a terminal and Claude Code starts journaling in this project",
   "today.first.connectMarketplaceOnly": "The marketplace is added. Install with this one line",
   "today.first.connectOtherProject": "It's installed in other projects only. This line makes it work in every project",
   "today.first.connectDisabled": "The plugin is turned off. Turn it on with this line from a terminal in this project's folder",
-  "today.first.connectWindowsOld": "Versions before 4.12 don't start the record tools on Windows. Update with this line",
+  "today.first.connectWindowsOld": "Before 4.12 the journal tools don't start on Windows. Update with this line",
   "today.first.openTerminal": "Open terminal",
   "today.first.step2": "Hand off a first task",
-  "today.first.step2Body": "Claude looks around this project and writes the first entry",
+  "today.first.step2Body": "Claude looks around this project and writes the first journal entry",
   "today.first.step2Run": "Hand off in terminal",
-  "today.first.step2Prompt": "This is your first task in this project. Look over its structure and current state, and record what you saw and what is worth doing next as one entry in the AGENTS.md format. Do not change any code.",
+  "today.first.step2Prompt": "This is your first task in this project. Look over its structure and current state, and record what you saw and what is worth doing next as one journal entry in the AGENTS.md format. Do not change any code.",
   "today.first.step3": "First entry",
   "today.first.step3Body": "When an agent finishes, what it did and how it checked it lands here",
   "today.first.done": "done",
@@ -834,15 +845,15 @@ export const en: Record<keyof typeof ko, string> = {
   "journal.manualMore": "More",
   "journal.manualFailed": "Couldn't write the entry — {error}",
   "diff.evidence.command": "command",
-  "diff.unrecorded.label": "No journal",
+  "diff.unrecorded.label": "No entry",
   "diff.fileCount": "{n} {n|file|files}",
-  "diff.recorded.label": "In journal",
-  "diff.allClear": "Nothing needs you. Every change is in a journal with verification.",
+  "diff.recorded.label": "In an entry",
+  "diff.allClear": "Nothing needs you. Every change is in a journal entry with verification.",
   "diff.recorded.count": "{files} {files|file|files} · {n} {n|entry|entries}",
   "diff.openEntry": "Open entry",
   "diff.unrecorded.title": "No journal entry records this change",
   "diff.unrecorded.ask": "Ask for an entry",
-  "diff.unrecorded.manual": "Record it myself",
+  "diff.unrecorded.manual": "Write it myself",
   "diff.unrecorded.prompt": "No journal entry records the changes to the files below. Please write one journal entry covering what changed and why. In `## Verification`, put the command you ran and the last line of its output.",
   "diff.unrecorded.promptMore": "and {n} more",
   "entry.parseWarnShort": "Parse warning",
@@ -856,7 +867,7 @@ export const en: Record<keyof typeof ko, string> = {
   "entry.openInDiff": "Open in the Changes screen",
   "manual.slugError": "File name takes lowercase letters, digits and hyphens only (1–60 chars). e.g. export-fix",
   "manual.title": "Write an entry",
-  "manual.desc": "Record work the agent didn't.",
+  "manual.desc": "Add an entry for work the agent didn't write up.",
   "manual.trigger": "Kind",
   "manual.slugField": "File name",
   "manual.tagsPlaceholder": "e.g. terminal",
@@ -964,7 +975,7 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.status.in_progress": "In progress",
   "plan.status.done": "Done",
   "plan.status.blocked": "Blocked",
-  "plan.status.deferred": "Deferred",
+  "plan.status.deferred": "Carried over",
   "plan.status.dropped": "Dropped",
   "plan.noPhase": "(Other)",
   "plan.dispatchFailed": "Could not hand this to an agent — {error}",
@@ -983,7 +994,7 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.judge.doneWhen": "Done when",
   "plan.judge.noDoneWhen": "No done criteria — the plan needs a “Done when:” line before its end can be judged.",
   "plan.judge.check": "Check command",
-  "plan.judge.noCheck": "No check command yet.",
+  "plan.judge.noCheck": "No check command yet. Add a “Check:” line to the plan header.",
   "plan.judge.last": "Last result",
   "plan.judge.pass": "✓ Passed",
   "plan.judge.fail": "✗ Failed",
@@ -996,7 +1007,7 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.goal.doneWhen": "the done-when of plan {plan}, \"{doneWhen}\", holds",
   "plan.goal.check": "the check command `{check}` of plan {plan} passes",
   "plan.goal.notReady": "claude didn't signal that it was waiting for input within a minute, so /goal wasn't typed in. The line is on your clipboard; paste it into the terminal.",
-  "plan.nextRow.untilDoneSuffix": "Don't stop after this item — continue like `/oculpm:next until-done`: take the next leaf, implement, verify, journal and update the plan, and stop once this plan's check command passes.",
+  "plan.nextRow.untilDoneSuffix": "Don't stop after this item. Continue like `/oculpm:next until-done`: take the next open item, implement, verify, journal and update the plan, and stop once this plan's check command passes.",
   "plan.nextRow.none": "Nothing to pick up next. What's left is your turn, or another session has it.",
   "plan.nextRow.allClosed": "Every item is closed, but the check command hasn't passed yet. Run it before you close the plan.",
   "plan.close": "Close plan",
@@ -1051,26 +1062,23 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.emptyStart": "Plan it in the terminal",
 
   // ── ocul-pm settings (OculpmSettings) ───────────────────────────────────
-  // PR-ACP1 — ACP agent runtime diagnostics
   "op.copyFailed": "Couldn't copy — type the command by hand",
-  // Integration-tab scope — per-project and machine-wide settings shared one
-  // card, so a "Installed" badge never said which of the two it meant.
   "op.mcp.pluginCovers": "The plugin already provides the same tools — no need to register this as well.",
   "op.mcp.pluginConflict": "This overlaps with the plugin — both are registered, so each tool shows up twice. Unregister one of them (keeping the plugin is the simpler choice).",
   "op.plugin.warn": "The plugin already provides hooks and MCP — turning on the hook bridge and MCP registration under \u201cApplies to this project only\u201d as well double-loads events and exposes two copies of each tool. Stick to the plugin alone.",
-  "today.pluginDrift.title": "The plugin is out of date — {installed} → {bundled}",
+  "today.pluginDrift.title": "The plugin needs an update — {installed} → {bundled}",
   "today.pluginDrift.copy": "Copy update command",
   "today.pluginDrift.copiedShell": "Copied. Paste it into a terminal, then restart any open Claude.",
   "today.pluginDrift.behindMeta": "Per-project installs don't update themselves. New hooks quietly skip an old version",
   "today.pluginDrift.aheadTitle": "The app is older than the plugin ({bundled} → {installed})",
-  "today.pluginDrift.aheadMeta": "The new plugin calls the old app's record tools, so new fields are quietly dropped. Update the app",
+  "today.pluginDrift.aheadMeta": "The new plugin calls the old app's journal tools, so new fields are quietly dropped. Update the app",
   "today.pluginDrift.checkUpdate": "Check for app update",
   "entry.evidence.command": "Verified",
   "plan.carry.title": "Open items in closed plans",
   "plan.carry.count": "{n}",
   "plan.carry.hint": "Closed (done or archived) plans are never edited. Carry what still matters into the selected plan in progress, or leave it. Nothing is hidden.",
   "plan.carry.move": "Carry here",
-  "plan.carry.moveTitle": "Appends the same item to the \"Carried\" phase of the selected plan in progress. The original is left as is.",
+  "plan.carry.moveTitle": "Copies this item to the end of the “Carried” phase (created if missing) of the plan in progress you selected. The original stays as is.",
   "plan.carry.needActive": "Select a plan in progress first",
   "plan.carry.moved": "Carried → {plan}",
   "plan.carry.moveFailed": "Could not carry: {error}",
@@ -1080,11 +1088,6 @@ export const en: Record<keyof typeof ko, string> = {
   "plan.carry.status.in_progress": "in progress",
   "plan.carry.status.blocked": "blocked",
 
-  // Tabs + file operations (ide-completion #p1-tabs) — deletion goes to the
-  // system Trash, and the confirm dialog must say so.
-  // Phase 2 — references / outline / signature / formatting (ide-completion)
-  // Phase 3 — go to symbol / line in file (vscode-borrows #p3-goto)
-  // Phase 5 — problems panel (vscode-borrows #p5-problems)
   "entry.verify": "Mark read",
   "entry.verified": "Read",
   "entry.verifyTitle": "Mark this entry as read and matching the real change (v)",
@@ -1119,27 +1122,14 @@ export const en: Record<keyof typeof ko, string> = {
   // Rust returns English only and this maps it back (§4.4). In English mode
   // tError short-circuits, so these values exist purely for key completeness
   // and must stay identical to what Rust emits.
-  "err.noApiKey": "No API key configured for {provider}",
-  "err.previewTooLarge": "File is too large to preview (over 16MB)",
-  "err.enterTitle": "Enter a title.",
   "err.enterPhaseName": "Enter a phase name.",
-  "err.enterToken": "Enter a token",
-  "err.noWorkInPeriod": "No work was recorded in this period.",
   "err.nothingToExport": "No journal entries to export in this period.",
-  "err.retroEmpty": "The retro came back empty.",
-  "err.resultEmpty": "The result came back empty.",
-  "err.fileExists": "File already exists: {path}",
-  "err.accessDenied": "Access denied: path is outside the {area}",
   "err.pathEscapesRoot": "Refused: following the links in this path leaves the project folder",
   "err.pathTraversal": "Refused: this path points outside the project folder",
   "err.symlinkRefused": "{path} is a symbolic link, so it was left alone — following it could write outside the project",
   "err.agentMcpNotJson": "{path} isn't plain JSON, so it was left unchanged. Fix comments or broken spots by hand, then try again ({reason})",
   "err.agentMcpNotObject": "{path} was left unchanged because its top level isn't a JSON object.",
   "err.agentMcpServersNotObject": "{path} was left unchanged because its mcpServers isn't an object.",
-  "err.nothingToImport": "There are no legacy goals to import.",
-  "err.browserOpenFailed": "Could not open the browser",
-  "err.keyringUnavailable": "The system keyring is unavailable — install and unlock a Secret Service provider (GNOME Keyring or KWallet), then try again. Keys are never saved in plain text.",
-  "err.linuxPasteFiles": "Pasting copied files is not available on Linux — drag the files into the tree instead.",
   "err.clipboardBusy": "The clipboard is busy in another app — try pasting again.",
 
   // ── Update banner ───────────────────────────────────────────────────────
@@ -1171,8 +1161,6 @@ export const en: Record<keyof typeof ko, string> = {
   "dialog.keysHere": "This screen",
   // Screen-reader text (visually hidden) for how many identical notifications were folded — only the number is drawn.
   "toast.repeat": "Same notice {n} times",
-  // ── Polish round Phase 2 (2026-08-30) — journeys: first activation · tab close
-  //    guard · doctor · index empty states · shortcut cheatsheet · What's new · review loop
   "today.activateNow": "Turn on now",
   "today.activateFailed": "Could not turn on recording — {error}",
   "today.activated": "Recording is on — from here on you can see the entries your agents write.",
@@ -1197,7 +1185,7 @@ export const en: Record<keyof typeof ko, string> = {
   "keys.copyReceipt": "Copy receipt (Today · Journal · Diff)",
   "keys.newWindow": "New window",
   "keys.closeWindow": "Close window (in the terminal, the session first when there are several)",
-  "keys.journalNew": "Manual entry",
+  "keys.journalNew": "Write an entry",
   "keys.entryBack": "Back to list from detail",
   "keys.entryMove": "Move between entries",
   "keys.entryFilter": "Search entries",
@@ -1235,9 +1223,6 @@ export const en: Record<keyof typeof ko, string> = {
   "keys.todayRead": "Mark the entry read",
   "keys.todayRun": "Run next in the terminal",
   "keys.todayLeave": "Leave the list",
-  // v3 {#revive-recovery-cmds} — re-arm the watcher + rebuild the journal cache
-  // ── Source badges (Osaurus round Phase 3) — who made this record
-  // ── First-run wizard (WelcomeWizard.tsx) ───────────────────────────────
   // ── Error codes (Phase 4 #error-convention) — backend AppError.code → sentence
   "err.code.not_initialized": "Recording isn't on in this project yet — turn it on from Today.",
   "err.code.invalid_session_id": "Malformed session id: {detail}",
@@ -1258,36 +1243,19 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.invalid_path": "Invalid path: {detail}",
   "err.code.invalid_config": "config.toml is invalid: {detail}",
   "err.code.config_parse": "Couldn't read config.toml: {detail}",
-  "err.code.io": "File operation failed: {detail}",
-  "err.code.sqlite": "Local cache (SQLite) error: {detail}",
-  "err.code.db": "Local database error: {detail}",
+  "err.code.io": "Couldn't finish a file operation. Check the folder's permissions and try again. ({detail})",
+  "err.code.sqlite": "Couldn't read the local cache. Settings → App → Rebuild from scratch brings it back from the journal files. ({detail})",
+  "err.code.db": "Couldn't read the local database. If relaunching doesn't help, use Settings → App → Rebuild from scratch. ({detail})",
   "err.code.file_not_found": "File not found: {detail}",
-  "err.code.actor_closed": "The session worker has stopped — please restart the app.",
-  "err.code.acp_not_running": "The Claude Code agent isn't running.",
+  "err.code.actor_closed": "Something inside the app stopped. Please relaunch it.",
   "err.code.project_not_found": "Couldn't find the project — it may have been removed from the list.",
 
-  // ── v3-surface / firstrun ────────────────────────────────────────────────
-
-  // ── v3-surface / activity ──────────────────────────────
   "entry.openInEditor": "Open file",
   "entry.openInEditorTitle": "Open this journal entry's .md file in the editor chosen under Settings → Open files in",
   "entry.openInEditorFailed": "Could not open the file — {error}",
-  // Doctor watcher row ({#watcher-user-pause}) — "Stopped" and "you stopped it"
-  // are different sentences: the supervisor revives the first within 60s and
-  // never touches the second. The copy says out loud that the pause lives in
-  // process memory only.
-  // Doctor watcher-counters row ({#scheduling-telemetry}) — the numbers
-  // perf-baseline §7 said were missing: how full the queue got and how long
-  // the handler held the worker, on one line. Cumulative since the watcher
-  // was armed; never reset.
   // {#fix-disabled-reason} 4차 — 막힌 버튼이 말하는 이유 (blocked()).
   "manual.blockedNoTitle": "Enter a title",
   "manual.blockedNoSlug": "Enter a file name",
-  // First-record card (plan first-record-loop {#p1-card}) — checks the first
-  // journal entry per conversation. Success only counts an entry attributed
-  // to a conversation id. Recorded ≠ reviewed.
-  // Resume card (plan first-record-loop Phase 2) — the next session's starting point.
-  // The ledger only proves "included" — whether it was referenced or helped is unknown.
   "ws.newEntriesBurst":
     "Several entries arrived at once — see the Journal screen.",
 };

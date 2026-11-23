@@ -388,7 +388,7 @@ describe("설치 형식 × 업데이터", () => {
     fx.install = APPIMAGE;
     fx.checkError = TARGETS_NOT_FOUND;
     const view = render(<UpdateRow />);
-    expect(await view.findByText(/이 OS 의 새 판이 아직 없어요/)).toBeInTheDocument();
+    expect(await view.findByText(/이 OS 용 새 버전이 아직 없어요/)).toBeInTheDocument();
     expect(view.queryByText(/최신이에요/)).toBeNull();
     expect(view.queryByText(/업데이트를 확인하지 못했어요/)).toBeNull();
     // 다음 릴리스에서 다시 볼 수 있게 릴리스 페이지 링크가 남는다.

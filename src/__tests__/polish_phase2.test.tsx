@@ -208,10 +208,10 @@ import { recentWorkdays, shiftWorkday } from "@/lib/workday";
 describe("오류 규약 — call 래퍼와 tError 가 문자열·AppError·전송 실패를 한 모양으로", () => {
   it("봉투의 AppError 는 code/detail 그대로, 문자열은 unknown, reject 는 메시지", async () => {
     await expect(call("x", Promise.resolve({ status: "ok", data: 1 }))).resolves.toBe(1);
-    const e1 = await call("x", Promise.resolve({ status: "error", error: { code: "acp_not_running", detail: null } })).catch((e) => e);
+    const e1 = await call("x", Promise.resolve({ status: "error", error: { code: "not_initialized", detail: null } })).catch((e) => e);
     expect(e1).toBeInstanceOf(ApiError);
-    expect((e1 as ApiError).code).toBe("acp_not_running");
-    const e2 = await call("y", Promise.resolve({ status: "error", error: "No API key configured for anthropic" })).catch((e) => e);
+    expect((e1 as ApiError).code).toBe("not_initialized");
+    const e2 = await call("y", Promise.resolve({ status: "error", error: "Could not read the rule file for anthropic" })).catch((e) => e);
     expect((e2 as ApiError).code).toBe("unknown");
     expect((e2 as ApiError).detail).toContain("anthropic");
     const e3 = await call("z", Promise.reject(new Error("ipc down"))).catch((e) => e);
@@ -221,11 +221,11 @@ describe("오류 규약 — call 래퍼와 tError 가 문자열·AppError·전�
   });
 
   it("tError 는 코드가 사전에 있으면 문장, 없으면 영어 원문, unknown 은 옛 정규식 표", () => {
-    expect(tError({ code: "acp_not_running", detail: null })).toBe(ko["err.code.acp_not_running"]);
+    expect(tError({ code: "not_initialized", detail: null })).toBe(ko["err.code.not_initialized"]);
     expect(tError({ code: "acp_node_too_old", detail: "Node.js 20+ required" })).toContain("Node.js 20+ required");
     expect(tError({ code: "made_up_code", detail: "raw english" })).toBe("raw english");
-    expect(tError({ code: "unknown", detail: "No API key configured for openai" })).toBe(
-      ko["err.noApiKey"].replace("{provider}", "openai"),
+    expect(tError({ code: "unknown", detail: "No journal entries to export in this period." })).toBe(
+      ko["err.nothingToExport"],
     );
     expect(tError(null)).toBe("");
   });
