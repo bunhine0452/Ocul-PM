@@ -208,7 +208,7 @@ export const ko = {
   "prefs.egress.label": "기기를 떠나는 것",
   "prefs.egress.meta": "앱은 일지 · 계획 · 코드를 어디로도 보내지 않아요. 기기 밖과 닿는 길은 이 셋뿐이에요.",
   "prefs.egress.update": "업데이트 확인",
-  "prefs.egress.update.detail": "새 판이 있는지 GitHub 에 물어요. 서명이 맞는 판만 깔아요.",
+  "prefs.egress.update.detail": "새 버전이 있는지 GitHub 에 물어요. 서명이 맞는 버전만 깔아요.",
   "prefs.egress.links": "내가 연 링크",
   "prefs.egress.links.detail": "누른 링크는 기본 브라우저가 열어요. 앱이 직접 보내지 않아요.",
   "prefs.egress.terminal": "터미널에서 돌린 것",

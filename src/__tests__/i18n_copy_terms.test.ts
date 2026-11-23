@@ -29,7 +29,7 @@ describe("영어 용어표 — 버린 말이 돌아오지 않는다", () => {
     [/\bIn journal\b/, "In an entry"],
     [/\brecord tools?\b/i, "journal tools"],
     [/\b(journal|your|the|its|these|those|existing|project) records\b/i, "entry · 파일 (record 는 .oculpm 폴더 이름에만)"],
-    [/\bleaf\b|\bleaves\b(?! the)/i, "plan item · open item"],
+    [/\bleaf\b|\bleaves\b(?! (?:the|this)\b)/i, "plan item · open item"],
     [/\bverdicts?\b/i, "check result · Passed / Failed"],
     [/\bDeferred\b/, "Carried over"],
     [/\bElsewhere\b/, "Other OS"],
