@@ -75,8 +75,13 @@ export function viewedOf(projectId: number, key: string): Viewed | undefined {
   return viewed.get().get(projectId)?.get(key);
 }
 
-/** 영속 값으로 처음 한 번 채운다. 해시를 모르는 기록은 버린다 — 다시 켠 뒤에는 시각이 아무것도 말하지 않는다. */
+/**
+ * 영속 값으로 처음 한 번 채운다. 해시를 모르는 기록은 버린다 — 다시 켠 뒤에는 시각이 아무것도 말하지 않는다.
+ * 창 안에 이미 기록이 있으면(화면을 옮겼다 돌아옴) 그대로 둔다 — 그쪽이 원본이고, 해시를 못 채운 기록(바이너리 ·
+ * 못 읽음)은 영속되지 않아서 덮으면 봤음이 사라졌다.
+ */
 export function hydrateViewed(projectId: number, saved: Record<string, Viewed> | null | undefined): void {
+  if (viewed.get().has(projectId)) return;
   const mine = new Map<string, Viewed>();
   for (const [key, v] of Object.entries(saved ?? {})) {
     if (v && typeof v.hash === "string" && v.hash && typeof v.ts === "number") mine.set(key, { hash: v.hash, ts: v.ts });

@@ -113,6 +113,21 @@ describe("the checkpoint survives a restart", () => {
     expect(seenRow(container)).toBeNull();
   });
 
+  it("keeps a mark it could not hash (binary) when you leave the screen and come back", async () => {
+    seedThree();
+    fx.files.set("src/b1.ts", { err: "stream did not contain valid UTF-8" });
+    const first = renderDiffScreen();
+    await waitFor(() => expect(activeName(first.container)).toBe("src/b1.ts"));
+    fireEvent.keyDown(split(first.container), { key: "v" });
+    await waitFor(() => expect(row(first.container, "src/b1.ts")?.classList.contains("is-viewed")).toBe(true));
+    // 다른 화면에 갔다 온다 — 창의 런타임 기록은 남는다(앱을 다시 켠 게 아니다).
+    cleanup();
+    const { container } = renderDiffScreen();
+    await waitFor(() =>
+      expect(row(container, "src/b1.ts")?.classList.contains("is-viewed") || seenRow(container) != null).toBe(true),
+    );
+  });
+
   it("drops the record of a file that left the list (committed)", async () => {
     seedThree();
     const first = renderDiffScreen();
