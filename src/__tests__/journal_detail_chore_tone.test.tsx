@@ -8,7 +8,7 @@ import type { JournalEntrySummary } from "@/lib/bindings";
 // 상세의 검증 상자는 등급만 보고 잡일에도 호박 「명령 없음」 과 「주장일 뿐」 경고문을 그렸다 — 같은 일지가
 // 목록에선 정상, 상세에선 예외였다.
 
-const BODY = "[x] 릴리스\n\n## 한 일\n버전을 올렸다.\n\n## 검증\n- 릴리스 run 통과\n";
+const BODY = "[x] Release\n\n## Done\nBumped the version.\n\n## Verification\n- release run passed\n";
 
 vi.mock("@/lib/toast", () => ({ toast: { info: vi.fn(), warning: vi.fn(), destructive: vi.fn() } }));
 vi.mock("@/api/oculpm", () => ({
@@ -17,7 +17,7 @@ vi.mock("@/api/oculpm", () => ({
     getJournalEntry: (_pid: number, relativePath: string) =>
       Promise.resolve({
         relative_path: relativePath,
-        title: "릴리스",
+        title: "Release",
         body_markdown: BODY,
         evidence: 1,
         frontmatter: { files_touched: [], related: [], agent: { id: "claude-code", version: null } },
@@ -32,6 +32,7 @@ vi.mock("@/components/Markdown", () => ({ Markdown: ({ children }: { children: s
 
 import { JournalDetail } from "@/features/oculpm/JournalDetail";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { t } from "@/i18n";
 
 function entry(type: string): JournalEntrySummary {
   return {
@@ -41,7 +42,7 @@ function entry(type: string): JournalEntrySummary {
     slug: "x",
     status: "done",
     difficulty: null,
-    title: "릴리스",
+    title: "Release",
     checkbox: null,
     session_id: "20260531-001",
     agent_id: "claude-code",
@@ -68,20 +69,20 @@ function renderDetail(type: string) {
 
 afterEach(() => cleanup());
 
-describe("검증 상자 칩의 색", () => {
-  it("잡일은 명령이 없어도 호박 칩도 「주장」 경고문도 없다 — 사실만 무채색으로", async () => {
+describe("verification box chip tone", () => {
+  it("a chore without a command gets a neutral chip and no claim-only warning", async () => {
     const { findByText, queryByText, container } = renderDetail("chore");
-    const chip = await findByText("명령 없음");
+    const chip = await findByText(t("journal.verify.noCommand"));
     expect(chip.className).toContain("hairline");
     expect(chip.className).not.toContain("warn");
-    expect(queryByText(/주장일 뿐이에요/)).toBeNull();
+    expect(queryByText(t("journal.verify.claimOnly"))).toBeNull();
     expect(container.querySelector(".chip.warn")).toBeNull();
   });
 
-  it("결함은 같은 본문이라도 호박 칩과 경고문이 선다", async () => {
+  it("a bug with the same body gets the amber chip and the warning", async () => {
     const { findAllByText, findByText } = renderDetail("bug");
-    const chips = await findAllByText("명령 없음");
+    const chips = await findAllByText(t("journal.verify.noCommand"));
     expect(chips.every((c) => c.className.includes("warn"))).toBe(true);
-    expect(await findByText(/주장일 뿐이에요/)).toBeInTheDocument();
+    expect(await findByText(t("journal.verify.claimOnly"))).toBeInTheDocument();
   });
 });
