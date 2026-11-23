@@ -16,7 +16,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("「셸에서 돌리기」 on Windows PowerShell 5.1", () => {
+describe("running a plan's check on Windows PowerShell 5.1", () => {
   it("names the reason and the fix in one warning, opens nothing, and does not throw", async () => {
     const warn = vi.spyOn(toast, "warning");
     openTerm.mockRejectedValue(
@@ -28,7 +28,7 @@ describe("「셸에서 돌리기」 on Windows PowerShell 5.1", () => {
     expect(warn.mock.calls[0][0]).toContain("PowerShell 7");
   });
 
-  it("other failures still reach the caller's 「열지 못했어요」", async () => {
+  it("other failures still reach the caller's open-failed toast", async () => {
     const warn = vi.spyOn(toast, "warning");
     const err = new ApiError("term_open", { code: "terminal", detail: "spawn: no such file" });
     openTerm.mockRejectedValue(err);
