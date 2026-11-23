@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { evidenceLevel, proofLine, verificationSection } from "./evidence";
 import { journalTitle } from "./journal";
-import { checkCommand, parseNote } from "./plan";
+import { checkCommand, nextItem, parseNote, planItems } from "./plan";
 
 const cases = JSON.parse(
   readFileSync(new URL("../../../src-tauri/src/git/receipt_cases.json", import.meta.url), "utf8"),
@@ -25,4 +25,22 @@ describe("shared cases with the app", () => {
     expect(parseNote(c.note)).toEqual(c.passed === null ? null : { passed: c.passed, summary: c.summary }),
   );
   it.each(cases.check)("check $md", (c) => expect(checkCommand(c.md)).toBe(c.check));
+});
+
+// 사람 몫 판정 — 앱의 오늘 · 계획 「다음」 과 시작 훅이 쓰는 사례표 `src-tauri/src/oculpm/planner/owner_cases.json`.
+// 패널의 「다음」 이 `[사용자]` 부모 아래 하위를 권하면 앱과 다른 말을 한다(love-round 최종 검수).
+const owner = JSON.parse(
+  readFileSync(new URL("../../../src-tauri/src/oculpm/planner/owner_cases.json", import.meta.url), "utf8"),
+) as {
+  cases: { name: string; items: { id: string; title: string; status: string; parent?: string }[]; next: string | null }[];
+};
+const GLYPH: Record<string, string> = { todo: " ", in_progress: "~", done: "x", blocked: "!", deferred: ">", dropped: "-" };
+
+describe("owner cases shared with the app", () => {
+  it.each(owner.cases)("next $name", (c) => {
+    const body = c.items
+      .map((i) => `${i.parent ? "  " : ""}- [${GLYPH[i.status] ?? " "}] ${i.title} {#${i.id}}`)
+      .join("\n");
+    expect(nextItem(planItems(body))?.id ?? null).toBe(c.next);
+  });
 });

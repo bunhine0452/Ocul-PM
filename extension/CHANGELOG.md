@@ -4,6 +4,7 @@
 
 - **A start guide in folders without `.oculpm/`.** The Ocul panel now shows in every folder; when there are no records yet it holds one guide with a **Copy the two install lines** button (clipboard only — nothing is typed into a terminal) and a **reload records** link. New command: **Ocul: Copy the plugin install lines for Claude Code**.
 - Marketplace page: who it is for, a start that matches the guide, and how Codex, Cursor and Gemini CLI connect.
+- **Next up** no longer suggests a sub-item under a human-owned parent (`[사용자] …` · `[user] …`) — the same rule as the app's Next and the plugin's start hook, checked against the shared case table.
 
 ## 0.3.1 — 2026-11-22
 
