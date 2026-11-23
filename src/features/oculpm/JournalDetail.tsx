@@ -233,7 +233,9 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
       <header className="jd-head">
         <div className="jd-chips">
           <TriggerBadge type={entry.type} />
-          <EvidenceMark state={evState} level={level} />
+          {/* 「명령 없음」(level 1)은 아래 검증 상자의 머리 칩이 같은 말을 한다 — 한 화면에 같은 칩을 두 번 세우지
+              않는다(영수증 규칙 4). 「검증 없음」(level 0)은 상자가 다른 말(적지 않음)을 하니 머리에 둔다. */}
+          {showVerify && evState === "missing" && level === 1 ? null : <EvidenceMark state={evState} level={level} />}
           {entry.status !== "done" ? (
             <span className="chip sm hairline">
               {entry.status === "abandoned" ? t("entry.status.abandoned") : t("entry.status.open")}
