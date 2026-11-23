@@ -38,6 +38,10 @@ pub struct RaceLane {
     pub journal_title: Option<String>,
     pub evidence: u8,
     pub proof: Option<String>,
+    /// 만들 때만 — `.worktreeinclude` 로 레인에 복사한 git 무시 파일의 이름(`race_include`). 내용은 싣지 않는다.
+    /// TS 는 선택 속성(`TermStatus.app` 과 같은 까닭) — 목록(`lanes`)에는 없다.
+    #[specta(optional)]
+    pub included: Option<Vec<String>>,
 }
 
 impl RaceLane {
@@ -53,6 +57,7 @@ impl RaceLane {
             journal_title: None,
             evidence: 0,
             proof: None,
+            included: None,
         }
     }
 }
@@ -92,7 +97,8 @@ pub fn parse_lanes(porcelain: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// 레인을 만든다 — 지금 `HEAD` 에서 `count` 개.
+/// 레인을 만든다 — 지금 `HEAD` 에서 `count` 개. 루트에 `.worktreeinclude` 가 있으면 거기 맞는 git 무시 파일
+/// (`.env` 따위)을 레인마다 복사한다(`race_include` — 상한 · 건너뛰는 것은 그쪽 머리말).
 pub fn start(
     root: &Path,
     base_dir: &Path,
@@ -102,6 +108,7 @@ pub fn start(
     let count = count.clamp(MIN_LANES, MAX_LANES);
     run(root, &["rev-parse", "--verify", "HEAD"]).map_err(|_| "no_commit".to_string())?;
     std::fs::create_dir_all(base_dir).map_err(|e| e.to_string())?;
+    let include = super::race_include::plan(root);
     let mut made = Vec::new();
     for n in 1..=count {
         let name = format!("{stamp}-{n}");
@@ -116,7 +123,9 @@ pub fn start(
             return Err(e);
         }
         seed_records(root, &dir);
-        made.push(RaceLane::bare(name, dir_s, branch));
+        let mut lane = RaceLane::bare(name, dir_s, branch);
+        lane.included = Some(super::race_include::copy_into(root, &dir, &include));
+        made.push(lane);
     }
     Ok(made)
 }

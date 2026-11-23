@@ -11,6 +11,7 @@
 import { useSyncExternalStore } from "react";
 
 import { raceApi, type RaceLane } from "@/api/race";
+import { t } from "@/i18n";
 
 interface RaceState {
   lanes: RaceLane[];
@@ -81,9 +82,17 @@ export async function refreshRace(projectId: number): Promise<void> {
   set({ lanes: Array.isArray(lanes) ? lanes : [] });
 }
 
-/** 레인을 만들고 레인마다 그 프롬프트로 claude 를 연다. 돌려주는 것은 첫 레인의 세션 id. */
-export async function startRace(projectId: number, prompt: string, count: number): Promise<number | null> {
+/**
+ * 레인을 만들고 레인마다 그 프롬프트로 claude 를 연다. 돌려주는 것은 첫 레인의 세션 id 와, `.worktreeinclude` 로
+ * 레인에 복사한 git 무시 파일의 이름(레인마다 같다 — 첫 레인 것). 내용은 백엔드가 싣지 않는다.
+ */
+export async function startRace(
+  projectId: number,
+  prompt: string,
+  count: number,
+): Promise<{ first: number | null; included: string[] }> {
   const lanes = await raceApi.start(projectId, count);
+  const included = lanes[0]?.included ?? [];
   const { openTerm } = await import("./termStore");
   const sessions = new Map(state.sessions);
   set({ lanes });
@@ -94,7 +103,19 @@ export async function startRace(projectId: number, prompt: string, count: number
     first ??= id;
     set({ sessions: new Map(sessions) });
   }
-  return first;
+  return { first, included };
+}
+
+/** 토스트에 싣는 이름 수 — 넘으면 「외 n개」 로 센다. */
+const INCLUDED_SHOWN = 3;
+
+/** 복사한 파일 이름을 한 줄로 — 처음 몇 개 + 나머지 수. 없으면 `null`(알릴 것이 없다). */
+export function includedLine(included: readonly string[]): string | null {
+  if (included.length === 0) return null;
+  const shown = included.slice(0, INCLUDED_SHOWN).join(", ");
+  const rest = included.length - INCLUDED_SHOWN;
+  const names = rest > 0 ? t("race.includedMore", { names: shown, n: rest }) : shown;
+  return t("race.included", { names });
 }
 
 /** 레인을 모두 지운다 — 그 안의 세션부터 닫는다(셸이 지워진 폴더에 남지 않게). */

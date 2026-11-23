@@ -537,6 +537,8 @@ export const ko = {
   "race.needsPrompt": "프롬프트를 먼저 적어 주세요",
   "race.start": "{n}개로 시작",
   "race.startFailed": "시작하지 못했어요: {error}",
+  "race.included": "시도마다 git 이 무시하는 파일을 복사했어요(.worktreeinclude): {names}",
+  "race.includedMore": "{names} 외 {n}개",
   "race.lane": "시도 {n}",
   "race.noSession": "세션 없음",
   "race.noChanges": "아직 변경 없음",
