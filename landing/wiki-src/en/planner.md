@@ -122,5 +122,5 @@ When writing item lines, `{#id}` must sit at the **end of the line** with no wra
 
 ## Next steps
 
-- The record that pairs with plans → [Work Journal](/wiki/en/journal)
+- The record that pairs with plans → [Journal](/wiki/en/journal)
 - Where a failed check command shows up → [Today](/wiki/en/today)

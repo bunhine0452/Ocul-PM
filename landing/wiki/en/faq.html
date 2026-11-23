@@ -44,7 +44,7 @@
     <a class="wk-side-link on" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
-    <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link" href="/wiki/en/journal">Journal</a>
     <a class="wk-side-link" href="/wiki/en/planner">Plan</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
     <a class="wk-side-link" href="/wiki/en/agents">Other agents</a>
@@ -112,7 +112,7 @@
 <p>A unit the app <b>opens when an agent starts working and closes after things go quiet</b>, by watching file changes. Roughly "one sitting," named like <code>20260821-002</code>. Entries are grouped by the session that produced them automatically.</p>
 <h3 id="journal-vs-plan-vs-check-result-what-s-the-difference">Journal vs plan vs check result — what's the difference?</h3>
 <p>Different points on the timeline:</p>
-<div class="wk-table"><table><thead><tr><th></th><th>When</th><th>What</th></tr></thead><tbody><tr><td><b>Plan</b></td><td><b>Now</b></td><td>Done condition · check command · items. Glyphs move as items progress. Big decisions go in the decision block</td></tr><tr><td><b>Work Journal</b></td><td><b>After</b> the work</td><td>What was done, why and how — and what was run to check it</td></tr><tr><td><b>Check result</b></td><td><b>After running</b> the check command</td><td>One line, `verdict ✓</td><td>✗ &lt;last line&gt;`. The result decides, not the agent's word</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th></th><th>When</th><th>What</th></tr></thead><tbody><tr><td><b>Plan</b></td><td><b>Now</b></td><td>Done condition · check command · items. Glyphs move as items progress. Big decisions go in the decision block</td></tr><tr><td><b>Journal</b></td><td><b>After</b> the work</td><td>What was done, why and how — and what was run to check it</td></tr><tr><td><b>Check result</b></td><td><b>After running</b> the check command</td><td>One line, `verdict ✓</td><td>✗ &lt;last line&gt;`. The result decides, not the agent's word</td></tr></tbody></table></div>
 <p>The 3.x Discussions screen was removed in 4.0 — <code>.oculpm/discussion/</code> files are left as they are.</p>
 <h3 id="can-the-ui-language-differ-from-the-language-of-the-records">Can the UI language differ from the language of the records?</h3>
 <p>Yes. The UI language (Settings → App → Language) is the app's text; the language of entries follows the agent writing them and the rules template. An English UI with Korean records is possible, and documents already written are never rewritten.</p>
@@ -123,7 +123,7 @@
 <h3 id="can-i-edit-entries">Can I edit entries?</h3>
 <p>Yes. They're plain markdown and the app re-reads them when you save. But <b>agents are told not to edit existing entries</b> — a history that changes quietly can't be trusted. An agent writes a new entry and links it with <code>related</code>.</p>
 <h3 id="what-if-there-are-too-many-entries">What if there are too many entries?</h3>
-<p>Today doesn't overflow even at 60 a day — work with evidence folds to one line per plan, and only what you must see unfolds. Work Journal groups by date, with journal search (<code>/</code>) and filters (type · Unverified only). And you can delete entries — they're just files.</p>
+<p>Today doesn't overflow even at 60 a day — work with evidence folds to one line per plan, and only what you must see unfolds. Journal groups by date, with journal search (<code>/</code>) and filters (type · Unverified only). And you can delete entries — they're just files.</p>
 <h3 id="what-happens-to-my-records-if-i-uninstall">What happens to my records if I uninstall?</h3>
 <p><b>They stay.</b> Every record is markdown inside the project folder; the app's database is only a cache for drawing screens fast.</p>
 <h3 id="can-i-use-several-projects-at-once">Can I use several projects at once?</h3>

@@ -16,14 +16,14 @@ Check these in order:
 
 ## I can't find Search, Discussions, Branch or Skills
 
-4.0 removed them. The app has five screens: Today · Work Journal · Plan · Diff · Terminal (Settings opens with ⌘,).
+4.0 removed them. The app has five screens: Today · Journal · Plan · Diff · Terminal (Settings opens with ⌘,).
 
 | You were looking for | In 4.0 |
 |---|---|
-| Journal search | `/` on Work Journal |
+| Journal search | `/` on Journal |
 | Code search | your agent's grep — the app's index is gone |
 | Discussions | a plan's decision block. `.oculpm/discussion/` files are still there |
-| A branch's recorded rate | "No journal" on Today and Diff |
+| A branch's recorded rate | "No entry" on Today and Diff |
 | Managing skills and rules | the plugin and Claude Code itself |
 | In-app AI · summaries · rollups | the agent in your terminal (`journal_search` · `journal_read`) |
 | Tabs · menu-bar tray | one window = one project, ⌘O · ⇧⌘N |

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Work Journal — Ocul Wiki</title>
+<title>Journal — Ocul Wiki</title>
 <meta name="description" content="When and how entries accumulate, the file layout, the verification box and change diffs, journal search, and unrecorded changes." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#121514" />
@@ -13,7 +13,7 @@
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Work Journal — Ocul Wiki" />
+<meta property="og:title" content="Journal — Ocul Wiki" />
 <meta property="og:description" content="When and how entries accumulate, the file layout, the verification box and change diffs, journal search, and unrecorded changes." />
 <meta property="og:image" content="https://oculpm.com/og-en.png" />
 <link rel="icon" href="/icon.svg" />
@@ -44,7 +44,7 @@
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
     <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
-    <a class="wk-side-link on" href="/wiki/en/journal">Work Journal</a>
+    <a class="wk-side-link on" href="/wiki/en/journal">Journal</a>
     <a class="wk-side-link" href="/wiki/en/planner">Plan</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
     <a class="wk-side-link" href="/wiki/en/agents">Other agents</a>
@@ -61,9 +61,9 @@
 
   <main class="wk-main">
     <article class="wk-article">
-      <h1>Work Journal</h1>
+      <h1>Journal</h1>
       <p class="wk-updated">Last updated 2026-11-15</p>
-      <nav class="wk-toc"><span>On this page</span><a href="#when-entries-happen-five-moments">When entries happen — five moments</a><a href="#file-layout">File layout</a><a href="#what-s-in-an-entry">What's in an entry</a><a href="#the-work-journal-screen">The Work Journal screen</a><a href="#change-diff-what-actually-changed-at-the-time">Change diff — what actually changed at the time</a><a href="#sessions-how-entries-are-grouped">Sessions — how entries are grouped</a><a href="#unrecorded-changes">Unrecorded changes</a><a href="#working-with-entries">Working with entries</a><a href="#next-steps">Next steps</a></nav>
+      <nav class="wk-toc"><span>On this page</span><a href="#when-entries-happen-five-moments">When entries happen — five moments</a><a href="#file-layout">File layout</a><a href="#what-s-in-an-entry">What's in an entry</a><a href="#the-journal-screen">The Journal screen</a><a href="#change-diff-what-actually-changed-at-the-time">Change diff — what actually changed at the time</a><a href="#sessions-how-entries-are-grouped">Sessions — how entries are grouped</a><a href="#unrecorded-changes">Unrecorded changes</a><a href="#working-with-entries">Working with entries</a><a href="#next-steps">Next steps</a></nav>
       <p>The work journal is why this app exists. It records what an agent did and why, as <b>markdown a human reads</b>. Longer than a commit message, shorter than meeting minutes.</p>
 <h2 id="when-entries-happen-five-moments">When entries happen — five moments</h2>
 <p>Agents record every time they finish a unit of work. The <code>AGENTS.md</code> rules define five moments:</p>
@@ -101,7 +101,7 @@ tags: [cache, dogfooding]
 1–3 lines on how it was confirmed</code></pre>
 <ul><li><b>Title</b> — <code>area: what changed</code>, one sentence, area included, within 40 characters. The area (1–12 characters) reuses a word the project already uses (e.g. terminal · MCP · CI · landing) and is kept as the first tag too, so the tag filter doubles as a per-area view. Don't join two phrases with a dash. The recording tool (<code>journal_write</code>) refuses any other shape and says how to fix it</li><li><b>status</b> — <code>planned</code> · <code>in_progress</code> · <code>done</code> · <code>abandoned</code></li><li><b>difficulty</b> — <code>verylow</code> through <code>superhigh</code> (optional)</li><li><b>Body headings are fixed per type</b>: bug and error use root cause → fix; refactor uses motivation → summary of changes; feature uses what was added → how it flows. All of them end with a required <b>Verification</b> section.</li></ul>
 <div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." The result is not the agent's word but <b>the command that ran and its last line of output</b>.</p></div></div>
-<h2 id="the-work-journal-screen">The Work Journal screen</h2>
+<h2 id="the-journal-screen">The Journal screen</h2>
 <p>On the left, one row per entry under date headers — an entry with evidence (a command, or read) is a single line of title and time, and only exceptions (no verification · open · abandoned · parse warning) get a second line with a reason chip. Entries whose touched files are all gone from the project fold into "Entries about code that is gone" at the end of that day. On the right, the selected entry's detail, evidence first — verification box → body → inline diff per file → related entries. Above the list sit the search box and the filters: type (All · Bugs · Features · Refactors · Chores) · "Unverified only" · period (Last 14 days · All time).</p>
 <ul><li><b>Verification box</b> — pulls the command that ran and its last result line out of the Verification section. With no command evidence it shows a "No command" chip and calls the entry only a claim; when a human has read it and agrees, press <b>Mark read</b> (<code>v</code>)</li><li><b>Journal search</b> (<code>/</code> · <code>⌘F</code>) — titles · files · tags · body, by relevance (or newest first), each row with a line showing why it matched. Entries whose touched files are all gone sink to the end. 4.0 removed the Search screen; journal search lives here</li><li>Keys listen only inside the screen — <code>j</code>/<code>k</code> move · <code>Enter</code> open · <code>v</code> mark read · <code>/</code> search</li></ul>
 <h2 id="change-diff-what-actually-changed-at-the-time">Change diff — what actually changed at the time</h2>
@@ -112,7 +112,7 @@ tags: [cache, dogfooding]
 <p>The app watches file changes and <b>opens a session</b> when an agent starts working, closing it after things go quiet. A session is roughly "one sitting" and is named by date and sequence, like <code>20260821-002</code>.</p>
 <p>Entries are grouped by which session produced them. Even when an agent can't know the session number (writing the file directly from a terminal, say), the app <b>attributes it by write time</b>, so there's nothing for you to manage.</p>
 <h2 id="unrecorded-changes">Unrecorded changes</h2>
-<p>The app reconciles the file changes it observed against <code>files_touched</code> in entries and points at <b>changes no entry anywhere records</b> — in Today's "Needs your eyes", and as the "No journal" group at the top of Diff (<code>⌘4</code>).</p>
+<p>The app reconciles the file changes it observed against <code>files_touched</code> in entries and points at <b>changes no entry anywhere records</b> — in Today's "Needs your eyes", and as the "No entry" group at the top of Diff (<code>⌘4</code>).</p>
 <ul><li>If everything changed today is recorded somewhere, <b>nothing shows</b> — no noise on clean days</li><li>Temp files, editor artifacts, and agent internal state are never counted</li><li>On Diff, <b>[Ask for an entry]</b> hands that file list to the in-app terminal's claude to record, and <b>[Record it myself]</b> opens the composer pre-filled with those files</li></ul>
 <p>If this shows up often, <a href="/wiki/en/claude-code">installing the plugin</a> is the surest fix. Recording moves from "as much as the model remembers the rules" to "structurally, when the session ends."</p>
 <h2 id="working-with-entries">Working with entries</h2>

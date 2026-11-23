@@ -36,7 +36,7 @@ Ocul and this extension hand work to each other: the app opens a project, a file
 
 ## Get started
 
-1. Open the Ocul panel (the eye in the Activity Bar). In a folder without `.oculpm/` it shows one start guide with a **Copy the two install lines** button — or copy them from here and paste them into a terminal:
+1. Open this folder in the [Ocul app](https://oculpm.com) and turn recording on — that creates `.oculpm/`. Then open the Ocul panel here (the eye in the Activity Bar). Until `.oculpm/` exists it shows one start guide with a **Copy the two install lines** button — or copy them from here and paste them into a terminal:
    ```
    claude plugin marketplace add bunhine0452/Ocul-PM
    claude plugin install oculpm@oculpm
@@ -46,7 +46,7 @@ Ocul and this extension hand work to each other: the app opens a project, a file
 
 Using Codex? Install the `oculpm-codex` plugin (`codex plugin marketplace add bunhine0452/Ocul-PM`, then `codex plugin add oculpm-codex@oculpm`). Cursor and Gemini CLI get the record tools from the Ocul app's Settings → Agents.
 
-The desktop app ([oculpm.com](https://oculpm.com)) is the second step, for people who want to see the records on screens of their own. This extension doesn't need it.
+The app is only needed once per project, to create `.oculpm/` and to carry the plugin's record tools. After that this extension reads the records on its own — it never needs the app to be running.
 
 ## Privacy
 
@@ -71,4 +71,4 @@ The desktop app ([oculpm.com](https://oculpm.com)) is the second step, for peopl
 - **Ocul 에서 열기** — 앱의 오늘 · 이 파일을 건드린 일지 · 계획으로 바로. 앱은 열기 전에 물어요.
 - **앱과 짝** — 앱에서 프로젝트 색을 고르면 이 창 제목 표시줄도 그 색, 앱에서 일지의 변경 파일을 누르면 VS Code 로. Claude 의 질문에는 앱에서 답해요.
 
-시작은 Claude Code 에 플러그인 두 줄이에요. `.oculpm/` 이 없는 폴더에서 Ocul 패널을 열면 시작 안내 하나와 「설치 두 줄 복사」 단추가 있어요 — 터미널에 붙여 넣고, 기록이 생기면 「기록 다시 읽기」. Codex 는 `oculpm-codex` 플러그인, Cursor · Gemini CLI 는 Ocul 앱의 설정에서 연결해요. 확장은 `.oculpm/` 을 읽기만 하고, 네트워크도 LLM 도 쓰지 않아요.
+시작은 Ocul 앱에서 폴더를 열어 기록을 켜는 것(`.oculpm/` 은 앱이 만들어요)과 Claude Code 플러그인 두 줄이에요. `.oculpm/` 이 없는 폴더에서 Ocul 패널을 열면 시작 안내 하나와 「설치 두 줄 복사」 단추가 있어요 — 터미널에 붙여 넣고, 기록이 생기면 「기록 다시 읽기」. Codex 는 `oculpm-codex` 플러그인, Cursor · Gemini CLI 는 Ocul 앱의 설정에서 연결해요. 확장은 `.oculpm/` 을 읽기만 하고, 네트워크도 LLM 도 쓰지 않아요.

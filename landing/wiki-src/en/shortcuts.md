@@ -1,6 +1,6 @@
 ---
 title: Shortcuts
-desc: Screens, windows, and the keys on Today, Work Journal and Terminal.
+desc: Screens, windows, and the keys on Today, Journal and Terminal.
 order: 16
 updated: 2026-11-15
 ---
@@ -11,12 +11,14 @@ updated: 2026-11-15
 
 | Key | Action |
 |---|---|
-| `⌘K` | Command palette — finds terminal sessions (waiting first) · screens · actions (all shortcuts · open folder · open in your editor · project color …) · projects · plans · entries and opens them. Korean initial consonants work too (`ㅇㅈ` → Work Journal) |
+| `⌘K` | Command palette — finds terminal sessions (waiting first) · screens · actions (all shortcuts · open folder · open in your editor · project color …) · projects · plans · entries and opens them. Korean initial consonants work too (`ㅇㅈ` → Journal) |
 | `⌘J` | Jump to the waiting session — the one that has waited longest first, again for the next. If none is in this window, it brings forward another project window that has one (`Ctrl+Shift+J` inside the terminal on Windows · Linux) |
-| `⌘1` – `⌘5` | Jump to a screen — `⌘1` Today · `⌘2` Work Journal · `⌘3` Plan · `⌘4` Diff · `⌘5` Terminal |
+| `⌘1` – `⌘5` | Jump to a screen — `⌘1` Today · `⌘2` Journal · `⌘3` Plan · `⌘4` Diff · `⌘5` Terminal |
 | `⌘,` | Settings |
 | `⌘[` / `⌘]` | Back / forward between screens — like a browser |
 | `⌘/` | Shortcut cheatsheet |
+| `?` | Keys for this screen — only the current screen's keys in a small sheet (a plain character inside text fields and the terminal). Press again to close; "All shortcuts" opens the full table |
+| `⇧⌘C` | Copy receipt — on Today, an entry's detail, and Diff (`Ctrl+Shift+C` on Windows · Linux). On an entry's detail it copies that one entry |
 | `⌃Tab` / `⌃⇧Tab` | Next / previous screen (cycles) |
 | Two-finger swipe | Back / forward between screens (trackpad) |
 
@@ -32,17 +34,17 @@ One window is one project — there are no tabs.
 | `⌥Tab` | Recent window — tap for the previous one, hold for the list in most-recent order (Ctrl+backtick on Windows · Linux) |
 | `⌥⌘1` – `⌥⌘9` | Project windows in most-recent order — without opening a list. The current window has no number (`Alt+1` – `Alt+9` on Windows · Linux) |
 
-## Today · Work Journal
+## Today · Journal
 
 These keys listen only inside that screen.
 
 | Key | Action |
 |---|---|
 | `j` / `k` | Next / previous item |
-| `Enter` | Today — the row's first button (Check again · Open plan · View changes …; a question opens its answer box) · Work Journal — open the detail |
-| `v` | Mark read — on Today the unverified entry row, on Work Journal the selected entry (again to unmark) |
+| `Enter` | Today — the row's first button (Check again · Open plan · View changes …; a question opens its answer box) · Journal — open the detail |
+| `v` | Mark read — on Today the unverified entry row, on Journal the selected entry (again to unmark) |
 | `r` | Today — run the next item in the terminal |
-| `/` · `⌘F` | Work Journal — journal search |
+| `/` · `⌘F` | Journal — journal search |
 
 ## Terminal
 

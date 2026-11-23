@@ -36,7 +36,7 @@ Once installed:
 - **8 MCP tools** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` · `ask_user` (asks for your decision on Today in the app and waits for the answer, up to 25 minutes)
 - **Commands** — `/oculpm:inception` (what happens next → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is a check command that is red now) · `/oculpm:next` (claim the item as `[~]` → implement → check command → entry → plan; with `until-done`, until the check command passes) · `/oculpm:redteam` (runs the claims, reports only counter-examples) · `/oculpm:help`
 
-It is all configured globally under `~/.claude`, so it works in **every project** (it records only where `.oculpm/` exists). The `.oculpm/` folder exists once you turn recording on in the app, and the recording tools (MCP) ship inside it, so the app is needed once. You also need Claude Code and git (Git Bash on Windows); if entries don't arrive, see “Journals not arriving” in Settings → Agents. More on the [plugin page](/en/plugin).
+It is all configured globally under `~/.claude`, so it works in **every project** (it records only where `.oculpm/` exists). The `.oculpm/` folder exists once you turn recording on in the app, and the recording tools (MCP) ship inside it, so the app is needed once. You also need Claude Code and git (Git Bash on Windows); if entries don't arrive, see “Journal entries not arriving” in Settings → Agents. More on the [plugin page](/en/plugin).
 
 ## The result line
 

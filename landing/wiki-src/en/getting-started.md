@@ -30,7 +30,7 @@ Pick a project in the start window and **that window becomes the project** (one 
 
 Ask your agent in the terminal to do anything. Within seconds of it finishing:
 
-- a new entry appears in **Work Journal** (⌘2)
+- a new entry appears in **Journal** (⌘2)
 - it shows up under "Done today" on **Today** (⌘1) — and if its verification section has no command evidence, it lands in "Finished without verification"
 - **Diff** (⌘4) shows that change line by line
 

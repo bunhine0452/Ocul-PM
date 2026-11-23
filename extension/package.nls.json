@@ -9,7 +9,7 @@
   "cmd.showPanel": "Show the Ocul panel",
   "cmd.openToday": "Open Ocul's Today",
   "view.overview": "Overview",
-  "view.welcome": "No Ocul records in this folder yet. Install the Ocul plugin in Claude Code and your coding agent leaves a record in .oculpm/ after each unit of work.\n[Copy the two install lines](command:ocul.copyPluginInstall)\nPaste them into a terminal, then start Claude Code in this folder. Once .oculpm/ appears, [reload records](command:ocul.refresh).\nCodex, Cursor and Gemini CLI connect from the Ocul app's Settings.",
+  "view.welcome": "No Ocul records in this folder yet. Open this folder in the Ocul app and turn recording on — that creates .oculpm/. Then install the plugin in Claude Code, and your coding agent leaves a record after each unit of work.\n[Copy the two install lines](command:ocul.copyPluginInstall)\nPaste them into a terminal, then start Claude Code in this folder. Once .oculpm/ exists, [reload records](command:ocul.refresh).\nCodex, Cursor and Gemini CLI connect from the Ocul app's Settings.",
   "cmd.copyPluginInstall": "Copy the plugin install lines for Claude Code",
   "config.notifyWhenClaudeWaits": "Show a notification once when Claude starts waiting for you (a permission prompt, input, or a question)."
 }

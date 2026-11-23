@@ -222,7 +222,7 @@ export const en: Record<keyof typeof ko, string> = {
   "prefs.claudeTheme.failed": "Couldn't write",
   "prefs.claudeTheme.turnOff": "Turn off",
   "prefs.claudeTheme.turnOn": "Turn on",
-  "prefs.egress.label": "What leaves this device",
+  "prefs.egress.label": "What goes out of this device",
   "prefs.egress.meta": "The app never sends your entries, plans or code anywhere. These three are the only ways it reaches outside this device.",
   "prefs.egress.update": "Update check",
   "prefs.egress.update.detail": "Asks GitHub whether a new version exists. Only a correctly signed version is installed.",
