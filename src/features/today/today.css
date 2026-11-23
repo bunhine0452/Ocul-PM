@@ -218,6 +218,8 @@
 /* 첫 걸음이 안 끝났을 때 그 자리의 명령 · 동작 (11-23) — 설정까지 갔다 오지 않게. */
 .tdy-step-cmd { margin-top: var(--space-3); }
 .tdy-step-acts { display: flex; flex: none; flex-wrap: wrap; gap: var(--space-2); }
+/* 첫 활성화 영수증(11-23) — 카드 바닥 한 줄, 걸음과 선 하나로 갈린다. */
+.tdy-init-receipt { margin: 0; padding: var(--space-4) var(--card-pad-x); border-top: 1px solid var(--border-card); overflow-wrap: anywhere; }
 
 /* ── 좁은 창 (640) — 행은 두 줄(칩 · 제목 / 그 아래 동작), 좌우는 16px ─────────────── */
 @container screen (max-width: 640px) {

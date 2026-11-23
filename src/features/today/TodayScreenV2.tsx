@@ -55,6 +55,7 @@ import { requestTermFocus } from "@/features/terminal/focusRequest";
 import { requestOnlyMissing } from "@/features/oculpm/onlyMissing";
 import { TodayExceptions, TodayUnread, type RowAction, type RowNav } from "./TodayExceptions";
 import { FirstSteps } from "./FirstSteps";
+import { InitReceipt } from "./InitReceipt";
 import { LiveCard, TodayNumbers, liveTerm } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
 import { UNREAD_LIMIT, firstNext, osLabel, splitExceptions, type TodayException } from "./todayModel";
@@ -549,6 +550,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
             onOpenTerminal={() => onNavigate("terminal")}
             onHandOff={() => void busy.run("first", () => runInTerminal(t("today.first.step2Prompt")))}
             opening={busy.has("first")}
+            receipt={<InitReceipt info={ws?.state.oculpmInitCard} />}
           />
         ) : null}
         <TodayExceptions

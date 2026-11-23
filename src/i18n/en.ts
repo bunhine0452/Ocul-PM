@@ -703,6 +703,8 @@ export const en: Record<keyof typeof ko, string> = {
   "today.first.step3": "First entry",
   "today.first.step3Body": "When an agent finishes, what it did and how it checked it lands here",
   "today.first.done": "done",
+  "today.first.wrote": "Added to this folder:",
+  "today.first.wroteHint": "all plain text, safe to commit with your work.",
   "agent.manual": "Manual entry",
   "time.justNow": "just now",
   "time.yesterdayAt": "yesterday {time}",
