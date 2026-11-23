@@ -11,7 +11,7 @@ vi.mock("@/features/terminal/runPrompt", () => ({ runPromptInTerminal: async () 
 
 import { navBadgesOf } from "@/features/shell/useNavBadges";
 import { PlanRail } from "@/features/planner/PlanRail";
-import { railGroups, railOrder } from "@/features/planner/planList";
+import { inCloseGroup, railGroups, railOrder } from "@/features/planner/planList";
 import { countedExceptions } from "@/features/today/todayModel";
 import { __resetTodayStoreForTests } from "@/features/today/useTodayExceptions";
 import { t } from "@/i18n";
@@ -165,5 +165,17 @@ describe("the plan list puts exceptions first", () => {
   it("names the close group the way Today's number does", () => {
     expect(ko["today.nums.closable"]).toBe(`${ko["plan.list.groupClosable"]} {n}`);
     expect(en["today.nums.closable"]).toBe(`${en["plan.list.groupClosable"]} {n}`);
+  });
+});
+
+describe("one count for plans to close", () => {
+  it("leaves out a finished plan whose check failed — the list holds it under needs-your-eyes, so Today does not count it twice", async () => {
+    const closable = (id: string, over: object = {}) => plan(id, { title: `plan ${id}`, closable: true, ...over });
+    fx.digest = digest({ plans: [closable("ok"), closable("bad", { last_verdict: failed })] });
+    renderToday();
+    expect(await screen.findByRole("button", { name: t("today.nums.closable", { n: 1 }) })).toBeInTheDocument();
+    expect(inCloseGroup({ closable: true, last_verdict: failed })).toBe(false);
+    expect(inCloseGroup({ closable: true })).toBe(true);
+    expect(inCloseGroup({})).toBe(false);
   });
 });

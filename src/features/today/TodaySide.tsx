@@ -13,6 +13,7 @@ import { Disclosure } from "@/components/Disclosure";
 import { SquareTerminal } from "@/components/Icons";
 import type { TermInfo } from "@/api/terminal";
 import { agentLabel } from "@/features/today/agentColor";
+import { inCloseGroup } from "@/features/planner/planList";
 import { useT, type I18nKey } from "@/i18n";
 import { relativeTime } from "@/lib/format";
 import type { Arrived, DigestPlan, LocalOnly } from "@/lib/bindings";
@@ -202,7 +203,7 @@ export function TodayNumbers({
       <NumLink key="mine" k="today.nums.mine" n={mineN} title={t("today.mine.line", { p: mine.length, n: mineN })} onClick={() => onOpenPlan(mine[0].planId)} />,
     );
   }
-  const closable = plans.filter((p) => p.closable);
+  const closable = plans.filter(inCloseGroup); // 계획 목록의 「닫을 계획」 무리와 같은 규칙(planList.inCloseGroup)
   if (closable.length > 0) {
     items.push(
       <NumLink key="closable" k="today.nums.closable" n={closable.length} title={t("today.closable.hint")} onClick={() => onOpenPlan(closable[0].plan_id)} />,

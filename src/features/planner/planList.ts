@@ -16,7 +16,7 @@
  */
 
 import type { PlanSummary } from "@/lib/bindings";
-import { verdictStateOf } from "./verdictState";
+import { verdictStateOf, type VerdictInput } from "./verdictState";
 
 export type PlanBucket = "active" | "done" | "archived";
 export type PlanSort = "recent" | "progress" | "remaining" | "title";
@@ -35,12 +35,21 @@ const newestFirst = (a: PlanSummary, b: PlanSummary) => b.updated_at.localeCompa
 export type RailGroupKey = "attention" | "closable" | "rest";
 
 /** 무리 안의 앞뒤까지 — 실패(0)가 통과 뒤 바뀜 · 여기선 아직(1)보다 앞이다. */
-function rankOf(p: PlanSummary): number {
+function rankOf(p: VerdictInput & { closable?: boolean }): number {
   const state = verdictStateOf(p);
   if (state === "fail") return 0;
   if (state === "stale" || state === "away") return 1;
   if (p.closable) return 2;
   return 3;
+}
+
+/**
+ * 「닫을 계획」 무리에 드는가 — 남은 항목이 없고 먼저 볼 판정(실패 · 통과 뒤 바뀜 · 여기선 아직)도 없다. 오늘의
+ * 「닫을 계획 N」 도 이 한 규칙으로 센다: 판정이 걸린 계획은 오늘이 「먼저 볼 것」 으로 이미 짚고 레일도 먼저 볼
+ * 무리에 두는데, 닫을 계획 수에도 또 세면 두 화면의 같은 이름에 다른 수가 선다.
+ */
+export function inCloseGroup(p: VerdictInput & { closable?: boolean }): boolean {
+  return rankOf(p) === 2;
 }
 
 function groupOf(p: PlanSummary): RailGroupKey {
