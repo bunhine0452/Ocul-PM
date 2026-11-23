@@ -9,6 +9,8 @@ import { tError } from "@/i18n/errors";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PatchView } from "@/features/diff/PatchView";
+import { ReceiptButton, useReceiptActions, useReceiptKey } from "@/features/diff/ReceiptButton";
+import { buildJournalReceipt } from "@/features/diff/receipt";
 import { countPatchStats, langFromPath } from "@/features/diff/diffParse";
 import { agentLabel } from "@/features/today/agentColor";
 import { useT, type Lang } from "@/i18n";
@@ -218,6 +220,9 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
       }),
     );
 
+  const receipt = useReceiptActions(() => buildJournalReceipt(projectId, entry, t, planLinks));
+  useReceiptKey(() => void receipt.copy());
+
   const staleRead = isStaleVerified({ verified_by_user: verified, verified_stale: stale });
   const readTitle = staleRead ? t("entry.reverifyTitle") : confirmed ? t("entry.unverifyTitle") : t("entry.verifyTitle");
   const readLabel = stale ? t("entry.reverify") : confirmed ? t("entry.verified") : t("entry.verify");
@@ -283,6 +288,8 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
           >
             {t("send.title")}
           </button>
+          {/* 이 일지 한 건의 영수증 — 변경 · 오늘과 같은 단추 · 같은 키(⇧⌘C), 같은 줄 모양 (11-23). */}
+          <ReceiptButton actions={receipt} title={t("diff.receipt.entryTitle")} />
         </div>
       </header>
 

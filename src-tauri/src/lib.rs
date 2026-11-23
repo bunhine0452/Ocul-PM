@@ -285,6 +285,8 @@ use crate::commands::{
     // first-record-loop Phase 2 — 이어하기 자료 (Today 이어하기 카드)
     // F4 — 회고/인사이트 (+ PR-CI6 eval 추이, defer 원장)
     reveal_in_file_manager,
+    // 영수증 HTML 저장 (11-23, 저장 대화상자 · 자체완결 문서만)
+    save_receipt_html,
     save_window_session,
     select_project_folder,
     set_project_color,
@@ -443,6 +445,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_agents_apply_master_upgrade,
             oculpm_compare_workday,
             oculpm_export_digest,
+            save_receipt_html,
             oculpm_get_log_dir,
             oculpm_log,
             oculpm_update_entry_body,

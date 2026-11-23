@@ -53,6 +53,7 @@ import { clockOf } from "@/lib/whenLabel";
 import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
 import { requestOnlyMissing } from "@/features/oculpm/onlyMissing";
+import { BranchReceiptButton } from "@/features/diff/ReceiptButton";
 import { TodayExceptions, TodayUnread, type RowAction, type RowNav } from "./TodayExceptions";
 import { FirstSteps } from "./FirstSteps";
 import { InitReceipt } from "./InitReceipt";
@@ -597,7 +598,10 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
 
   return (
     <>
-      <Toolbar title={t("nav.today")} sub={dateLabel} find />
+      <Toolbar title={t("nav.today")} sub={dateLabel} find>
+        {/* 이 가지의 영수증 — 변경 화면과 같은 단추 · 같은 키(⇧⌘C), 하루를 마치고 PR · 슬랙에 바로 (11-23). */}
+        <BranchReceiptButton projectId={projectId} />
+      </Toolbar>
       <div className="scroll">
         <div
           ref={rootRef}

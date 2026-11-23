@@ -1,0 +1,17 @@
+/* 「영수증 복사」 한 벌 (11-23) — 앞 단추 + 옆 ▾ 가 한 덩이로 붙는다. 메뉴는 툴바의 가로 스크롤에 잘리지 않게 고정 자리. */
+.rcpt { display: inline-flex; align-items: center; gap: 0; flex: none; }
+.rcpt > .btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.rcpt-more { padding-left: var(--space-1); padding-right: var(--space-1); border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.rcpt-menu {
+  position: fixed; z-index: var(--z-popover); width: 240px;
+  display: flex; flex-direction: column; gap: 1px; padding: var(--space-1);
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
+}
+.rcpt-item {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; text-align: left;
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-s); cursor: pointer;
+  background: none; border: none; color: var(--text); font-family: var(--font); font-size: var(--fs-4);
+}
+.rcpt-item:is(:hover, :focus-visible) { background: var(--bg-active); outline: none; }
+.rcpt-item .kbd { color: var(--text-2); }

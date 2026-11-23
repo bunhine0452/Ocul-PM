@@ -6,7 +6,7 @@ import { RadioSeg } from "@/components/RadioSeg";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { Toolbar } from "@/components/Toolbar";
 import { fileOpenApi } from "@/api/fileOpen";
-import { errorDetail, toAppError } from "@/api/invoke";
+import { errorDetail } from "@/api/invoke";
 import { oculpmApi } from "@/api/oculpm";
 import { projectFileApi } from "@/api/projectFile";
 import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
@@ -16,7 +16,6 @@ import { normalizeJournalRef } from "@/features/oculpm/useJournalPlanLinks";
 import { useJournalEvents } from "@/features/oculpm/useOculpmLive";
 import { requestSendToClaude } from "@/features/terminal/sendToClaude";
 import { useT } from "@/i18n";
-import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
 import { localWorkdayKey } from "@/lib/workday";
 import { ChangeFileList } from "./ChangeFileList";
@@ -39,7 +38,7 @@ import {
   useDiffNotes,
 } from "./diffNoteStore";
 import { ignoreWhitespaceStore, markAsked, useAskedKey } from "./diffSessionStore";
-import { buildReceipt } from "./receipt";
+import { BranchReceiptButton } from "./ReceiptButton";
 import { useDiffChanges } from "./useDiffChanges";
 import { useDiffFile } from "./useDiffFile";
 import { useDiffHandoff } from "./useDiffHandoff";
@@ -301,12 +300,6 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
     return m;
   }, [noteState.notes]);
   const notedFiles = useMemo(() => new Set(noteCounts.keys()), [noteCounts]);
-  // PR 영수증 — 이 가지의 일지 · 확인 명령 결과 · 일지 없는 변경을 마크다운으로 (11-02).
-  const copyReceipt = () =>
-    void buildReceipt(projectId, t)
-      .then((md) => navigator.clipboard.writeText(md))
-      .then(() => toast.info(t("diff.receipt.copied")))
-      .catch((e) => toast.destructive(t("diff.receipt.failed", { error: tError(toAppError(e)) })));
 
   const sendNotes = () =>
     requestSendToClaude({
@@ -395,9 +388,8 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
   return (
     <>
       <Toolbar title={t("nav.diff")}>
-        <button type="button" className="btn ghost sm" title={t("diff.receipt.copyTitle")} onClick={copyReceipt}>
-          {t("diff.receipt.copy")}
-        </button>
+        {/* PR 영수증 — 이 가지의 일지 · 확인 명령 결과 · 일지 없는 변경(11-02). ⇧⌘C 한 키 · HTML 저장(11-23). */}
+        <BranchReceiptButton projectId={projectId} />
         {noteState.notes.length > 0 ? (
           <>
             {judged.length > 0 ? (

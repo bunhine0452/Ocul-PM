@@ -18,6 +18,9 @@ export const raceApi = {
   take: (projectId: number, path: string) => call<null>("race_take", commands.raceTake(projectId, path)),
   /** PR 영수증 재료 — 이 가지가 기준 가지에서 갈라진 뒤의 변경을 일지와 대조 (`git/receipt.rs`). */
   receipt: (projectId: number) => call<Receipt>("diff_receipt", commands.diffReceipt(projectId)),
+  /** 영수증 한 장을 HTML 파일로 — 저장 대화상자에서 고른 자리에. 취소하면 `null`(`commands/export.rs`). */
+  saveReceiptHtml: (defaultName: string, html: string) =>
+    call<string | null>("save_receipt_html", commands.saveReceiptHtml(defaultName, html)),
   /** 레인을 모두 지운다(worktree · 가지). */
   clear: (projectId: number) => call<number>("race_clear", commands.raceClear(projectId)),
 };
