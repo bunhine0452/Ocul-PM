@@ -21,6 +21,10 @@ pub struct GitRemote {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct GitRepoStatus {
     pub is_git_repo: bool,
+    /// 저장소를 못 찾은 까닭이 git 자체다 — 실행이 안 되거나(설치 안 됨) macOS 의 CLT 없는 `/usr/bin/git`
+    /// 껍데기처럼 `git --version` 조차 실패한다. 변경 화면이 「git 저장소가 아니에요」 와 「git 을 찾지
+    /// 못했어요」 를 가려 말한다 (love-round #diff-non-git, 11-23 — 둘 다 「변경이 없어요」 였다).
+    pub git_missing: bool,
     pub head_branch: Option<String>,
     pub remotes: Vec<GitRemote>,
 }
@@ -29,6 +33,7 @@ pub fn status(root: &Path) -> GitRepoStatus {
     let Some(repo) = primary_repo(root) else {
         return GitRepoStatus {
             is_git_repo: false,
+            git_missing: run_git(root, &["--version"]).is_err(),
             head_branch: None,
             remotes: Vec::new(),
         };
@@ -48,6 +53,7 @@ pub fn status(root: &Path) -> GitRepoStatus {
     let remotes = remotes(root).unwrap_or_default();
     GitRepoStatus {
         is_git_repo: true,
+        git_missing: false,
         head_branch,
         remotes,
     }
