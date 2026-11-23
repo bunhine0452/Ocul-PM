@@ -166,6 +166,18 @@ fn an_install_here_is_connected() {
     assert_eq!(s.scope.as_deref(), Some("project"));
 }
 
+/// 거짓 「없음」 — 앱은 링크 경로로, Claude 는 실제 경로로 같은 폴더를 적었다.
+#[cfg(unix)]
+#[test]
+fn a_symlinked_root_still_matches_the_real_project_path() {
+    let f = fake();
+    let link = f.root.parent().unwrap().join("link");
+    std::os::unix::fs::symlink(&f.root, &link).unwrap();
+    install_for(&f, &std::fs::canonicalize(&f.root).unwrap(), "4.12.1");
+    let s = status_in(Some(&f.home), Some(&link), "4.12.1".to_string(), true);
+    assert_eq!(s.state, ClaudePluginState::Connected);
+}
+
 /// 거짓 「연결됨」 3 — 깔았지만 꺼 두었다. 프로젝트 설정이 사용자 설정을 이긴다.
 #[test]
 fn enabled_plugins_false_is_disabled_with_claude_precedence() {

@@ -38,6 +38,18 @@ fn norm(p: &str) -> String {
     p.trim_end_matches(['/', '\\']).to_string()
 }
 
+/// 실제 경로 — 심볼릭 링크(`/tmp` → `/private/tmp`, 링크로 연 작업 폴더)를 풀어 둔다. 못 풀면 `None`.
+fn real(p: &str) -> Option<String> {
+    std::fs::canonicalize(p)
+        .ok()
+        .map(|c| norm(&c.to_string_lossy()))
+}
+
+/// `root` 가 `pp` 이거나 그 아래인가.
+fn under(root: &str, pp: &str) -> bool {
+    root == pp || root.starts_with(&format!("{pp}/")) || root.starts_with(&format!("{pp}\\"))
+}
+
 fn version_of(e: &Value) -> Option<String> {
     e.get("version").and_then(Value::as_str).map(str::to_string)
 }
@@ -55,15 +67,20 @@ fn project_path_of(e: &Value) -> Option<&str> {
 /// 떴다(11-23 #plugin-detect-false-positive).
 pub fn pick(entries: &[&Value], project_root: Option<&Path>) -> Option<Picked> {
     if let Some(root) = project_root.map(|r| norm(&r.to_string_lossy())) {
+        // 글자 그대로 맞거나, 링크를 푼 실제 경로끼리 맞으면 같은 자리다 — 앱이 아는 루트와 Claude 가 적은
+        // `projectPath` 가 링크 하나로 갈라져 「다른 프로젝트에만」 이라고 거짓말하지 않게.
+        let root_real = real(&root);
         // 가장 깊은 조상이 이긴다 (하위 폴더 설치가 상위를 덮는다).
         let mut best: Option<(usize, Picked)> = None;
         for (index, e) in entries.iter().enumerate() {
             let Some(pp) = project_path_of(e).map(norm) else {
                 continue;
             };
-            let applies = root == pp
-                || root.starts_with(&format!("{pp}/"))
-                || root.starts_with(&format!("{pp}\\"));
+            let applies = under(&root, &pp)
+                || root_real
+                    .as_deref()
+                    .zip(real(&pp))
+                    .is_some_and(|(r, p)| under(r, &p));
             let Some(version) = version_of(e).filter(|_| applies) else {
                 continue;
             };
