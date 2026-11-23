@@ -38,9 +38,9 @@ owner: claude-code
 
 ## 합류 · 출시 {#ship}
 - [x] 레인 리뷰(pr-review-toolkit 관점) · 고침 {#review}
-- [ ] claude-security 변경분 스캔 {#security-scan}
-- [ ] 전체 게이트 · PR · 머지 {#merge}
-- [ ] v4.13.0 릴리스 {#release-413}
+- [-] claude-security 변경분 스캔 {#security-scan}
+- [x] 전체 게이트 · PR · 머지 {#merge}
+- [x] v4.13.0 릴리스 {#release-413}
 - [ ] [사용자] 설치본에서 눈 확인 {#eyes}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -65,4 +65,8 @@ owner: claude-code
 | 2026-11-23T21:28:21+09:00 | #g3-app-copy | claude-code | ☐→x | .oculpm/journal/20261123/Chores/2125_chore_app-copy-one-glossary.md | 판정 ✓ CI e2f7cdb5 프런트 success — i18n_copy_terms 용어표 시험 포함 · mac |
 | 2026-11-23T21:28:28+09:00 | #g4-outside-copy | claude-code | ☐→x | .oculpm/journal/20261123/Chores/2125_chore_outside-copy-users-words.md | 판정 ✓ CI e2f7cdb5 Rust success — plugin_manifest · plugin_codex_skills · plugin_skill_copy 포함. 랜딩 배포는 릴리스 때(수동) · mac |
 | 2026-11-23T21:28:34+09:00 | #review | claude-code | ☐→x | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | 판정 ✓ CI e2f7cdb5 프런트 · Rust(cargo test 전체 · bindings 신선도) · cargo-deny · 확장 모두 success — 레인 리뷰 14 + 최종 검수 4, important 전부 고침 · mac |
+| 2026-11-23T22:30:35+09:00 | #merge | claude-code | ☐→x | .oculpm/journal/20261123/Bugs/2230_bug_win-subfolder-inline-hook.md | 판정 ✓ PR #177 rebase 머지(0561a32b) · main d7e1b022 CI success · E2E success · Portability 는 spawn_count 둘만 붉음(11-11 부터) — 번들 · 설치 · 업데이터 스모크 success · mac |
+| 2026-11-23T22:42:55+09:00 | #security-scan | claude-code | ☐→- |  | 사용자 결정 11-23: claude-security 변경분 스캔 확인 창에서 「No」 — 스캔하지 않음. 대신 레인 리뷰 14(pr-review-toolkit 관점)와 최종 검수 F1(위험 코드 · 약속 7)이 봤다 |
+| 2026-11-23T22:43:00+09:00 | #release-413 | claude-code | ☐→~ |  | 릴리스 커밋 5ebcbf69 · 태그 v4.13.0 → d7e1b022(CI · E2E success). release run 진행 중, 랜딩 배포는 그 뒤(수동) |
+| 2026-11-23T23:07:04+09:00 | #release-413 | claude-code | ~→x |  | 판정 ✓ release run 45186615967 success — Latest v4.13.0(자산 9개) · latest.json 4.13.0(darwin · windows · linux). 랜딩 배포는 수동(vercel), brew/winget 제출은 사용자 확인 대기 · mac |
 <!-- oculpm:plan-log end -->
