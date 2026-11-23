@@ -118,6 +118,9 @@
 .start-forget-wipe b { display: block; font-weight: var(--fw-label); color: var(--text); }
 .start-forget-sub { display: block; margin-top: 2px; color: var(--text-2); }
 .start-empty { margin: 0; padding: var(--space-8) 0; color: var(--text-2); font-size: var(--fs-4); }
+/* Claude Code 를 아직 못 봤다(11-23) — 목록 아래 한 문장 + 설치 줄. 색은 예외에만이라 글은 조용한 회색. */
+.start-claude { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-6); }
+.start-claude-text { margin: 0; font-size: var(--fs-3); color: var(--text-2); }
 .start-foot {
   margin: var(--space-7) 0 0; padding: var(--space-5) 0 0;
   border-top: 1px solid var(--sep);

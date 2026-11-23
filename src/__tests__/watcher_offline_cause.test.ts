@@ -64,7 +64,7 @@ describe("announceWatcherOffline", () => {
   });
 
   it("a permission denial names the OS setting and offers no take-over", () => {
-    __setPlatformForTests("macos");
+    __setPlatformForTests("mac");
     announceWatcherOffline(13, EPERM, t);
     const [toast] = getToasts();
     expect(toast.message).toBe(t("watcher.cause.permission"));

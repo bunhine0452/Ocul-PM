@@ -33,6 +33,21 @@ pub async fn journal_missing_signals(
     Ok(claude_hooks::journal_missing_signals(&root, days))
 }
 
+/// 에이전트와 이어졌는가 — 이 기기의 Claude Code 흔적과 이 프로젝트의 마지막 훅 신호 시각 (11-23).
+/// 시작 창은 프로젝트 없이(`None`), 설정의 「일지가 안 와요」 진단은 프로젝트와 함께 묻는다. 파일만 본다.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_link_health(
+    db: State<'_, Db>,
+    project_id: Option<u32>,
+) -> Result<crate::oculpm::agent_link::AgentLinkHealth, String> {
+    let root = match project_id {
+        Some(id) => Some(project_root(&db, id).await?),
+        None => None,
+    };
+    super::blocking(move || Ok(crate::oculpm::agent_link::health(root.as_deref()))).await
+}
+
 /// 이 프로젝트에서 Claude 가 사람을 기다리는 세션들 (플러그인 Notification 훅, #notify-hook).
 /// [`waiting::WAITING_STALE_MINUTES`] 보다 오래된 것은 지우고 돌려준다.
 #[tauri::command]

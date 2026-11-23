@@ -783,6 +783,11 @@ export const commands = {
 	/**  「약속 성적표」 — `days` 가 없으면 30일. 오늘 포함 `days` 일의 workday 창. */
 	oculpmPromiseScorecard: (projectId: number, days: number | null) => typedError<PromiseScorecard, string>(__TAURI_INVOKE("oculpm_promise_scorecard", { projectId, days })),
 	/**
+	 *  에이전트와 이어졌는가 — 이 기기의 Claude Code 흔적과 이 프로젝트의 마지막 훅 신호 시각 (11-23).
+	 *  시작 창은 프로젝트 없이(`None`), 설정의 「일지가 안 와요」 진단은 프로젝트와 함께 묻는다. 파일만 본다.
+	 */
+	agentLinkHealth: (projectId: number | null) => typedError<AgentLinkHealth, string>(__TAURI_INVOKE("agent_link_health", { projectId })),
+	/**
 	 *  이 프로젝트에서 Claude 가 사람을 기다리는 세션들 (플러그인 Notification 훅, #notify-hook).
 	 *  [`waiting::WAITING_STALE_MINUTES`] 보다 오래된 것은 지우고 돌려준다.
 	 */
@@ -826,14 +831,6 @@ export const commands = {
 	 *  흉내 내면 캐시 없는 반쪽 상태가 되므로 화면은 명령만 안내한다.
 	 */
 	codexPluginStatus: () => typedError<CodexPluginStatus, string>(__TAURI_INVOKE("codex_plugin_status")),
-	/**
-	 *  Cursor · Gemini CLI — 프로젝트의 `.cursor/mcp.json` · `.gemini/settings.json` 에 우리
-	 *  서버 하나를 제자리 병합한다 (사용자 결정 11-23: 설정에서 누를 때만). 실행 경로는 위의
-	 *  Claude · Codex 등록과 같은 출처, 홈은 감지에만 쓴다.
-	 */
-	agentMcpStatus: (projectId: number, target: AgentMcpTarget) => typedError<AgentMcpStatus, string>(__TAURI_INVOKE("agent_mcp_status", { projectId, target })),
-	agentMcpRegister: (projectId: number, target: AgentMcpTarget) => typedError<AgentMcpStatus, string>(__TAURI_INVOKE("agent_mcp_register", { projectId, target })),
-	agentMcpUnregister: (projectId: number, target: AgentMcpTarget) => typedError<AgentMcpStatus, string>(__TAURI_INVOKE("agent_mcp_unregister", { projectId, target })),
 	/**
 	 *  `~/.claude/plugins/**` 를 얕게 훑어 oculpm 플러그인 설치 여부를 본다.
 	 *  설치 레이아웃(마켓플레이스 캐시 구조)이 CLI 버전에 따라 다를 수 있어
@@ -914,20 +911,18 @@ export type AgentDetection = {
 	adjacent_marker_exists: boolean,
 };
 
-export type AgentMcpStatus = {
-	target: AgentMcpTarget,
-	/**  이 프로젝트나 이 기기에서 그 도구의 흔적을 찾았다 — 없으면 화면에 행을 세우지 않는다. */
-	detected: boolean,
-	/**  설정 파일에 우리 서버가 있다. */
-	registered: boolean,
-	binary_found: boolean,
-	binary_path: string | null,
-	/**  쓰는 자리 (절대 경로) — 화면이 그대로 보여 준다. */
-	config_path: string,
+export type AgentLinkHealth = {
+	/**
+	 *  이 기기에서 Claude Code 의 흔적을 봤다 — `~/.claude` 가 있거나 `claude` 실행 파일이 PATH · 공식 설치
+	 *  자리에 있다. `false` 여도 「없다」 가 아니다(nvm 같은 곳에 깔고 한 번도 안 돌렸을 수 있다).
+	 */
+	claude_seen: boolean,
+	/**
+	 *  이 프로젝트에 플러그인 훅 신호가 마지막으로 온 때(RFC 3339 UTC) — 인박스
+	 *  (`.oculpm/hooks/claude-events.jsonl`)의 수정 시각. `None` 이면 한 번도 안 왔다(또는 프로젝트가 없다).
+	 */
+	hook_last_at: string | null,
 };
-
-/**  MCP 를 프로젝트 JSON 으로 받는 에이전트. */
-export type AgentMcpTarget = "cursor" | "gemini";
 
 export type AgentRef = {
 	/**

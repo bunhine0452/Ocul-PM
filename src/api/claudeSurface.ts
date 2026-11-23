@@ -13,6 +13,7 @@
 import { commands, events } from "@/lib/bindings";
 import { call, subscribe, type Envelope } from "@/api/invoke";
 import type {
+  AgentLinkHealth,
   ClaudeBlocked,
   ClaudeQuestion,
   ClaudeWaiting,
@@ -70,6 +71,13 @@ export const hooksApi = {
     unwrap<null>("claude_question_answer", commands.claudeQuestionAnswer(projectId, id, answer)),
   /** 어느 프로젝트의 질문이 바뀌었다(물음 · 답함 · 거둠). */
   onQuestionsChanged: (cb: (projectId: number) => void) => subscribe(events.claudeQuestionsChanged, (p) => cb(p.project_id)),
+
+  /**
+   * 에이전트와 이어졌는가 (11-23) — 이 기기의 Claude Code 흔적(`claude_seen`)과 이 프로젝트의 마지막 훅 신호 시각.
+   * 시작 창은 `null`(프로젝트 없음), 설정의 「일지가 안 와요」 진단은 프로젝트와 함께. 파일만 본다.
+   */
+  linkHealth: (projectId: number | null) =>
+    unwrap<AgentLinkHealth>("agent_link_health", commands.agentLinkHealth(projectId)),
 };
 
 /**
