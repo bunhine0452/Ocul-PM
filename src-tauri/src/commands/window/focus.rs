@@ -22,7 +22,7 @@ pub async fn apply_menu_language(app: AppHandle, lang: String) -> Result<(), Str
     Ok(())
 }
 
-pub(super) fn focus_window(app: &AppHandle, label: &str) {
+pub fn focus_window(app: &AppHandle, label: &str) {
     if let Some(win) = app.get_webview_window(label) {
         let _ = win.show();
         let _ = win.unminimize();

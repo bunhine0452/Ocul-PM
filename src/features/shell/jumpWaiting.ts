@@ -11,7 +11,8 @@
  *   2. 이 프로젝트의 질문(ask_user) · 바깥 터미널의 기다림(Notification 훅) — 오늘 화면으로(답 칸 · 「Claude 가
  *      기다려요」 줄이 거기 선다). 예전엔 이것을 못 보고 「기다리는 세션이 없어요」 라고 했는데, 같은 창 오늘
  *      화면에는 「Claude 가 물어요」 가 서 있었다.
- *   3. 다른 창의 기다리는 세션 — 1 과 같은 정의로, 가장 오래 기다린 것의 창을 앞으로.
+ *   3. 다른 창의 기다리는 세션 — 1 과 같은 정의로, 가장 오래 기다린 것의 창을 앞으로 가져오고 그 칸까지 고른다
+ *      (`terminalApi.focusSession` → 그 창에만 `TermFocusAsked`, 11-23). 예전엔 창만 와서 지난 탭이 보였다.
  *   4. 다른 창의 질문 · 바깥 기다림 — 가장 많은 창을 앞으로. **열린 창만** 본다: 질문은 창이 없는 프로젝트도
  *      디스크에서 세어서, 예전엔 ⌘J 가 새 프로젝트 창을 열었고 그 창에서 다시 누르면 고를 세션이 없어 튀었다.
  * 그것도 없으면 조용한 토스트 한 줄. 세션을 고르는 것은 `requestTermFocus` 하나다 — 셸이 그 요청을 듣고
@@ -104,6 +105,13 @@ export async function jumpToWaiting(currentProjectId: number | null): Promise<Ju
   const elsewhere = (await listOf(() => terminalApi.overview()))
     .filter((s) => s.project_id !== currentProjectId && waitingOnMe(s))
     .sort(oldestFirst)[0];
+  // 다른 창의 기다리는 세션 — 그 창을 앞으로 가져오고 그 칸까지 고른다(11-23). 그 사이 끝났으면 창만.
+  const focused =
+    elsewhere != null &&
+    (await Promise.resolve()
+      .then(() => terminalApi.focusSession(elsewhere.id))
+      .catch(() => false));
+  if (focused) return "window";
   let target = elsewhere?.project_id ?? null;
   if (target == null) {
     let most = 0;

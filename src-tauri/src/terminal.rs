@@ -576,6 +576,12 @@ impl TermSessions {
         self.infos(rows)
     }
 
+    /// 그 세션이 사는 창의 라벨 — ⌘K · ⌘J 가 다른 창의 세션을 고를 때 그 창에만 알린다. 「도는 중」 을 재지 않는다.
+    pub fn window_of(&self, id: u32) -> Option<String> {
+        let inner = self.inner.lock().ok()?;
+        inner.map.get(&id).map(|s| s.window.clone())
+    }
+
     /// 그 세션의 프로젝트 — 닫기가 알릴 곳. 「도는 중」 을 재지 않는다.
     pub fn project_of(&self, id: u32) -> Option<u32> {
         let inner = self.inner.lock().ok()?;

@@ -8,7 +8,8 @@ import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/Workspa
 import { NAV_BUS } from "@/lib/navRegistry";
 import { planTargetOf } from "@/features/deeplink/deepLinkPlan";
 import { resumeAfterUpdate } from "@/features/terminal/resumeAfterUpdate";
-import { onTermFocusRequested } from "@/features/terminal/focusRequest";
+import { onTermFocusRequested, requestTermFocus } from "@/features/terminal/focusRequest";
+import { terminalApi } from "@/api/terminal";
 import { needsMe, useWindowTerms } from "@/features/terminal/status";
 import { useT, type Lang } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
@@ -127,6 +128,13 @@ export default function ShellV2({
   // 「이 세션을 보여 줘」 요청마다 화면을 터미널로 (11-15) — 오늘의 「터미널에서 보기」 · ⌘J · 알림 착지가
   // 같은 길이다. 요청은 꺼내지 않는다 — 고를 세션은 늦게 서는 터미널 화면이 꺼낸다(`focusRequest`).
   useEffect(() => onTermFocusRequested(() => setUiV2View("terminal")), [setUiV2View]);
+  // 다른 창의 ⌘K · ⌘J 가 이 창의 세션을 골랐다(11-23) — 백엔드가 이 창에만 보낸 것을 같은 요청으로 바꾼다.
+  useEffect(() => {
+    const un = Promise.resolve()
+      .then(() => terminalApi.onFocusAsked((id) => requestTermFocus(id)))
+      .catch(() => () => {});
+    return () => safeUnlistenPromise(un);
+  }, []);
 
   // 업데이트 재시작 뒤 — 이 창에서 돌던 claude 대화를 잇는다(평소엔 빈 목록 하나를 묻고 끝).
   useEffect(() => {
