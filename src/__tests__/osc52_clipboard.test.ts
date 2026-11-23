@@ -14,7 +14,7 @@ const b64 = (text: string) => btoa(String.fromCharCode(...new TextEncoder().enco
 describe("parseOsc52", () => {
   it.each([
     ["a write", `c;${b64("hello")}`, { kind: "write", text: "hello" }],
-    ["Korean (UTF-8)", `c;${b64("한글 복사")}`, { kind: "write", text: "한글 복사" }],
+    ["Korean (UTF-8)", `c;${b64("한글 복사")}`, { kind: "write", text: "한글 복사" }], // i18n-ignore -- UTF-8 디코드가 검사 재료다
     ["no selection named", `;${b64("x")}`, { kind: "write", text: "x" }],
     ["primary/selection ids", `ps0;${b64("y")}`, { kind: "write", text: "y" }],
     ["a read query is never answered", "c;?", { kind: "ignore", why: "read" }],

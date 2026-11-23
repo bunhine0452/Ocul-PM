@@ -12,7 +12,7 @@ const finderCopy = (name: string) => fakeClipboard(name, ["Files"]) as unknown a
 describe("copied files → shell words", () => {
   it("reads file:// lines of a uri-list (Linux desktops) and skips the rest", () => {
     const list = "# copied\r\nfile:///home/me/My%20File.png\r\nhttps://example.com/x\r\nfile://other-host/etc/passwd\r\nfile:///tmp/%ED%95%9C.txt\r\n";
-    expect(pathsFromUriList(list)).toEqual(["/home/me/My File.png", "/tmp/한.txt"]);
+    expect(pathsFromUriList(list)).toEqual(["/home/me/My File.png", "/tmp/한.txt"]); // i18n-ignore -- 퍼센트 디코드한 파일 이름이 검사 재료다
     expect(pathsFromUriList("")).toEqual([]);
   });
 
@@ -49,11 +49,12 @@ describe("⌘V of copied files through the bridge (real xterm)", () => {
   const settle = () => new Promise((r) => setTimeout(r, 0));
 
   it("pastes the quoted paths, not the bare file name", async () => {
-    vi.spyOn(terminalApi, "clipboardFiles").mockResolvedValue(["/Users/me/보고서 초안.md"]);
+    const name = "\u{BCF4}\u{ACE0}\u{C11C} draft.md"; // 한글 · 빈칸이 든 파일 이름
+    vi.spyOn(terminalApi, "clipboardFiles").mockResolvedValue([`/Users/me/${name}`]);
     rt = openRealTerm();
-    fireClipboard(rt, "paste", finderCopy("보고서 초안.md"));
+    fireClipboard(rt, "paste", finderCopy(name));
     await settle();
-    expect(rt.data.join("")).toBe("'/Users/me/보고서 초안.md' ");
+    expect(rt.data.join("")).toBe(`'/Users/me/${name}' `);
   });
 
   it("no paths (a copied picture) → the old way: Claude's image key on the full screen", async () => {
