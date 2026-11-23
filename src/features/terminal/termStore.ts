@@ -339,7 +339,8 @@ export async function openTerm(
       const prev = entry.info.status;
       if (ev.status?.state === "working") worked.add(entry.info.id);
       entry.info = { ...entry.info, status: ev.status };
-      noteWorked(entry.info); // 설정 「일지가 안 와요」 — 훅 신호와 견줄 Claude 의 일한 때(11-23)
+      // 설정 「일지가 안 와요」 — 훅 신호와 견줄 Claude 의 일한 때(11-23). 레인(cwd)의 Claude 는 그 worktree 의 인박스에 쓴다.
+      if (cwd === null) noteWorked(entry.info);
       alertIfWaiting(prev, entry.info);
       notify();
       return;
