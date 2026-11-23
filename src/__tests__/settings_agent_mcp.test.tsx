@@ -64,15 +64,15 @@ afterEach(() => {
   __resetLangForTests();
 });
 
-describe("Cursor · Gemini 기록 도구 등록", () => {
-  it("흔적도 등록도 없으면 행을 세우지 않는다", async () => {
+describe("Cursor · Gemini MCP registration", () => {
+  it("shows no row when neither a trace nor a registration exists", async () => {
     fx.current.cursor = fx.status("cursor", { detected: false });
     const { container } = render(<AgentMcpRow target="cursor" tick={0} />);
     await waitFor(() => expect(container).toBeEmptyDOMElement());
     expect(screen.queryByText(t("prefs.agents.cursor"))).toBeNull();
   });
 
-  it("흔적이 있으면 「등록」 이 그 프로젝트 등록을 부르고 등록됨 · 등록 해제로 바뀐다", async () => {
+  it("with a trace, Register calls this project's registration and flips to registered · unregister", async () => {
     render(<AgentMcpRow target="gemini" tick={0} />);
     expect(await screen.findByText(t("prefs.agents.gemini"))).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: t("prefs.agents.mcpRegister") }));
@@ -83,16 +83,17 @@ describe("Cursor · Gemini 기록 도구 등록", () => {
     expect(await screen.findByRole("button", { name: t("prefs.agents.mcpRegister") })).toBeInTheDocument();
   });
 
-  it("흔적이 사라져도 등록돼 있으면 풀 수 있게 남는다", async () => {
+  it("stays removable when registered even after the trace is gone", async () => {
     fx.current.cursor = fx.status("cursor", { detected: false, registered: true });
     render(<AgentMcpRow target="cursor" tick={0} />);
     expect(await screen.findByRole("button", { name: t("prefs.agents.mcpUnregister") })).toBeInTheDocument();
   });
 
-  it("못 읽는 설정 파일은 경로와 이유를 한국어로 행에 둔다", async () => {
+  it("an unreadable config file puts its path and reason in the row, in Korean", async () => {
     fx.fail = "/p/.gemini/settings.json was left unchanged: it is not plain JSON (expected value at line 2 column 3)";
     render(<AgentMcpRow target="gemini" tick={0} />);
     const said = t("err.agentMcpNotJson", { path: "/p/.gemini/settings.json", reason: "expected value at line 2 column 3" });
+    // i18n-ignore-next-line -- 한국어 사전이 실린 것을 무는 검사 재료
     expect(said).toContain("그대로 두었어요");
     expect(await screen.findByText(said)).toBeInTheDocument();
     expect(screen.queryByRole("button")).toBeNull();
