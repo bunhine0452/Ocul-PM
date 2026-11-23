@@ -19,6 +19,10 @@ description: ocul-pm 플러그인 표면 전체 레퍼런스 카드 — 커맨�
 
 `journal_search`(과거 일지 찾기 — 작업 전에) · `journal_read`(일지 원문) · `journal_write`(일지 작성) · `plan_status`(플랜 조회 — 응답의 `plans[].hash` 가 `plan_update` 의 `base_hash` 재료) · `plan_update`(항목 상태 갱신 — **`base_hash` 필수**, 병렬 세션 보호) · `plan_create`(새 플랜 — `done_when` · `check` 필수) · `project_init`(추적 초기화, 사용자 확인 필수) · `ask_user`(사람의 결정을 앱의 오늘 화면에 묻고 답을 기다림 — 사람이 터미널을 안 볼 때, 25분 안)
 
+## 다른 에이전트 (Codex · Cursor · Gemini CLI · Copilot)
+
+같은 도구, 같은 검사. Codex 는 플러그인 `oculpm-codex`(next · inception · redteam 스킬 포함), Cursor · Gemini CLI 는 앱 설정 → 에이전트 연결의 「등록」(그 프로젝트의 `.cursor/mcp.json` · `.gemini/settings.json`). MCP 가 없으면 앱 실행 파일이 곧 셸 CLI 다 — `<실행 파일> <도구> [json|-]`, 실행 파일은 macOS `/Applications/Ocul-PM.app/Contents/MacOS/ocul-pm` · Windows `%LOCALAPPDATA%\Ocul-PM\ocul-pm.exe` · Linux `/usr/bin/ocul-pm`. 예: `… tools` · `… plan_status '{}'` · `… journal_write -`(stdin JSON). 종료 코드 5 = 쓰기 충돌(hash 를 다시 읽고 다시). 둘 다 없을 때만 `oculpm-journal` 규격으로 손으로.
+
 ## 스킬 1종 (자동 발동)
 
 `oculpm-journal` — MCP 도구가 없을 때 파일로 기록하는 규격의 전문.
