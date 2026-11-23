@@ -236,7 +236,8 @@ fn session_start_carries_the_last_three_journals_and_records_what_it_carried() {
     );
 }
 
-/// (c) — 서브에이전트에도 컨텍스트는 닿지만, 같은 대화이므로 원장은 늘지 않는다.
+/// (c) — 서브에이전트에는 한 줄(활성 계획 이름 · 도구)만 닿고, 같은 대화이므로 원장은 늘지 않는다.
+/// 일지 손잡이는 싣지 않는다 (11-23 — 좁은 일을 받은 서브에이전트에게는 소음이었다).
 #[test]
 fn a_subagent_gets_the_context_but_does_not_add_a_ledger_row() {
     let dir = project();
@@ -249,7 +250,11 @@ fn a_subagent_gets_the_context_but_does_not_add_a_ledger_row() {
     let sub = r#"{"session_id":"conv-2","hook_event_name":"SubagentStart"}"#;
     let out = run_hook(root, sub);
     let ctx = context_of(&out);
-    assert!(ctx.contains(NEWEST), "서브에이전트에 컨텍스트가 안 닿았다");
+    assert!(
+        ctx.contains("plan_status"),
+        "서브에이전트에 컨텍스트가 안 닿았다: {ctx}"
+    );
+    assert!(!ctx.contains(NEWEST) && ctx.lines().count() == 1, "{ctx}");
     let stdout = String::from_utf8(out.stdout).expect("UTF-8");
     assert!(
         stdout.contains(r#""hookEventName":"SubagentStart""#),

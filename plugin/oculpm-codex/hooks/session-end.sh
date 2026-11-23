@@ -3,9 +3,9 @@
 #
 # 근거는 에이전틱 A/B 벤치 실측(benchmarks/agentic, 2026-07-31): 규칙·도구가
 # 주입돼도 헤드리스 단발 세션의 기록 준수가 0/12 — 규칙만으로 기록이 담보되지
-# 않는 세션이 실재한다. 그런 대화를 (a) 사용자에게 조건부 stderr 로 알리고
-# (b) `.oculpm/hooks/journal-missing.jsonl` 신호로 남겨 앱이 초안 제안 등
-# 후속을 할 수 있게 한다. 계약: 네트워크 없음, 실패는 전부 무해,
+# 않는 세션이 실재한다. 그런 대화를 `.oculpm/hooks/journal-missing.jsonl` 신호로
+# 남기고, 다음 대화의 시작 컨텍스트(plan-context.sh)가 「일지 없이 끝난 대화」 한 줄로
+# 이어받는다. 계약: 네트워크 없음, 실패는 전부 무해,
 # `.oculpm` 없으면 침묵 (stdin 은 항상 소비).
 #
 # **판정은 여기 없다** — `oculpm-mcp verdict` 한 자리다 (delivery-gate.sh 와
@@ -63,7 +63,14 @@ ROOT="${CLAUDE_PROJECT_DIR:-}"
 # 없는 글자라 그대로 지나간다).
 [ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -e 's/.*"\([^"]*\)"$/\1/' -e 's/\\\\/\\/g')
 [ -n "$ROOT" ] || ROOT="."
-[ -d "$ROOT/.oculpm" ] || exit 0
+# 위로 올라가 가장 가까운 .oculpm — 하위 폴더에서 띄운 claude 도 같은 프로젝트다 (plan-context.sh 와 같은
+# 걸음, 11-23). $HOME 위로는 안 간다 · 프로세스 0 · `/` 와 Windows 의 `\` 둘 다 가른다.
+while [ ! -d "$ROOT/.oculpm" ]; do
+  [ "$ROOT" != "${HOME:-}" ] || exit 0
+  _up=${ROOT%[/\\]*}
+  [ -n "$_up" ] && [ "$_up" != "$ROOT" ] || exit 0
+  ROOT=$_up
+done
 # 링크를 따라 쓰지 않는다 — .oculpm 은 저장소에 실려 오고, 그 안의 링크는 아래의
 # 쓰기를 프로젝트 밖으로 돌린다 (앱도 같은 이유로 그런 프로젝트를 열지 않는다).
 for _link in .oculpm .oculpm/hooks .oculpm/hooks/claude-events.jsonl \
@@ -77,7 +84,6 @@ sid=$_v
 case $sid in *[!A-Za-z0-9._-]*) sid= ;; esac
 
 finish() {
-  rc=""
   if [ -n "$sid" ]; then
     plugin_root=${CLAUDE_PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." 2>/dev/null && pwd)}
     bin="$plugin_root/bin/oculpm-mcp"
@@ -100,7 +106,6 @@ finish() {
       done
       tp=$tp$_r
       "$bin" verdict --root "$ROOT" --conversation "$sid" --transcript "$tp" --ledger >/dev/null 2>&1
-      rc=$?
     fi
     rm -f "$ROOT/.oculpm/hooks/.session-start-$sid" "$ROOT/.oculpm/hooks/.session-live-$sid" 2>/dev/null || true
   fi
@@ -109,18 +114,8 @@ finish() {
   # 7일+ 열린 세션과의 잔여 경합은 미탐 방향이라 수용).
   find "$ROOT/.oculpm/hooks" \( -name '.session-start-*' -o -name '.session-live-*' \) -mtime +7 -delete 2>/dev/null || true
 
-  case "$rc" in
-    10)
-      echo "oculpm: 이 대화는 일지 없이 끝났습니다 — 다음 세션에서 journal_write 로 남기거나, ocul-pm 앱의 일지 초안 기능을 켜 두세요" >&2
-      ;;
-    0)
-      echo "oculpm: 세션 기록됨 — 다음 항목은 /oculpm:next, 오늘 요약·diff 대조는 ocul-pm 앱 (oculpm.com)" >&2
-      ;;
-    *)
-      # 11(판정 불가) · 미실행. 모름을 위반으로도 무결로도 말하지 않는다 —
-      # 원장에는 남았으니 회고가 세면 된다.
-      ;;
-  esac
+  # 판정 결과를 여기서 말하지 않는다 — 종료 코드 0 의 stderr 는 아무에게도 안 보인다. 「missing」 은
+  # 원장에 남고, 다음 대화의 시작 컨텍스트(plan-context.sh)가 한 줄로 이어받는다 (11-23).
 
   # 이벤트 인박스 append 는 신호 append **뒤에** — 워처의 인박스 소비가 낸
   # oculpmSessionEnded 로 프론트가 재조회할 때 신호가 이미 디스크에 있도록
