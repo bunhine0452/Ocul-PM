@@ -404,6 +404,10 @@ export const ko = {
   "palette.projectColor": "프로젝트 색 바꾸기",
   "palette.waiting": "기다림",
   "palette.list": "명령 목록",
+  // ⌘K 「지금 화면」 묶음 · ? 작은 시트 (11-23, love-round P1).
+  "palette.group.screen": "지금 화면",
+  "keys.screenKeys": "이 화면의 키",
+  "keys.screenKeysHint": "입력 칸 밖에서 ? 로 열어요 · 다시 누르면 닫혀요",
 
   // ── 프로젝트 관리 다이얼로그 (App.tsx) ──────────────────────────────────
   // 탭 컨텍스트 메뉴 (2026-08-28) — 창 간 드래그의 키보드·메뉴 등가물.

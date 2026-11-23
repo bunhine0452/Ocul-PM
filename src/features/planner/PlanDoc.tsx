@@ -83,6 +83,8 @@ function CheckRunRow({ check, onRun }: { check: string; onRun: (line: string) =>
         className="btn sm"
         {...blocked(reason)}
         aria-describedby={reason ? reasonId : undefined}
+        // ⌘K 「지금 화면」 묶음에 선다(`lib/screenActions`) — 막혀 있으면 빠진다.
+        data-palette-action=""
         onClick={() => {
           if (prep.kind === "ok") onRun(prep.line);
         }}
@@ -216,11 +218,19 @@ function NextRow({
             {next.title}
           </span>
           <span className="plv-grow" />
-          <button type="button" className="btn primary sm" disabled={busy} onClick={() => onRun(next)}>
+          {/* 두 단추는 ⌘K 「지금 화면」 묶음에도 선다(`lib/screenActions`). */}
+          <button type="button" className="btn primary sm" disabled={busy} onClick={() => onRun(next)} data-palette-action="">
             <SquareTerminal size={13} aria-hidden="true" />
             {t("plan.nextRow.run")}
           </button>
-          <button type="button" className="btn sm" disabled={busy} title={t("plan.nextRow.untilDoneTitle")} onClick={() => onRunUntilDone(next)}>
+          <button
+            type="button"
+            className="btn sm"
+            disabled={busy}
+            title={t("plan.nextRow.untilDoneTitle")}
+            onClick={() => onRunUntilDone(next)}
+            data-palette-action=""
+          >
             {t("plan.nextRow.untilDone")}
           </button>
         </>

@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
 import { navViewForKey, NAV_BUS } from "@/lib/navRegistry";
-import { isCheatsheetOpen, requestCheatsheet } from "@/lib/projectActions";
-import { isModalOpen, readChord } from "@/lib/kbd";
+import { isCheatsheetOpen, requestCheatsheet, requestScreenKeys } from "@/lib/projectActions";
+import { isModalOpen, isScreenKeysKey, readChord } from "@/lib/kbd";
 
 // 프로젝트 창의 전역 단축키 (v2 01-ux-spec.md §1 → 4.0).
 //   ⌘1~⌘5 : 화면 전환 — navRegistry 배열 순서(=탭 표시 순서)에 자동 부여.
@@ -11,6 +11,7 @@ import { isModalOpen, readChord } from "@/lib/kbd";
 //   ⌘O : 최근 프로젝트 목록 (윗줄의 프로젝트 이름 버튼).
 //   ⌘, : 설정 화면.
 //   ⌘/ : 단축키 치트시트 — 다시 누르면 닫는다.
+//   ?  : 지금 화면의 키만 작은 시트로 — 입력 칸 · 터미널 밖에서만(`isScreenKeysKey`).
 //   ⌘[ / ⌘] : 화면 뒤로/앞으로 (`useNavHistory` 의 발자국).
 // ⌘W(창 닫기)·⇧⌘N(새 창)은 macOS 앱 메뉴가, Windows·Linux 는 `useWindowKeys` 가 받는다.
 // 입력 필드 안에서도 동작한다 (기존 정책 유지). 수정키 판정은 lib/kbd.ts 가 갖는다 —
@@ -45,6 +46,13 @@ export function useGlobalShortcuts({
   useEffect(() => {
     if (!enabled) return;
     function onKey(e: KeyboardEvent) {
+      // ? — 지금 화면의 키만 작은 시트로. ⌘/ 처럼 표 자신이 떠 있으면 닫고, 다른 대화상자 위에는 열지 않는다.
+      if (isScreenKeysKey(e)) {
+        if (isModalOpen() && !isCheatsheetOpen()) return;
+        e.preventDefault();
+        requestScreenKeys();
+        return;
+      }
       const c = readChord(e);
       if (!c.mod) return;
       const key = c.key.toLowerCase();

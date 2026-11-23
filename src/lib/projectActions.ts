@@ -18,6 +18,7 @@ function requestBus(eventName: string) {
 
 const activateBus = requestBus("oculpm:activate");
 const cheatsheetBus = requestBus("oculpm:open-cheatsheet");
+const screenKeysBus = requestBus("oculpm:open-screen-keys");
 const tourBus = requestBus("oculpm:open-tour");
 
 /** Today 「지금 활성화」 — 프로젝트 탭이 init·status·watcher 를 다시 돌린다. */
@@ -27,6 +28,13 @@ export const onOculpmActivateRequest = activateBus.subscribe;
 /** ⌘/ · 팔레트 「키보드 단축키」 — 창에 하나 떠 있는 치트시트를 연다. */
 export const requestCheatsheet = cheatsheetBus.request;
 export const onCheatsheetRequest = cheatsheetBus.subscribe;
+
+/**
+ * ? · 팔레트 「이 화면의 키」 (11-23) — 같은 치트시트를 **지금 화면 묶음 하나만** 작은 시트로 연다. 표는 따로
+ * 만들지 않는다: `shortcutRegistry` 의 그 화면 묶음 그대로다(⌘/ 의 전체 표와 한 출처).
+ */
+export const requestScreenKeys = screenKeysBus.request;
+export const onScreenKeysRequest = screenKeysBus.subscribe;
 
 // 치트시트가 지금 떠 있나 (11-15 검수) — 표도 aria-modal 이라 전역 키의 모달 가드가 열린 표 위의 두 번째 ⌘/ 를
 // 먹었다(Esc 로만 닫혔다). ⌘/ 는 가드 앞에서 이것을 보고 표 자신일 때만 토글한다. 표(`ShortcutCheatsheet`)가

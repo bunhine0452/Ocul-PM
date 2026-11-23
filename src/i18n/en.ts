@@ -401,6 +401,10 @@ export const en: Record<keyof typeof ko, string> = {
   "palette.projectColor": "Change project color",
   "palette.waiting": "Waiting",
   "palette.list": "Commands",
+  // ⌘K "This screen" group · the ? sheet (11-23, love-round P1).
+  "palette.group.screen": "This screen",
+  "keys.screenKeys": "Keys for this screen",
+  "keys.screenKeysHint": "Press ? outside a text field · press again to close",
 
   // ── Project management dialogs (App.tsx) ────────────────────────────────
   // Tab context menu (2026-08-28) — the keyboard/menu equivalent of the drag.

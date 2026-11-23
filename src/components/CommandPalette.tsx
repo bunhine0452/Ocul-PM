@@ -3,6 +3,7 @@ import { Command } from "cmdk";
 import {
   Settings as SettingsIcon,
   BookText,
+  ChevronRight,
   Code2,
   Columns3,
   FolderPlus,
@@ -25,7 +26,8 @@ import { windowApi } from "@/api/window";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { kbd } from "@/lib/kbd";
 import { matchScore } from "@/lib/choseong";
-import { requestCheatsheet, requestTour } from "@/lib/projectActions";
+import { requestCheatsheet, requestScreenKeys, requestTour } from "@/lib/projectActions";
+import { collectScreenActions, pressScreenAction, type ScreenAction } from "@/lib/screenActions";
 import { toast } from "@/lib/toast";
 import { dayWord } from "@/lib/workdayLabel";
 import { ProjectRow, distinctWhere } from "@/features/shell/ProjectRow";
@@ -121,6 +123,13 @@ export function CommandPalette({
   const [openWindows, setOpenWindows] = useState<number[]>([]);
   const { t, lang } = useT();
   const editor = useOpenInEditor(currentRoot, open && currentRoot != null);
+  // 지금 화면의 동작 — 열 때 한 번, 화면이 이미 그려 둔 단추에서 읽는다(`lib/screenActions`, 등록 표 없음). 시작 창엔
+  // 화면 동작이 없다.
+  const inProject = ws != null;
+  const [screenActions, setScreenActions] = useState<ScreenAction[]>([]);
+  useEffect(() => {
+    setScreenActions(open && inProject ? collectScreenActions() : []);
+  }, [open, inProject]);
 
   // 닫히면 비운다 — 다음에 열 때 지난 검색어가 남아 있으면 놀란다.
   useEffect(() => {
@@ -280,6 +289,19 @@ export function CommandPalette({
       shortcut: kbd("⌘/"),
       onSelect: run(requestCheatsheet),
     },
+    // 지금 화면의 키만 작은 시트로 — ? 와 같은 판(11-23). 시작 창은 화면이 하나라 전체 표가 곧 그 표다.
+    ...(ws
+      ? [
+          {
+            id: "act-screen-keys",
+            label: t("keys.screenKeys"),
+            keywords: [...tAll("keys.screenKeys"), ...tAll("dialog.keysHere")],
+            icon: Keyboard,
+            shortcut: "?",
+            onSelect: run(requestScreenKeys),
+          },
+        ]
+      : []),
     // 첫 실행 안내를 다시 — 도움말 메뉴가 없는 Windows·Linux 에서는 여기가 유일한 길이다.
     { id: "act-tour", label: t("tour.title"), keywords: tAll("tour.title"), icon: BookText, onSelect: run(requestTour) },
     ...(onOpenFolder
@@ -320,6 +342,20 @@ export function CommandPalette({
       : []),
   ];
 
+  // ── 지금 화면 — 윗줄의 화면 동작 · 본문에 한 번 서는 동작(계획의 「다음」 · 「셸에서 돌리기」). 고르면 그 단추를
+  // 누른다(팔레트가 닫힌 뒤 — `pressScreenAction`). 「지금 화면」 으로 치면 묶음 전체가 선다.
+  const screenItems: CommandItem[] = screenActions.map((a) => ({
+    id: a.id,
+    label: a.label,
+    keywords: [a.label, ...tAll("palette.group.screen")],
+    icon: ChevronRight,
+    shortcut: a.shortcut,
+    onSelect: () => {
+      onOpenChange(false);
+      pressScreenAction(a);
+    },
+  }));
+
   // ── 세션 — 기다림 먼저, 이 창 다음, 다른 창. 끝났어도 안 본 소식이 있으면 남는다.
   // 이 창의 세션은 탭과 같은 번호를 먼저 매긴다(연 순서 = id 순, `numberSessions`) — 팔레트가 일부만 먼저 보고 번호를
   // 가로채지 않게. 다른 창의 번호는 그 창의 것이라 이 창이 알 수 없다.
@@ -336,8 +372,8 @@ export function CommandPalette({
       .map(({ s }) => s);
   }, [sessions, currentProjectId]);
   // 고른 줄 — 기다리는 세션이 오면 그 줄을 고른다(아직 아무것도 안 쳤고 줄을 옮기지도 않았을 때, 연 동안 한 번).
-  // 이 창의 기다림이 있으면 ⌘K ↩ 가 ⌘J 의 첫 세션과 같은 곳에 간다. 다른 창의 세션은 그 창을 앞으로 가져올 뿐 그
-  // 칸까지 고르지는 못한다. 세션 목록은 늦게 와서 그 사이 cmdk 가 첫 줄(오늘)을 골라 두는데, 사람이 이미 ↓ 로
+  // 이 창의 기다림이 있으면 ⌘K ↩ 가 ⌘J 의 첫 세션과 같은 곳에 간다. 다른 창의 세션은 그 창을 앞으로 가져오고 그
+  // 칸까지 고른다(11-23, `pickSession`). 세션 목록은 늦게 와서 그 사이 cmdk 가 첫 줄(오늘)을 골라 두는데, 사람이 이미 ↓ 로
   // 옮긴 줄은 빼앗지 않는다 — 그러면 ↩ 가 엉뚱한 곳에 갔다.
   const [selected, setSelected] = useState("");
   const preselected = useRef(false);
@@ -358,9 +394,18 @@ export function CommandPalette({
   const projectName = (id: number) => projects?.find((p) => p.id === id)?.name ?? "";
   const pickSession = (s: TermInfo) => {
     onOpenChange(false);
-    // 이 창의 세션이면 그 칸을 고른다(셸이 화면을 터미널로 옮긴다). 다른 창이면 그 창을 앞으로.
-    if (s.project_id === currentProjectId) requestTermFocus(s.id);
-    else windowApi.openProjectWindow(s.project_id).catch(() => {});
+    // 이 창의 세션이면 그 칸을 고른다(셸이 화면을 터미널로 옮긴다). 다른 창이면 그 창을 앞으로 가져오고 그 창이
+    // 그 세션까지 고른다(`term_focus_session` → 그 창에만 `TermFocusAsked`). 세션이 그 사이 끝났으면 창만 연다.
+    if (s.project_id === currentProjectId) {
+      requestTermFocus(s.id);
+      return;
+    }
+    void Promise.resolve()
+      .then(() => terminalApi.focusSession(s.id))
+      .catch(() => false)
+      .then((ok) => {
+        if (!ok) windowApi.openProjectWindow(s.project_id).catch(() => {});
+      });
   };
 
   // ── 프로젝트 — 다른 프로젝트는 다른 창이다. 줄은 ⌘O 와 한 벌(`ProjectRow`), 번호는 최근 순.
@@ -477,6 +522,9 @@ export function CommandPalette({
           ) : null}
           {navItems.length > 0 ? (
             <Command.Group heading={t("palette.group.nav")}>{navItems.map(renderItem)}</Command.Group>
+          ) : null}
+          {screenItems.length > 0 ? (
+            <Command.Group heading={t("palette.group.screen")}>{screenItems.map(renderItem)}</Command.Group>
           ) : null}
           <Command.Group heading={t("palette.group.actions")}>{actionItems.map(renderItem)}</Command.Group>
           {others.length > 0 && onSelectProject ? (

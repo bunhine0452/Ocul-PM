@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { AppDialog, DialogBody, DialogHead } from "@/components/ui/AppDialog";
+import { AppDialog, DialogBody, DialogFoot, DialogHead } from "@/components/ui/AppDialog";
 import { Keyboard } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/uiV2View";
 import { useT } from "@/i18n";
+import { kbd } from "@/lib/kbd";
 import { NAV_ENTRIES } from "@/lib/navRegistry";
-import { noteCheatsheetOpen, onCheatsheetRequest } from "@/lib/projectActions";
+import { noteCheatsheetOpen, onCheatsheetRequest, onScreenKeysRequest } from "@/lib/projectActions";
 import { buildShortcutGroups, type ShortcutGroup } from "@/lib/shortcutRegistry";
 
 // ⌘/ 단축키 치트시트 (완성도 라운드 Phase 2, 2026-08-30).
@@ -15,6 +16,9 @@ import { buildShortcutGroups, type ShortcutGroup } from "@/lib/shortcutRegistry"
 // 11-15 — 대화상자 한 벌(머리 · 스크롤되는 본문)에 서고, 묶음은 CSS 단으로 흐른다. 480×520 창에서
 // 표(33줄)가 잘리고 스크롤도 안 되던 자리다. **지금 화면의 묶음이 맨 앞**이고, 프로젝트 창에서는
 // 시작 화면 묶음(폴더 열기)을 뺀다 — 그 창에서는 듣지 않는 키다.
+//
+// 11-23 — ? (입력 칸 · 터미널 밖) 와 팔레트 「이 화면의 키」 는 같은 판을 **지금 화면 묶음 하나만** 작은 시트(400)로
+// 연다(`screenKeyGroups`). 표를 새로 만들지 않는다 — 같은 `shortcutRegistry` 에서 거를 뿐이다.
 
 /**
  * 이 창이 지금 보여 주는 화면 — 윗줄 탭의 `aria-current="page"` 에서 읽는다. 치트시트는 창 최상위라
@@ -59,48 +63,82 @@ export function splitKeyLabel(label: string): [string, string | null] {
   return m ? [m[1], m[2]] : [label, null];
 }
 
+/**
+ * 작은 시트(? · 팔레트 「이 화면의 키」)의 묶음 — 지금 화면 묶음 하나. 그 화면에 제 키가 없으면(설정) 화면 이동 ·
+ * 전역 묶음으로 — 빈 시트를 열지 않는다. 표는 `orderShortcutGroups` 의 결과 그대로라 ⌘/ 의 전체 표와 한 출처다.
+ */
+export function screenKeyGroups(ordered: ShortcutGroup[], here: string | null): ShortcutGroup[] {
+  const mine = ordered.filter((g) => g.id === here);
+  return mine.length > 0 ? mine : ordered.filter((g) => g.id === "nav" || g.id === "global");
+}
+
+type Scope = "all" | "here";
+interface Sheet {
+  open: boolean;
+  scope: Scope;
+  where: { view: UiV2View | null; inProject: boolean };
+}
+
 export function ShortcutCheatsheet() {
   const { t } = useT();
-  const [open, setOpen] = useState(false);
-  // 열 때마다 창을 다시 읽는다 — 그 사이 화면을 옮겼을 수 있다.
-  const [where, setWhere] = useState<{ view: UiV2View | null; inProject: boolean }>({ view: null, inProject: false });
-  useEffect(
-    () =>
-      onCheatsheetRequest(() => {
-        setWhere({ view: viewOnScreen(), inProject: document.querySelector(".topbar") != null });
-        setOpen((v) => !v);
-      }),
-    [],
-  );
+  const [sheet, setSheet] = useState<Sheet>({
+    open: false,
+    scope: "all",
+    where: { view: null, inProject: false },
+  });
+  const { open, scope, where } = sheet;
+  const setOpen = (v: boolean) => setSheet((s) => ({ ...s, open: v }));
+  const setScope = (v: Scope) => setSheet((s) => ({ ...s, scope: v }));
+  useEffect(() => {
+    // 같은 범위를 다시 부르면 닫고, 다른 범위면 그 범위로 바꾼다 — 작은 시트 위의 ⌘/ 는 전체 표로 넓힌다.
+    // 열 때마다 창을 다시 읽는다 — 그 사이 화면을 옮겼을 수 있다.
+    const ask = (next: Scope) => () => {
+      const now = { view: viewOnScreen(), inProject: document.querySelector(".topbar") != null };
+      setSheet((s) => (s.open && s.scope === next ? { ...s, open: false } : { open: true, scope: next, where: now }));
+    };
+    const offAll = onCheatsheetRequest(ask("all"));
+    const offHere = onScreenKeysRequest(ask("here"));
+    return () => {
+      offAll();
+      offHere();
+    };
+  }, []);
   // 떠 있는지 적어 둔다 — 열린 표 위의 ⌘/ 가 모달 가드에 먹히지 않고 표를 닫게(`useGlobalShortcuts` · 시작 창).
   useEffect(() => {
     noteCheatsheetOpen(open);
     return () => noteCheatsheetOpen(false);
   }, [open]);
-  const groups = useMemo(
-    () => orderShortcutGroups(buildShortcutGroups(), where.view, where.inProject),
-    [where],
-  );
   const here = where.inProject ? where.view : "start";
+  const groups = useMemo(() => {
+    const ordered = orderShortcutGroups(buildShortcutGroups(), where.view, where.inProject);
+    return scope === "here" ? screenKeyGroups(ordered, here) : ordered;
+  }, [where, scope, here]);
   // 첫 포커스는 표(본문) — 열자마자 화살표 · PageDown 이 표를 내린다. × 가 먼저 포커스 테를 쥐지 않는다.
   // 본문은 Tab 자리다(× ↔ 표) — 가두기 목록의 끝이라 Tab 이 대화상자 밖으로 새지 않는다.
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const small = scope === "here";
 
   return (
-    <AppDialog open={open} onClose={() => setOpen(false)} label={t("keys.title")} width={760} initialFocusRef={bodyRef}>
+    <AppDialog
+      open={open}
+      onClose={() => setOpen(false)}
+      label={t(small ? "keys.screenKeys" : "keys.title")}
+      width={small ? 400 : 760}
+      initialFocusRef={bodyRef}
+    >
       <DialogHead
         mark={<Keyboard size={15} />}
-        title={t("keys.title")}
-        sub={t("keys.hint")}
+        title={t(small ? "keys.screenKeys" : "keys.title")}
+        sub={t(small ? "keys.screenKeysHint" : "keys.hint")}
         onClose={() => setOpen(false)}
       />
       <DialogBody ref={bodyRef} focusable>
-        <div className="keys-cols">
+        <div className={small ? undefined : "keys-cols"}>
           {groups.map((g) => (
             <section className="keys-group" key={g.id} aria-labelledby={`keys-${g.id}`}>
               <h3 id={`keys-${g.id}`}>
                 {t(g.titleKey)}
-                {g.id === here ? <span className="chip sm hairline">{t("dialog.keysHere")}</span> : null}
+                {g.id === here && !small ? <span className="chip sm hairline">{t("dialog.keysHere")}</span> : null}
               </h3>
               <dl>
                 {g.rows.map((row) => {
@@ -135,6 +173,17 @@ export function ShortcutCheatsheet() {
           ))}
         </div>
       </DialogBody>
+      {/* 작은 시트에서 전체 표로 — 같은 판이 넓어진다(⌘/ 와 같은 길). 채운 단추가 아니다(고를 일이 아니라 넓히기). */}
+      {small ? (
+        <DialogFoot>
+          <button type="button" className="btn ghost sm" onClick={() => setScope("all")}>
+            {t("palette.cheatsheet")}
+            <kbd className="kbd" aria-hidden="true">
+              {kbd("⌘/")}
+            </kbd>
+          </button>
+        </DialogFoot>
+      ) : null}
     </AppDialog>
   );
 }
