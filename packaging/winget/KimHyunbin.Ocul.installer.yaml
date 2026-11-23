@@ -5,7 +5,7 @@
 # (docs/RELEASE.md §5-1) — 자산이 없는 버전으로 제출하지 않는다.
 # InstallerSha256 은 0 으로 찬 자리표시자 — `node scripts/packaging/update-manifests.mjs` 가 채운다.
 PackageIdentifier: KimHyunbin.Ocul
-PackageVersion: 4.12.1
+PackageVersion: 4.13.0
 InstallerType: nsis
 Scope: user
 InstallModes:
@@ -20,7 +20,7 @@ UpgradeBehavior: install
 ReleaseDate: 2026-11-23
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/bunhine0452/Ocul-PM/releases/download/v4.12.1/Ocul-PM_4.12.1_x64-setup.exe
-    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+    InstallerUrl: https://github.com/bunhine0452/Ocul-PM/releases/download/v4.13.0/Ocul-PM_4.13.0_x64-setup.exe
+    InstallerSha256: 69C57AA6F81A9D52BF4FBC9858FC3E40A78A2D71992909099E9A8E38D3EFE23E
 ManifestType: installer
 ManifestVersion: 1.6.0

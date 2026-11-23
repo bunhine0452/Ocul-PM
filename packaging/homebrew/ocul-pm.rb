@@ -8,11 +8,12 @@
 # 이름 · 주소의 근거(바뀌면 packaging_manifests 시험이 붉어진다):
 #   - dmg 이름  `Ocul-PM_<버전>_aarch64.dmg` — release.yml 의 macOS 잡이 만든다
 #     (.github/scripts/release/notes.mjs 의 자산 표). Intel Mac 빌드는 없다(ort 가 x86_64-apple-darwin 을 안 준다).
-#   - .app 이름 `Ocul.app` — tauri.conf.json 의 macOS.bundleName.
+#   - .app 이름 `Ocul-PM.app` — tauri.conf.json 의 productName(macOS.bundleName 「Ocul」 은 표시 이름일 뿐 파일
+#     이름이 아니다 — v4.13.0 dmg 를 열어 확인).
 #   - 서명 · 공증된 빌드라 Gatekeeper 가 막지 않는다(release.yml 이 spctl · codesign 으로 단언).
 cask "ocul-pm" do
-  version "4.12.1"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  version "4.13.0"
+  sha256 "173ece4a0911b867628efc7d4df554880463aad78541b37c73b4fbe9b1cf6311"
 
   url "https://github.com/bunhine0452/Ocul-PM/releases/download/v#{version}/Ocul-PM_#{version}_aarch64.dmg",
       verified: "github.com/bunhine0452/Ocul-PM/"
@@ -33,7 +34,7 @@ cask "ocul-pm" do
   depends_on arch: :arm64
   depends_on macos: ">= :ventura"
 
-  app "Ocul.app"
+  app "Ocul-PM.app"
 
   # 앱이 쓰는 기기 쪽 자리만. 프로젝트의 `.oculpm/`(일지 · 계획)은 사용자 기록이라 지우지 않는다.
   zap trash: [

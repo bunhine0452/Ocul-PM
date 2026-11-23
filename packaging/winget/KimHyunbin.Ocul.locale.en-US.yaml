@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
 PackageIdentifier: KimHyunbin.Ocul
-PackageVersion: 4.12.1
+PackageVersion: 4.13.0
 PackageLocale: en-US
 Publisher: Kim Hyunbin
 PublisherUrl: https://oculpm.com
@@ -26,6 +26,6 @@ Tags:
   - journal
   - local-first
   - project-management
-ReleaseNotesUrl: https://github.com/bunhine0452/Ocul-PM/releases/tag/v4.12.1
+ReleaseNotesUrl: https://github.com/bunhine0452/Ocul-PM/releases/tag/v4.13.0
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0

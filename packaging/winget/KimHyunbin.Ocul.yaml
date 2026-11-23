@@ -2,7 +2,7 @@
 # winget 버전 매니페스트 — 세 파일(이 파일 · .installer · .locale.en-US) 중 하나. 바깥 저장소
 # microsoft/winget-pkgs 에 올릴 원본이며 앱은 읽지 않는다. 채우기 · 제출은 docs/RELEASE.md 「설치 채널」.
 PackageIdentifier: KimHyunbin.Ocul
-PackageVersion: 4.12.1
+PackageVersion: 4.13.0
 DefaultLocale: en-US
 ManifestType: version
 ManifestVersion: 1.6.0

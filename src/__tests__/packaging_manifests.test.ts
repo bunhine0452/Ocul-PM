@@ -17,7 +17,7 @@ const cask = read("packaging/homebrew/ocul-pm.rb");
 const wingetVersion = read("packaging/winget/KimHyunbin.Ocul.yaml");
 const wingetInstaller = read("packaging/winget/KimHyunbin.Ocul.installer.yaml");
 const wingetLocale = read("packaging/winget/KimHyunbin.Ocul.locale.en-US.yaml");
-const tauri = JSON.parse(read("src-tauri/tauri.conf.json")) as { identifier: string; version: string; app?: unknown; bundle: { macOS: { bundleName: string; minimumSystemVersion: string }; targets: string } };
+const tauri = JSON.parse(read("src-tauri/tauri.conf.json")) as { productName: string; identifier: string; version: string; app?: unknown; bundle: { macOS: { bundleName: string; minimumSystemVersion: string }; targets: string } };
 // Windows builds only NSIS, installed per user — the winget manifest's InstallerType / Scope must say the same.
 const tauriWindows = JSON.parse(read("src-tauri/tauri.windows.conf.json")) as { bundle: { targets: string[]; windows: { nsis: { installMode: string } } } };
 const field = (text: string, key: string) => new RegExp(`^${key}:\\s*(.+)$`, "m").exec(text)?.[1].trim();
@@ -37,7 +37,9 @@ describe("the cask follows what release.yml ships", () => {
   });
 
   it("installs the .app the bundle config names and zaps only the bundle identifier's folders", () => {
-    expect(cask).toContain(`app "${tauri.bundle.macOS.bundleName}.app"`);
+    // The .app on disk is named after productName — bundleName is only CFBundleName, the name shown in the menu
+    // bar. The first cask said "Ocul.app" and would have failed to install; the v4.13.0 dmg holds Ocul-PM.app.
+    expect(cask).toContain(`app "${tauri.productName}.app"`);
     const zap = cask.slice(cask.indexOf("zap trash"));
     const lines = zap.split("\n").filter((l) => l.includes("~/"));
     expect(lines.length).toBeGreaterThan(0);
