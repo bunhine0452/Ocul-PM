@@ -17,6 +17,7 @@ import type { Terminal } from "@xterm/xterm";
 
 import { terminalApi } from "@/api/terminal";
 import { t } from "@/i18n";
+import { oculpmLog } from "@/lib/oculpmLog";
 import { getPlatform } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { typedByPerson } from "./agentScreen";
@@ -64,7 +65,8 @@ export async function writeClipboard(text: string): Promise<void> {
       dedupKey: "terminal-osc52",
       dedupWindowMs: 4000,
     });
-  } catch {
+  } catch (e) {
+    oculpmLog.warn("terminal", "osc52 clipboard write failed", { error: String(e) });
     toast.warning(t("terminal.osc52.failed"), { dedupKey: "terminal-osc52-failed", dedupWindowMs: 10_000 });
   }
 }

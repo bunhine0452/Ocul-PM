@@ -8,6 +8,7 @@
  * 쪽(`pasteSafe.handlePaste`)이 예전 길(글 · 그림 붙여넣기 키)로 간다.
  */
 import { terminalApi } from "@/api/terminal";
+import { oculpmLog } from "@/lib/oculpmLog";
 import { dropText } from "./dropFiles";
 
 /** 한 번에 붙이는 경로 수의 상한 — 백엔드(`terminal_clipboard::MAX_PATHS`)와 같다. */
@@ -47,6 +48,13 @@ export function copiedFilesText(
 ): Promise<string> | null {
   if (!hasCopiedFiles(data)) return null;
   const listed = pathsFromUriList(data.getData("text/uri-list") ?? "");
-  const paths = listed.length > 0 ? Promise.resolve(listed) : read().catch(() => [] as string[]);
+  // 읽기 실패(클립보드를 다른 앱이 쥠 등)는 예전 글 붙여넣기로 — 다만 까닭은 로그에 남긴다.
+  const paths =
+    listed.length > 0
+      ? Promise.resolve(listed)
+      : read().catch((e: unknown) => {
+          oculpmLog.warn("terminal", "clipboard file paths unreadable", { error: String(e) });
+          return [] as string[];
+        });
   return paths.then((p) => dropText(p, windows));
 }
