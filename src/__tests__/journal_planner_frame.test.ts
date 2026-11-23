@@ -22,7 +22,7 @@ describe("journal · planner — one frame", () => {
   it("both list columns take the shared --panel-w (yielding 45% of a narrow window)", () => {
     expect(journalCss).toMatch(/\.jl-col\s*\{[^}]*width:\s*var\(--panel-w\);[^}]*max-width:\s*45%/);
     expect(plannerCss).toMatch(/\.plv-rail\s*\{[^}]*width:\s*var\(--panel-w\);[^}]*max-width:\s*45%/);
-    expect(src("styles/tokens.css")).toMatch(/--panel-w:\s*320px;/);
+    expect(src("styles/tokens.css")).toMatch(/--panel-w:\s*clamp\(232px, 30vw, 320px\);/);
   });
 
   it("both documents are padded 24 and the selected row changes its surface, never its weight", () => {

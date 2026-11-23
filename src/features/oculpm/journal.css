@@ -28,8 +28,11 @@
 .jl-head-row { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 /* 종류 · 거르기 · 수 — 자리가 모자라면 다음 줄로(목록 칸 320), 남으면 한 줄로(좁은 창에서 위아래로 쌓인 칸). */
 .jl-head-wrap { flex-wrap: wrap; row-gap: var(--space-1); }
-/* 상자는 `.search-box`(primitives.css), 여기는 남는 폭을 채우게만. */
-.jl-search { flex: 1; min-width: 0; box-sizing: border-box; }
+/* 상자는 `.search-box`(primitives.css), 여기는 남는 폭을 채우게만. 검색칸 줄은 꺾일 수 있다 — 검색칸이 150 밑으로
+   눌리면 기간 · 순서 칸이 다음 줄로 내려간다(11-23 G2: 영어 「Last 14 days | All time」 옆에서 안내문이 「Search entri」
+   로 잘렸고, 좁은 창에서 목록 칸이 232 까지 줄면 한국어도 그랬다). */
+.jl-head-row:first-child { flex-wrap: wrap; row-gap: var(--space-1); }
+.jl-search { flex: 1 1 150px; min-width: 0; box-sizing: border-box; }
 .jl-head .seg { flex: none; max-width: 100%; }
 .jl-head .seg-item { padding: 0 var(--space-3); white-space: nowrap; }
 .jl-head .seg-item:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }

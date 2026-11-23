@@ -13,6 +13,7 @@ import { requestOculpmActivate } from "@/lib/projectActions";
 import { toast } from "@/lib/toast";
 import { dayWord } from "@/lib/workdayLabel";
 import { JournalDetail, type JournalDetailActions } from "./JournalDetail";
+import { JournalFirstDay } from "./JournalFirstDay";
 import { FILTERS, JournalHead, type Filter } from "./JournalHead";
 import { JournalList } from "./JournalList";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
@@ -582,28 +583,16 @@ export function JournalScreenV2({
   const nothingYet =
     oculpmReady && !loading && !error && rawDays != null && rawDays.length === 0 && !searching && filter === "all" && !onlyMissing && !showAll;
 
-  // 「자동으로 기록합니다」 는 거짓이었다 — 일지를 쓰는 것은 에이전트다. 첫날 이 화면을 살리는
-  // 구체적인 행동은 둘뿐: 지난 커밋에서 만들거나, 지금 한 건을 직접 쓰거나.
-  // 문장 하나 · 버튼 하나 (화면 검사 #empty-one). 예전 기록이 있으면 그리로, 정말 처음이면 커밋에서
-  // 첫 일지를 만드는 길 하나 — 새 일지 쓰기는 윗줄 단추가 늘 있다.
-  const hasOlder = total != null && total > 0;
+  // 「자동으로 기록합니다」 는 거짓이었다 — 일지를 쓰는 것은 에이전트다. 예전 기록이 있으면 그리로, 정말 처음이면
+  // 오늘 화면과 같은 첫걸음(터미널에서 첫 작업 맡기기)이 채운 단추다 — `JournalFirstDay`.
   const firstDay = (
-    <EmptyState
-      density="rich"
-      actions={
-        hasOlder ? (
-          <button type="button" className="btn primary" onClick={() => setShowAll(true)}>
-            {t("journal.loadMore")}
-          </button>
-        ) : (
-          <button type="button" className="btn primary" disabled={backfilling} onClick={runGitBackfill}>
-            {backfilling ? t("journal.backfill.busy") : t("journal.backfill.action")}
-          </button>
-        )
-      }
-    >
-      {hasOlder ? t("journal.emptyRecent") : t("journal.empty")}
-    </EmptyState>
+    <JournalFirstDay
+      projectId={projectId}
+      hasOlder={total != null && total > 0}
+      onShowAll={() => setShowAll(true)}
+      backfilling={backfilling}
+      onBackfill={() => void runGitBackfill()}
+    />
   );
 
   const showAgent = useMemo(() => new Set(allEntries.map((e) => e.agent_id)).size > 1, [allEntries]);
