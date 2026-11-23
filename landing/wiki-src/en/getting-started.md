@@ -38,6 +38,6 @@ If no entry appears, see the first item in [Troubleshooting](/wiki/en/troublesho
 
 ## Next steps
 
-- Mostly terminal Claude Code? → install the plugin from [Claude Code](/wiki/en/claude-code). Recording goes from "if the model remembers" to automatic, and the next conversation inherits the plan and its last verdict.
+- Mostly terminal Claude Code? → install the plugin from [Claude Code](/wiki/en/claude-code). Recording goes from "if the model remembers" to automatic, and the next conversation inherits the plan and its last result.
 - Starting a new feature area? → run `/oculpm:inception` in the terminal — it builds a plan whose first item is a check command that is red right now.
 - Curious where data lives? → [Data & file layout](/wiki/en/data)

@@ -68,7 +68,7 @@
 <h2 id="what-does-it-do">What does it do</h2>
 <h3 id="in-one-line">In one line</h3>
 <p><b>It leaves a human-readable record of what an AI agent did to your code.</b></p>
-<p>A commit message only says <i>what changed</i>. Ocul records <i>why it was done that way, what was tried and failed, and how it was checked</i> — and the app unfolds only <b>what a person must see</b> from that record: failed verdicts · entries without evidence · unrecorded changes. The goal is to trust what the agent did, and decide what's next, in three minutes.</p>
+<p>A commit message only says <i>what changed</i>. Ocul records <i>why it was done that way, what was tried and failed, and how it was checked</i> — and the app unfolds only <b>what a person must see</b> from that record: failed check commands · entries without evidence · unrecorded changes. The goal is to trust what the agent did, and decide what's next, in three minutes.</p>
 <h3 id="do-i-have-to-write-the-entries">Do I have to write the entries?</h3>
 <p><b>No. Your agent writes them.</b> You just read.</p>
 <p>Turning recording on creates a rules file called <code>AGENTS.md</code> at the root, and agents like Claude Code, Codex, Cursor and Gemini CLI read it. "When you finish a unit of work, write an entry" is the rule. You don't even have to ask.</p>
@@ -110,9 +110,9 @@
 <p>Change it in the project's <code>.oculpm/config.toml</code>, e.g. <code>day_starts_at = "03:00"</code>, and work before 3 a.m. goes into the previous day's folder.</p>
 <h3 id="what-s-a-session">What's a "session"?</h3>
 <p>A unit the app <b>opens when an agent starts working and closes after things go quiet</b>, by watching file changes. Roughly "one sitting," named like <code>20260821-002</code>. Entries are grouped by the session that produced them automatically.</p>
-<h3 id="journal-vs-plan-vs-verdict-what-s-the-difference">Journal vs plan vs verdict — what's the difference?</h3>
+<h3 id="journal-vs-plan-vs-check-result-what-s-the-difference">Journal vs plan vs check result — what's the difference?</h3>
 <p>Different points on the timeline:</p>
-<div class="wk-table"><table><thead><tr><th></th><th>When</th><th>What</th></tr></thead><tbody><tr><td><b>Plan</b></td><td><b>Now</b></td><td>Done condition · check command · items. Glyphs move as items progress. Big decisions go in the decision block</td></tr><tr><td><b>Work Journal</b></td><td><b>After</b> the work</td><td>What was done, why and how — and what was run to check it</td></tr><tr><td><b>Verdict</b></td><td><b>After running</b> the check command</td><td>One line, `verdict ✓</td><td>✗ &lt;last line&gt;`. The result decides, not the agent's word</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th></th><th>When</th><th>What</th></tr></thead><tbody><tr><td><b>Plan</b></td><td><b>Now</b></td><td>Done condition · check command · items. Glyphs move as items progress. Big decisions go in the decision block</td></tr><tr><td><b>Work Journal</b></td><td><b>After</b> the work</td><td>What was done, why and how — and what was run to check it</td></tr><tr><td><b>Check result</b></td><td><b>After running</b> the check command</td><td>One line, `verdict ✓</td><td>✗ &lt;last line&gt;`. The result decides, not the agent's word</td></tr></tbody></table></div>
 <p>The 3.x Discussions screen was removed in 4.0 — <code>.oculpm/discussion/</code> files are left as they are.</p>
 <h3 id="can-the-ui-language-differ-from-the-language-of-the-records">Can the UI language differ from the language of the records?</h3>
 <p>Yes. The UI language (Settings → App → Language) is the app's text; the language of entries follows the agent writing them and the rules template. An English UI with Korean records is possible, and documents already written are never rewritten.</p>

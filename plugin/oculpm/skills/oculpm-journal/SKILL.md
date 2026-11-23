@@ -1,6 +1,6 @@
 ---
 name: oculpm-journal
-description: ocul-pm recording spec (journal format, planner glyphs/log) for projects with .oculpm/. Use when finishing a unit of work and the oculpm MCP tools are unavailable — prefer journal_write/plan_update when visible.
+description: Ocul recording spec (journal format, planner glyphs/log) for projects with .oculpm/. Use when finishing a unit of work and the oculpm MCP tools are unavailable — prefer journal_write/plan_update when visible.
 ---
 
 # ocul-pm 기록 규격 (풀 스펙)

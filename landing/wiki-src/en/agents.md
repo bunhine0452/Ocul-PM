@@ -76,8 +76,8 @@ An app update can raise the rules spec (template version). When Settings → **T
 |---|---|---|---|
 | Claude Code | **3 Session observation** | the oculpm plugin (hooks · MCP tools · commands) · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
 | Codex | **3 Session observation** | the Codex plugin (hooks · guidance for the `~/.codex/config.toml` MCP registration) · `AGENTS.md` (native) | v2.37.0 · 2026-09-03 |
-| Gemini CLI | 1 Rules-compatible | `AGENTS.md` + `GEMINI.md` block | — |
-| Cursor | 1 Rules-compatible | `.cursor/rules/ocul-pm.mdc` | — |
+| Gemini CLI | 2 Structured recording | `AGENTS.md` + `GEMINI.md` block · Settings registers the recording tool (MCP) in `.gemini/settings.json` | — |
+| Cursor | 2 Structured recording | `.cursor/rules/ocul-pm.mdc` · Settings registers the recording tool (MCP) in `.cursor/mcp.json` | — |
 | GitHub Copilot | 1 Rules-compatible | `.github/copilot-instructions.md` block | — (shipped v2.0.0) |
 | Windsurf | 1 Rules-compatible | `.windsurf/rules/ocul-pm.md` | — (shipped v2.0.0) |
 | Cline | 1 Rules-compatible | `.clinerules/ocul-pm.md` | — (shipped v2.0.0) |

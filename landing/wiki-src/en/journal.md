@@ -69,7 +69,7 @@ tags: [cache, dogfooding]
 - **Body headings are fixed per type**: bug and error use root cause → fix; refactor uses motivation → summary of changes; feature uses what was added → how it flows. All of them end with a required **Verification** section.
 
 :::tip
-Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." The verdict is not the agent's word but **the command that ran and its last line of output**.
+Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." The result is not the agent's word but **the command that ran and its last line of output**.
 :::
 
 ## The Work Journal screen

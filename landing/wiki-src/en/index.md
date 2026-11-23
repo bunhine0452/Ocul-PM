@@ -1,25 +1,25 @@
 ---
 title: Ocul Wiki
-desc: The Ocul manual — getting started, the five surfaces, agent integration, troubleshooting, data layout and shortcuts.
+desc: The Ocul manual — getting started, the five screens, agent integration, troubleshooting, data layout and shortcuts.
 order: 0
 updated: 2026-11-15
 ---
 
 The places people get stuck with Ocul, collected in one manual. Kept short, updated often. (As of 4.0.)
 
-The 4.0 app has five surfaces — **Today · Work Journal · Plan · Diff · Settings** — plus a start window when no project is open. One principle: **show only the exceptions.** It unfolds only what a person must see (failed verdicts · entries without evidence · unrecorded changes · blocked items · decisions that are yours) and folds work with evidence into one line. The app calls no LLM.
+The app has five screens — **Today · Work Journal · Plan · Diff · Terminal** (Settings opens with ⌘,) — and a start window when no project is open. One principle: **show only the exceptions.** It unfolds only what a person must see (failed check commands · entries without evidence · unrecorded changes · blocked items · decisions that are yours) and folds work with evidence into one line. The app calls no LLM.
 
 ## New here
 
 - **[Getting started](/wiki/en/getting-started)** — install, turn recording on, first journal entry
 - **[FAQ](/wiki/en/faq)** — who writes the journal, does it cost money, should I commit it, what's a workday
-- **[Screens tour](/wiki/en/screens)** — what each of the five surfaces does, on one page
+- **[Screens tour](/wiki/en/screens)** — what each of the five screens does, on one page
 
 ## Concepts — what accumulates
 
 - **[Today](/wiki/en/today)** — the first screen you see. One line of numbers on the date line, and "Needs your eyes"
 - **[Work Journal](/wiki/en/journal)** — when and how entries pile up, the verification box, journal search
-- **[Plan](/wiki/en/planner)** — plan documents your agents update. Done condition · check command · last verdict
+- **[Plan](/wiki/en/planner)** — plan documents your agents update. Done condition · check command · last result
 
 ## Agent integration
 
