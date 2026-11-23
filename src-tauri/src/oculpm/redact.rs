@@ -115,7 +115,10 @@ use crate::oculpm::spec::OculpmConfig;
 ///
 /// 15 → 16 (2026-11-23): `git/receipt.rs` — PR 영수증이 일지 원문에서 읽은 제목 · 검증 끝 줄을 가린다.
 /// 영수증은 PR 설명 · HTML 파일로 기기 밖에 나간다(다섯째 갈래: 일지를 떠나는 것).
-pub const CALL_SITE_FILES: usize = 16;
+///
+/// 16 → 17 (2026-11-23, 합류 실측): `oculpm/mcp/tools/plan_update.rs` — `plan_update` 정의를 `tools/mod.rs`
+/// 800줄 한계 때문에 떼어 냈고, 새 `add` · `decision` · `verdict` 글이 계획 파일에 닿기 전에 가린다.
+pub const CALL_SITE_FILES: usize = 17;
 
 /// One match recorded by [`redact_text`]. Byte offsets reference the
 /// **original** input string (pre-redaction); they are at char boundaries
