@@ -18,7 +18,7 @@ disable-model-invocation: true
 
 ## MCP 도구 8종
 
-`journal_search`(과거 일지 찾기 — 작업 전에) · `journal_read`(일지 원문) · `journal_write`(일지 작성) · `plan_status`(플랜 조회 — 응답의 `plans[].hash` 가 `plan_update` 의 `base_hash` 재료) · `plan_update`(항목 상태 갱신 — **`base_hash` 필수**, 병렬 세션 보호) · `plan_create`(새 플랜 — `done_when` · `check` 는 꼭 적기를 권해요) · `project_init`(추적 초기화, 사용자 확인 필수) · `ask_user`(사람의 결정을 앱의 오늘 화면에 묻고 답을 기다림 — 사람이 터미널을 안 볼 때, 25분 안)
+`journal_search`(과거 일지 찾기 — 작업 전에) · `journal_read`(일지 원문) · `journal_write`(일지 작성) · `plan_status`(플랜 조회 — 응답의 `plans[].hash` 가 `plan_update` 의 `base_hash` 재료) · `plan_update`(항목 상태 갱신 · 항목 더하기 `add` · 결정 잠그기 `decision` · 확인 결과 남기기 `verdict` — **`base_hash` 필수**, 병렬 세션 보호) · `plan_create`(새 플랜 — `done_when` · `check` 는 꼭 적기를 권해요) · `project_init`(추적 초기화, 사용자 확인 필수) · `ask_user`(사람의 결정을 앱의 오늘 화면에 묻고 답을 기다림 — 사람이 터미널을 안 볼 때, 25분 안)
 
 ## 다른 에이전트 (Codex · Cursor · Gemini CLI · Copilot)
 

@@ -387,6 +387,7 @@ pub(crate) fn plan_update(root: &Path, raw_args: &Value) -> Result<Value, String
             .to_string()
     };
     // 판정 메모에는 돌린 OS 를 붙인다 — 다른 기기의 앱이 「여기선 아직」을 가린다 (`judge::stamp`).
+    let gave_verdict = verdict.is_some();
     let mut note = match (verdict, note_arg) {
         (Some(v), Some(n)) => Some(format!("{v} — {n}")),
         (v, n) => v.or(n.map(str::to_string)),
@@ -398,6 +399,11 @@ pub(crate) fn plan_update(root: &Path, raw_args: &Value) -> Result<Value, String
     let mut md = md;
     let mut rows: Vec<LogRow> = Vec::new();
     let mut out = json!({ "plan_id": plan_id });
+    // 남긴 판정 줄을 돌려준다 — 옛 앱의 MCP 는 `verdict` 를 조용히 버리고 이 키가 없는 응답을 주므로,
+    // 스킬이 이 키로 「기록됐다」를 확인한다 (플러그인과 앱이 따로 올라가는 동안의 창).
+    if gave_verdict {
+        out["verdict"] = json!(note);
+    }
     let row = |item: &str, from, to, journal_ref: Option<String>, note: Option<String>| LogRow {
         ts: ts.clone(),
         item_id: item.to_string(),
