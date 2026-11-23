@@ -133,6 +133,28 @@ pub fn term_write(
     sessions.write(id, &data).map_err(write_err)
 }
 
+/// 클립보드에 복사해 둔 파일의 경로들 — Finder · 탐색기에서 복사한 파일을 터미널에 ⌘V 할 때(`terminal_clipboard.rs`).
+/// 파일이 아니면 빈 목록. 읽기만 한다.
+#[tauri::command]
+#[specta::specta]
+pub async fn term_clipboard_files() -> Result<Vec<String>, AppError> {
+    crate::terminal::clipboard::file_paths().map_err(term_err)
+}
+
+/// 터미널 안의 프로그램이 OSC 52 로 청한 복사 — 웹뷰가 상한 · 알림을 거친 글만 넘긴다(`oscClipboard.ts`).
+/// 이 OS 에서 앱이 쓰지 않으면(Linux) `false` — 웹뷰가 쓴다.
+#[tauri::command]
+#[specta::specta]
+pub async fn term_clipboard_write(text: String) -> Result<bool, AppError> {
+    if text.len() > OSC52_MAX_BYTES {
+        return Err(term_err("clipboard: text too large".to_string()));
+    }
+    crate::terminal::clipboard::write_text(&text).map_err(term_err)
+}
+
+/// OSC 52 로 받는 글의 상한 — 웹뷰의 상한(64KB 디코드)보다 넉넉히. 그보다 큰 글은 웹뷰가 이미 버린다.
+const OSC52_MAX_BYTES: usize = 256 * 1024;
+
 /// 웹뷰가 그 세션의 출력을 `bytes` 만큼 그렸다 — 출력 흐름 제어(`terminal_io::Flow`)가 그만큼 더 보낸다.
 /// 동기 명령 — 세션의 셈만 줄이고 곧장 돌아온다.
 #[tauri::command]

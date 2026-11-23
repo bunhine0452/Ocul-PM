@@ -199,6 +199,16 @@ export const commands = {
 } | null, onEvent: Channel<TermEvent>) => typedError<TermInfo, AppError>(__TAURI_INVOKE("term_open", { projectId, cols, rows, prompt, cwd, resume, check, onEvent })),
 	termWrite: (id: number, data: string) => typedError<null, AppError>(__TAURI_INVOKE("term_write", { id, data })),
 	/**
+	 *  클립보드에 복사해 둔 파일의 경로들 — Finder · 탐색기에서 복사한 파일을 터미널에 ⌘V 할 때(`terminal_clipboard.rs`).
+	 *  파일이 아니면 빈 목록. 읽기만 한다.
+	 */
+	termClipboardFiles: () => typedError<string[], AppError>(__TAURI_INVOKE("term_clipboard_files")),
+	/**
+	 *  터미널 안의 프로그램이 OSC 52 로 청한 복사 — 웹뷰가 상한 · 알림을 거친 글만 넘긴다(`oscClipboard.ts`).
+	 *  이 OS 에서 앱이 쓰지 않으면(Linux) `false` — 웹뷰가 쓴다.
+	 */
+	termClipboardWrite: (text: string) => typedError<boolean, AppError>(__TAURI_INVOKE("term_clipboard_write", { text })),
+	/**
 	 *  웹뷰가 그 세션의 출력을 `bytes` 만큼 그렸다 — 출력 흐름 제어(`terminal_io::Flow`)가 그만큼 더 보낸다.
 	 *  동기 명령 — 세션의 셈만 줄이고 곧장 돌아온다.
 	 */
