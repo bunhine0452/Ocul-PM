@@ -18,6 +18,8 @@ const wingetVersion = read("packaging/winget/KimHyunbin.Ocul.yaml");
 const wingetInstaller = read("packaging/winget/KimHyunbin.Ocul.installer.yaml");
 const wingetLocale = read("packaging/winget/KimHyunbin.Ocul.locale.en-US.yaml");
 const tauri = JSON.parse(read("src-tauri/tauri.conf.json")) as { identifier: string; version: string; app?: unknown; bundle: { macOS: { bundleName: string; minimumSystemVersion: string }; targets: string } };
+// Windows builds only NSIS, installed per user — the winget manifest's InstallerType / Scope must say the same.
+const tauriWindows = JSON.parse(read("src-tauri/tauri.windows.conf.json")) as { bundle: { targets: string[]; windows: { nsis: { installMode: string } } } };
 const field = (text: string, key: string) => new RegExp(`^${key}:\\s*(.+)$`, "m").exec(text)?.[1].trim();
 const caskVersion = /^\s*version\s+"([^"]+)"/m.exec(cask)?.[1] ?? "";
 const changedLines = (a: string, b: string) => a.split("\n").filter((line, i) => line !== b.split("\n")[i]).length;
@@ -77,7 +79,8 @@ describe("the winget manifests follow what release.yml ships", () => {
     expect(field(wingetInstaller, "InstallerType")).toBe("nsis");
     expect(wingetInstaller).toMatch(/Architecture: x64/);
     expect(field(wingetInstaller, "Scope")).toBe("user");
-    expect(tauri.bundle.targets).toBe("all");
+    expect(tauriWindows.bundle.targets).toEqual(["nsis"]);
+    expect(tauriWindows.bundle.windows.nsis.installMode).toBe("currentUser");
   });
 
   it("links release notes of its own version", () => {
@@ -130,6 +133,19 @@ describe("update-manifests.mjs", () => {
     expect(() => updateWingetInstaller(wingetInstaller, { version: "9.9.9", sha256: sha, date: "12/01" })).toThrow();
     expect(updateWingetVersion(wingetVersion, { version: "9.9.9" })).toContain("PackageVersion: 9.9.9");
     expect(updateWingetLocale(wingetLocale, { version: "9.9.9" })).toContain("releases/tag/v9.9.9");
+  });
+
+  it("refuses a plain-http source and a flag whose value is missing instead of skipping that channel", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("must not be reached"));
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await expect(main(["--dmg", "http://example.com/Ocul-PM_9.9.9_aarch64.dmg"], tmp)).rejects.toThrow(/https/);
+      await expect(main(["--dmg", "--dry-run"], tmp)).rejects.toThrow(/--dmg/);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      log.mockRestore();
+    }
   });
 
   it("fails loudly when a manifest line it must edit is gone", () => {
