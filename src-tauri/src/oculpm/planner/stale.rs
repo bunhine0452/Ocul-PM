@@ -370,6 +370,13 @@ mod tests {
             .unwrap()
             .set_modified(at + Duration::from_secs(60))
             .unwrap();
+        // b.rs 는 판정보다 앞 — 만든 날의 시계에 기대면 판정 시각이 지난 뒤(11-23)부터 b.rs 도 「바뀜」 이 된다.
+        File::options()
+            .write(true)
+            .open(root.join("src/b.rs"))
+            .unwrap()
+            .set_modified(at - Duration::from_secs(3600))
+            .unwrap();
         assert_eq!(
             changed_since_verdict(root, &files(), later, "round"),
             ["src/a.rs"]

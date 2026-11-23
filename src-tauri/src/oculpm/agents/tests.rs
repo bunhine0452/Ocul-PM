@@ -101,6 +101,8 @@ fn master_template_carries_planner_rules() {
 
 /// v20 (2026-10-28) — 문제 해결 문서(논의)는 앱의 논의 화면과 함께 걷었다. 마스터가 없는
 /// 문서를 쓰라고 하면 거짓말이다 — 큰 결정·옵션 비교는 플랜의 `## 결정` 블록으로 간다.
+/// v21 (2026-11-23) — 마스터는 그 블록을 `plan_update` 의 `decision` 으로 쓰라고 하고, 손으로 쓰는
+/// 블록 모양(`### Decision N`)은 도구 없는 길을 위해 journal-spec 이 든다.
 #[test]
 fn master_template_no_longer_points_at_discussion_docs() {
     for (name, t) in [("ko", MASTER_KO), ("en", MASTER_EN)] {
@@ -109,12 +111,18 @@ fn master_template_no_longer_points_at_discussion_docs() {
             "{name}: 걷은 논의 문서를 아직 가리킨다"
         );
         assert!(
-            t.contains("### Decision N"),
-            "{name}: 큰 결정의 자리(## 결정 블록) 안내 누락"
+            t.contains("`decision`"),
+            "{name}: 큰 결정의 자리(plan_update decision → ## 결정 블록) 안내 누락"
         );
     }
     assert!(MASTER_KO.contains("## 결정"));
     assert!(MASTER_EN.contains("## Decisions"));
+    for (name, spec) in [("ko", JOURNAL_SPEC_KO), ("en", JOURNAL_SPEC_EN)] {
+        assert!(
+            spec.contains("### Decision N"),
+            "{name}: 도구 없는 길의 결정 블록 모양이 journal-spec 에 없다"
+        );
+    }
 }
 
 /// An `@path` import inside an adapter file resolves **relative to the file
