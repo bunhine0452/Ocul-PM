@@ -36,17 +36,27 @@ owner: claude-code
 
 ## 업그레이드 라운드 이월 (11-15) {#quality-carry}
 - [ ] Linux 의 Ctrl+Shift+V 붙여넣기 — WebKitGTK 가 묶는지 설치본으로 확인, 안 되면 navigator.clipboard.readText 를 같은 정화 · 경고 길로 (← quality-round-20261115) {#linux-ctrl-shift-v}
-- [ ] Windows PowerShell 5.1(pwsh 없음)은 && 를 몰라 && 로 이은 확인 명령이 구문 오류 — 「셸에서 돌리기」 에서 막거나 알리기 (← quality-round-20261115) {#ps51-and-and}
-- [ ] ⌘K 에서 다른 창의 세션을 고르면 창만 앞으로 — 창을 건너는 세션 초점 요청 (← quality-round-20261115) {#palette-cross-window-focus}
-- [ ] 오늘 화면이 fg 확인 없이 alive && blocked 를 센다 — claude 가 죽은 칸이 줄로 남고 배지만 내려감 (← quality-round-20261115) {#today-crashed-claude}
-- [ ] 터미널 상태 띠가 전체 화면 TUI 의 맨 위 약 31px 를 덮는다 — 격자를 줄일지 띠 자리를 옮길지 (← quality-round-20261115) {#status-band-overlay}
-- [ ] 터미널 탭 닫기 × 표적 15px(WCAG 2.5.8) — 넓히면 창 번호를 덮어 탭 배치부터 (← quality-round-20261115) {#tab-close-target}
-- [ ] Claude 외부 편집기(Ctrl+G)에서 돌아온 직후 다음 상태 신호까지 Shift+Enter 가 CR(vim 오탐 막는 맞바꿈) (← quality-round-20261115) {#shift-enter-ctrl-g}
+- [x] Windows PowerShell 5.1(pwsh 없음)은 && 를 몰라 && 로 이은 확인 명령이 구문 오류 — 「셸에서 돌리기」 에서 막거나 알리기 (← quality-round-20261115) {#ps51-and-and}
+- [x] ⌘K 에서 다른 창의 세션을 고르면 창만 앞으로 — 창을 건너는 세션 초점 요청 (← quality-round-20261115) {#palette-cross-window-focus}
+- [x] 오늘 화면이 fg 확인 없이 alive && blocked 를 센다 — claude 가 죽은 칸이 줄로 남고 배지만 내려감 (← quality-round-20261115) {#today-crashed-claude}
+- [x] 터미널 상태 띠가 전체 화면 TUI 의 맨 위 약 31px 를 덮는다 — 격자를 줄일지 띠 자리를 옮길지 (← quality-round-20261115) {#status-band-overlay}
+- [x] 터미널 탭 닫기 × 표적 15px(WCAG 2.5.8) — 넓히면 창 번호를 덮어 탭 배치부터 (← quality-round-20261115) {#tab-close-target}
+- [x] Claude 외부 편집기(Ctrl+G)에서 돌아온 직후 다음 상태 신호까지 Shift+Enter 가 CR(vim 오탐 막는 맞바꿈) (← quality-round-20261115) {#shift-enter-ctrl-g}
 - [ ] [P2] xterm 6 + 애드온 짝 + DEC 2026 동기 출력 · 출력 원시 바이트 채널 · OSC 52 쓰기 · OSC 9;4 진행 숫자 · 빠른 선택(hints) (← quality-round-20261115) {#p2-terminal-next}
 - [ ] [P2] 업데이트 뒤 정확히 그 대화로 · 하위 에이전트 수 · 탭 세부 카드 · 셸 통합 없이 명령 사이 이동 · 칸 나누기 폴더 잇기 (← quality-round-20261115) {#p2-terminal-agents}
 - [ ] [P2] Finder 복사 파일 ⌘V → 경로 · 보내기의 쓰다 만 입력 보호 · 레인 전체 방송 · 오른쪽 ⌥ 는 글자 · 화면 낭독기 모드 (← quality-round-20261115) {#p2-terminal-input}
 - [ ] [P2] Windows 깊은 손질 — Alt 메뉴 모드 · ConPTY 사이드로드 · FULL_REPAINT (← quality-round-20261115) {#p2-windows-deep}
 - [ ] [P2] diff 「내가 본 뒤로」 검토 지점 · 계획 줄 메모 → Claude · ⌘K 이 화면 동작 묶음 · 레인 준비 .worktreeinclude · 첫 실행 claude 찾기 · 일하는 동안 잠자기 막기 (← quality-round-20261115) {#p2-flow}
+
+## 사랑받는 앱 라운드 이월 (11-23) {#love-carry}
+- [ ] 설정 「고칠 것」 의 플러그인 꺼짐 · 신호 없음 겹침을 한 줄로 {#love-fix-dup}
+- [ ] 저장소가 아닌 프로젝트에서 오늘 영수증 단추 감추기 {#love-receipt-nonrepo}
+- [ ] plan_update 의 넘친 로그 쓰기를 파서 검사 뒤로 {#love-archive-order}
+- [ ] .worktreeinclude 복사의 링크 바뀜(TOCTOU) · 넓은 패턴 상한 {#love-include-toctou}
+- [ ] 시작 훅 꼬리 두 줄이 1,600자 컷 뒤에 붙는 것 {#love-hook-tail}
+- [ ] README · 랜딩 스크린샷을 4.13 화면으로 다시 찍기(하네스) {#love-shots}
+- [ ] VS Code 확장 판 올림 · ext 릴리스(Latest 는 앱으로) {#love-ext-release}
+- [ ] plugin README 의 statusline · ▶실행 단락 낡음 {#love-plugin-readme}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -68,4 +78,21 @@ owner: claude-code
 | 2026-11-15T11:33:35+09:00 | #p2-terminal-input | claude-code | →☐ |  | ← quality-round-20261115 이월 |
 | 2026-11-15T11:33:35+09:00 | #p2-windows-deep | claude-code | →☐ |  | ← quality-round-20261115 이월 |
 | 2026-11-15T11:33:35+09:00 | #p2-flow | claude-code | →☐ |  | ← quality-round-20261115 이월 |
+| 2026-11-23T21:29:11+09:00 | #love-fix-dup | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
+| 2026-11-23T21:29:11+09:00 | #love-receipt-nonrepo | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
+| 2026-11-23T21:29:11+09:00 | #love-archive-order | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
+| 2026-11-23T21:29:11+09:00 | #love-include-toctou | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
+| 2026-11-23T21:29:11+09:00 | #love-hook-tail | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
+| 2026-11-23T21:29:11+09:00 | #love-shots | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
+| 2026-11-23T21:29:11+09:00 | #love-ext-release | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
+| 2026-11-23T21:29:11+09:00 | #love-plugin-readme | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
+| 2026-11-23T21:29:50+09:00 | #ps51-and-and | claude-code | ☐→x | .oculpm/journal/20261123/Features_to_add/2123_feature_terminal-input-fixes.md | love-round-20261123 L5 에서 끝남 — 돌리기 전에 까닭과 PowerShell 7 안내 |
+| 2026-11-23T21:29:55+09:00 | #palette-cross-window-focus | claude-code | ☐→x | .oculpm/journal/20261123/Features_to_add/2126_feature_palette-screen-keys.md | love-round-20261123 P1 에서 끝남 — term_focus_session · TermFocusAsked (설치본 확인 몫) |
+| 2026-11-23T21:29:59+09:00 | #today-crashed-claude | claude-code | ☐→x | .oculpm/journal/20261123/Features_to_add/2124_feature_keep-awake-sessions.md | love-round-20261123 L6 에서 끝남 — 셸만 남은 칸은 기다림 줄에서 거른다 |
+| 2026-11-23T21:30:05+09:00 | #status-band-overlay | claude-code | ☐→x | .oculpm/journal/20261123/Features_to_add/2124_feature_keep-awake-sessions.md | love-round-20261123 L6 에서 끝남 — 상태 띠를 오른쪽 위 알약으로 |
+| 2026-11-23T21:30:15+09:00 | #tab-close-target | claude-code | ☐→x | .oculpm/journal/20261123/Features_to_add/2124_feature_keep-awake-sessions.md | love-round-20261123 L6 에서 끝남 — 닫기 × 표적 24px, 창 번호와 겹치지 않게 |
+| 2026-11-23T21:30:27+09:00 | #shift-enter-ctrl-g | claude-code | ☐→x | .oculpm/journal/20261123/Features_to_add/2123_feature_terminal-input-fixes.md | love-round-20261123 L5 에서 끝남 — Ctrl+G 뒤에도 Shift+Enter 줄바꿈 |
+| 2026-11-23T21:30:34+09:00 | #p2-flow | claude-code | ☐→☐ |  | love-round-20261123 에서 일부 끝남 — 내가 본 뒤로 · ⌘K 화면 동작 · .worktreeinclude · 첫 실행 claude 찾기 · 잠자기 막기. 남은 것: 계획 줄 메모 → Claude |
+| 2026-11-23T21:30:39+09:00 | #p2-terminal-input | claude-code | ☐→☐ |  | love-round-20261123 에서 일부 끝남 — Finder 파일 ⌘V → 경로 · 오른쪽 ⌥ 글자 · 허락 묻는 중 보내기 막기(이미 있었음). 남은 것: 레인 전체 방송 · 화면 낭독기 모드 |
+| 2026-11-23T21:30:44+09:00 | #p2-terminal-next | claude-code | ☐→☐ |  | love-round-20261123 에서 일부 끝남 — OSC 52 쓰기. OSC 9;4 진행 숫자는 실측 근거로 걷기 권고. 남은 것: xterm 6 + DEC 2026 (IME 시험 하네스 먼저) · 원시 바이트 채널(측정 먼저) |
 <!-- oculpm:plan-log end -->
