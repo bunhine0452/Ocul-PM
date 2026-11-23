@@ -70,7 +70,7 @@ fn project_init_refuses_the_real_home_directory() {
     let home = crate::oculpm::paths::home_dir().expect("home");
     let existed = home.join(".oculpm").exists();
     let err = call_tool(&home, "project_init", &json!({"confirm": true})).unwrap_err();
-    assert!(err.contains("home directory"), "{err}");
+    assert!(err.contains("홈 폴더(home directory)"), "{err}");
     assert_eq!(
         home.join(".oculpm").exists(),
         existed,
@@ -145,7 +145,7 @@ fn unknown_tool_and_missing_args_error_cleanly() {
     std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
     assert!(call_tool(dir.path(), "nope", &serde_json::json!({})).is_err());
     let err = call_tool(dir.path(), "journal_write", &serde_json::json!({})).unwrap_err();
-    assert!(err.contains("'type'"));
+    assert!(err.contains("`type`"), "{err}");
 }
 
 /// **병렬 세션이 같은 항목을 밟지 못한다** (플랜 `session-shim-cli` CAS).

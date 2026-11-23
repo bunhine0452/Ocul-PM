@@ -673,9 +673,8 @@ fn flush_decision(
     for raw in lines.drain(..) {
         let l = raw.trim();
         let stripped = l.trim_start_matches(['-', '*', ' ']);
-        if let Some(rest) = stripped.strip_prefix("잠금") {
-            // "잠금 2026-06-07 · claude-code"
-            let rest = rest.trim();
+        if let Some(rest) = super::plan_decision::locked_rest(stripped) {
+            let rest = rest.trim(); // "잠금 2026-06-07 · claude-code" (en `Locked …`)
             if let Some((date, agent)) = rest.split_once('·') {
                 d.locked_at = non_empty(date.trim());
                 d.agent_id = non_empty(agent.trim());
@@ -684,7 +683,7 @@ fn flush_decision(
             }
             continue;
         }
-        if let Some(rest) = stripped.strip_prefix("영향:") {
+        if let Some(rest) = super::plan_decision::affects_rest(stripped) {
             for part in rest.split([',', ' ']) {
                 let p = part.trim().trim_start_matches('#');
                 if !p.is_empty() {

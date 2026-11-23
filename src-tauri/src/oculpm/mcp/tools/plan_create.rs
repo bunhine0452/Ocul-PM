@@ -15,7 +15,7 @@ const MAX_PLAN_ITEMS: usize = 120;
 
 /// frontmatter/{#id} 에 쓰는 kebab 검증 — sanitize 가 아니라 거부 (id 는
 /// 에이전트가 안정적으로 재참조해야 하므로 조용한 변형이 더 위험하다).
-fn valid_kebab(s: &str) -> bool {
+pub(crate) fn valid_kebab(s: &str) -> bool {
     !s.is_empty()
         && s.len() <= 40
         && !s.starts_with('-')
@@ -182,7 +182,7 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
                 .collect::<Vec<_>>()
                 .join(" · ");
             return Err(format!(
-                "similar active plan(s) exist - prefer adding items there with plan_update: {listed}. \
+                "similar active plan(s) exist - prefer adding items there with plan_update (add: [{{text, phase}}], base_hash = the hash shown): {listed}. \
                  If this is genuinely a separate plan, call again with allow_similar: true"
             ));
         }

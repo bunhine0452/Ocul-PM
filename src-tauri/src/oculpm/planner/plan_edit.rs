@@ -19,6 +19,8 @@ const LOG_BEGIN: &str = "<!-- oculpm:plan-log begin v1 -->";
 const LOG_END: &str = "<!-- oculpm:plan-log end -->";
 const LOG_HEADER: &str = "| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |";
 const LOG_SEP: &str = "|---|---|---|---|---|---|";
+/// 플랜 전체에 대한 행(항목 없이 남긴 판정·메모)의 항목 칸.
+pub const PLAN_WIDE_ITEM: &str = "—";
 
 /// Build a fresh empty plan document (frontmatter + empty plan-log block).
 pub fn create_plan_skeleton(id: &str, title: &str, owner: &str, date: &str) -> String {
@@ -567,6 +569,71 @@ fn add_item_lf(
     Ok(lines.join("\n"))
 }
 
+/// 하위 항목을 더한다 — `parent_id` 의 마지막 하위 바로 뒤에 두 칸 들여서 (중첩은 최대 1단계라 부모는
+/// 최상위 항목이어야 한다). 부모 글리프는 하위 롤업으로 함께 정규화한다 — `[x]` 부모에 `[ ]` 하위를 더하고
+/// 글리프를 그대로 두면 파일과 파생값이 갈라진다 (`set_item_status_rolled` 와 같은 원칙).
+pub fn add_child_item(
+    md: &str,
+    parent_id: &str,
+    title: &str,
+    item_id: &str,
+    status: ItemStatus,
+) -> Result<String, String> {
+    eol::keeping(md, |md| {
+        add_child_item_lf(md, parent_id, title, item_id, status)
+    })
+}
+
+fn add_child_item_lf(
+    md: &str,
+    parent_id: &str,
+    title: &str,
+    item_id: &str,
+    status: ItemStatus,
+) -> Result<String, String> {
+    if id_is_anchored(md, item_id) {
+        return Err(format!("item id '{item_id}' already exists"));
+    }
+    let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
+    let pi = lines
+        .iter()
+        .position(|l| is_item_of(l, parent_id))
+        .ok_or_else(|| format!("parent item '{parent_id}' not found in plan"))?;
+    if lines[pi].starts_with(' ') || lines[pi].starts_with('\t') {
+        return Err(format!(
+            "'{parent_id}' is itself a child - nesting is one level deep (하위의 하위는 못 만들어요)"
+        ));
+    }
+    let mut at = pi + 1;
+    while at < lines.len()
+        && is_item_line(&lines[at])
+        && (lines[at].starts_with(' ') || lines[at].starts_with('\t'))
+    {
+        at += 1;
+    }
+    lines.insert(
+        at,
+        format!(
+            "  - [{}] {} {{#{}}}",
+            status.token(),
+            strip_own_anchor(title, item_id),
+            item_id
+        ),
+    );
+    let added = lines.join("\n");
+    let parsed = crate::oculpm::planner::parse::parse_plan(&added, "x");
+    let kids: Vec<ItemStatus> = parsed
+        .items
+        .iter()
+        .filter(|i| i.parent_item.as_deref() == Some(parent_id))
+        .map(|i| i.status)
+        .collect();
+    let roll = crate::oculpm::planner::parse::rollup_status(&kids);
+    Ok(set_item_status_lf(&added, parent_id, roll)
+        .map(|r| r.md)
+        .unwrap_or(added))
+}
+
 /// One appended row of the attribution log.
 pub struct LogRow {
     pub ts: String,
@@ -644,7 +711,7 @@ fn is_item_line(line: &str) -> bool {
 /// 줄바꿈된 항목의 앵커(이어진 줄에 붙은 것)도 파서처럼 접은 뒤 센다. 헤더 id 도
 /// 세는 것은 파서가 항목·결정 id 를 한 이름공간에서 dedup(`x`→`x-2`)하고, plan-log
 /// 의 `#id` 가 둘 중 어느 것인지 갈라지지 않게 하려는 것이다.
-fn id_is_anchored(md: &str, id: &str) -> bool {
+pub(crate) fn id_is_anchored(md: &str, id: &str) -> bool {
     crate::oculpm::planner::parse::fold_wrapped_items(md)
         .split('\n')
         .any(|l| {
@@ -655,19 +722,29 @@ fn id_is_anchored(md: &str, id: &str) -> bool {
 }
 
 fn render_row(r: &LogRow) -> String {
-    let change = format!(
-        "{}→{}",
-        r.from.map(|s| s.log_symbol()).unwrap_or(""),
-        r.to.map(|s| s.log_symbol()).unwrap_or("")
-    );
+    // 바뀐 것이 없는 행(삭제 · 이동 · 판정만)은 변화 칸이 빈칸이다 — 홀로 선 `→` 는 아무 뜻이 없다.
+    let change = match (r.from, r.to) {
+        (None, None) => String::new(),
+        (from, to) => format!(
+            "{}→{}",
+            from.map(|s| s.log_symbol()).unwrap_or(""),
+            to.map(|s| s.log_symbol()).unwrap_or("")
+        ),
+    };
     // 자유 텍스트 셀의 `|` 는 열 경계로 읽히므로 이스케이프한다 — 파서
     // (`parse::split_table_cells`) 가 `\|` 를 글자로 되돌린다. 줄바꿈은 행을
     // 깨뜨리므로 공백으로.
     let cell = |s: &str| s.replace('|', "\\|").replace(['\n', '\r'], " ");
+    // 항목 없는 행(상태를 안 바꾸고 판정·메모만 남긴 것)은 항목 칸이 `—` 다 — `#` 만 남기지 않는다.
+    let item = if r.item_id.is_empty() {
+        PLAN_WIDE_ITEM.to_string()
+    } else {
+        format!("#{}", r.item_id)
+    };
     format!(
-        "| {} | #{} | {} | {} | {} | {} |",
+        "| {} | {} | {} | {} | {} | {} |",
         r.ts,
-        r.item_id,
+        item,
         cell(&r.agent_id),
         change,
         cell(r.journal_ref.as_deref().unwrap_or("")),
