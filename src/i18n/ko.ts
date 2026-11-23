@@ -109,7 +109,7 @@ export const ko = {
   "tour.done": "시작하기",
   "tour.p1.title": "에이전트가 한 일을 사람이 읽는 일지로 남겨요",
   "tour.p1.body": "오늘 화면에는 지금 볼 것만 떠요. 검증이 있는 일은 일지에 조용히 쌓이고, 실패한 확인 명령이나 일지 없는 변경만 위로 올라와요.",
-  "tour.p1.local": "서버도 계정도 없어요. 기록은 전부 프로젝트 폴더의 마크다운이에요.",
+  "tour.p1.local": "서버도 계정도 없어요. 일지와 계획은 전부 프로젝트 폴더의 마크다운 파일이에요.",
   "tour.p2.title": "다섯 화면",
   "tour.screen.today": "지금 볼 것",
   "tour.screen.journal": "한 일과 검증",
@@ -117,10 +117,10 @@ export const ko = {
   "tour.screen.diff": "일지 없는 변경",
   "tour.screen.terminal": "이 폴더에서 claude 실행",
   "tour.p3.title": "에이전트 연결",
-  "tour.p3.body": "Claude Code 플러그인을 깔면 일지가 저절로 쌓여요. 터미널에서 한 번:",
+  "tour.p3.body": "Claude Code 플러그인을 깔면 에이전트가 일을 마칠 때마다 일지를 남겨요. 터미널에서 한 번:",
   "tour.p3.others": "Codex · Cursor · Gemini CLI 는 프로젝트의 AGENTS.md 를 읽고 같은 규칙으로 일지를 남겨요.",
-  "tour.p3.folder": "폴더를 열면 그 폴더에 AGENTS.md 와 .oculpm/ 이 생겨요. 지우면 끝이에요.",
-  "tour.p4.title": "손에 익히기",
+  "tour.p3.folder": "폴더를 열면 그 폴더에 AGENTS.md 와 .oculpm/ 이 생겨요. 둘을 지우면 기록을 멈춰요. 다른 것은 안 바뀌어요.",
+  "tour.p4.title": "자주 쓰는 단축키",
   "tour.key.find": "찾기",
   "tour.key.screens": "다음 화면",
   "tour.key.projects": "프로젝트 창으로",
@@ -162,12 +162,12 @@ export const ko = {
   "prefs.agents.codexMeta": "훅 · 기록 도구",
   "prefs.agents.notInstalled": "설치 안 됨",
   "prefs.agents.connected": "연결됨",
-  "prefs.agents.behind": "새 판 있음",
+  "prefs.agents.behind": "업데이트 있음",
   "prefs.agents.installCmd": "설치 명령",
   "prefs.agents.updateCmd": "업데이트 명령",
-  "prefs.agents.orphan": "마켓플레이스가 빠졌어요",
+  "prefs.agents.orphan": "마켓플레이스 없음 · 다시 설치",
   "prefs.agents.mcp": "MCP 직접 등록",
-  "prefs.agents.mcpMeta": "플러그인 없이 쓰거나 플러그인이 4.12 보다 옛 판일 때만 써요. 둘 다 켜면 도구가 두 벌 보여요. 이 프로젝트의 .mcp.json 에 적어요.",
+  "prefs.agents.mcpMeta": "플러그인 없이 쓰거나 플러그인이 4.12 보다 오래됐을 때만 써요. 둘 다 켜면 도구가 두 벌 보여요. 이 프로젝트의 .mcp.json 에 적어요.",
   "prefs.agents.mcpRegistered": "등록됨",
   "prefs.agents.mcpRegister": "등록",
   "prefs.agents.mcpUnregister": "등록 해제",
@@ -179,10 +179,10 @@ export const ko = {
   "prefs.agents.unreachable": "앱을 못 찾아요",
   "prefs.agents.unreachableMac": "앱을 응용 프로그램 폴더로 옮기면 플러그인이 앱을 찾아요",
   "prefs.agents.unreachableOther": "플러그인이 앱의 oculpm-mcp 를 찾지 못해요. 앱을 다시 설치하거나 OCULPM_MCP_BIN 을 지정하세요",
-  "prefs.agents.ahead": "앱이 옛 판이에요",
-  "prefs.agents.aheadHint": "플러그인이 앱보다 새 판이라 새 칸이 조용히 빠져요. 앱을 올려 주세요",
+  "prefs.agents.ahead": "앱이 플러그인보다 오래됐어요",
+  "prefs.agents.aheadHint": "플러그인이 앱보다 새 버전이라 새 칸이 조용히 빠져요. 앱을 업데이트해 주세요",
   "prefs.agents.seeUpdate": "앱 업데이트 보기",
-  "prefs.agents.otherBehind": "다른 프로젝트 {n}곳은 옛 판이에요. 프로젝트마다 깐 판은 스스로 올라가지 않아요",
+  "prefs.agents.otherBehind": "다른 프로젝트 {n}곳은 플러그인이 오래됐어요. 프로젝트마다 깐 플러그인은 스스로 업데이트되지 않아요",
   "prefs.agents.enableCmd": "켜는 명령",
   "prefs.agents.restartHint": "명령을 돌린 뒤 열려 있는 Claude 는 다시 시작하세요",
   "prefs.agents.cursor": "Cursor",
@@ -192,8 +192,8 @@ export const ko = {
   "prefs.agents.diag": "일지가 안 와요",
   "prefs.agents.diagMeta": "실시간 갱신과 플러그인 신호를 봐요",
   "prefs.agents.diagNone": "이 창에서 본 막힘은 없어요",
-  "prefs.agents.diagWatcher": "갱신 꺼짐",
-  "prefs.agents.diagHooks": "신호 없음",
+  "prefs.agents.diagWatcher": "실시간 갱신 꺼짐",
+  "prefs.agents.diagHooks": "플러그인 신호 없음",
   "prefs.agents.diagHooksBody": "이 프로젝트 터미널에서 Claude 가 일했는데 플러그인 신호가 오지 않았어요. 플러그인이 꺼졌거나 다른 프로젝트에만 켜져 있을 수 있어요. Claude 안에서 /plugin 으로 확인해 주세요.",
   // 11-15 Claude Code 테마 파일 (~/.claude/themes/ocul.json) — 경로는 백엔드가 푼 실제 경로를 mono 로 보여 준다.
   "prefs.claudeTheme.label": "Claude Code 테마",
@@ -225,9 +225,9 @@ export const ko = {
   "prefs.project.rules": "규칙 파일",
   "prefs.project.off": "기록 꺼짐",
   "prefs.project.turnOn": "기록 켜기",
-  "prefs.project.behind": "새 판 있음",
-  "prefs.project.upgrade": "올리기",
-  "prefs.project.ahead": "앱보다 새 판 (폴더 v{disk} · 앱 v{app})",
+  "prefs.project.behind": "업데이트 있음",
+  "prefs.project.upgrade": "업데이트",
+  "prefs.project.ahead": "앱보다 새 버전 (폴더 v{disk} · 앱 v{app})",
   "prefs.project.aheadHint": "앱을 업데이트하면 맞춰져요",
   "prefs.project.current": "최신",
   "prefs.project.where": "위치",
@@ -271,13 +271,13 @@ export const ko = {
   "prefs.data.app": "업데이트",
   "prefs.data.checking": "확인 중",
   "prefs.data.upToDate": "최신이에요",
-  "prefs.data.available": "새 판 {version}",
+  "prefs.data.available": "새 버전 {version}",
   "prefs.data.downloading": "내려받는 중",
   "prefs.data.installing": "설치하는 중",
   "prefs.data.restarting": "새 버전으로 다시 여는 중",
   "prefs.data.checkFailed": "업데이트를 확인하지 못했어요",
-  "prefs.data.packageManaged": "{format} 패키지로 설치했어요. 새 판은 릴리스 페이지에서 받아요.",
-  "prefs.data.noBuild": "이 OS 의 새 판이 아직 없어요",
+  "prefs.data.packageManaged": "{format} 패키지로 설치했어요. 새 버전은 릴리스 페이지에서 받아요.",
+  "prefs.data.noBuild": "이 OS 용 새 버전이 아직 없어요",
   "prefs.data.install": "{version} 설치하고 다시 시작",
   "prefs.data.releases": "릴리스 페이지",
   "prefs.data.check": "업데이트 확인",
@@ -448,7 +448,6 @@ export const ko = {
   // 새 값을 그린 채 아무 말도 하지 않아 "저장됐다" 는 착각만 남았다.
   "settings.saveFailed": "설정을 저장하지 못했어요: {error}",
 
-  // 터미널 글자 크기 — 앱 배율과 별개 (터미널은 고정폭 격자라 px 가 정확하다)
   // ── 딥링크 확인 시트 (Osaurus 라운드 Phase 6) ─────────────────────────
   "deeplink.origin": "출처",
   "deeplink.open.title": "이 프로젝트를 열까요?",
@@ -560,10 +559,10 @@ export const ko = {
   "today.check.answerOther": "다른 답",
   "today.check.outsideTerminal": "바깥 터미널",
   "race.button": "나란히 돌리기",
-  "race.buttonTitle": "같은 프롬프트를 worktree 여럿에서 따로 돌려요",
+  "race.buttonTitle": "같은 프롬프트를 별도 작업 폴더(worktree) 여럿에서 따로 돌려요",
   "race.title": "나란히 돌린 시도",
   "race.startTitle": "같은 일을 나란히 돌리기",
-  "race.startBody": "지금 커밋에서 worktree 를 만들어 같은 프롬프트로 Claude 를 따로 돌려요. 다 되면 변경을 비교해 하나를 원래 폴더로 가져와요.",
+  "race.startBody": "지금 커밋에서 worktree(같은 저장소의 별도 작업 폴더)를 만들어 같은 프롬프트로 Claude 를 따로 돌려요. 다 되면 변경을 비교해 하나를 원래 폴더로 가져와요.",
   "race.placeholder": "Claude 마다 무엇을 시킬까요?",
   "race.count": "개수",
   "race.needsPrompt": "프롬프트를 먼저 적어 주세요",
@@ -647,7 +646,7 @@ export const ko = {
   "today.check.kind.evidence": "검증 없음",
   "today.check.kind.unrecorded": "일지 없는 변경",
   "today.check.kind.blocked": "막힘",
-  "today.check.kind.plugin": "새 판",
+  "today.check.kind.plugin": "플러그인",
   "today.check.verdictTitle": "계획 「{plan}」의 확인 명령이 실패했어요",
   "today.check.kind.stale": "바뀜",
   "today.check.teammate": "{name} 님이 올린 일지",
@@ -678,16 +677,16 @@ export const ko = {
   "today.unread.allReadDone": "{n}건을 읽음으로 표시했어요",
   "today.mine.line": "계획 {p}곳에 내 차례 {n}건",
   "today.closable.hint": "남은 항목이 없는데 진행 중으로 남은 계획이에요. 계획 화면에서 닫을 수 있어요.",
-  "today.local.unpushed": "안 올린 커밋 {n}",
-  "today.local.hint": "올리기 전까지 다른 기기에서는 보이지 않아요. 안 올린 커밋은 마지막으로 받아 온 원격 가지와 견준 수예요.",
+  "today.local.unpushed": "다른 기기에 안 올린 커밋 {n}",
+  "today.local.hint": "다른 기기로 올리기(git push) 전까지는 그 기기에서 보이지 않아요. 안 올린 커밋은 마지막으로 내려받은 원격 가지와 견준 수예요.",
   "today.local.handoff": "올리기 맡기기",
-  "today.local.handoffHint": "앱 안 터미널의 Claude 에게 커밋하고 올려 달라고 해요. 앱이 직접 올리지는 않아요.",
+  "today.local.handoffHint": "앱 안 터미널의 Claude 에게 커밋하고 올려(git push) 달라고 해요. 앱이 직접 올리지는 않아요.",
   "today.local.handoffPrompt":
     "이 기기에만 있는 것을 다른 기기에서도 볼 수 있게 올려 주세요. 먼저 git status 와 아직 원격 저장소에 없는 커밋을 확인해 주세요. .oculpm/ 아래의 기록(일지 · 계획)은 이 저장소의 커밋 규칙대로 커밋하고, 기록이 아닌 변경은 무엇인지 저에게 먼저 말한 뒤 제가 좋다고 하면 커밋해 주세요. 그다음 지금 가지를 원격 저장소에 올려 주세요. 강제로 올리지는 말고, 원격 저장소가 앞서 있거나 올릴 곳이 정해져 있지 않으면 멈추고 알려 주세요.",
-  "today.arrived.line": "오늘 받아 온 일지 {n}건",
-  "today.arrived.hint": "오늘 받아 온 커밋 가운데 다른 기기나 동료가 쓴 일지예요. 이 기기에서 만든 커밋의 일지는 세지 않아요.",
-  "today.arrived.stale": "올리거나 받아 온 지 {n}일",
-  "today.arrived.staleHint": "이 기기가 마지막으로 받아 오거나 올린 때부터 센 날이에요. 다른 기기에서 일했다면 먼저 받아 오세요. 앱은 받아 오지 않아요.",
+  "today.arrived.line": "오늘 다른 기기에서 온 일지 {n}건",
+  "today.arrived.hint": "오늘 내려받은(git pull) 커밋 가운데 다른 기기나 동료가 쓴 일지예요. 이 기기에서 만든 커밋의 일지는 세지 않아요.",
+  "today.arrived.stale": "다른 기기와 주고받은 지 {n}일",
+  "today.arrived.staleHint": "이 기기가 마지막으로 내려받거나 올린 때부터 센 날이에요. 다른 기기에서 일했다면 먼저 내려받으세요(git pull). 앱은 내려받지 않아요.",
   "today.work.title": "오늘 한 일",
   "today.work.viewAria": "오늘 한 일을 보는 방식",
   "today.work.byPlan": "계획별",
@@ -717,10 +716,10 @@ export const ko = {
   "today.nums.aria": "오늘의 수",
   "today.nums.mine": "내 차례 {n}",
   "today.nums.closable": "닫을 계획 {n}",
-  "today.nums.arrived": "받아 온 일지 {n}",
-  "today.nums.local": "이 기기에만 {n}",
+  "today.nums.arrived": "다른 기기에서 온 일지 {n}",
+  "today.nums.local": "다른 기기에 없는 일지와 계획 {n}",
   "today.local.files": "커밋 안 한 파일 {n} · 그중 일지와 계획 {r}",
-  "today.local.unpushedRecords": "안 올린 커밋 {n} · 그 안의 일지와 계획 {r}",
+  "today.local.unpushedRecords": "다른 기기에 안 올린 커밋 {n} · 그 안의 일지와 계획 {r}",
   "today.chip.question": "질문",
   "today.chip.noJournal": "일지 없음",
   "today.check.noCheck": "이 계획에는 확인 명령이 없어요",
@@ -749,7 +748,7 @@ export const ko = {
   "today.first.connectMarketplaceOnly": "마켓플레이스는 더했어요. 이 한 줄로 설치하면 끝나요",
   "today.first.connectOtherProject": "다른 프로젝트에만 깔려 있어요. 이 한 줄로 어느 프로젝트에서든 붙어요",
   "today.first.connectDisabled": "플러그인이 꺼져 있어요. 이 프로젝트 폴더의 터미널에서 이 한 줄로 켜요",
-  "today.first.connectWindowsOld": "4.12 보다 옛 판이라 Windows 에서 기록 도구가 안 떠요. 이 한 줄로 올려요",
+  "today.first.connectWindowsOld": "4.12 보다 오래된 플러그인은 Windows 에서 기록 도구가 안 떠요. 이 한 줄로 업데이트해요",
   "today.first.openTerminal": "터미널 열기",
   "today.first.step2": "첫 작업 맡기기",
   "today.first.step2Body": "Claude 가 이 프로젝트를 둘러보고 첫 일지를 남겨요",
@@ -1002,7 +1001,7 @@ export const ko = {
   "plan.judge.doneWhen": "완료 조건",
   "plan.judge.noDoneWhen": "완료 조건이 없어요. 계획 머리에 「완료 조건:」 한 줄을 적으면 언제 끝인지 알 수 있어요.",
   "plan.judge.check": "확인 명령",
-  "plan.judge.noCheck": "확인 명령이 아직 없어요.",
+  "plan.judge.noCheck": "확인 명령이 아직 없어요. 계획 머리에 「확인 명령:」 한 줄을 적으면 돼요.",
   "plan.judge.last": "마지막 결과",
   "plan.judge.pass": "✓ 통과",
   "plan.judge.fail": "✗ 실패",
@@ -1015,7 +1014,7 @@ export const ko = {
   "plan.goal.doneWhen": "계획 {plan} 의 완료 조건 「{doneWhen}」 이 참이다",
   "plan.goal.check": "계획 {plan} 의 확인 명령 `{check}` 이 통과한다",
   "plan.goal.notReady": "claude 가 입력을 기다린다는 신호가 1분 안에 오지 않아 /goal 을 넣지 못했어요. 그 문장을 클립보드에 두었으니 터미널에 붙여 넣어 주세요.",
-  "plan.nextRow.untilDoneSuffix": "이 항목을 끝내도 멈추지 말고 `/oculpm:next until-done` 처럼 이어 가 주세요. 다음 리프를 잡아 구현·검증·일지·계획 갱신을 되풀이하고, 이 계획의 확인 명령이 통과하면 멈춰요.",
+  "plan.nextRow.untilDoneSuffix": "이 항목을 끝내도 멈추지 말고 `/oculpm:next until-done` 처럼 이어 가 주세요. 다음 미완 항목을 잡아 구현·검증·일지·계획 갱신을 되풀이하고, 이 계획의 확인 명령이 통과하면 멈춰요.",
   "plan.nextRow.none": "다음에 잡을 항목이 없어요. 남은 것은 내 차례이거나 다른 세션이 하고 있어요.",
   "plan.nextRow.allClosed": "항목은 다 닫혔지만 확인 명령은 아직 통과하지 않았어요. 닫기 전에 돌려 보세요.",
   "plan.close": "계획 닫기",
@@ -1075,26 +1074,23 @@ export const ko = {
   "plan.emptyStart": "터미널에서 계획 세우기",
 
   // ── ocul-pm 설정 (OculpmSettings) ───────────────────────────────────────
-  // PR-ACP1 — ACP 에이전트 런타임 진단
   "op.copyFailed": "클립보드에 복사하지 못했어요. 명령을 직접 입력하세요.",
-  // 연동 탭 적용 범위 — 프로젝트별 설정과 머신 전역 설정이 한 화면에 섞여
-  // 있어 "설치됨" 배지가 어느 범위를 말하는지 알 수 없던 것을 갈랐다.
   "op.mcp.pluginCovers": "플러그인이 이미 같은 도구를 줘요. 여기서 또 등록할 필요가 없어요.",
   "op.mcp.pluginConflict": "플러그인과 겹쳐요. 둘 다 등록돼 있어 도구가 두 벌 보여요. 하나를 해제하세요 (플러그인 쪽만 쓰는 것을 권해요).",
   "op.plugin.warn": "플러그인이 이미 훅과 MCP 를 줘요. 「이 프로젝트에만 적용」의 훅 연동·MCP 등록을 함께 켜면 이벤트가 두 번 쌓이고 도구가 두 벌 보여요. 플러그인 하나만 쓰는 것을 권해요.",
-  "today.pluginDrift.title": "플러그인이 옛 판이에요 ({installed} → {bundled})",
+  "today.pluginDrift.title": "플러그인을 업데이트해야 해요 ({installed} → {bundled})",
   "today.pluginDrift.copy": "업데이트 명령 복사",
   "today.pluginDrift.copiedShell": "복사했어요. 터미널에 붙여 넣고, 열려 있는 Claude 는 다시 시작하세요.",
-  "today.pluginDrift.behindMeta": "프로젝트마다 깐 판은 스스로 올라가지 않아요. 옛 판에서는 새 훅이 조용히 빠져요",
-  "today.pluginDrift.aheadTitle": "앱이 플러그인보다 옛 판이에요 ({bundled} → {installed})",
-  "today.pluginDrift.aheadMeta": "새 플러그인이 옛 앱의 기록 도구를 불러 새 칸이 조용히 빠져요. 앱을 올려 주세요",
+  "today.pluginDrift.behindMeta": "프로젝트마다 깐 플러그인은 스스로 업데이트되지 않아요. 오래된 플러그인에서는 새 훅이 조용히 빠져요",
+  "today.pluginDrift.aheadTitle": "앱이 플러그인보다 오래됐어요 ({bundled} → {installed})",
+  "today.pluginDrift.aheadMeta": "새 플러그인이 오래된 앱의 기록 도구를 불러 새 칸이 조용히 빠져요. 앱을 업데이트해 주세요",
   "today.pluginDrift.checkUpdate": "앱 업데이트 확인",
   "entry.evidence.command": "검증 있음",
-  "plan.carry.title": "닫힌 계획의 미완",
+  "plan.carry.title": "닫힌 계획에 남은 항목",
   "plan.carry.count": "{n}건",
   "plan.carry.hint": "닫힌(완료·보관) 계획은 고치지 않아요. 살릴 항목은 지금 고른 진행 중 계획으로 옮기세요. 옮기지 않아도 숨기지 않아요.",
   "plan.carry.move": "이 계획으로",
-  "plan.carry.moveTitle": "고른 진행 중 계획의 「이월」 단계 끝에 같은 항목을 더해요. 원본은 그대로예요.",
+  "plan.carry.moveTitle": "고른 진행 중 계획의 「이월」 단계(없으면 새로 만들어요) 끝에 같은 항목을 복사해요. 원본은 그대로예요.",
   "plan.carry.needActive": "옮기려면 진행 중 계획을 먼저 고르세요",
   "plan.carry.moved": "옮겼어요 → {plan}",
   "plan.carry.moveFailed": "옮기지 못했어요: {error}",
@@ -1104,17 +1100,6 @@ export const ko = {
   "plan.carry.status.in_progress": "진행중",
   "plan.carry.status.blocked": "막힘",
 
-  // 지연 로딩 트리 — "읽는 중"과 "빈 폴더"는 반드시 구별돼야 한다.
-  // 구별이 없으면 안 읽힌 가지가 빈 폴더로 읽힌다.
-  // 언어 서버 상태 — "인덱싱 중" 을 밝히는 것이 요점이다 (진단이 아직 없는 것과
-  // 서버가 안 붙은 것을 사용자가 구별할 수 있어야 한다).
-  // 탭과 파일 조작 (ide-completion #p1-tabs) — 삭제는 영구 삭제가 아니라
-  // 휴지통이고, 그 사실을 확인 창에서 반드시 말한다.
-  // 옮기기·이름 바꾸기는 역연산이 정확해 [되돌리기] 를 단다. 삭제는 OS 휴지통이라
-  // 앱이 되돌릴 수 없다 (useFileOps 모듈 주석 참고) — 그래서 버튼이 없다.
-  // Phase 2 — 참조·아웃라인·시그니처·포맷 (ide-completion #p2-lsp-rest)
-  // Phase 3 — 파일 안에서 이동 (vscode-borrows #p3-goto)
-  // Phase 5 — 문제 패널 (vscode-borrows #p5-problems)
   "entry.verify": "읽음 표시",
   "entry.verified": "읽음",
   "entry.verifyTitle": "이 일지를 읽고 실제 변경과 맞는다고 표시해요 (v)",
@@ -1147,27 +1132,14 @@ export const ko = {
   // ── 백엔드 에러 매핑 (i18n/errors.ts — tError) ──────────────────────────
   // Rust 는 영어만 반환하고 여기서 되돌린다 (§4.4). 표에 없으면 영어 원문이
   // 그대로 보이므로, 자주 보는 것부터 늘려 가면 된다.
-  "err.noApiKey": "{provider} API 키가 설정되지 않았어요",
-  "err.previewTooLarge": "파일이 너무 커서 미리볼 수 없어요 (16MB 제한)",
-  "err.enterTitle": "제목을 입력하세요.",
   "err.enterPhaseName": "단계 이름을 입력하세요.",
-  "err.enterToken": "토큰을 입력하세요",
-  "err.noWorkInPeriod": "이 기간에 기록된 작업이 없어요.",
   "err.nothingToExport": "이 기간에 내보낼 일지가 없어요.",
-  "err.retroEmpty": "회고 생성 결과가 비어 있어요.",
-  "err.resultEmpty": "생성 결과가 비어 있어요.",
-  "err.fileExists": "이미 존재하는 파일이에요: {path}",
-  "err.accessDenied": "접근이 거부되었어요: {area} 밖의 경로예요",
   "err.pathEscapesRoot": "링크를 따라가면 프로젝트 폴더 밖으로 나가는 경로라 거부했어요",
   "err.pathTraversal": "프로젝트 폴더 밖을 가리키는 경로라 거부했어요",
   "err.symlinkRefused": "{path} 는 심볼릭 링크라 건드리지 않았어요. 따라가면 프로젝트 밖에 쓰게 될 수 있어요.",
   "err.agentMcpNotJson": "{path} 는 JSON 으로 읽지 못해서 그대로 두었어요. 주석이나 깨진 곳을 손으로 고친 뒤 다시 눌러 주세요 ({reason})",
   "err.agentMcpNotObject": "{path} 의 맨 바깥이 JSON 객체가 아니라서 그대로 두었어요.",
   "err.agentMcpServersNotObject": "{path} 의 mcpServers 가 객체가 아니라서 그대로 두었어요.",
-  "err.nothingToImport": "가져올 기존 목표가 없어요.",
-  "err.browserOpenFailed": "브라우저 열기 실패",
-  "err.keyringUnavailable": "시스템 키링을 쓸 수 없어요. Secret Service 제공자(GNOME 키링이나 KWallet)를 설치하고 잠금을 푼 뒤 다시 시도하세요. 키는 평문으로 저장하지 않아요.",
-  "err.linuxPasteFiles": "Linux 에서는 복사한 파일을 붙여넣을 수 없어요. 파일을 트리로 끌어다 놓으세요.",
   "err.clipboardBusy": "다른 앱이 클립보드를 쓰고 있어요. 다시 붙여넣어 보세요.",
 
   // ── 업데이트 배너 ───────────────────────────────────────────────────────
@@ -1200,8 +1172,6 @@ export const ko = {
   "dialog.keysHere": "지금 화면",
   // 같은 알림이 접힌 수를 읽기 프로그램에 읽히는 글(화면에서는 감춘다) — 화면에는 숫자만 선다.
   "toast.repeat": "같은 알림 {n}번",
-  // ── 완성도 라운드 Phase 2 (2026-08-30) — 여정: 첫 활성화 · 탭 닫기 문지기 ·
-  //    닥터 · 색인 빈 상태 · 단축키 치트시트 · What's new · 검토 루프
   "today.activateNow": "지금 켜기",
   "today.activateFailed": "기록을 켜지 못했어요 — {error}",
   "today.activated": "기록이 켜졌어요. 이제 에이전트가 남기는 일지가 여기 보여요.",
@@ -1266,9 +1236,6 @@ export const ko = {
   "keys.todayRead": "검증 없는 일지 읽음",
   "keys.todayRun": "다음을 터미널에서 실행",
   "keys.todayLeave": "목록에서 나가기",
-  // v3 {#revive-recovery-cmds} — 워처 다시 시작 + 일지 캐시 복구
-  // ── 출처 배지 (Osaurus 라운드 Phase 3) — 누가 이 기록을 만들었는가
-  // ── 첫 실행 마법사 (WelcomeWizard.tsx) ─────────────────────────────────
   // ── 오류 코드 (Phase 4 #error-convention) — 백엔드 AppError.code → 문장
   "err.code.not_initialized": "이 프로젝트는 아직 기록이 켜져 있지 않아요. 「오늘」 화면에서 켜세요.",
   "err.code.invalid_session_id": "세션 id 형식이 올바르지 않아요: {detail}",
@@ -1289,47 +1256,18 @@ export const ko = {
   "err.code.invalid_path": "잘못된 경로예요: {detail}",
   "err.code.invalid_config": "config.toml 이 올바르지 않아요: {detail}",
   "err.code.config_parse": "config.toml 을 읽지 못했어요: {detail}",
-  "err.code.io": "파일 작업에 실패했어요: {detail}",
-  "err.code.sqlite": "로컬 캐시(SQLite) 오류: {detail}",
-  "err.code.db": "로컬 데이터베이스 오류: {detail}",
+  "err.code.io": "파일 작업을 하지 못했어요. 폴더 권한을 확인하고 다시 해 보세요. ({detail})",
+  "err.code.sqlite": "기록 캐시를 읽지 못했어요. 설정 → 앱 → 「처음부터 다시 만들기」를 누르면 폴더의 일지로 되살려요. ({detail})",
+  "err.code.db": "로컬 데이터베이스를 읽지 못했어요. 앱을 다시 켜도 같으면 설정 → 앱 → 「처음부터 다시 만들기」를 눌러 보세요. ({detail})",
   "err.code.file_not_found": "파일이 없어요: {detail}",
-  "err.code.actor_closed": "세션 처리기가 멈췄어요. 앱을 다시 시작해 주세요.",
-  "err.code.acp_not_running": "Claude Code 에이전트가 실행 중이 아니에요.",
+  "err.code.actor_closed": "앱 안에서 일을 맡던 부분이 멈췄어요. 앱을 다시 켜 주세요.",
   "err.code.project_not_found": "프로젝트를 찾지 못했어요. 목록에서 지워졌을 수 있어요.",
-  // Codex 는 로그인돼 있어도 인증 방법을 광고한다 — 실패 문구까지 인증을
-  // 가리킬 때만 이 문장을 쓴다 (commands/acp.rs session_create_error).
-
-  // ── v3-surface / firstrun ────────────────────────────────────────────────
-  // 첫 5분의 화면이 아직 일어나지 않은 일을 말하지 않게 하는 문구들.
-
-  // ── v3-surface / activity ──────────────────────────────
-  // 활동 어휘 15낱말 — 에이전트가 한 일을 우리 말로 부른다.
-  // 우리 도구의 사람 말 — 이 열셋이 화면에서 이 제품의 값어치다.
-  // 접힌 묶음의 요약.
-  // 원본 이벤트 레일 — 어휘가 틀린 날의 도망갈 데.
-  // 바쁨 신호의 출처 — 「모른다」를 「돌고 있다」로 말하지 않는다.
-  // 세션 카드의 「무엇을 하고 있는가」 — 대화 화면과 같은 어휘.
-  // Today 링이 상한에 눌렸을 때 ({#today-overcount}) — 여기서부터는 값이 커져도
-  // 호가 안 자란다는 사실 자체를 호버 라벨에 적는다.
-  // Today 「지금 하는 일」 ({#today-activity-row}) — 어휘는 세션·대화 화면과 공유.
-  // 어댑터 내리기 ({#acp-stop-ui}) — 되돌릴 수는 있지만(다시 연결) 지금 열린
-  // 대화를 전부 끊는 파괴적인 동작이라 확인을 거친다.
   // 일지 상세 — "파일로 열기" ({#entry-open-affordance}).
   "entry.openInEditor": "파일로 열기",
   "entry.openInEditorTitle": "이 일지 .md 파일을 설정의 「파일 열기」 편집기로 열어요",
   "entry.openInEditorFailed": "파일을 열지 못했어요 — {error}",
-  // 닥터 워처 행 ({#watcher-user-pause}) — 「멈춤」과 「사용자가 멈춤」은 다른
-  // 말이다. 앞엣것은 감독관이 60초 안에 되살리고, 뒤엣것은 되살리지 않는다.
-  // 일시정지가 프로세스 메모리에만 산다는 사실을 문구가 직접 말한다.
-  // 닥터 워처 계측 행 ({#scheduling-telemetry}) — perf-baseline §7 이 "없다" 고
-  // 적어 둔 숫자들. 큐가 얼마나 찼고 처리기가 얼마나 오래 워커를 잡았는지를
-  // 한 줄로. 워처를 켠 뒤의 누계라 리셋되지 않는다.
   // {#fix-disabled-reason} 4차 — 막힌 버튼이 말하는 이유 (blocked()).
   "manual.blockedNoTitle": "제목을 적어 주세요",
   "manual.blockedNoSlug": "파일 이름을 적어 주세요",
-  // 첫 기록 카드 (플랜 first-record-loop {#p1-card}) — 대화 단위 첫 일지 확인.
-  // 성공은 대화 id 로 귀속된 일지뿐이다. 기록 ≠ 검증.
-  // 이어하기 카드 (플랜 first-record-loop Phase 2) — 다음 세션의 시작점.
-  // 원장이 증명하는 것은 "포함됨" 까지 — 참조·도움은 모른다고 적는다.
   "ws.newEntriesBurst": "일지 여러 건이 한꺼번에 들어왔어요. 작업 일지에서 보세요.",
 } as const;

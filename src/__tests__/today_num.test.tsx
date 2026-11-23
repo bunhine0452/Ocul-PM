@@ -16,17 +16,17 @@ describe("Num", () => {
     await loadDict("en");
     setLangSetting("en");
     const many = render(<Num k="today.arrived.stale" n={34} />);
-    expect(many.container.textContent).toBe("Synced 34 days ago");
+    expect(many.container.textContent).toBe("Last pushed or pulled 34 days ago");
     expect(many.container.querySelector("b")?.textContent).toBe("34");
     cleanup();
     const one = render(<Num k="today.arrived.stale" n={1} />);
-    expect(one.container.textContent).toBe("Synced 1 day ago");
+    expect(one.container.textContent).toBe("Last pushed or pulled 1 day ago");
   });
 
   it("keeps the Korean sentence around the bold number", () => {
     setLangSetting("ko");
     const { container } = render(<Num k="today.arrived.stale" n={58} />);
-    expect(container.textContent).toBe("올리거나 받아 온 지 58일");
+    expect(container.textContent).toBe("다른 기기와 주고받은 지 58일");
     expect(container.querySelector("b")?.textContent).toBe("58");
   });
 });

@@ -31,13 +31,13 @@ describe("언어 전환 → 리렌더", () => {
     setLangSetting("ko");
     render(<NavLabels />);
     expect(screen.getByText("작업 일지")).toBeInTheDocument();
-    expect(screen.queryByText("Work Journal")).not.toBeInTheDocument();
+    expect(screen.queryByText("Journal")).not.toBeInTheDocument();
 
     // 설정 변경은 React 트리 밖(모듈 스토어)에서 일어난다 —
     // useSyncExternalStore 구독이 살아 있어야 이 전환이 화면에 도달한다.
     act(() => setLangSetting("en"));
 
-    expect(screen.getByText("Work Journal")).toBeInTheDocument();
+    expect(screen.getByText("Journal")).toBeInTheDocument();
     expect(screen.queryByText("작업 일지")).not.toBeInTheDocument();
   });
 

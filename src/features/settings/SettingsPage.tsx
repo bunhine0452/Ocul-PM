@@ -38,6 +38,13 @@ function scrollTo(section: SettingsSection) {
   });
 }
 
+/**
+ * 요약 줄은 「이름 + 상태」 를 한 문장처럼 잇는다 — 칩용 문구(「Not installed」)를 그대로 이으면 영어에서
+ * 「Codex Not installed」 처럼 문장 가운데 대문자가 선다. 첫 글자만 낮춘다(`MCP` 같은 약어는 둘째 글자가
+ * 대문자라 그대로). 한글에는 대소문자가 없어 그대로다.
+ */
+export const lowerFirst = (s: string) => (/^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
+
 const sameFix = (a: PrefsFix | undefined, b: PrefsFix) =>
   !!a && a.section === b.section && a.label === b.label && a.detail === b.detail && a.mono === b.mono && a.code === b.code;
 
@@ -87,7 +94,7 @@ export function SettingsPage() {
               </span>
               {items.map((f) => (
                 <button key={f.section + f.label} type="button" className="prefs-fix" onClick={() => go(f.section)}>
-                  {f.label} <span className={f.mono ? "mono" : undefined}>{f.detail}</span>
+                  {f.label} <span className={f.mono ? "mono" : undefined}>{f.mono ? f.detail : lowerFirst(f.detail)}</span>
                   {f.code ? <> <span className="mono">{f.code}</span></> : null}
                 </button>
               ))}

@@ -32,17 +32,8 @@ function isAppError(e: unknown): e is AppError {
  * 언어에서 앞에 오든 뒤에 오든 상관없게).
  */
 const RULES: ReadonlyArray<readonly [RegExp, I18nKey]> = [
-  [/^No API key configured for (?<provider>.+)$/, "err.noApiKey"],
-  [/^File is too large to preview \(over 16MB\)$/, "err.previewTooLarge"],
-  [/^Enter a title\.$/, "err.enterTitle"],
   [/^Enter a phase name\.$/, "err.enterPhaseName"],
-  [/^Enter a token$/, "err.enterToken"],
-  [/^No work was recorded in this period\.$/, "err.noWorkInPeriod"],
   [/^No journal entries to export in this period\.$/, "err.nothingToExport"],
-  [/^The retro came back empty\.$/, "err.retroEmpty"],
-  [/^The result came back empty\.$/, "err.resultEmpty"],
-  [/^File already exists: (?<path>.+)$/, "err.fileExists"],
-  [/^Access denied: path is outside the (?<area>.+)$/, "err.accessDenied"],
   // 경로 가드(`src-tauri/src/path_guard.rs`) — 링크를 풀었더니 밖이거나, 앱이 쓰는 파일이 링크다.
   [/^Path escapes the project root$/, "err.pathEscapesRoot"],
   [/^Access denied: path traversal detected$/, "err.pathTraversal"],
@@ -51,15 +42,7 @@ const RULES: ReadonlyArray<readonly [RegExp, I18nKey]> = [
   [/^(?<path>.+) was left unchanged: it is not plain JSON \((?<reason>.+)\)$/s, "err.agentMcpNotJson"],
   [/^(?<path>.+) was left unchanged: its top level is not a JSON object$/, "err.agentMcpNotObject"],
   [/^(?<path>.+) was left unchanged: "mcpServers" is not an object$/, "err.agentMcpServersNotObject"],
-  [/^There are no legacy goals to import\.$/, "err.nothingToImport"],
-  [/^Could not open the browser$/, "err.browserOpenFailed"],
-  // ── 크로스플랫폼 라운드 ({#ui-followups}) — 백엔드가 **고정 문구**로 낸다. ──
-  // Linux 의 Secret Service 부재 (`secrets.rs` UNAVAILABLE_PREFIX). 호출부가 앞에 문맥을
-  // 덧붙이기도 해서(`Could not save to the keychain: …`) 문장 **안**에서 찾는다.
-  [/The system keyring is unavailable/, "err.keyringUnavailable"],
-  // Linux 의 파일 붙여넣기 (`code/import.rs` LINUX_CLIPBOARD_UNSUPPORTED).
-  [/^Pasting copied files is not available on Linux — drag the files into the tree instead\.$/, "err.linuxPasteFiles"],
-  // Windows 클립보드를 다른 앱이 쥐고 있다 (`code/clipboard_windows.rs`).
+  // Windows 클립보드를 다른 앱이 쥐고 있다 (`terminal_clipboard.rs`).
   [/^The clipboard is busy in another app — try pasting again\.$/, "err.clipboardBusy"],
 ];
 

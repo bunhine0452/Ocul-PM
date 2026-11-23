@@ -9,6 +9,9 @@ import { tError } from "@/i18n/errors";
 // 곧 폴백**이라는 점이다 — 표에 없는 에러가 와도 영어 원문이 보일 뿐 깨지지
 // 않는다. 그 계약이 무너지면(빈 문자열·throw·`undefined`) 사용자는 실패 이유를
 // 영영 못 본다. 그래서 폴백을 가장 촘촘히 덮는다.
+//
+// 표는 **지금 백엔드가 실제로 내는 문구**만 든다 — 걷은 기능(LLM · API 키 · 키체인 · 편집기)의 문구는
+// 호출자가 0 이라 사전에서 지웠다(11-23 love-round G3).
 
 afterEach(() => {
   __resetLangForTests();
@@ -17,20 +20,20 @@ afterEach(() => {
 describe("tError — 한국어 모드", () => {
   it("알려진 문구를 한국어로 되돌린다", () => {
     setLangSetting("ko");
-    expect(tError("Enter a title.")).toBe("제목을 입력하세요.");
+    expect(tError("Enter a phase name.")).toBe("단계 이름을 입력하세요.");
+    expect(tError("No journal entries to export in this period.")).toBe("이 기간에 내보낼 일지가 없어요.");
   });
 
   it("캡처 그룹이 자리표시자로 들어간다", () => {
     setLangSetting("ko");
-    expect(tError("No API key configured for anthropic")).toBe(
-      "anthropic API 키가 설정되지 않았어요",
-    );
-    expect(tError("File already exists: notes.md")).toBe("이미 존재하는 파일이에요: notes.md");
+    expect(
+      tError("Refusing to write through a symbolic link: notes.md"),
+    ).toBe("notes.md 는 심볼릭 링크라 건드리지 않았어요. 따라가면 프로젝트 밖에 쓰게 될 수 있어요.");
   });
 
   it("앞뒤 공백이 있어도 매칭된다", () => {
     setLangSetting("ko");
-    expect(tError("  Enter a title.  ")).toBe("제목을 입력하세요.");
+    expect(tError("  Enter a phase name.  ")).toBe("단계 이름을 입력하세요.");
   });
 
   it("모르는 문구는 원문 그대로 (표가 비어도 앱은 정상)", () => {
@@ -41,33 +44,21 @@ describe("tError — 한국어 모드", () => {
 
   it("부분 일치로 오작동하지 않는다 — 앵커가 걸려 있다", () => {
     setLangSetting("ko");
-    // "Enter a title." 를 포함하지만 다른 문장이면 번역하지 않는다.
-    const longer = "Enter a title. And also something else happened.";
+    // "Enter a phase name." 를 포함하지만 다른 문장이면 번역하지 않는다.
+    const longer = "Enter a phase name. And also something else happened.";
     expect(tError(longer)).toBe(longer);
   });
 });
 
 describe("tError — 크로스플랫폼 고정 문구 ({#ui-followups})", () => {
-  it("Linux 키링 부재 — 호출부가 앞에 문맥을 붙여도 문장 안에서 찾는다", () => {
+  it("Windows 클립보드 점유", () => {
     setLangSetting("ko");
-    const raw =
-      "The system keyring is unavailable — install and unlock a Secret Service provider (GNOME Keyring or KWallet), then try again. Keys are never saved in plain text. (Platform secure storage failure: …)";
-    const guide = "시스템 키링을 쓸 수 없어요. Secret Service 제공자(GNOME 키링이나 KWallet)를 설치하고 잠금을 푼 뒤 다시 시도하세요. 키는 평문으로 저장하지 않아요.";
-    expect(tError(raw)).toBe(guide);
-    expect(tError(`Could not save to the keychain: ${raw}`)).toBe(guide);
-  });
-
-  it("Linux 파일 붙여넣기 · Windows 클립보드 점유", () => {
-    setLangSetting("ko");
-    expect(
-      tError("Pasting copied files is not available on Linux — drag the files into the tree instead."),
-    ).toBe("Linux 에서는 복사한 파일을 붙여넣을 수 없어요. 파일을 트리로 끌어다 놓으세요.");
     expect(tError("The clipboard is busy in another app — try pasting again.")).toBe(
       "다른 앱이 클립보드를 쓰고 있어요. 다시 붙여넣어 보세요.",
     );
   });
 
-  it("macOS 키체인 원문(keyring 오류)은 건드리지 않는다", () => {
+  it("macOS 키체인 원문은 건드리지 않는다", () => {
     setLangSetting("ko");
     const mac = "Platform secure storage failure: User canceled the operation.";
     expect(tError(mac)).toBe(mac);
@@ -77,8 +68,7 @@ describe("tError — 크로스플랫폼 고정 문구 ({#ui-followups})", () => 
 describe("tError — 영어 모드", () => {
   it("원문을 그대로 돌려준다 (이미 영어라 매칭할 이유가 없다)", () => {
     setLangSetting("en");
-    expect(tError("Enter a title.")).toBe("Enter a title.");
-    expect(tError("No API key configured for openai")).toBe("No API key configured for openai");
+    expect(tError("Enter a phase name.")).toBe("Enter a phase name.");
   });
 });
 

@@ -108,7 +108,7 @@ describe("words", () => {
     expect(en["today.local.files"]).toContain("journal or plan files");
     expect(en["today.check.title"]).toBe("Needs your eyes");
     expect(en["today.mine.line"]).toBe("Your turn: {n} {n|item|items} in {p} {p|plan|plans}");
-    expect(en["today.arrived.line"]).toBe("{n} {n|entry|entries} arrived today");
+    expect(en["today.arrived.line"]).toBe("{n} {n|entry|entries} from other machines today");
   });
 });
 

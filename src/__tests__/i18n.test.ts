@@ -79,7 +79,7 @@ describe("t()", () => {
     setLangSetting("ko");
     expect(t("nav.journal")).toBe("작업 일지");
     setLangSetting("en");
-    expect(t("nav.journal")).toBe("Work Journal");
+    expect(t("nav.journal")).toBe("Journal");
   });
 
   it("컴포넌트 밖에서도 동작한다 (모듈 레벨 스토어)", () => {
@@ -109,7 +109,7 @@ describe("t()", () => {
     expect(t("journal.countOnly", { n: 3 })).toBe("3 entries");
     expect(t("journal.countOnly", { n: 0 })).toBe("0 entries");
     expect(t("diff.recorded.count", { files: 1, n: 2 })).toBe("1 file · 2 entries");
-    expect(t("today.check.unrecordedTitle", { n: 1 })).toBe("1 file isn't in any entry");
+    expect(t("today.check.unrecordedTitle", { n: 1 })).toBe("1 file isn't in any journal entry");
     // 한국어 사전은 복수형을 쓰지 않는다 — 같은 키가 그대로 읽힌다.
     setLangSetting("ko");
     expect(t("journal.countOnly", { n: 1 })).not.toMatch(/\|/);
@@ -133,7 +133,7 @@ describe("tc() — AI 작성 언어 축", () => {
     setLangSetting("en");
     setContentLangSetting("ko");
     // 화면은 영어, 산출물은 한국어 — 이게 이 축을 나눈 이유다.
-    expect(t("nav.journal")).toBe("Work Journal");
+    expect(t("nav.journal")).toBe("Journal");
     expect(tc("content.defaultPhase")).toBe("할 일");
   });
 
@@ -189,7 +189,7 @@ describe("tAll()", () => {
   it("양 언어의 값을 모두 돌려준다 (검색 색인용)", () => {
     const all = tAll("nav.journal");
     expect(all).toContain("작업 일지");
-    expect(all).toContain("Work Journal");
+    expect(all).toContain("Journal");
   });
 
   it("현재 언어와 무관하게 같은 집합을 돌려준다", () => {

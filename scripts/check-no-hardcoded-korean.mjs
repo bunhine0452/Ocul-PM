@@ -70,6 +70,8 @@ const PERMANENT = new Set([
   // 대상 소재다 (여기서 한글이 사라지면 검사기가 아무것도 못 잡는다).
   "__tests__/i18n_english_render.test.tsx",
   "__tests__/i18n_glossary.test.ts",
+  // 영어 · 한국어 용어표 계약 — 막는 말(「새 판」 · 「리프」)이 한글이라 소재 자체가 한글이다.
+  "__tests__/i18n_copy_terms.test.ts",
 ]);
 
 /**
