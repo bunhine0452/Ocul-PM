@@ -59,6 +59,8 @@ const GLOBAL: ShortcutGroup = {
     { keys: "⌥⌘1~9", nonMac: "Alt+1~9", labelKey: "keys.projectSlot" },
     { keys: "⌘,", labelKey: "keys.settings" },
     { keys: "⌘/", labelKey: "keys.cheatsheet" },
+    // 지금 화면의 키만 작은 시트로(11-23) — 입력 칸 · 터미널 밖에서만(`kbd.isScreenKeysKey`, `useGlobalShortcuts`).
+    { keys: "?", labelKey: "keys.screenKeys" },
     // 영수증 복사(11-23) — 오늘 · 일지 상세 · 변경 중 떠 있는 화면이 듣는다(`features/diff/ReceiptButton.useReceiptKey`).
     // 그 밖 OS 는 Ctrl+Shift+C — 터미널의 복사와 같은 조합이지만 터미널 화면에서는 이 키를 듣는 화면이 없다.
     { keys: "⇧⌘C", labelKey: "keys.copyReceipt" },

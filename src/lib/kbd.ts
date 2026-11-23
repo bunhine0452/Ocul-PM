@@ -77,6 +77,15 @@ export function isTextEntry(target: EventTarget | null | undefined): boolean {
   return target.closest('[contenteditable]:not([contenteditable="false"])') !== null;
 }
 
+/**
+ * 「이 화면의 키」 한 글자 ? (11-23) — 수정키 없이(⇧ 는 ? 를 치는 손이라 본다), 글자를 받는 칸 · 터미널 면 밖에서만.
+ * 입력 칸의 ? 는 글자고, 터미널의 ? 는 셸 · Claude 의 것이다(Claude Code 도 ? 로 도움말을 연다).
+ */
+export function isScreenKeysKey(e: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "target">): boolean {
+  if (e.key !== "?" || e.metaKey || e.ctrlKey || e.altKey) return false;
+  return !isTextEntry(e.target) && !isTerminalSurface(e.target);
+}
+
 /** macOS 의 ⌃ 가 ⌘ 자리로 읽히는가 — 입력칸 · 터미널 면 밖에서만 (11-15, 머리 주석). */
 function macCtrlAsMod(e: ModifierState): boolean {
   return e.ctrlKey && !isTextEntry(e.target) && !isTerminalSurface(e.target);
