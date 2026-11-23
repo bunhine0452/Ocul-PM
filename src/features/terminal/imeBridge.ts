@@ -460,6 +460,8 @@ export function attachImeBridge(term: Terminal, container: HTMLElement, agent: (
   let takenKey: string | null = null;
   /** 방금 keydown 이 조합 키(229)였다 — 뒤따르는 keypress 는 넘기지 않는다 (위 2026-11-15 주석). */
   let imeKeydown = false;
+  /** 오른쪽 ⌥ 를 쥐고 있다 — 키 이벤트는 어느 쪽 ⌥ 인지 말하지 않아 ⌥ 키 자체의 keydown · keyup 으로 센다(`termKeys`). */
+  let rightOption = false;
 
   /** 키 층이 읽는 터미널 상태 — 시험의 가짜 터미널에는 버퍼 · 선택이 없을 수 있다. */
   const keyCtx = (): KeyCtx => ({
@@ -467,6 +469,7 @@ export function attachImeBridge(term: Terminal, container: HTMLElement, agent: (
     altScreen: term.buffer?.active?.type === "alternate",
     agent: agent(),
     hasSelection: term.hasSelection?.() ?? false,
+    rightOption,
   });
 
   /** 키 층의 결과를 실행한다 — xterm 의 `cancel` 처럼 전파를 막아 화면 단축키가 같은 키를 또 먹지 않게. */
@@ -490,6 +493,8 @@ export function attachImeBridge(term: Terminal, container: HTMLElement, agent: (
     // 이 세 신호를 처음 알아낸 자리지만, 판정은 이제 lib/ime.ts 가 갖는다 —
     // 여기서만 알고 있으면 컴포저·시작 화면이 그 지식을 못 받는다.
     const imeKey = isImeComposing(event);
+    if (event.code === "AltRight") rightOption = event.type === "keydown";
+    else if (!event.altKey) rightOption = false; // 포커스 밖에서 놓아 keyup 을 못 받았다
 
     if (event.type !== "keydown" && takenKey !== null && event.key === takenKey) {
       if (event.type === "keyup") takenKey = null;
