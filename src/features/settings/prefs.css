@@ -61,6 +61,10 @@
 .prefs-act { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); }
 .prefs-dim { font-size: var(--fs-3); color: var(--text-2); }
 .prefs-ver { color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* 「기기를 떠나는 것」(11-23 G2) — 문 하나가 한 줄: 이름 · 회색 한 문장. 색 없음(예외가 아니다). */
+.prefs-egress { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; margin: 0; padding: 0; list-style: none; }
+.prefs-egress > li { display: flex; flex-wrap: wrap; column-gap: var(--space-3); row-gap: 2px; min-width: 0; }
+.prefs-egress b { font-size: var(--fs-3); font-weight: var(--fw-label); }
 /* 「일지가 안 와요」(11-23) — 찾은 원인마다 칩 + 한 문장. */
 .prefs-diag { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; font-size: var(--fs-3); }
 .prefs-diag > p { margin: 0; }

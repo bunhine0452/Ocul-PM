@@ -22,6 +22,7 @@ import { toast } from "@/lib/toast";
 import { useUpdater } from "@/lib/updater";
 import { RELEASES_PAGE } from "@/lib/updaterRoute";
 import { EditorRow } from "./EditorRow";
+import { EgressRow } from "./EgressRow";
 import { KeepAwakeRow } from "./KeepAwakeRow";
 import { useSaveSetting } from "./saveSetting";
 import { PrefsCard, PrefsRow, PrefsSeg, useReportFix } from "./prefsUi";
@@ -199,6 +200,7 @@ export function AppSection({ id, arrived }: { id: string; arrived?: number }) {
       <EditorRow />
       <KeepAwakeRow />
       <UpdateRow />
+      <EgressRow />
       <LogsRow />
       <PrefsRow
         label={t("prefs.data.cache")}

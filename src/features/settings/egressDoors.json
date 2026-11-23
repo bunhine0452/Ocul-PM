@@ -1,0 +1,8 @@
+{
+  "_": "설정 「기기를 떠나는 것」 의 출처. sites = egress_inventory.rs 의 송출 자리(LocalOnly 아님), launches = egress_spawn_ledger 의 Network 기동 자리. 두 원장 시험이 이 표와 집합으로 대조한다 — 원장에 문이 늘면 여기와 설정 문구(prefs.egress.<id>)도 늘어야 빌드가 통과한다.",
+  "doors": [
+    { "id": "update", "sites": ["lib.rs"], "launches": [] },
+    { "id": "links", "sites": ["commands/external_editor.rs"], "launches": ["commands/external_editor.rs"] },
+    { "id": "terminal", "sites": [], "launches": ["terminal.rs"] }
+  ]
+}
