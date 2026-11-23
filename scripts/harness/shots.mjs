@@ -182,6 +182,8 @@ try {
       .filter((e) => e.method === "Runtime.consoleAPICalled" && e.params.type === "error")
       .map((e) => e.params.args.map((a) => a.value ?? a.description ?? "").join(" ").slice(0, 300))
       .slice(0, 8);
+    // 앱이 안 뜬 장(404 · 픽스처 없음 · 모듈 로드 실패)은 예외 없이 빈 화면으로 찍힌다 — 뿌리에 아무것도 없으면 문제로 센다.
+    out.mounted = (await evaluate(c, "!!document.querySelector('#root > *')")) === true;
     out.stepFailures = out.steps.filter((x) => x === "no-button" || (x && typeof x === "object" && x.error));
     const shot = await c.send("Page.captureScreenshot", { format: "png" });
     fs.writeFileSync(path.join(outDir, `${s.name}.png`), Buffer.from(shot.result.data, "base64"));
@@ -194,9 +196,12 @@ try {
   failed = true;
   console.error(String(e?.stack ?? e));
 } finally {
-  const exited = new Promise((r) => chrome.once("exit", r));
-  chrome.kill();
-  await exited;
+  // 이미 죽은 Chrome 의 exit 은 다시 안 온다 — 기다리면 영영 안 끝난다.
+  if (chrome.exitCode === null && chrome.signalCode === null) {
+    const exited = new Promise((r) => chrome.once("exit", r));
+    chrome.kill();
+    await exited;
+  }
   vite?.kill();
   await sleep(500);
   try { fs.rmSync(prof, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 }); } catch { /* 임시 프로필 — 못 지워도 다음 실행이 새로 만든다 */ }
@@ -213,8 +218,10 @@ for (const r of report) {
     missing.length ? `핸들러 없음 ${missing.join(",")}` : "",
     errs.length ? `IPC 오류 ${errs.length}` : "",
     r.stepFailures.length ? "단추 못 찾음" : "",
+    r.mounted ? "" : "앱이 안 떴어요(뿌리가 비었어요)",
   ].filter(Boolean);
   if (bad.length) { problems += 1; console.log(`  ! ${r.name}: ${bad.join(" · ")}`); }
 }
+if (report.length === 0 && !failed) console.error(`찍을 장이 없어요 — --only "${only}" 에 맞는 이름이 없나요?`);
 console.log(`shots=${report.length} 문제 있는 장=${problems} → ${outDir}`);
 if (failed || report.length === 0 || (flag("strict") && problems > 0)) process.exit(1);

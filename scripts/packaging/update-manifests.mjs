@@ -15,7 +15,7 @@
  *
  * 버전은 파일 이름 `Ocul-PM_<버전>_…` 에서 읽는다 — 이름이 그 모양이 아니면 거절한다(다른 파일을 해시해 올리는
  * 사고를 막는다). 순수 함수는 export 하고 CLI 는 그것만 부른다(src/__tests__/packaging_manifests.test.ts).
- * 의존성 0, Node 18+.
+ * 의존성 0, Node 20.11+ (`import.meta.dirname`).
  */
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -83,7 +83,9 @@ export function updateWingetLocale(text, { version }) {
 
 async function sha256Of(source) {
   const hash = createHash("sha256");
-  if (/^https?:\/\//i.test(source)) {
+  // 해시가 곧 서명 대신 쓰이는 값이라 평문 http 로는 받지 않는다 — 중간에서 바뀐 파일의 해시를 매니페스트에 박을 수 있다.
+  if (/^http:\/\//i.test(source)) throw new Error(`https 주소만 받아요: ${source}`);
+  if (/^https:\/\//i.test(source)) {
     const res = await fetch(source, { redirect: "follow" });
     if (!res.ok || !res.body) throw new Error(`받지 못했어요(${res.status}): ${source}`);
     for await (const chunk of res.body) hash.update(chunk);
@@ -95,7 +97,10 @@ async function sha256Of(source) {
 
 function arg(argv, name) {
   const i = argv.indexOf(`--${name}`);
-  return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[i + 1] : null;
+  if (i < 0) return null;
+  // 값이 빠진 `--dmg` 를 「안 줬다」 로 읽으면 그 채널이 조용히 안 고쳐진다 — 거절한다.
+  if (!argv[i + 1] || argv[i + 1].startsWith("--")) throw new Error(`--${name} 에 값이 없어요`);
+  return argv[i + 1];
 }
 
 // `root` 기본값은 CLI 로 돌 때만 평가된다(시험은 임시 폴더를 넘긴다).
