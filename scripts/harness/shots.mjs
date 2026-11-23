@@ -135,6 +135,17 @@ try {
   await json(`http://127.0.0.1:${chromePort}/json/version`);
   const plan = buildPlan({ fx, outDir, base, only });
   fs.mkdirSync(outDir, { recursive: true });
+  // 방금 띄운 서버의 첫 로드는 Vite 가 의존성을 묶느라 모듈을 못 받아 첫 장이 예외로 찍힌다 — 한 번 데워 둔다.
+  if (vite) {
+    const warm = await json(`http://127.0.0.1:${chromePort}/json/new?about:blank`, "PUT");
+    const wc = client(warm.webSocketDebuggerUrl);
+    await wc.ready;
+    await wc.send("Page.enable");
+    await wc.send("Page.navigate", { url: base });
+    await sleep(9000);
+    wc.close();
+    await fetch(`http://127.0.0.1:${chromePort}/json/close/${warm.id}`).catch(() => {});
+  }
   for (const s of plan.shots) {
     const tab = await json(`http://127.0.0.1:${chromePort}/json/new?about:blank`, "PUT");
     const c = client(tab.webSocketDebuggerUrl);

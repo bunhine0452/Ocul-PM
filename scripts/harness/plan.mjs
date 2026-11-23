@@ -17,10 +17,13 @@ const view = (v) =>
 const entity = (kind, id) =>
   `window.dispatchEvent(new CustomEvent("oculpm:open-entity", {detail: {kind: ${JSON.stringify(kind)}, id: ${JSON.stringify(id)}}})); "ok"`;
 
-/** 글자가 든 첫 단추를 누른다 — 못 찾으면 'no-button' 을 돌려 shots.mjs 가 보고서에 적는다. */
-const clickText = (t) =>
+/**
+ * 글자가 든 첫 단추를 누른다 — 못 찾으면 'no-button' 을 돌려 shots.mjs 가 보고서에 「단추 못 찾음」 으로 적는다.
+ * `optional` 은 앱이 조건부로만 세우는 단추용(예: 「시간순」 은 그날 일한 곳이 둘 이상일 때만) — 없으면 'absent'.
+ */
+const clickText = (t, optional = false) =>
   `(() => { const b = [...document.querySelectorAll('button,[role=button],summary')].find((x) => x.innerText.includes(${JSON.stringify(t)})); ` +
-  `if (!b) return 'no-button'; b.click(); return 'clicked'; })()`;
+  `if (!b) return ${JSON.stringify(optional ? "absent" : "no-button")}; b.click(); return 'clicked'; })()`;
 
 export function buildPlan({ fx, outDir, base, only }) {
   const latest = fx.workdays[fx.workdays.length - 1];
@@ -86,7 +89,7 @@ export function buildPlan({ fx, outDir, base, only }) {
     steps: [...(plan ? [clickText(plan.summary.title.slice(0, 8))] : []), { wait: 800 }],
   });
   add("72-journal-unverified-only-light", "theme=light", undefined, { steps: [view("journal"), { wait: 900 }, clickText("검증 없는 것만"), { wait: 1000 }] });
-  add("73-today-bytime-dark", "theme=dark", undefined, { dark: true, steps: [clickText("시간순"), { wait: 800 }] });
+  add("73-today-bytime-dark", "theme=dark", undefined, { dark: true, steps: [clickText("시간순", true), { wait: 800 }] });
 
   if (only) {
     const parts = only.split(",").filter(Boolean);
