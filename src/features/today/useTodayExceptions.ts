@@ -7,7 +7,9 @@
  *   - 일지 없는 파일          `oculpm_compare_workday`            — 일지가 바뀌거나 세션이 끝나면
  *   - 일지 없이 끝난 대화      `journal_missing_signals(1일)`      — 일지가 바뀌거나 세션이 끝나면
  *   - 동료의 일지 · 이 기기에만 · 받아 온 것 (git 을 읽는다)        — 일지 · 계획이 바뀌면, 창으로 돌아오면
- *   - 플러그인 판             `claude_plugin_status`              — 처음 한 번
+ *   - 플러그인 상태 · 판        `claude_plugin_status`              — 창으로 돌아오면, 오늘 화면에 들어오면, 「다시 시도」
+ *     (11-23 #today-plugin-read-once: 처음 한 번만 읽어서 설치 · 업데이트 명령을 돌리고 와도 「에이전트 연결」 이
+ *     끝나지 않았다. 앱 안 터미널에서 돌렸으면 창 포커스는 그대로라, 터미널 탭에서 오늘로 돌아오는 것도 센다.)
  *   - 바깥 터미널의 기다림 · Claude 의 질문                        — 바뀌었다는 사건이 오면
  *
  * **프로젝트마다 저장소 하나** (11-15 `{#today-store}`). 셸(배지)과 화면이 같은 값을 구독한다. 예전에는
@@ -36,6 +38,7 @@ import { useWindowTerms } from "@/features/terminal/status";
 import { tError } from "@/i18n/errors";
 import { createStore, type Store } from "@/lib/createStore";
 import { safeUnlisten } from "@/lib/unlisten";
+import { useRefetchOnWake } from "@/lib/useRefetchOnWake";
 import type {
   Arrived,
   ClaudePluginStatus,
@@ -91,8 +94,9 @@ const ALL_KEYS: readonly Key[] = ["brief", "digest", "unrecorded", "silent", "te
 const DAY_KEYS: readonly Key[] = ["brief", "unrecorded", "silent", "team", "arrived"];
 const JOURNAL_KEYS: readonly Key[] = ["brief", "unrecorded", "silent", "team", "local", "arrived"];
 const PLAN_KEYS: readonly Key[] = ["digest", "local"];
-/** 「다시 시도」 — 플러그인 판은 처음 한 번이면 된다. */
-const REFRESH_KEYS: readonly Key[] = ALL_KEYS.filter((k) => k !== "plugin");
+/** 「다시 시도」 — 다 다시 읽는다(플러그인도: 설치하고 와서 누르는 단추다). */
+const REFRESH_KEYS: readonly Key[] = ALL_KEYS;
+const PLUGIN_KEYS: readonly Key[] = ["plugin"];
 
 const EMPTY_SLOT: Slot<never> = { value: undefined, settled: false, error: null, okAt: null };
 
@@ -297,6 +301,13 @@ export function __resetTodayStoreForTests(): void {
   ENTRIES.clear();
 }
 
+/** 플러그인과 앱의 판이 어긋남. `ahead` 면 플러그인이 앱보다 새 판이다(앱을 올린다). */
+export interface PluginDrift {
+  installed: string;
+  bundled: string;
+  ahead: boolean;
+}
+
 export interface TodayData {
   /** 오늘 일지, 최신 먼저. `undefined` = 읽는 중. */
   entries: JournalEntrySummary[] | undefined;
@@ -306,9 +317,10 @@ export interface TodayData {
   /** 일지 없는 파일. `null` = 모름. */
   unrecorded: string[] | null;
   silent: JournalMissingSignal[] | null;
-  pluginBehind: { installed: string; bundled: string } | null;
-  /** Claude Code 플러그인이 이 프로젝트에 깔려 있는가 — 첫 기록 전의 「에이전트 연결」 걸음. 모르면 `null`. */
-  pluginInstalled: boolean | null;
+  /** 이 프로젝트의 플러그인 판이 앱과 어긋났다 — 플러그인이 옛 판이거나(`ahead: false`) 앱이 옛 판이다. */
+  pluginDrift: PluginDrift | null;
+  /** 이 프로젝트의 Claude Code 플러그인 상태 — 첫 기록 전의 「에이전트 연결」 걸음 · 계획 빈 화면. 모르면 `null`. */
+  plugin: ClaudePluginStatus | null;
   /** 오늘 일지 중 동료가 git 으로 더한 것 — 일지 경로 → 그 사람. 못 읽으면 빈 표. */
   teammates: ReadonlyMap<string, string>;
   /** 이 기기에만 있는 것(커밋 안 한 변경 · 안 올린 커밋). 리모트가 없거나 못 읽으면 `null`. */
@@ -330,6 +342,8 @@ export interface TodayExceptionsResult {
   /** 다시 읽다 실패했다 — 화면은 이때(ms) 읽은 값을 그대로 보여 준다. */
   staleSince: number | null;
   refresh: () => void;
+  /** 플러그인 상태만 다시 읽는다 — 오늘 화면에 들어올 때. */
+  recheckPlugin: () => void;
   /** 「읽음」 뒤 — 확정된 일지의 낙관적 표시를 다음 일지 읽기에 맡기고 일지만 다시 읽는다. */
   reloadEntries: (confirmed?: readonly string[]) => void;
   /** 「읽음」 을 누른 직후 — 다시 읽기 전에 그 행을 뺀다. 실패하면 되돌린다. */
@@ -349,11 +363,14 @@ export function useTodayExceptions(
   const onPlan = useCallback(() => bumpFrom(projectId, holder, PLAN_KEYS), [projectId, holder]);
   useJournalEvents(projectId, enabled, onJournal);
   useOculpmDataEvents("planner", projectId, enabled, onPlan);
+  const onWake = useCallback(() => bumpFrom(projectId, holder, PLUGIN_KEYS), [projectId, holder]);
+  useRefetchOnWake(onWake, enabled);
 
   const s = entry.store.useValue();
   const terms = useWindowTerms(enabled);
 
   const refresh = useCallback(() => request(projectId, REFRESH_KEYS), [projectId]);
+  const recheckPlugin = useCallback(() => request(projectId, PLUGIN_KEYS), [projectId]);
   const markVerified = useCallback(
     (path: string, on: boolean) => {
       entry.store.update((prev) => {
@@ -381,8 +398,11 @@ export function useTodayExceptions(
   );
 
   const p = s.plugin.value;
-  const pluginBehind = useMemo(
-    () => (p?.behind && p.installed_version ? { installed: p.installed_version, bundled: p.bundled_version } : null),
+  const pluginDrift = useMemo(
+    () =>
+      (p?.behind || p?.ahead) && p.installed_version
+        ? { installed: p.installed_version, bundled: p.bundled_version, ahead: p.ahead === true && !p.behind }
+        : null,
     [p],
   );
   const verifiedLocally = useMemo(() => new Set(s.verified.keys()), [s.verified]);
@@ -399,14 +419,14 @@ export function useTodayExceptions(
       digest,
       unrecorded: s.unrecorded.value ?? null,
       silent: s.silent.value ?? null,
-      plugin: pluginBehind,
+      plugin: pluginDrift,
       verifiedLocally,
       terms,
       hookWaiting: s.waiting.value ?? [],
       questions: s.questions.value ?? [],
       autoBlocked: s.blocked.value ?? [],
     });
-  }, [enabled, brief, digest, sideSettled, s.unrecorded.value, s.silent.value, pluginBehind, verifiedLocally, terms, s.waiting.value, s.questions.value, s.blocked.value]);
+  }, [enabled, brief, digest, sideSettled, s.unrecorded.value, s.silent.value, pluginDrift, verifiedLocally, terms, s.waiting.value, s.questions.value, s.blocked.value]);
 
   const on = enabled;
   const data: TodayData = {
@@ -415,8 +435,8 @@ export function useTodayExceptions(
     digest: on ? digest : undefined,
     unrecorded: on ? (s.unrecorded.value ?? null) : null,
     silent: on ? (s.silent.value ?? null) : null,
-    pluginBehind: on ? pluginBehind : null,
-    pluginInstalled: on && s.plugin.settled ? p?.installed === true : null,
+    pluginDrift: on ? pluginDrift : null,
+    plugin: on && s.plugin.settled ? (p ?? null) : null,
     teammates: (on && s.team.value) || NO_TEAM,
     localOnly: on ? (s.local.value ?? null) : null,
     arrived: on ? (s.arrived.value ?? null) : null,
@@ -435,6 +455,7 @@ export function useTodayExceptions(
     error,
     staleSince,
     refresh,
+    recheckPlugin,
     reloadEntries,
     markVerified,
   };

@@ -237,6 +237,9 @@
 /* 완료 확인 대화상자는 확인 한 벌(`useConfirm`, primitives.css `.cf` · `.dlg-*`)이다 — 여기 자기 모양을 두지 않는다. */
 
 /* 좁은 창(≤640, 10-30) — 레일이 위(높이 36%), 문서가 아래. */
+/* 빈 화면의 플러그인 설치 명령 (11-23 #inception-without-plugin) — 문장 아래, 단추 위. */
+.plv-empty-cmd { margin-top: var(--space-4); max-width: 560px; }
+
 @media (max-width: 640px) {
   .plv-body { flex-direction: column; }
   .plv-rail { width: auto; max-width: none; max-height: 36%; border-right: 0; border-bottom: 1px solid var(--sep); }

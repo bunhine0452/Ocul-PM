@@ -253,7 +253,7 @@ beforeEach(() => {
   fx.unrecorded = [];
   fx.compareFails = false;
   fx.missing = [];
-  fx.plugin = { installed: true, behind: false, installed_version: "4.0.0", bundled_version: "4.0.0", path: "/p", scope: "user" } satisfies ClaudePluginStatus;
+  fx.plugin = { state: "connected", ahead: false, other_behind: 0, app_reachable: true, installed: true, behind: false, installed_version: "4.0.0", bundled_version: "4.0.0", path: "/p", scope: "user" } satisfies ClaudePluginStatus;
   fx.sessions = [];
   fx.terms = [];
   fx.hookWaiting = [];
@@ -352,7 +352,7 @@ describe("확인할 것 — 종류와 순서", () => {
     });
     fx.unrecorded = ["src/a.ts", "src/b.ts"];
     fx.missing = [{ ts: new Date().toISOString(), session_id: "conv-1234567890", segments: 1 } satisfies JournalMissingSignal];
-    fx.plugin = { installed: true, behind: true, installed_version: "3.3.0", bundled_version: "4.0.0", path: "/p", scope: "project" } satisfies ClaudePluginStatus;
+    fx.plugin = { state: "connected", ahead: false, other_behind: 0, app_reachable: true, installed: true, behind: true, installed_version: "3.3.0", bundled_version: "4.0.0", path: "/p", scope: "project" } satisfies ClaudePluginStatus;
     renderToday();
 
     // 모든 행이 같은 첫 칸(상태 칩)에서 시작한다 — 판정 실패도 「실패」 칩 옆에 판정 줄이 선다(영수증 규칙 4, 11-04).

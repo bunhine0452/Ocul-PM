@@ -24,7 +24,7 @@ function defaults() {
     digest: { plans: [], needs_user: [], blocked: [], journal_plan: [] } as TodayDigest,
     unrecorded: [] as string[],
     missing: [] as unknown[],
-    plugin: { installed: true, behind: false, installed_version: "4.0.0", bundled_version: "4.0.0", path: "/p", scope: "user" } as ClaudePluginStatus | null,
+    plugin: { state: "connected", ahead: false, other_behind: 0, app_reachable: true, installed: true, behind: false, installed_version: "4.0.0", bundled_version: "4.0.0", path: "/p", scope: "user" } as ClaudePluginStatus | null,
     sessions: [] as unknown[],
     terms: [] as unknown[],
     hookWaiting: [] as unknown[],
