@@ -96,8 +96,10 @@ fn an_unrecorded_conversation_lands_in_the_ledger_and_the_app_reads_it() {
 
     let out = run_hook("session-end.sh", dir.path(), &end_payload("c1"));
     assert_eq!(out.status.code(), Some(0), "SessionEnd 는 언제나 무해하다");
+    // 말하지 않는다 — 종료 코드 0 의 stderr 는 아무에게도 안 보인다. 다음 대화의 시작 컨텍스트가
+    // 원장을 이어받는다 (11-23, `tests/plugin_hook_owner.rs`).
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("일지 없이 끝났습니다"), "{stderr}");
+    assert!(!stderr.contains("일지 없이 끝났습니다"), "{stderr}");
 
     let ledger =
         std::fs::read_to_string(dir.path().join(".oculpm/hooks/journal-missing.jsonl")).unwrap();
@@ -155,8 +157,7 @@ fn a_recorded_conversation_leaves_no_row() {
     std::fs::write(day.join("0001_chore_x.md"), "[x] 기록했다\n").unwrap();
 
     let out = run_hook("session-end.sh", dir.path(), &end_payload("c3"));
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("세션 기록됨"), "{stderr}");
+    assert_eq!(out.status.code(), Some(0));
     assert!(!dir
         .path()
         .join(".oculpm/hooks/journal-missing.jsonl")

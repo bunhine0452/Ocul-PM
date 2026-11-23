@@ -110,6 +110,7 @@ fn write(root: &Path, rel: &str, body: &str) {
 
 const EMPTY_LINE: &str = "이 프로젝트에는 아직 활성 플랜 항목도 일지도 없다";
 const CANDIDATE: &str = "확인 명령 후보 (매니페스트에서 감지";
+const NO_CHECK: &str = "확인 명령 없는 계획: ";
 
 #[test]
 fn an_empty_project_gets_the_where_to_start_line_and_manifest_candidates() {
@@ -128,7 +129,9 @@ fn an_empty_project_gets_the_where_to_start_line_and_manifest_candidates() {
         "{text}"
     );
     assert!(
-        text.contains(&format!("{CANDIDATE} — 플랜에 **확인 명령:** 줄이 없다. plan_create 의 check 나 플랜 본문에 적어라): pnpm test · cargo test")),
+        text.contains(&format!(
+            "{CANDIDATE} — 계획을 세우면 plan_create 의 check 로): pnpm test · cargo test"
+        )),
         "{text}"
     );
     // 안내만 실은 세션은 「이어받은」 것이 아니다 — 전달 원장을 쓰지 않는다.
@@ -167,13 +170,14 @@ fn an_open_plan_without_a_check_line_gets_candidates_but_not_the_empty_line() {
         !text.contains(EMPTY_LINE),
         "플랜 항목이 있는데 빈 프로젝트라 했다: {text}"
     );
+    // 어느 계획에 없는지 이름으로 말한다 (11-23 — 이름 없이 「플랜에 없다」 만 붙어 헷갈리게 했다).
     assert!(
-        text.contains(CANDIDATE) && text.contains("go test ./..."),
+        text.contains(&format!("{NO_CHECK}r — 그 계획 본문에 **확인 명령:** 줄로 적어라. 매니페스트에서 감지한 후보: go test ./...")),
         "{text}"
     );
     // 플랜 절 → 후보 → (일지 절) 순서: 후보는 플랜 절 뒤에 선다.
     assert!(
-        text.find("[plan: r]").unwrap() < text.find(CANDIDATE).unwrap(),
+        text.find("[plan: r]").unwrap() < text.find(NO_CHECK).unwrap(),
         "{text}"
     );
 }
@@ -190,7 +194,9 @@ fn a_plan_that_already_has_a_check_line_gets_no_candidate() {
     let text = context(p.path());
     assert!(text.contains("**확인 명령:** cargo test --lib"), "{text}");
     assert!(
-        !text.contains(CANDIDATE) && !text.contains("확인 명령 후보 없음"),
+        !text.contains(CANDIDATE)
+            && !text.contains("확인 명령 후보 없음")
+            && !text.contains(NO_CHECK),
         "{text}"
     );
     assert!(!text.contains(EMPTY_LINE), "{text}");

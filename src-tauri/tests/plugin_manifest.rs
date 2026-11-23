@@ -332,8 +332,8 @@ fn hooks_json_guards_and_consumes_stdin() {
         "SessionEnd 스크립트: stderr 안내 (조건부)"
     );
     assert!(
-        end.contains("일지 없이 끝났습니다"),
-        "SessionEnd 스크립트: 미작성 경고 문구"
+        !end.contains("일지 없이 끝났습니다"),
+        "SessionEnd 스크립트: 미작성은 다음 대화의 시작 컨텍스트가 잇는다 — exit 0 의 stderr 는 안 보인다"
     );
     assert!(
         end.contains("-mtime +7 -delete"),
