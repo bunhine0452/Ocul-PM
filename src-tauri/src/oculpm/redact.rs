@@ -27,8 +27,9 @@
 //!   3. the agent-facing MCP surface — `mcp::tools` (titles, bodies, notes,
 //!      journal refs an agent hands us);
 //!   4. the planner / discussion projections and dispatch prompts;
-//!   5. anything leaving the journal — `commands::skills` and rule/skill
-//!      promotion.
+//!   5. anything leaving the journal — the PR receipt (`git::receipt`, copied
+//!      into a PR or saved as an HTML file); `commands::skills` and rule/skill
+//!      promotion were the first, until 4.0 removed them.
 //!
 //!   (Model output — `journal_draft` · `automation` · `import` — was a kind of its
 //!   own until 4.0 removed the app's own LLM calls.)
@@ -111,7 +112,10 @@ use crate::oculpm::spec::OculpmConfig;
 ///
 /// 14 → 15 (2026-11-22): `oculpm/watcher/hooks.rs` — 자동 모드가 막은 행동의 한 줄(명령 첫 줄 ·
 /// 경로 · 주소)을 오늘 화면에 세우기 전에 가린다 (`claude_blocked`).
-pub const CALL_SITE_FILES: usize = 15;
+///
+/// 15 → 16 (2026-11-23): `git/receipt.rs` — PR 영수증이 일지 원문에서 읽은 제목 · 검증 끝 줄을 가린다.
+/// 영수증은 PR 설명 · HTML 파일로 기기 밖에 나간다(다섯째 갈래: 일지를 떠나는 것).
+pub const CALL_SITE_FILES: usize = 16;
 
 /// One match recorded by [`redact_text`]. Byte offsets reference the
 /// **original** input string (pre-redaction); they are at char boundaries
