@@ -182,13 +182,20 @@ fn a_verdict_alone_leaves_statuses_untouched_and_is_read_as_the_last_verdict() {
     let dir = tracked();
     let root = dir.path();
     let before = parse_plan(&plan_md(root), "test-plan");
-    call_tool(
+    let out = call_tool(
         root,
         "plan_update",
         &json!({ "plan_id": "test-plan", "base_hash": base_hash(root, "test-plan"),
                   "verdict": { "ok": false, "last_line": "2 failed,\n418 passed" } }),
     )
     .unwrap();
+    // 응답이 남긴 줄을 되돌려 준다 — 옛 앱의 MCP 는 이 키가 없어, 스킬이 「기록됐다」를 이것으로 안다.
+    assert!(
+        out["verdict"]
+            .as_str()
+            .is_some_and(|v| v.starts_with("판정 ✗ 2 failed, 418 passed")),
+        "{out}"
+    );
     let md = plan_md(root);
     let after = parse_plan(&md, "test-plan");
     let st = |p: &crate::oculpm::planner::parse::ParsedPlan| {

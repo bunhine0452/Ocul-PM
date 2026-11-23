@@ -57,7 +57,7 @@ $OCUL tools                       # 도구 정의(JSON) — MCP 서버가 주는
 $OCUL whoami                      # 어느 프로젝트로 기록되는지
 $OCUL plan_status '{}'            # 활성 계획 · 미완 항목 · hash
 
-# 일지 — 인자 JSON 을 stdin 으로 (`-`). 필수: type · slug · title · body_markdown
+# 일지 — 인자 JSON 을 stdin 으로 (`-`). 필수: type · title · body_markdown (slug 는 권장 — 없으면 서버가 짓는다)
 $OCUL journal_write - <<'EOF'
 {"type":"bug","slug":"login-null","title":"로그인: 빈 토큰에서 멈추지 않게 했다",
  "agent_id":"cursor","body_markdown":"## 무엇\n…\n## 검증\n- pnpm test → 214 passed"}
