@@ -197,6 +197,16 @@ One plugin configures, across all your projects:
 
 Grab the file for your OS from the [latest release](https://github.com/bunhine0452/Ocul-PM/releases/latest). The name you see inside the app is Ocul; the install files and the installed app keep the name `Ocul-PM`.
 
+On macOS it also installs with Homebrew (Homebrew 7 asks you to trust a third-party tap once):
+
+```sh
+brew tap bunhine0452/tap
+brew trust bunhine0452/tap
+brew install --cask ocul-pm
+```
+
+`winget install KimHyunbin.Ocul` on Windows works once winget-pkgs review is done ([PR #487242](https://github.com/microsoft/winget-pkgs/pull/487242)).
+
 | OS | File | Requirements | Updates |
 | --- | --- | --- | --- |
 | **macOS** (Apple Silicon) | `Ocul-PM_x.y.z_aarch64.dmg` | — | in-app, automatic |

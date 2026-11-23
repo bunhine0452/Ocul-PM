@@ -197,6 +197,16 @@ codex plugin add oculpm-codex@oculpm
 
 [최신 릴리스](https://github.com/bunhine0452/Ocul-PM/releases/latest)에서 OS 에 맞는 파일을 받습니다. 앱 안에 보이는 이름은 Ocul 이고, 설치 파일과 설치된 앱의 이름은 `Ocul-PM` 그대로입니다.
 
+macOS 는 Homebrew 로도 깔립니다(Homebrew 7 은 제3자 tap 을 한 번 신뢰해야 합니다):
+
+```sh
+brew tap bunhine0452/tap
+brew trust bunhine0452/tap
+brew install --cask ocul-pm
+```
+
+Windows 의 `winget install KimHyunbin.Ocul` 은 winget-pkgs 심사가 끝나면 됩니다([PR #487242](https://github.com/microsoft/winget-pkgs/pull/487242)).
+
 | OS | 파일 | 요구 사항 | 업데이트 |
 | --- | --- | --- | --- |
 | **macOS** (Apple Silicon) | `Ocul-PM_x.y.z_aarch64.dmg` | — | 앱 안 자동 |

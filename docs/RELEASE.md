@@ -510,6 +510,8 @@ git diff packaging/            # 버전 · sha256 · (winget) 날짜와 주소�
 
 **제출은 바깥 저장소에 PR 을 올리는 일이라 사용자 확인 뒤에만 합니다** — 에이전트가 혼자 올리지 않습니다.
 
+**첫 제출 (2026-11-23, v4.13.0 — 사용자 결정):** Homebrew 는 자체 tap [`bunhine0452/homebrew-tap`](https://github.com/bunhine0452/homebrew-tap) 의 `Casks/ocul-pm.rb`(공개용이라 주석은 영어로 줄였다, `brew audit --cask --online` 통과). Homebrew 7 은 제3자 tap 을 한 번 `brew trust bunhine0452/tap` 해야 쓴다. winget 은 포크 `bunhine0452/winget-pkgs` 의 브랜치에서 [microsoft/winget-pkgs#487242](https://github.com/microsoft/winget-pkgs/pull/487242) — 매니페스트 1.6.0(양식은 1.28 을 묻는다, 봇이 지적하면 그 브랜치만 고친다), Microsoft CLA 서명은 사람 몫. 다음 버전부터는 tap 의 cask 를 위 스크립트가 채운 값으로 바꿔 커밋하고, winget 은 `Update: KimHyunbin.Ocul to X.Y.Z` PR 이다. 첫 cask 는 `app "Ocul.app"`(표시 이름)이라 설치가 실패할 뻔했다 — dmg 안의 파일 이름은 productName `Ocul-PM.app` 이다.
+
 - Homebrew: 자체 tap(`bunhine0452/homebrew-tap` 같은 저장소의 `Casks/ocul-pm.rb`)이면 위 파일을 복사해 커밋하고
   바로 `brew install --cask bunhine0452/tap/ocul-pm` 이 됩니다. 공식 `Homebrew/homebrew-cask` 는 인기 기준이 있어
   처음엔 tap 이 현실적입니다. 올리기 전 `brew audit --new --cask ocul-pm` · `brew style --fix ocul-pm` 로 검사합니다.
