@@ -228,7 +228,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
       <header className="jd-head">
         <div className="jd-chips">
           <TriggerBadge type={entry.type} />
-          <EvidenceMark state={evState} />
+          <EvidenceMark state={evState} level={level} />
           {entry.status !== "done" ? (
             <span className="chip sm hairline">
               {entry.status === "abandoned" ? t("entry.status.abandoned") : t("entry.status.open")}

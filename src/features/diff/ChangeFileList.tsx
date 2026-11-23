@@ -197,7 +197,13 @@ export function ChangeFileList({
             ) : null}
             {state === "command" ? <span className="chg-ok"> · ✓ {t("diff.evidence.command")}</span> : null}
             {state === "confirmed" ? <span className="chg-ok"> · ✓ {t("entry.verified")}</span> : null}
-            {state === "missing" ? <span className="chg-warn"> · {t("journal.evidence.missing")}</span> : null}
+            {/* 출처(11-23) — 검증을 적었지만 돌린 명령이 없으면 에이전트의 말뿐이다: 일지 목록 · 상세와 같은 말. */}
+            {state === "missing" ? (
+              <span className="chg-warn" title={summary?.evidence === 1 ? t("journal.evidence.wordsTitle") : undefined}>
+                {" · "}
+                {summary?.evidence === 1 ? t("journal.verify.noCommand") : t("journal.evidence.missing")}
+              </span>
+            ) : null}
           </span>
         </button>
         {isOpen ? g.files.filter(keep).map((p) => fileRow(p, true)) : null}
