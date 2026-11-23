@@ -189,6 +189,29 @@ pub(super) fn is_one_line(line: &str) -> bool {
             .any(|c| c.is_control() || matches!(c, '\u{2028}' | '\u{2029}') || is_invisible(c))
 }
 
+/// Windows PowerShell 5.1 이 모르는 사슬인가 — 따옴표 밖의 `&&` · `||` (love-round 11-23). 둘은 PowerShell 7 에서야
+/// 생겼다. pwsh 가 PATH 에 없으면 앱 셸은 5.1 이고(`terminal.rs` 의 `find_pwsh`), 계획의 확인 명령은 대개
+/// `pnpm typecheck && pnpm test` 꼴이라 첫 「셸에서 돌리기」 가 구문 오류로 끝났다. 줄을 몰래 고치지 않고(보인 글 = 도는 글)
+/// 열기 전에 거절하고 까닭을 말한다. 작은따옴표 안 · 큰따옴표 안의 글은 문자열이라 보지 않는다(백틱은 다음 글자를 묶는다).
+pub(super) fn ps51_chain(line: &str) -> bool {
+    let mut quote: Option<char> = None;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match (quote, c) {
+            (Some('\''), '\'') | (Some('"'), '"') => quote = None,
+            (Some('\''), _) => {}
+            (_, '`') => {
+                chars.next();
+            }
+            (Some(_), _) => {}
+            (None, '\'' | '"') => quote = Some(c),
+            (None, '&' | '|') if chars.peek() == Some(&c) => return true,
+            (None, _) => {}
+        }
+    }
+    false
+}
+
 /// 확인 창에 그려지지 않거나 둘레 글자의 순서 · 자리를 바꾸는 글자 — 유니코드 서식 글자(Cf: 양방향 덮어쓰기 ·
 /// 격리 · 폭 0 · BOM · 태그 …), 기본 무시 글자(변형 선택자 · 한글 채움 글자 …), ASCII 밖의 공백, 점자 빈칸.
 ///

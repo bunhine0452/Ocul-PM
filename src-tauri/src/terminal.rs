@@ -39,6 +39,9 @@ pub const PROMPT_ENV: &str = "OCULPM_PROMPT";
 /// 계획의 확인 명령 한 줄을 셸에 넘기는 환경 변수 — 셸은 `eval "$OCULPM_CHECK"` 로 그 글만 따로 읽는다
 /// (`terminal_env.rs` 머리말 — 앱이 붙인 줄과 한 문법으로 섞이지 않게).
 pub const CHECK_ENV: &str = "OCULPM_CHECK";
+/// Windows PowerShell 5.1 에 `&&` · `||` 로 이은 확인 명령 — 열지 않는다(`terminal_env::ps51_chain`). 명령이 이
+/// 문구를 `check_ps51_chain` 코드로 바꿔 웹뷰가 고칠 길을 말한다.
+pub const CHECK_PS51_CHAIN: &str = "check: Windows PowerShell 5.1 does not understand && or ||";
 
 /// 여는 데 필요한 것.
 pub struct OpenSpec {
@@ -331,6 +334,9 @@ impl TermSessions {
         }
         let launch = shell_env::Launch::of(spec.prompt.as_deref(), spec.resume, check);
         let (cmd, shell_name, typed) = shell_command(launch);
+        if shell_name == "powershell" && check.is_some_and(shell_env::ps51_chain) {
+            return Err(CHECK_PS51_CHAIN.to_string());
+        }
         let label = match (launch, &spec.check) {
             (Some(shell_env::Launch::Check(_)), Some(c)) => c.label.clone(),
             (Some(_), _) => "claude".to_string(),

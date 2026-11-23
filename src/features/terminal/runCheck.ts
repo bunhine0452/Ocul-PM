@@ -10,7 +10,10 @@
 //
 // xterm 은 무겁다 — 계획 화면의 첫 청크에 싣지 않게 저장소를 여기서 지연 로드한다(`runPrompt.ts` 와 같다).
 
+import { toAppError } from "@/api/invoke";
 import { t, type I18nKey, type TVars } from "@/i18n";
+import { tError } from "@/i18n/errors";
+import { toast } from "@/lib/toast";
 import { requestTermFocus } from "./focusRequest";
 import { sanitizePaste } from "./pasteSafe";
 
@@ -113,10 +116,20 @@ export function revealHidden(text: string): string {
 /**
  * 확인 창에서 누른 한 줄을 프로젝트 폴더의 새 셸 세션에서 돌리고, 터미널 화면으로 옮겨 그 세션을 고른다
  * (`requestTermFocus` — 셸이 화면을 옮기고 터미널 화면이 그 세션을 고른다). 돌려주는 것은 세션 id.
+ *
+ * Windows PowerShell 5.1(pwsh 없음)에 `&&` · `||` 로 이은 줄은 백엔드가 셸을 띄우기 전에 거절한다
+ * (`terminal_env::ps51_chain`) — 「열지 못했어요」 토스트에 묻지 않고 그 까닭과 고칠 길만 한 장으로 말하고 `null`.
  */
-export async function runCheckInTerminal(projectId: number, line: string): Promise<number> {
+export async function runCheckInTerminal(projectId: number, line: string): Promise<number | null> {
   const { openTerm } = await import("./termStore");
-  const id = await openTerm(projectId, null, null, false, { line, label: t("plan.check.session") });
-  requestTermFocus(id);
-  return id;
+  try {
+    const id = await openTerm(projectId, null, null, false, { line, label: t("plan.check.session") });
+    requestTermFocus(id);
+    return id;
+  } catch (e) {
+    const err = toAppError(e);
+    if (err.code !== "check_ps51_chain") throw e;
+    toast.warning(tError(err), { durationMs: 15000 });
+    return null;
+  }
 }
