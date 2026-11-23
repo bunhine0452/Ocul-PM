@@ -52,14 +52,24 @@ export function stripUserTag(title: string): string {
 }
 
 /**
- * 다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫은 건너뛴다. `[~]` 는 다른 세션이 잡은
- * 것으로 본다 (`/oculpm:next`·`digest.rs` 와 같은 규칙).
+ * 리프가 사람 몫인가 — 제 제목이나 부모 제목이 사람 몫 머리표로 시작한다 (digest.rs `is_user_leaf`,
+ * 사례표 `src-tauri/src/oculpm/planner/owner_cases.json`).
+ */
+export function isUserLeaf(item: PlanItemDto, items: readonly PlanItemDto[]): boolean {
+  if (isUserItem(item.title)) return true;
+  const parent = item.parent_item;
+  return !!parent && items.some((p) => p.item_id === parent && isUserItem(p.title));
+}
+
+/**
+ * 다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫([`isUserLeaf`])은 건너뛴다. `[~]` 는 다른 세션이
+ * 잡은 것으로 본다 (`/oculpm:next`·`digest.rs` 와 같은 규칙).
  */
 export function nextLeaf(items: readonly PlanItemDto[]): PlanItemDto | null {
   return (
     [...leafItems(items)]
       .sort((a, b) => a.order_idx - b.order_idx)
-      .find((i) => i.status === "todo" && !isUserItem(i.title)) ?? null
+      .find((i) => i.status === "todo" && !isUserLeaf(i, items)) ?? null
   );
 }
 

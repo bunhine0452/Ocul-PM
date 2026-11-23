@@ -58,7 +58,7 @@ pub struct DigestPlan {
     /// 이 OS 에서 마지막으로 통과한 시각 — [`DigestPlan::settle`] 의 재료. 화면으로는 안 나간다.
     #[serde(skip)]
     pub passed_here_at: Option<String>,
-    /// 다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫은 건너뛴다. `[~]` 는 다른 세션이
+    /// 다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫([`is_user_leaf`])은 건너뛴다. `[~]` 는 다른 세션이
     /// 잡은 것으로 본다 (`/oculpm:next` 와 같은 규칙).
     pub next: Option<DigestItem>,
 }
@@ -76,7 +76,7 @@ pub struct JournalPlanLink {
 pub struct TodayDigest {
     /// active 플랜만, 최근 갱신 순.
     pub plans: Vec<DigestPlan>,
-    /// 열린 사람 몫 항목 (`[사용자]`·`[사용자 결정]`·`[사용자 액션]`·`[user]` 로 시작).
+    /// 열린 사람 몫 리프 — 제목이나 부모 제목이 `[사용자]`·`[사용자 결정]`·`[사용자 액션]`·`[user]` 로 시작.
     pub needs_user: Vec<DigestItem>,
     /// 막힌(`[!]`) 리프.
     pub blocked: Vec<DigestItem>,
@@ -116,6 +116,19 @@ pub fn is_user_item(title: &str) -> bool {
     t.starts_with("[사용자") || t.get(..5).is_some_and(|h| h.eq_ignore_ascii_case("[user"))
 }
 
+/// 리프가 사람 몫인가 — 제 제목이나 **부모** 제목이 사람 몫 머리표로 시작한다. `[사용자] 설치본에서 눈 확인`
+/// 아래의 하위 리프들이 에이전트의 「다음」 으로 잡혀 오늘 화면의 하나뿐인 채운 단추가 사람의 눈 확인을
+/// Claude 에게 맡기라고 권했다 (11-23, love-round #l2-agent-context). 같은 규칙을 계획 화면(`planMeta.ts`
+/// `isUserLeaf`)과 시작 훅(`plan-context.sh`)이 쓰고, 세 자리를 사례표 `owner_cases.json` 하나가 문다.
+pub fn is_user_leaf(d: &PlanDetail, i: &PlanItemDto) -> bool {
+    is_user_item(&i.title)
+        || i.parent_item.as_deref().is_some_and(|p| {
+            d.items
+                .iter()
+                .any(|x| x.item_id == p && is_user_item(&x.title))
+        })
+}
+
 fn is_open(status: &str) -> bool {
     matches!(status, "todo" | "in_progress")
 }
@@ -152,7 +165,7 @@ pub fn plan_of(d: &PlanDetail) -> DigestPlan {
     let leaves = leaves_of(d);
     let next = leaves
         .iter()
-        .find(|i| i.status == "todo" && !is_user_item(&i.title))
+        .find(|i| i.status == "todo" && !is_user_leaf(d, i))
         .map(|i| item(d, i));
     let last_pass = d.plan.last_verdict.as_ref().filter(|v| v.passed);
     DigestPlan {
@@ -204,7 +217,7 @@ pub fn build(mut details: Vec<PlanDetail>) -> TodayDigest {
     for d in &details {
         out.plans.push(plan_of(d));
         for i in leaves_of(d) {
-            if is_open(&i.status) && is_user_item(&i.title) {
+            if is_open(&i.status) && is_user_leaf(d, i) {
                 out.needs_user.push(item(d, i));
             } else if i.status == "blocked" {
                 out.blocked.push(item(d, i));
@@ -409,6 +422,45 @@ mod tests {
         assert!(is_user_item("[User] approve"));
         assert!(!is_user_item("사용자 설정 화면 고치기"));
         assert!(!is_user_item("[x]"));
+    }
+
+    /// 사람 몫 사례표 — 계획 화면(vitest `plan_owner_cases`)과 시작 훅(`tests/plugin_hook_owner.rs`)이 같은 표를 문다.
+    #[test]
+    fn human_owned_leaves_follow_the_shared_case_table() {
+        let table: serde_json::Value =
+            serde_json::from_str(include_str!("owner_cases.json")).expect("owner_cases.json");
+        for case in table["cases"].as_array().expect("cases") {
+            let name = case["name"].as_str().unwrap_or("?");
+            let items = case["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .map(|(n, i)| {
+                    it(
+                        i["id"].as_str().unwrap(),
+                        i["title"].as_str().unwrap(),
+                        i["status"].as_str().unwrap(),
+                        n as u32,
+                        i["parent"].as_str(),
+                    )
+                })
+                .collect();
+            let d = build(vec![plan("p", "active", "2026-11-23", items)]);
+            assert_eq!(
+                d.plans[0].next.as_ref().map(|n| n.item_id.as_str()),
+                case["next"].as_str(),
+                "{name}: 다음"
+            );
+            let needs: Vec<&str> = d.needs_user.iter().map(|i| i.item_id.as_str()).collect();
+            let want: Vec<&str> = case["needs_user"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|v| v.as_str())
+                .collect();
+            assert_eq!(needs, want, "{name}: 사람 몫");
+        }
     }
 
     #[test]
