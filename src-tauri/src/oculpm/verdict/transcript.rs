@@ -201,13 +201,37 @@ fn call_of(block: &Value) -> Option<Call> {
                 .filter(|s| !s.is_empty())
                 .map(str::to_string)
         };
+        // 판정은 `verdict` 인자로도 온다 (love-round-20261123) — 서버가 `판정 ✓|✗` 줄로 적으므로 같은
+        // 모양으로 읽는다. 판정만 남긴 호출은 `status` 가 없다(빈 상태 = 닫지 않음).
         return Some(Call::PlanUpdate(PlanUpdateCall {
             plan_id: text("plan_id")?,
-            status: text("status")?,
-            note: text("note"),
+            status: text("status").unwrap_or_default(),
+            note: verdict_note(input.get("verdict")).or_else(|| text("note")),
         }));
     }
     None
+}
+
+/// `plan_update` 의 `verdict` 인자를 판정 메모 모양(`판정 ✓|✗`)으로 — 객체 `{ok}` 또는 `✓ …` 글.
+fn verdict_note(v: Option<&Value>) -> Option<String> {
+    let ok = match v? {
+        Value::Object(o) => ["ok", "passed", "pass", "success"]
+            .iter()
+            .find_map(|k| o.get(*k).and_then(Value::as_bool))?,
+        Value::String(s) => {
+            let s = s.trim();
+            if crate::oculpm::planner::judge::parse_note(s).is_some() {
+                return Some(s.to_string());
+            }
+            match s.chars().next()? {
+                '✓' => true,
+                '✗' => false,
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    Some(format!("판정 {}", if ok { '✓' } else { '✗' }))
 }
 
 /// oculpm MCP 의 `plan_update` 인가 — 플러그인(`mcp__plugin_oculpm_oculpm__plan_update`)과
@@ -403,6 +427,23 @@ mod tests {
         assert!(Transcript::scan(lines.join("\n").as_bytes())
             .plan_updates
             .is_empty());
+    }
+
+    /// `verdict` 인자로 남긴 판정도 판정이다 — 상태 없이 판정만 준 호출까지 센다.
+    #[test]
+    fn a_verdict_argument_counts_as_a_verdict_note() {
+        let verdict_only = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"v1","name":"mcp__plugin_oculpm_oculpm__plan_update","input":{"plan_id":"round","base_hash":"h","verdict":{"ok":false,"last_line":"2 failed"}}}]}}"#;
+        let lines = [
+            plan_update("p1", PLUGIN_TOOL, "round", "done", None),
+            tool_result("p1", "false"),
+            verdict_only.to_string(),
+            tool_result("v1", "false"),
+        ];
+        let got = Transcript::scan(lines.join("\n").as_bytes());
+        assert_eq!(got.plan_updates.len(), 2, "{:?}", got.plan_updates);
+        assert_eq!(got.plan_updates[1].status, "");
+        assert_eq!(got.plan_updates[1].note.as_deref(), Some("판정 ✗"));
+        assert!(super::super::check::closed_without_verdict(&got.plan_updates).is_empty());
     }
 
     /// 도구 호출이 없는 긴 줄은 건너뛰어도 그 앞뒤의 호출은 그대로 읽힌다.
