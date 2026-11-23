@@ -726,9 +726,9 @@ async fn a_newer_journal_spec_is_left_alone_and_reported() {
 #[test]
 fn journal_spec_pins() {
     const PIN: (u32, &str, &str) = (
-        3,
-        "fc372dc190e35240235bc8b81baf8a4a027d6a7ea3eb977c26f28520be47f1f9",
-        "53f3a0f55127d484ec96a931cfb9a0d37d46d5312fe5afb8f1c2b0f7df22cec1",
+        4,
+        "b97c488b4b73596201b1f282889e3b7747227e0a53330b4b1a0e5d37b599f1db",
+        "ab82670960068141e07a90e16ba82fc0e061bc5500fe03c50ffabdcf9bd38aa8",
     );
     let hash = |t: &str| blake3::hash(t.as_bytes()).to_hex().to_string();
     assert_eq!(

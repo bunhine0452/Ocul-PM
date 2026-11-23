@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 20 -->
+<!-- template_version: 21 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
@@ -42,8 +42,8 @@ Link what you find from the new entry's `related`. Without the tools, grep `.ocu
 
 ## 5. Planner update (right after the journal)
 
-The journal is retrospect; the **Planner** (`.oculpm/planner/*.md`) is the current plan. Right after a journal entry, flip the matching item with `plan_update` — `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked · `[>]` deferred · `[-]` dropped; the server appends a row to the `oculpm:plan-log` block. A parent rolls up from its children — **never set a parent directly**. When you take an item, mark it `[~]` first so a parallel session won't take it too.
+The journal is retrospect; the **Planner** (`.oculpm/planner/*.md`) is the current plan. Right after a journal entry, flip the matching item with `plan_update` — `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked · `[>]` deferred · `[-]` dropped; the server appends a row to the `oculpm:plan-log` block. A parent rolls up from its children — **never set a parent directly**. When you take an item, mark it `[~]` first so a parallel session won't take it too. Add leftover or carried work with the same tool's `add`.
 
-Create new plans with `plan_create`, giving a one-line **done condition** (`done_when`: the outcome beyond the tasks) and a **check command** (`check`: what passes or fails it); the session-start hook ships both with the items. Whenever you run the check (closing the last item or midway), start the `plan_update` note with `verdict ✓ <last result line>` or `verdict ✗ <last result line>` — the next session's start hook ships it as the plan's last verdict.
+Create new plans with `plan_create`, giving a one-line **done condition** (`done_when`: the outcome beyond the tasks) and a **check command** (`check`: what passes or fails it); the session-start hook ships both with the items. Whenever you run the check (closing the last item or midway), pass `plan_update` a `verdict` — the server writes `verdict ✓ <last result line>` or `verdict ✗ <last result line>` (no status change needed) and the next session's start hook ships it as the last verdict.
 
-Lock major decisions and option comparisons as `### Decision N — title {#id}` blocks under the plan's `## Decisions` (date · agent.id · rationale · `Affects: #item-ids`). Don't create a separate document.
+Lock major decisions and option comparisons with `plan_update`'s `decision` (title · rationale · affected items) under the plan's `## Decisions`. Don't create a separate document.
