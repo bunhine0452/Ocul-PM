@@ -134,11 +134,18 @@ fn session_start_hooks_find_the_tracked_root_from_a_subfolder() {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert!(
-        inbox(root).contains("\"sub-1\""),
-        "인라인 싱크가 루트의 인박스에 한 줄: {:?}",
-        inbox(root)
-    );
+    if !inbox(root).contains("\"sub-1\"") {
+        // Windows Git Bash 에서만 비었다(port/love-round-20261123, tech-backlog #love-win-subfolder) — 실패할 때
+        // 같은 명령을 `set -x` 로 다시 돌려 어느 단계에서 갈렸는지를 메시지에 싣는다.
+        let traced = run_hook(&format!("set -x; {}", at(0)), &sub, &start, None);
+        panic!(
+            "인라인 싱크가 루트의 인박스에 한 줄: {:?}\nroot={}\nsub={}\n추적:\n{}",
+            inbox(root),
+            root.display(),
+            sub.display(),
+            String::from_utf8_lossy(&traced.stderr)
+        );
+    }
     assert!(
         !sub.join(".oculpm").exists(),
         "하위 폴더에 .oculpm 을 새로 만들지 않는다"
