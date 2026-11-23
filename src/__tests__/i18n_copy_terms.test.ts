@@ -102,7 +102,8 @@ describe("오류 · 빈 상태는 다음 걸음을 말한다", () => {
       for (const key of ["err.code.sqlite", "err.code.db"] as const) {
         expect(dict[key], `${key} 에 진단 원문 자리`).toContain("{detail}");
         expect(dict[key], `${key} 가 단추 이름을 말한다`).toContain(dict["prefs.data.rebuild"]);
-        expect(dict[key], `${key} 가 설정의 칸 이름을 말한다`).toContain(dict["prefs.data.title"]);
+        // 단추는 「이 프로젝트」 카드(ProjectSection)에 있다 — 「앱」 카드(DataSection)에는 없다.
+        expect(dict[key], `${key} 가 단추가 놓인 칸 이름을 말한다`).toContain(dict["prefs.project.title"]);
       }
     }
   });
