@@ -147,7 +147,7 @@
 /* ── 오늘 한 일 ────────────────────────────────────────────── */
 .tdy-ent {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto 3ch;
+  grid-template-columns: 44px minmax(0, 1fr) auto minmax(3ch, auto);
   align-items: center; gap: var(--space-3);
   width: 100%; padding: 7px var(--card-pad-x);
   border: 0; border-bottom: 1px solid var(--border-card);

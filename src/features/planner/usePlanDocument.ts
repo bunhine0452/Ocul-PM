@@ -81,7 +81,7 @@ export function usePlanDocument(projectId: number): PlanDocument {
           setPlans(list);
           setListError(null);
           setListStale(null);
-          // 고른 계획이 아직 있으면 그대로, 없으면 진행 중 첫 계획(오늘 화면과 같은 순서).
+          // 고른 계획이 아직 있으면 그대로, 없으면 레일 맨 위 계획(먼저 볼 계획이 있으면 그것 — `railOrder`).
           setSelectedId((cur) => {
             if (cur && list.some((p) => p.plan_id === cur)) return cur;
             const { active, closed } = railOrder(list);
