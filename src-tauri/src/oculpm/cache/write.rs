@@ -135,13 +135,15 @@ impl<'a> JournalCache<'a> {
                             // 새로 생긴 칸은 이 자기치유 UPDATE 가 채우지 않으면
                             // 이미 캐시에 있는 일지에서 영원히 NULL 로 남는다
                             // (COERCION_VERSION 2 가 그 1회 재투영을 깨운다).
-                            // 039 `verified_stale` 도 같다 (COERCION_VERSION 3).
+                            // 039 `verified_stale` 도 같다 (COERCION_VERSION 3). 증거 등급은
+                            // 규칙이 바뀌면(COERCION_VERSION 5, 「안 봤다」 말투) 본문이 그대로여도
+                            // 다시 매겨야 한다.
                             c.execute(
                                 "UPDATE oculpm_journal SET
                                    file_mtime = ?1, created_at = ?2, updated_at = ?3,
                                    slug = ?4, parse_warnings = ?5, parse_ok = ?6,
                                    agent_session = ?7, coercion_version = ?8,
-                                   verified_stale = ?9
+                                   verified_stale = ?9, evidence = ?12
                                  WHERE project_id = ?10 AND relative_path = ?11",
                                 params![
                                     file_mtime,
@@ -155,6 +157,7 @@ impl<'a> JournalCache<'a> {
                                     snap.verified_stale as i64,
                                     pid,
                                     &rp,
+                                    snap.evidence,
                                 ],
                             )?;
                             return Ok(UpsertOutcomeRaw::MtimeOnly);

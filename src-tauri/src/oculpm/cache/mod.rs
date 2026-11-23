@@ -51,7 +51,9 @@ use crate::oculpm::spec::{
 ///                12건이 디스크는 그대로인 채 다시 투영돼야 한다. 같은 판에서
 ///                `agent_id`·`agent_version` 이 표준형(`model_names`)으로, 검증 칸의
 ///                증거 등급(`evidence`, 042)이 새로 투영된다.
-pub const COERCION_VERSION: i64 = 4;
+///            5 — 증거 등급의 「스스로 안 봤다」 말투가 늘었다 (2026-11-23, 「설치본에서 눈으로
+///                보지는 않았다」 · 「실기기 확인은 안 했다」). 본문이 그대로인 행도 등급을 다시 매긴다.
+pub const COERCION_VERSION: i64 = 5;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -765,3 +767,5 @@ mod agent_session_tests;
 mod distinct_files_tests;
 #[cfg(test)]
 mod unverified_tests;
+#[cfg(test)]
+mod evidence_regrade_tests;
