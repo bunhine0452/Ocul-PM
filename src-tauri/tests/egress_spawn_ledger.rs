@@ -588,3 +588,31 @@ mod tests {
     .collect();
     assert_eq!(got, want);
 }
+
+/// D7 — 설정 「기기를 떠나는 것」 목록(`src/features/settings/egressDoors.json`)이 묶은 기동 자리 == 이 원장의
+/// 송출 가능(Network) 자리. 네트워크에 닿는 하위 프로세스가 늘면 사람에게 보이는 목록도 늘어야 한다 (11-23 G2).
+#[test]
+fn the_settings_egress_list_covers_every_network_launch() {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/features/settings/egressDoors.json");
+    let raw = std::fs::read_to_string(path).expect("egressDoors.json 을 읽지 못했다");
+    let doc: serde_json::Value =
+        serde_json::from_str(&raw).expect("egressDoors.json 이 JSON 이 아니다");
+    let listed: BTreeSet<String> = doc["doors"]
+        .as_array()
+        .expect("doors 배열")
+        .iter()
+        .flat_map(|d| d["launches"].as_array().cloned().unwrap_or_default())
+        .filter_map(|s| s.as_str().map(str::to_string))
+        .collect();
+    let network: BTreeSet<String> = APP_LAUNCHES
+        .iter()
+        .filter(|l| matches!(l.reach, Reach::Network(_)))
+        .map(|l| l.path.to_string())
+        .collect();
+    assert_eq!(
+        listed, network,
+        "설정 「기기를 떠나는 것」 목록과 원장의 송출 가능 기동 자리가 다르다.\n\
+         → egressDoors.json 의 launches 와 i18n 의 prefs.egress.<id> 문구를 같은 커밋에서 고쳐라."
+    );
+}

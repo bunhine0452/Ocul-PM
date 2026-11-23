@@ -533,3 +533,36 @@ fn the_redaction_doc_count_matches_the_tree() {
         files.len()
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// E. 사람에게 보이는 목록 — 설정 「기기를 떠나는 것」 (11-23 love-round G2 #egress-visible)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 설정 화면의 목록(`src/features/settings/egressDoors.json`)이 묶은 송출 자리 == 이 원장에서 기기를 벗어나는
+/// 자리(LocalOnly 아님). 원장에 문이 늘면 사람에게 보이는 목록도 늘지 않고는 통과하지 않는다 — 문서와 화면이
+/// 원장보다 적게 말하는 일이 없게. 기동 쪽(터미널)은 `egress_spawn_ledger.rs` 가 같은 표로 대조한다.
+#[test]
+fn the_settings_egress_list_covers_every_outbound_site() {
+    let raw = std::fs::read_to_string(web_src().join("features/settings/egressDoors.json"))
+        .expect("egressDoors.json 을 읽지 못했다");
+    let doc: serde_json::Value =
+        serde_json::from_str(&raw).expect("egressDoors.json 이 JSON 이 아니다");
+    let listed: BTreeSet<String> = doc["doors"]
+        .as_array()
+        .expect("doors 배열")
+        .iter()
+        .flat_map(|d| d["sites"].as_array().cloned().unwrap_or_default())
+        .filter_map(|s| s.as_str().map(str::to_string))
+        .collect();
+    let outbound: BTreeSet<String> = RUST_SITES
+        .iter()
+        .chain(WEB_SITES.iter())
+        .filter(|s| s.control != Control::LocalOnly)
+        .map(|s| s.path.to_string())
+        .collect();
+    assert_eq!(
+        listed, outbound,
+        "설정 「기기를 떠나는 것」 목록과 원장의 송출 자리가 다르다.\n\
+         → egressDoors.json 의 sites 와 i18n 의 prefs.egress.<id> 문구를 같은 커밋에서 고쳐라."
+    );
+}
