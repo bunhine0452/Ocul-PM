@@ -13,7 +13,7 @@ The questions that actually come up in the first few days. The confusing concept
 
 **It leaves a human-readable record of what an AI agent did to your code.**
 
-A commit message only says *what changed*. Ocul records *why it was done that way, what was tried and failed, and how it was checked* — and the app unfolds only **what a person must see** from that record: failed verdicts · entries without evidence · unrecorded changes. The goal is to trust what the agent did, and decide what's next, in three minutes.
+A commit message only says *what changed*. Ocul records *why it was done that way, what was tried and failed, and how it was checked* — and the app unfolds only **what a person must see** from that record: failed check commands · entries without evidence · unrecorded changes. The goal is to trust what the agent did, and decide what's next, in three minutes.
 
 ### Do I have to write the entries?
 
@@ -96,7 +96,7 @@ Change it in the project's `.oculpm/config.toml`, e.g. `day_starts_at = "03:00"`
 
 A unit the app **opens when an agent starts working and closes after things go quiet**, by watching file changes. Roughly "one sitting," named like `20260821-002`. Entries are grouped by the session that produced them automatically.
 
-### Journal vs plan vs verdict — what's the difference?
+### Journal vs plan vs check result — what's the difference?
 
 Different points on the timeline:
 
@@ -104,7 +104,7 @@ Different points on the timeline:
 |---|---|---|
 | **Plan** | **Now** | Done condition · check command · items. Glyphs move as items progress. Big decisions go in the decision block |
 | **Work Journal** | **After** the work | What was done, why and how — and what was run to check it |
-| **Verdict** | **After running** the check command | One line, `verdict ✓|✗ <last line>`. The result decides, not the agent's word |
+| **Check result** | **After running** the check command | One line, `verdict ✓|✗ <last line>`. The result decides, not the agent's word |
 
 The 3.x Discussions screen was removed in 4.0 — `.oculpm/discussion/` files are left as they are.
 

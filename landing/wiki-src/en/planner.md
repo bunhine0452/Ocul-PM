@@ -1,6 +1,6 @@
 ---
 title: Plan
-desc: A plan document agents keep current — done condition · check command · last verdict, glyphs, the change log, decisions, and locking.
+desc: A plan document agents keep current — done condition · check command · last result, glyphs, the change log, decisions, and locking.
 order: 6
 updated: 2026-11-15
 ---
@@ -48,7 +48,7 @@ owner: claude-code
 
 **The glyph in the body is the truth about current state.** The change log below is history. `/oculpm:next` flips an item to `[~]` the moment it claims it, so a parallel session doesn't grab the same item.
 
-## Done condition · check command · last verdict
+## Done condition · check command · last result
 
 "All items are closed" and "the goal is met" are different claims. So two lines sit at the head of a plan.
 
@@ -63,7 +63,7 @@ verdict ✗ 2 failed, 418 passed
 판정 ✓ …          (Korean template — same shape)
 ```
 
-The newest such line is the plan's **last verdict**. The plugin's start hook and the app's Plan screen read it by **the same rule** (`^(판정|verdict) (✓|✗)`), so the next session's agent and you see the same verdict. A plain note with a colon, like "verdict:", is not a verdict. **All items closed is not done until the verdict passes** — a failed verdict shows up as a "Failed" row under Today's "Needs your eyes".
+The newest such line is the plan's **last result**. The plugin's start hook and the app's Plan screen read it by **the same rule** (`^(판정|verdict) (✓|✗)`), so the next session's agent and you see the same result. A plain note with a colon, like "verdict:", is not a result line. **All items closed is not done until the check command passes** — a failed check command shows up as a "Failed" row under Today's "Needs your eyes".
 
 ## The change log — who moved what, when, why
 
@@ -107,7 +107,7 @@ Agents **will not modify** a `done` or `archived` plan. That keeps a finished pl
 ## The Plan screen (`⌘3`)
 
 - **Rail** — each active plan with its done count (`3/5`) and its check result on one line (the same four states as Today — passed · failed · changed after pass · passed on another machine; "No check result" when there is none), most recently updated first
-- **Verdict card** — done condition · check command · last verdict (the card's "Last result" row — last line of output) right under the title; "Not run yet" when there is none. **[Run in shell]** beside the check command shows the full command in a confirm dialog and only then runs that one line in a new shell session — it leaves the plan's last verdict as it is (logging the verdict line is still the agent's job)
+- **Check-result card** — done condition · check command · last result (the card's "Last result" row — last line of output) right under the title; "Not run yet" when there is none. **[Run in shell]** beside the check command shows the full command in a confirm dialog and only then runs that one line in a new shell session — it leaves the plan's last result as it is (writing the result line is still the agent's job)
 - **Next up** — the first open item (human-owned ones skipped) with **[Run in terminal]** · **[To the end (/goal)]**. The first has `claude` pick the item up in a new session of the in-app terminal; the second hands the plan's done condition and check command to Claude Code's `/goal`, so it keeps going until the condition holds. Every item also has "Send to Claude". When nothing is left (no to-do, in-progress or blocked item), **[Close plan]** takes its place — the plan moves to finished plans, and the notification's undo reopens it.
 - **Item status** — click an item's box to pick one of six states. Marking it done without a verifying entry asks once
 - "Plan log · N lines · M decisions" stays folded
@@ -123,4 +123,4 @@ When writing item lines, `{#id}` must sit at the **end of the line** with no wra
 ## Next steps
 
 - The record that pairs with plans → [Work Journal](/wiki/en/journal)
-- Where a failed verdict shows up → [Today](/wiki/en/today)
+- Where a failed check command shows up → [Today](/wiki/en/today)

@@ -22,7 +22,7 @@ Every record in Ocul is **a markdown file inside your project**. The app's datab
 │     ├─ Features_to_add/
 │     ├─ Bugs/
 │     └─ …
-├─ planner/      living plan documents .md (done condition · check command · verdict log)
+├─ planner/      living plan documents .md (done condition · check command · result log)
 ├─ agents/       the master of the agent recording rules and the entry spec (journal-spec.md)
 └─ index/        app-managed cache (do not edit)
 ```

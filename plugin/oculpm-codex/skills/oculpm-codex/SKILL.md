@@ -1,6 +1,6 @@
 ---
 name: oculpm-codex
-description: Use ocul-pm journals and planners from Codex without relying on Claude-only plugin variables.
+description: Use Ocul journals and planners from Codex without relying on Claude-only plugin variables.
 ---
 
 # ocul-pm for Codex

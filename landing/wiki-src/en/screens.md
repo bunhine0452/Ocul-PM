@@ -11,9 +11,9 @@ Top-bar tab order = `⌘` number order (`⌘1` – `⌘5`). `⌃Tab` · `⌃⇧T
 
 | Screen | Key | What it does |
 |---|---|---|
-| **Today** | `⌘1` | One line of numbers on the right of the date line (your turn · plans to close · arrived · only here). "Needs your eyes" — Claude's questions (answer right there) · a waiting session · failed verdicts · changed after pass · a ✓ from another machine · changes with no journal · blocked · a new plugin version, with the next item as its last row. Below it, entries finished without verification, and beside them what was done today (on a long day, one line per plan) |
+| **Today** | `⌘1` | One line of numbers on the right of the date line (your turn · plans to close · arrived · only here). "Needs your eyes" — Claude's questions (answer right there) · a waiting session · failed check commands · changed after pass · a ✓ from another machine · changes with no journal · blocked · a new plugin version, with the next item as its last row. Below it, entries finished without verification, and beside them what was done today (on a long day, one line per plan) |
 | **Work Journal** | `⌘2` | A list on the left, the detail on the right (evidence first — verification box · body · inline diff per file · related entries). The plan item in the header links to that item. Journal search (`/`) lives here |
-| **Plan** | `⌘3` | Done condition · check command · last verdict right under the title, the next item run in the terminal or taken to the end (`/goal`). "Run in shell" beside the check command runs it in a new shell session after a confirm dialog. "Send to Claude" on every item. Finished phases fold to one line, and a plan with nothing left gets "Close plan" |
+| **Plan** | `⌘3` | Done condition · check command · last result right under the title, the next item run in the terminal or taken to the end (`/goal`). "Run in shell" beside the check command runs it in a new shell session after a confirm dialog. "Send to Claude" on every item. Finished phases fold to one line, and a plan with nothing left gets "Close plan" |
 | **Diff** | `⌘4` | Uncommitted / last-commit diffs. "No journal" (files no entry mentions) comes first, and [Ask for an entry] asks for one |
 | **Terminal** | `⌘5` | A shell in this project folder. One session is just the terminal; two or more get a tab row on top — a session is named after the conversation title Claude Code sends. Claude Code's status signal tells it working · waiting · done. In Claude · Codex input `⇧↩` is a newline (Enter in a shell or vim), and `⌘L` sends the selected output to Claude. "Next" on Today and Plan opens `claude` here. Sessions end when the window closes, and closing while something runs asks first |
 | **Settings** | `⌘,` | "To fix" on top, then agents · this project · appearance · app, on one page |
@@ -41,5 +41,5 @@ The measured reasons are in the "removed in 4.0" table of [PROMISE.md](https://g
 ## Next steps
 
 - What Today unfolds and folds → [Today](/wiki/en/today)
-- What the last verdict is → [Plan](/wiki/en/planner)
+- What the last result is → [Plan](/wiki/en/planner)
 - Every shortcut → [Shortcuts](/wiki/en/shortcuts)

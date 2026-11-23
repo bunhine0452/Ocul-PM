@@ -9,7 +9,7 @@ updated: 2026-11-15
 
 ## Layout
 
-The **date line** is on top, with **one line of numbers** on its right. Below it, the left column holds what to do — **Needs your eyes** (its last row is **Next**) → **Finished without verification** → sessions working now (only when there are some) — and the right column holds **Done today**. A narrow window folds them into one column. Per-plan progress and passing verdicts live on the [Plan](/wiki/en/planner) tab. The number next to the Today tab in the top bar counts only "Needs your eyes" (not the Next row).
+The **date line** is on top, with **one line of numbers** on its right. Below it, the left column holds what to do — **Needs your eyes** (its last row is **Next**) → **Finished without verification** → sessions working now (only when there are some) — and the right column holds **Done today**. A narrow window folds them into one column. Per-plan progress and passing check results live on the [Plan](/wiki/en/planner) tab. The number next to the Today tab in the top bar counts only "Needs your eyes" (not the Next row).
 
 ## Numbers on the date line
 
@@ -28,8 +28,8 @@ Most urgent first, each row led by one status chip. When it is empty, one calm p
 |---|---|---|
 | **Question** | Claude asks for your decision through the plugin's `ask_user` tool | the answers to pick · an answer box — it goes straight back to that Claude |
 | **Waiting** | Claude in the in-app terminal waits for you, or Claude in an outside terminal does ("Outside terminal", via the plugin's Notification hook) | Open in terminal (in-app) · Got it (outside) |
-| **Failed** | A plan's last verdict is `✗` | Check again · Open plan |
-| **Changed** | The last verdict is `✓`, but a file that plan covers was saved again after it | Check again · Open plan |
+| **Failed** | A plan's last result is `✗` | Check again · Open plan |
+| **Changed** | The last result is `✓`, but a file that plan covers was saved again after it | Check again · Open plan |
 | **Elsewhere** | The newest `✓` ran on another OS and hasn't run on this machine yet | Check again · Open plan |
 | **No journal** | A file changed today that no entry mentions, or a conversation that ended without an entry | View changes (files) · Ask for an entry (conversations) |
 | **Blocked** | A plan item is `[!]` | Open plan |
@@ -63,4 +63,4 @@ Before the first entry, a "No entries yet" card shows three steps to your first 
 ## Next steps
 
 - How entries pile up and what the verification box reads → [Work Journal](/wiki/en/journal)
-- Where verdicts and "Next" come from → [Plan](/wiki/en/planner)
+- Where check results and "Next" come from → [Plan](/wiki/en/planner)

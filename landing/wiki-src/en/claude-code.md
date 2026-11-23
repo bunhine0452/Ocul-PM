@@ -9,9 +9,9 @@ In Ocul, Claude Code runs **in your own terminal**. The app's place is to receiv
 
 | Place | What it does | Install |
 |---|---|---|
-| **Rules file** `AGENTS.md` | Tells the agent to write an entry after every unit of work, to state a done condition as an outcome before code, and to leave the verdict to a check command (template v20) | Automatic when you turn recording on |
+| **Rules file** `AGENTS.md` | Tells the agent to write an entry after every unit of work, to state a done condition as an outcome before code, and to leave pass or fail to a check command (template v20) | Automatic when you turn recording on |
 | **Plugin** `oculpm` | Hooks (session start · end) · MCP recording tools · commands — recording becomes **structure**, not a rule | The two lines below |
-| **App** | Entries show up within seconds, diffs are attached, and failed verdicts and entries without evidence land on Today | Just download it |
+| **App** | Entries show up within seconds, diffs are attached, and failed check commands and entries without evidence land on Today | Just download it |
 
 ## Install the plugin
 
@@ -30,17 +30,17 @@ The same commands sit in the app under **Settings → Agents** with copy buttons
 
 Once installed:
 
-- **Start hook** — for each recently updated plan: done condition · check command · **last verdict** · open items, plus the last three entries, go into the starting context. You don't explain yesterday again
+- **Start hook** — for each recently updated plan: done condition · check command · **last result** · open items, plus the last three entries, go into the starting context. You don't explain yesterday again
 - **End hook** — judges whether the session ended without an entry
 - **Notification hook** — when Claude waits for you (Notification), a "Waiting" row ("Outside terminal") appears under "Needs your eyes" on Today in the app, plus an OS notification if the window is in the background
 - **8 MCP tools** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` · `ask_user` (asks for your decision on Today in the app and waits for the answer, up to 25 minutes)
-- **Commands** — `/oculpm:inception` (what happens next → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is a check command that is red now) · `/oculpm:next` (claim the item as `[~]` → implement → check command → entry → plan; with `until-done`, until the verdict passes) · `/oculpm:redteam` (runs the claims, reports only counter-examples) · `/oculpm:help`
+- **Commands** — `/oculpm:inception` (what happens next → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is a check command that is red now) · `/oculpm:next` (claim the item as `[~]` → implement → check command → entry → plan; with `until-done`, until the check command passes) · `/oculpm:redteam` (runs the claims, reports only counter-examples) · `/oculpm:help`
 
-It is all configured globally under `~/.claude`, so it works in **every project** (it records only where `.oculpm/` exists). You can use the plugin before installing the app — records pile up as `.oculpm/` markdown, and the app reads them as-is whenever you install it. More on the [plugin page](/en/plugin).
+It is all configured globally under `~/.claude`, so it works in **every project** (it records only where `.oculpm/` exists). The `.oculpm/` folder exists once you turn recording on in the app, and the recording tools (MCP) ship inside it, so the app is needed once. You also need Claude Code and git (Git Bash on Windows); if entries don't arrive, see “Journals not arriving” in Settings → Agents. More on the [plugin page](/en/plugin).
 
-## The verdict line
+## The result line
 
-An agent that ran the check command logs the result as a `plan_update` note, one line: `verdict ✓|✗ <last line of output>` (`판정` in Korean). The start hook and the Plan screen read that line by the same rule and show it as the "last verdict". More in [Plan](/wiki/en/planner).
+An agent that ran the check command logs the result as a `plan_update` note, one line: `verdict ✓|✗ <last line of output>` (`판정` in Korean). The start hook and the Plan screen read that line by the same rule and show it as the "last result". More in [Plan](/wiki/en/planner).
 
 ## What the app hands to your terminal
 
@@ -49,7 +49,7 @@ An agent that ran the check command logs the result as a `plan_update` note, one
 - **"Send to Claude"** (entries · plan items · changed files · diff notes · terminal output selected with `⌘L`) — puts text carrying that context into an in-app claude session, opening a new one if there is none; while Claude is working it waits in line and goes in when Claude stops.
 - **Diff [Ask for an entry]** — asks for an entry covering the files no entry mentions.
 - **Today's hand-off buttons** — "Check again" (rerun a check command and log the result to the plan) · "Ask for an entry" (a conversation that ended without one) · "Ask Claude to push" (commit and push) · "Hand off in terminal" before the first entry (a first task) start `claude` in a new session with a prompt for that job. With no plan at all, the Plan screen's [Plan it in the terminal] hands over `/oculpm:inception` the same way.
-- **The Plan's [Run in shell]** — shows the full check command in a confirm dialog and only then runs that one line in a new shell session. Logging the verdict line is still Claude's job.
+- **The Plan's [Run in shell]** — shows the full check command in a confirm dialog and only then runs that one line in a new shell session. Writing the result line is still Claude's job.
 
 The app writes into a terminal only when you press a button like these, and never into a terminal outside the app. The other direction — Claude asking you — is the `ask_user` tool: the question shows up on Today, and the answer you pick or type goes straight back to Claude.
 

@@ -16,7 +16,7 @@ Check these in order:
 
 ## I can't find Search, Discussions, Branch or Skills
 
-4.0 removed them. The app has five surfaces: Today · Work Journal · Plan · Diff · Settings.
+4.0 removed them. The app has five screens: Today · Work Journal · Plan · Diff · Terminal (Settings opens with ⌘,).
 
 | You were looking for | In 4.0 |
 |---|---|

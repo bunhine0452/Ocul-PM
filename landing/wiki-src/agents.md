@@ -76,8 +76,8 @@ Claude Code·Codex CLI·Gemini CLI 를 비롯한 다수의 에이전트가 이 �
 |---|---|---|---|
 | Claude Code | **3 세션 관측** | oculpm 플러그인(훅 · MCP 도구 · 커맨드) · `AGENTS.md` + `.claude/CLAUDE.md` 블록 | v3.0.0 · 2026-09-11 |
 | Codex | **3 세션 관측** | Codex 플러그인(훅 · `~/.codex/config.toml` MCP 등록 안내) · `AGENTS.md`(네이티브) | v2.37.0 · 2026-09-03 |
-| Gemini CLI | 1 규칙 호환 | `AGENTS.md` + `GEMINI.md` 블록 | — |
-| Cursor | 1 규칙 호환 | `.cursor/rules/ocul-pm.mdc` | — |
+| Gemini CLI | 2 구조화 기록 | `AGENTS.md` + `GEMINI.md` 블록 · 설정에서 기록 도구(MCP)를 `.gemini/settings.json` 에 등록 | — |
+| Cursor | 2 구조화 기록 | `.cursor/rules/ocul-pm.mdc` · 설정에서 기록 도구(MCP)를 `.cursor/mcp.json` 에 등록 | — |
 | GitHub Copilot | 1 규칙 호환 | `.github/copilot-instructions.md` 블록 | — (v2.0.0 출시) |
 | Windsurf | 1 규칙 호환 | `.windsurf/rules/ocul-pm.md` | — (v2.0.0 출시) |
 | Cline | 1 규칙 호환 | `.clinerules/ocul-pm.md` | — (v2.0.0 출시) |
