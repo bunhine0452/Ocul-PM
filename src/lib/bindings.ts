@@ -745,6 +745,12 @@ export const commands = {
 	 */
 	oculpmExportDigest: (projectId: number, since: string, until: string) => typedError<string | null, string>(__TAURI_INVOKE("oculpm_export_digest", { projectId, since, until })),
 	/**
+	 *  영수증 한 장을 HTML 파일로 저장한다 (11-23 love-round #reviewer-mode-share-link). 저장 대화상자에서
+	 *  사용자가 고른 로컬 파일 하나에 쓴다 — 네트워크는 없고, 문서는 스크립트 · 바깥 자원이 없는 자체완결이다.
+	 *  취소하면 `None`.
+	 */
+	saveReceiptHtml: (defaultName: string, html: string) => typedError<string | null, string>(__TAURI_INVOKE("save_receipt_html", { defaultName, html })),
+	/**
 	 *  W4 dogfooding follow-up (2026-05-26) — return the absolute path to the
 	 *  directory holding the daily-rotated `oculpm.log.YYYY-MM-DD` files. Settings
 	 *  uses this for the "로그 폴더 열기" button (delegates to opener plugin).
