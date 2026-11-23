@@ -1,5 +1,6 @@
 /**
- * 세션 상태 띠 — 칸 위에 겹치는 한 줄, **예외일 때만** (영수증 규칙 1).
+ * 세션 상태 띠 — 칸 오른쪽 위에 겹치는 알약 하나, **예외일 때만** (영수증 규칙 1). 칸 폭 전체이던 때는 Claude
+ * 전체 화면의 맨 윗줄을 통째로 가렸다 — 이제 가림은 윗줄 오른쪽 모서리만이다(love-round L6, `terminal.css`).
  *
  *  - 내 손을 기다린다: 까닭 한 줄(「approve Write: …」). 답은 터미널에서 한다.
  *  - 일지 없이 손을 놓았다: 「일지 없음」 + 「기록 남기게 하기」 — 오늘의 「다음」 이 여는 claude 세션 하나가
@@ -83,7 +84,6 @@ export function StatusBand({ info, view, resumes, onAskRecord, onReopen, onClose
           {t("terminal.noRecord")}
         </span>
       ) : null}
-      <span className="tm-band-sp" />
       {norecLive ? (
         <>
           {isClaudeApp(info) ? (

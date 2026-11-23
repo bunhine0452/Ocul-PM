@@ -3,7 +3,7 @@
    (화면 검사 #term-col — 왼쪽 목록 칸이 일지 · 계획의 목록 칸과 두 겹이었다).
    터미널 면은 `--term-bg`(= 콘텐츠 바탕) 라 화면과 이어진다. 색은 tokens.css 의 --term-*.
 
-   왼쪽 기준선은 하나 — 탭의 점 · 칸 머리 · 상태 띠 · 레인 띠 · 빈 문장 · 터미널 글자가 모두 --space-5 에서
+   왼쪽 기준선은 하나 — 탭의 점 · 칸 머리 · 레인 띠 · 빈 문장 · 터미널 글자가 모두 --space-5 에서
    시작한다(예전엔 10 · 12 · 16 · 20px 다섯 갈래였다).
    ============================================================ */
 
@@ -165,19 +165,26 @@
 }
 .tm-over > * { pointer-events: auto; }
 
-/* 상태 띠 — 기다림 · 일지 없음은 앰버 면, 끝남은 중립 면. 터미널 위에 겹치므로 면은 불투명하다
+/* 상태 띠 — 칸 오른쪽 위의 알약 하나(love-round L6 #status-band-overlay). 칸 폭 전체이던 때는 기다림 · 일지 없음
+   동안 Claude 전체 화면의 맨 윗줄(31px, 약 두 줄)을 통째로 가렸다 — 이제 가림은 윗줄 오른쪽 모서리만이고, 빈 자리는
+   터미널로 통한다(`.tm-over` 의 pointer-events). 격자 크기는 그대로라 서고 질 때 다시 그려지지 않는다.
+   기다림 · 일지 없음은 앰버 면 + 앰버 테, 끝남은 중립 면. 터미널 위에 겹치므로 면은 불투명하다
    (앰버 면 = 터미널 바탕 위에 --warn-soft 한 겹, 단색 두 겹이지 그라디언트 효과가 아니다). */
 .tm-band {
-  display: flex; align-items: center; gap: var(--space-3); min-height: calc(var(--ctl-3) + 4px);
-  padding: 2px var(--space-3) 2px var(--space-5); border-bottom: 1px solid var(--sep);
+  align-self: flex-end; display: flex; align-items: center; gap: var(--space-3);
+  width: max-content; max-width: calc(100% - 2 * var(--space-3)); min-height: var(--ctl-2);
+  margin: var(--space-1) var(--space-3) 0; padding: 1px 1px 1px var(--space-4);
+  border: 1px solid var(--sep-strong); border-radius: var(--radius-pill);
   background: var(--bg-window); font-size: var(--fs-3); color: var(--text-2);
 }
-.tm-band.is-warn { background: linear-gradient(var(--warn-soft), var(--warn-soft)), var(--term-bg); color: var(--warn-text); }
+.tm-band :is(.btn, .iconbtn) { border-radius: var(--radius-pill); }
+.tm-band.is-warn { border-color: var(--warn); background: linear-gradient(var(--warn-soft), var(--warn-soft)), var(--term-bg); color: var(--warn-text); }
 .tm-band-word { flex: none; font-weight: var(--fw-strong); }
 .tm-band-word.is-warn { color: var(--warn-text); }
 .tm-band-word.is-danger { color: var(--danger-text); }
 .tm-band-msg { min-width: 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tm-band-sp { flex: 1; }
+/* 단추 없이 글로 끝나는 알약(기다림)은 오른쪽에도 왼쪽만큼 띄운다 — 단추로 끝나면 단추가 알약 끝에 붙는다. */
+.tm-band > span:last-child { margin-right: calc(var(--space-4) - 1px); }
 
 /* 터미널 찾기 (11-02) — 칸 머리 아래 오른쪽. 출력 위에 뜨므로 카드 면 · 그림자. 칸보다 넓어지지 않는다. */
 .tm-find {
