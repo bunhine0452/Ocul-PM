@@ -333,8 +333,8 @@ describe("작업 일지 — 목록", () => {
   it("빈 일지는 첫날 안내와 지난 커밋에서 가져오기를 보인다", async () => {
     const { findByText, getByText } = renderJournal();
     // 문장 하나 · 버튼 하나 (화면 검사 #empty-one).
-    expect(await findByText(t("journal.empty"))).toBeInTheDocument();
-    expect(getByText("커밋에서 일지 만들기")).toBeInTheDocument();
+    expect(await findByText(t("today.first.step3Body"))).toBeInTheDocument(); // 오늘 3단계와 같은 문장 (11-23 G2)
+    expect(getByText("커밋에서 일지 만들기").className).not.toContain("primary"); // 채운 단추는 첫 작업
   });
 
   it("최근 창이 비어도 '이전 기록 더 보기' 로 전체 기간에 닿는다", async () => {
