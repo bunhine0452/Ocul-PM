@@ -719,6 +719,10 @@ pub(crate) use plan_create::*;
 
 mod args;
 
+// ─── `[~]` 잡기의 주인 · 나이 → claims.rs ───────────────────────────────────
+
+mod claims;
+
 // ─── project_init → project_init.rs ─────────────────────────────────────────
 
 mod project_init;
