@@ -103,7 +103,7 @@ Different points on the timeline:
 | | When | What |
 |---|---|---|
 | **Plan** | **Now** | Done condition · check command · items. Glyphs move as items progress. Big decisions go in the decision block |
-| **Work Journal** | **After** the work | What was done, why and how — and what was run to check it |
+| **Journal** | **After** the work | What was done, why and how — and what was run to check it |
 | **Check result** | **After running** the check command | One line, `verdict ✓|✗ <last line>`. The result decides, not the agent's word |
 
 The 3.x Discussions screen was removed in 4.0 — `.oculpm/discussion/` files are left as they are.
@@ -126,7 +126,7 @@ Yes. They're plain markdown and the app re-reads them when you save. But **agent
 
 ### What if there are too many entries?
 
-Today doesn't overflow even at 60 a day — work with evidence folds to one line per plan, and only what you must see unfolds. Work Journal groups by date, with journal search (`/`) and filters (type · Unverified only). And you can delete entries — they're just files.
+Today doesn't overflow even at 60 a day — work with evidence folds to one line per plan, and only what you must see unfolds. Journal groups by date, with journal search (`/`) and filters (type · Unverified only). And you can delete entries — they're just files.
 
 ### What happens to my records if I uninstall?
 

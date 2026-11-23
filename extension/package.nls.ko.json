@@ -9,7 +9,7 @@
   "cmd.showPanel": "Ocul 패널 보기",
   "cmd.openToday": "Ocul 의 오늘 화면 열기",
   "view.overview": "한눈에",
-  "view.welcome": "이 폴더에는 아직 Ocul 기록이 없어요. Claude Code 에 Ocul 플러그인을 깔면 코딩 에이전트가 일을 마칠 때마다 .oculpm/ 에 기록을 남겨요.\n[설치 두 줄 복사](command:ocul.copyPluginInstall)\n터미널에 붙여 넣은 뒤 이 폴더에서 Claude Code 를 시작하세요. .oculpm/ 이 생기면 [기록 다시 읽기](command:ocul.refresh).\nCodex · Cursor · Gemini CLI 는 Ocul 앱의 설정에서 연결해요.",
+  "view.welcome": "이 폴더에는 아직 Ocul 기록이 없어요. Ocul 앱에서 이 폴더를 열어 기록을 켜면 .oculpm/ 이 생겨요. 그다음 Claude Code 에 플러그인을 깔면 코딩 에이전트가 일을 마칠 때마다 기록을 남겨요.\n[설치 두 줄 복사](command:ocul.copyPluginInstall)\n터미널에 붙여 넣은 뒤 이 폴더에서 Claude Code 를 시작하세요. .oculpm/ 이 있으면 [기록 다시 읽기](command:ocul.refresh).\nCodex · Cursor · Gemini CLI 는 Ocul 앱의 설정에서 연결해요.",
   "cmd.copyPluginInstall": "Claude Code 플러그인 설치 두 줄 복사",
   "config.notifyWhenClaudeWaits": "Claude 가 기다리기 시작하면(허락 · 입력 · 질문) 알림을 한 번 띄워요."
 }

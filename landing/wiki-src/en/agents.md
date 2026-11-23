@@ -109,4 +109,4 @@ The 3.x Skills & Rules screen (skill editing · recommended-skill installs · fi
 ## Next steps
 
 - On Claude Code → [Claude Code](/wiki/en/claude-code)
-- Checking that the rules are working → unrecorded changes, in [Work Journal](/wiki/en/journal)
+- Checking that the rules are working → unrecorded changes, in [Journal](/wiki/en/journal)

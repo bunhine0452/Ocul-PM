@@ -13,12 +13,12 @@ The **date line** is on top, with **one line of numbers** on its right. Below it
 
 ## Numbers on the date line
 
-They read like "Your turn 3 · Plans to close 1 · Arrived 2 · Only here 4". They don't change daily, so they stand as numbers rather than rows, and a zero isn't shown. Each number takes you to what it counts.
+They read like "Your turn 3 · Plans to close 1 · From other machines 2 · Not on other machines 4". They don't change daily, so they stand as numbers rather than rows, and a zero isn't shown. Each number takes you to what it counts.
 
 - **Your turn** — human-owned (`[user]`) items in your plans. Opens that plan
 - **Plans to close** — plans with nothing left that are still listed as in progress. Close them with "Close plan" on the Plan screen
-- **Arrived** — entries written on another machine or by a teammate, among the commits pulled today. Opens the newest. With none, in a repository that has received records from elsewhere before, "Synced N days ago" shows instead once the last pull or push is more than a day old — the app never fetches
-- **Only here** — journal and plan files not committed or not pushed yet. Opens Diff, and "Ask Claude to push" beside it asks Claude in the in-app terminal to commit and push — the app itself never pushes
+- **From other machines** — entries written on another machine or by a teammate, among the commits pulled today. Opens the newest. With none, in a repository that has received records from elsewhere before, "Last pushed or pulled N days ago" shows instead once the last pull or push is more than a day old — the app never fetches
+- **Not on other machines** — journal and plan files not committed or not pushed yet. Opens Diff, and "Ask Claude to push" beside it asks Claude in the in-app terminal to commit and push — the app itself never pushes
 
 ## Needs your eyes
 
@@ -26,14 +26,14 @@ Most urgent first, each row led by one status chip. When it is empty, one calm p
 
 | Chip | When it shows | Buttons |
 |---|---|---|
-| **Question** | Claude asks for your decision through the plugin's `ask_user` tool | the answers to pick · an answer box — it goes straight back to that Claude |
+| **Claude asks** | Claude asks for your decision through the plugin's `ask_user` tool | the answers to pick · an answer box — it goes straight back to that Claude |
 | **Waiting** | Claude in the in-app terminal waits for you, or Claude in an outside terminal does ("Outside terminal", via the plugin's Notification hook) | Open in terminal (in-app) · Got it (outside) |
 | **Failed** | A plan's last result is `✗` | Check again · Open plan |
-| **Changed** | The last result is `✓`, but a file that plan covers was saved again after it | Check again · Open plan |
-| **Elsewhere** | The newest `✓` ran on another OS and hasn't run on this machine yet | Check again · Open plan |
-| **No journal** | A file changed today that no entry mentions, or a conversation that ended without an entry | View changes (files) · Ask for an entry (conversations) |
+| **Edited** | The last result is `✓`, but a file that plan covers was saved again after it | Check again · Open plan |
+| **Other OS** | The newest `✓` ran on another OS and hasn't run on this machine yet | Check again · Open plan |
+| **No entry** | A file changed today that no entry mentions, or a conversation that ended without an entry | View changes (files) · Ask for an entry (conversations) |
 | **Blocked** | A plan item is `[!]` | Open plan |
-| **Update** | The plugin installed for the project is older than the app | Copy update command |
+| **Plugin** | The plugin installed for the project is older than the app | Copy update command |
 | **Next** | The last row — the plan's next item | Run in terminal |
 
 "Check again" has Claude, in a new session of the in-app terminal, rerun that plan's check command on this machine against the current code and log the result to the plan — the app never writes the ✓ itself.
@@ -46,7 +46,7 @@ The last row of "Needs your eyes" is the plan's next item (the first `[ ]` that 
 
 ## Finished without verification
 
-Bug · feature · refactor entries with no command under Verification, or whose content changed after you read them, in one group. **Mark read** (`v`) on each row, **Mark all read** on the group header. Click a title to open the entry. Past five rows, "N more" opens Work Journal filtered to "Unverified only".
+Bug · feature · refactor entries with no command under Verification, or whose content changed after you read them, in one group. **Mark read** (`v`) on each row, **Mark all read** on the group header. Click a title to open the entry. Past five rows, "N more" opens Journal filtered to "Unverified only".
 
 ## Done today
 
@@ -62,5 +62,5 @@ Before the first entry, a "No entries yet" card shows three steps to your first 
 
 ## Next steps
 
-- How entries pile up and what the verification box reads → [Work Journal](/wiki/en/journal)
+- How entries pile up and what the verification box reads → [Journal](/wiki/en/journal)
 - Where check results and "Next" come from → [Plan](/wiki/en/planner)

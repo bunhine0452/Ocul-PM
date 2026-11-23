@@ -7,7 +7,7 @@ updated: 2026-11-15
 
 The places people get stuck with Ocul, collected in one manual. Kept short, updated often. (As of 4.0.)
 
-The app has five screens — **Today · Work Journal · Plan · Diff · Terminal** (Settings opens with ⌘,) — and a start window when no project is open. One principle: **show only the exceptions.** It unfolds only what a person must see (failed check commands · entries without evidence · unrecorded changes · blocked items · decisions that are yours) and folds work with evidence into one line. The app calls no LLM.
+The app has five screens — **Today · Journal · Plan · Diff · Terminal** (Settings opens with ⌘,) — and a start window when no project is open. One principle: **show only the exceptions.** It unfolds only what a person must see (failed check commands · entries without evidence · unrecorded changes · blocked items · decisions that are yours) and folds work with evidence into one line. The app calls no LLM.
 
 ## New here
 
@@ -18,7 +18,7 @@ The app has five screens — **Today · Work Journal · Plan · Diff · Terminal
 ## Concepts — what accumulates
 
 - **[Today](/wiki/en/today)** — the first screen you see. One line of numbers on the date line, and "Needs your eyes"
-- **[Work Journal](/wiki/en/journal)** — when and how entries pile up, the verification box, journal search
+- **[Journal](/wiki/en/journal)** — when and how entries pile up, the verification box, journal search
 - **[Plan](/wiki/en/planner)** — plan documents your agents update. Done condition · check command · last result
 
 ## Agent integration
@@ -35,7 +35,7 @@ The app has five screens — **Today · Work Journal · Plan · Diff · Terminal
 
 - **[Troubleshooting](/wiki/en/troubleshooting)** — common snags and their fixes
 - **[Data & file layout](/wiki/en/data)** — the `.oculpm/` folder, backup and moving, what local-first actually means
-- **[Shortcuts](/wiki/en/shortcuts)** — screens, windows, keys on Today, Work Journal and Terminal
+- **[Shortcuts](/wiki/en/shortcuts)** — screens, windows, keys on Today, Journal and Terminal
 
 :::note
 Found something wrong? "Edit this page" at the bottom left opens the source directly, or tell us in a [GitHub issue](https://github.com/bunhine0452/Ocul-PM/issues).

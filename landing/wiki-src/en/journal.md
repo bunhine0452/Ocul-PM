@@ -1,5 +1,5 @@
 ---
-title: Work Journal
+title: Journal
 desc: When and how entries accumulate, the file layout, the verification box and change diffs, journal search, and unrecorded changes.
 order: 5
 updated: 2026-11-15
@@ -72,7 +72,7 @@ tags: [cache, dogfooding]
 Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." The result is not the agent's word but **the command that ran and its last line of output**.
 :::
 
-## The Work Journal screen
+## The Journal screen
 
 On the left, one row per entry under date headers — an entry with evidence (a command, or read) is a single line of title and time, and only exceptions (no verification · open · abandoned · parse warning) get a second line with a reason chip. Entries whose touched files are all gone from the project fold into "Entries about code that is gone" at the end of that day. On the right, the selected entry's detail, evidence first — verification box → body → inline diff per file → related entries. Above the list sit the search box and the filters: type (All · Bugs · Features · Refactors · Chores) · "Unverified only" · period (Last 14 days · All time).
 
@@ -98,7 +98,7 @@ Entries are grouped by which session produced them. Even when an agent can't kno
 
 ## Unrecorded changes
 
-The app reconciles the file changes it observed against `files_touched` in entries and points at **changes no entry anywhere records** — in Today's "Needs your eyes", and as the "No journal" group at the top of Diff (`⌘4`).
+The app reconciles the file changes it observed against `files_touched` in entries and points at **changes no entry anywhere records** — in Today's "Needs your eyes", and as the "No entry" group at the top of Diff (`⌘4`).
 
 - If everything changed today is recorded somewhere, **nothing shows** — no noise on clean days
 - Temp files, editor artifacts, and agent internal state are never counted
