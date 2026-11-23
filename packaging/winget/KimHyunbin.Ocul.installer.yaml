@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+# NSIS 설치 파일 기준 — release.yml 의 Windows 잡이 `Ocul-PM_<버전>_x64-setup.exe` 로 만든다
+# (.github/scripts/release/latest-json.mjs 의 NONMAC.windows). 코드 서명은 아직 없는 베타라 SmartScreen 이
+# 한 번 물을 수 있다. 이 자산은 저장소 Actions 변수 OCULPM_RELEASE_NONMAC 이 true 일 때만 릴리스에 오른다
+# (docs/RELEASE.md §5-1) — 자산이 없는 버전으로 제출하지 않는다.
+# InstallerSha256 은 0 으로 찬 자리표시자 — `node scripts/packaging/update-manifests.mjs` 가 채운다.
+PackageIdentifier: KimHyunbin.Ocul
+PackageVersion: 4.12.1
+InstallerType: nsis
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+  - silentWithProgress
+InstallerSwitches:
+  Silent: /S
+  SilentWithProgress: /S
+MinimumOSVersion: 10.0.19041.0
+UpgradeBehavior: install
+ReleaseDate: 2026-11-23
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/bunhine0452/Ocul-PM/releases/download/v4.12.1/Ocul-PM_4.12.1_x64-setup.exe
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
+ManifestType: installer
+ManifestVersion: 1.6.0
