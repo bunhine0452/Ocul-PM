@@ -31,6 +31,8 @@ pub mod home;
 // single-instance 등록 + Linux 폴백 잠금 — D-Bus 가 없거나 주소를 못 읽을 때
 // (#os-single-instance-dbus · #os-dbus-addr-panic).
 mod instance_lock;
+// 잠자기 막기 — 설정을 켜면 Claude 가 일하는 동안만 OS 단언을 잡는다 (love-round L6).
+mod keep_awake;
 pub mod oculpm;
 // 신뢰할 수 없는 상대 경로의 관문 — 어휘 + 링크 (보안 피드백 2차).
 mod menu;
@@ -690,6 +692,7 @@ pub fn run() {
             // 창 → 프로젝트 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowProjects::default());
             app.manage(crate::terminal::TermSessions::default());
+            crate::keep_awake::install(app.handle());
             app.manage(crate::commands::UpdateGate::default());
             app.manage(crate::oculpm::claude_waiting::ClaudeWaitingState::default());
             app.manage(crate::oculpm::claude_blocked::ClaudeBlockedState::default());
@@ -846,6 +849,10 @@ pub(crate) fn teardown_for_exit(app_handle: &tauri::AppHandle) {
     if let Some(terms) = app_handle.try_state::<crate::terminal::TermSessions>() {
         // 터미널 세션 — 고아 셸을 남기지 않는다.
         terms.close_all();
+    }
+    if let Some(awake) = app_handle.try_state::<crate::keep_awake::KeepAwake>() {
+        // 잠자기 막기 — 잡은 단언을 푼다(프로세스가 끝나면 OS 도 거두지만, 끄는 동안 기다리지 않게).
+        awake.release_all(app_handle);
     }
     if let Some(manager) = app_handle.try_state::<crate::oculpm::manager::OculpmManager>() {
         manager.shutdown_all_blocking();

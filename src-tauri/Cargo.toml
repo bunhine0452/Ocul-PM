@@ -130,6 +130,7 @@ tauri-plugin-notification = "2"
 #   L-OS   탐색기 "복사" 붙여넣기(CF_HDROP: DataExchange · Ole · Shell · Memory) ·
 #          휴지통 COM 아파트 검증 테스트(Com)
 #   L-SHELL PowerShell 실행 정책을 셸 없이 읽기(Registry — 오케스트레이터 승인)
+#   잠자기 막기 SetThreadExecutionState(Power — love-round L6 `keep_awake.rs`, 11-23 사용자 결정)
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
@@ -144,6 +145,7 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Memory",
     "Win32_System_Ole",
     "Win32_System_Pipes",
+    "Win32_System_Power",
     "Win32_System_ProcessStatus",
     "Win32_System_Registry",
     "Win32_System_Threading",

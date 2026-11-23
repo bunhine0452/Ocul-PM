@@ -39,6 +39,8 @@ export const KEYS = {
   updateDismissed: "update_dismissed",
   // Claude Code 테마 파일을 앱 테마에 맞춘다 (11-15, `features/theme/claudeTheme.ts`) — 「off」 면 더 쓰지 않는다.
   claudeTheme: "claude_theme",
+  // 잠자기 막기 (11-23, love-round L6) — 「on」 이면 Claude 가 일하는 동안 기기가 잠들지 않는다(백엔드 `keep_awake.rs`).
+  keepAwake: "keep_awake",
 } as const;
 
 export type SettingKey = (typeof KEYS)[keyof typeof KEYS];
@@ -82,6 +84,9 @@ export interface Settings {
 
   /** `~/.claude/themes/ocul.json` 을 앱 테마에 맞춘다. `"off"` 면 더 쓰지 않고, 이미 있는 파일은 그대로 둔다. */
   claudeTheme: "on" | "off";
+
+  /** 잠자기 막기 — `"on"` 이면 일하는 Claude 세션이 있는 동안만 OS 단언을 잡는다. 기본 꺼짐(macOS · Windows 만). */
+  keepAwake: "on" | "off";
 }
 
 export const DEFAULTS: Settings = {
@@ -97,6 +102,7 @@ export const DEFAULTS: Settings = {
   terminalFontSize: 13,
   updateDismissed: "",
   claudeTheme: "on",
+  keepAwake: "off",
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -111,6 +117,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.terminalFontSize]: "terminalFontSize",
   [KEYS.updateDismissed]: "updateDismissed",
   [KEYS.claudeTheme]: "claudeTheme",
+  [KEYS.keepAwake]: "keepAwake",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(
@@ -132,6 +139,8 @@ function coerce<K extends keyof Settings>(field: K, raw: string): Settings[K] {
   if (field === "appIcon") return (isAppIconId(raw) ? raw : "color") as Settings[K];
   // 모르는 값은 켜짐으로 — 끄기는 「off」 를 적었을 때만이다.
   if (field === "claudeTheme") return (raw === "off" ? "off" : "on") as Settings[K];
+  // 잠자기 막기는 반대 — 「on」 을 적었을 때만 켜짐(기본 꺼짐, 백엔드 `enabled_from` 과 같은 규칙).
+  if (field === "keepAwake") return (raw.trim() === "on" ? "on" : "off") as Settings[K];
   // string-typed
   return raw as Settings[K];
 }
