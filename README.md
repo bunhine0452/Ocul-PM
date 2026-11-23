@@ -34,11 +34,11 @@ Claude Code 플러그인 두 줄로 시작하고, 화면으로 보고 싶으면 
 에이전트는 일을 끝내면 「다 됐습니다」라고 말합니다. 테스트가 정말 통과했는지, 어떤 파일을 왜 바꿨는지, 빠뜨린 것은 없는지는 그 말 안에 없습니다. 확인하려면 diff 와 로그를 처음부터 다시 읽어야 하고, 다음 날 새 대화에는 그 맥락마저 없습니다.
 
 ```text
-/plugin marketplace add bunhine0452/Ocul-PM
-/plugin install oculpm@oculpm
+claude plugin marketplace add bunhine0452/Ocul-PM
+claude plugin install oculpm@oculpm
 ```
 
-Claude Code 에 이 두 줄이면 시작입니다(앱 없이). 기록을 화면으로 보고 싶으면 [앱을 내려받으세요](https://github.com/bunhine0452/Ocul-PM/releases/latest) — macOS, Windows · Linux 베타.
+터미널에 이 두 줄이면 시작입니다(앱 없이 · Claude Code 안에서는 `/plugin marketplace add …` · `/plugin install …`). 열려 있던 Claude 는 다시 시작하세요. 기록을 화면으로 보고 싶으면 [앱을 내려받으세요](https://github.com/bunhine0452/Ocul-PM/releases/latest) — macOS, Windows · Linux 베타.
 
 Ocul 은 그 말 대신 영수증을 남깁니다. 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심으면 에이전트는 작업 하나를 끝낼 때마다 `.oculpm/journal/` 에 마크다운 일지를 남기고, 다음 대화는 그 일지와 남은 계획 — 완료 조건 · 확인 명령 · 마지막 판정 — 을 시작 컨텍스트로 받아 이어서 합니다. 앱은 그 기록에서 **사람이 볼 것만** 펼칩니다: 판정 실패, 명령 증거 없는 일지, 어느 일지에도 없는 변경, 막힌 항목, 사람 몫 결정. 증거가 선 일은 한 줄로 접힙니다. 원본이 전부 마크다운 파일이라 코드와 함께 커밋할 수 있고, 앱이 없어도 그냥 읽힙니다.
 
@@ -163,12 +163,14 @@ git 백필 시에는 커밋 서명으로 에이전트를 구분합니다.
 
 ## Claude Code 플러그인 — 앱 없이도 시작
 
-터미널 Claude Code 에서 두 줄이면 기록이 시작됩니다:
+터미널에서 두 줄이면 기록이 시작됩니다(Claude Code 안에서는 같은 줄을 `/plugin …` 으로):
 
 ```
-/plugin marketplace add bunhine0452/Ocul-PM
-/plugin install oculpm@oculpm
+claude plugin marketplace add bunhine0452/Ocul-PM
+claude plugin install oculpm@oculpm
 ```
+
+올릴 때는 `claude plugin update oculpm@oculpm` 한 줄이고, 그다음 열려 있는 Claude 를 다시 시작합니다. 앱의 설정 · 오늘 화면이 이 프로젝트에 무엇이 빠졌는지(설치 · 켜기 · 올리기)에 맞는 줄을 복사해 줍니다.
 
 Codex 라면 터미널에서 두 줄입니다:
 

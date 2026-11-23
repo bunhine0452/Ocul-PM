@@ -43,12 +43,14 @@ ocul-pm 의 Claude Code 연동 두 가지를 **한 번에** 구성합니다 (수
 claude --plugin-dir /path/to/ai-pm/plugin/oculpm
 ```
 
-마켓플레이스 (권장):
+마켓플레이스 (권장, 터미널에서 — Claude Code 안에서는 같은 줄을 `/plugin …` 으로):
 
 ```bash
-/plugin marketplace add bunhine0452/Ocul-PM
-/plugin install oculpm@oculpm
+claude plugin marketplace add bunhine0452/Ocul-PM
+claude plugin install oculpm@oculpm
 ```
+
+올리기는 `claude plugin update oculpm@oculpm`, 그다음 열려 있는 Claude 를 다시 시작하세요.
 
 > git-source 로 add 하세요 — marketplace.json 을 직접 URL 로 add 하면 서브디렉터리
 > 상대경로(source)를 해석하지 못합니다. 이 플러그인이 읽고 쓰는 것의 전체 계약은
