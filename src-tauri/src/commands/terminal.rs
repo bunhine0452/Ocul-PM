@@ -48,6 +48,30 @@ pub struct TermCloseAsked {
     pub quit: bool,
 }
 
+/// 이 창의 그 세션을 보여 달라 — 다른 창의 ⌘K · ⌘J 가 고른 세션(`term_focus_session`). **그 창에만** 보낸다
+/// (`emit_to` — 전역 emit 이면 모든 창이 제 터미널 탭으로 옮겨 갔다). 웹뷰는 `subscribeHere` 로 받아
+/// `requestTermFocus` 에 넘긴다 — 같은 창의 「터미널에서 보기」 와 같은 길.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct TermFocusAsked {
+    pub id: u32,
+}
+
+/// 다른 창의 세션으로 — 그 세션의 창을 앞으로 가져오고 그 창에 `TermFocusAsked` 를 보낸다. 세션이 없으면
+/// (그 사이 끝났다) `false` — 부른 쪽이 창만 연다. 예전엔 창만 앞으로 와서 그 창의 지난 탭이 보였다.
+#[tauri::command]
+#[specta::specta]
+pub fn term_focus_session(
+    app: tauri::AppHandle,
+    sessions: State<'_, TermSessions>,
+    id: u32,
+) -> bool {
+    let Some(label) = sessions.window_of(id) else {
+        return false;
+    };
+    crate::commands::window::focus_window(&app, &label);
+    TermFocusAsked { id }.emit_to(&app, label.as_str()).is_ok()
+}
+
 /// 이 창에 세션을 연다 — 프로젝트 루트에서 사용자의 로그인 셸. `prompt` 가 있으면 그
 /// 프롬프트로 `claude` 를 바로 실행한다(오늘·계획의 「다음」). 빈 문자열이면 그냥 `claude`
 /// (계획의 「끝까지」가 입력 대기 신호 뒤에 `/goal …` 을 넣는다). 출력·끝은 `on_event` 로.

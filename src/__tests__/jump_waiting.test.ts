@@ -8,9 +8,13 @@ const fx = vi.hoisted(() => ({
   attention: new Map<number, { project_id: number; waiting: number; failing: boolean }>(),
   asked: [] as number[][],
   openWindow: vi.fn(async (_id: number) => null),
+  // 다른 창 세션 초점(11-23) — 기본은 「그 세션이 없다」(창만 연다), 켜면 그 창이 세션까지 고른다.
+  focus: vi.fn(async (_id: number) => false),
 }));
 
-vi.mock("@/api/terminal", () => ({ terminalApi: { list: async () => fx.list, overview: async () => fx.overview } }));
+vi.mock("@/api/terminal", () => ({
+  terminalApi: { list: async () => fx.list, overview: async () => fx.overview, focusSession: fx.focus },
+}));
 vi.mock("@/api/window", () => ({
   windowApi: {
     openProjectIds: async () => fx.open,
@@ -58,6 +62,7 @@ afterEach(() => {
   fx.attention = new Map();
   fx.asked = [];
   fx.openWindow.mockClear();
+  fx.focus.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -119,7 +124,17 @@ describe("jumpToWaiting", () => {
     // 다른 창의 질문이 더 많아도 세션 기다림이 먼저다.
     fx.attention = new Map([[2, { project_id: 2, waiting: 3, failing: false }]]);
     expect(await jumpToWaiting(1)).toBe("window");
+    expect(fx.focus).toHaveBeenCalledWith(8);
     expect(fx.openWindow).toHaveBeenCalledWith(3);
+  });
+
+  it("brings that session up in its window, not just the window (11-23)", async () => {
+    fx.open = [1, 3];
+    fx.overview = [{ ...blocked(8, "10:00"), project_id: 3 }];
+    fx.focus.mockResolvedValueOnce(true);
+    expect(await jumpToWaiting(1)).toBe("window");
+    expect(fx.focus).toHaveBeenCalledWith(8);
+    expect(fx.openWindow).not.toHaveBeenCalled();
   });
 
   it("falls back to the open window that waits most — never opens a window for a project without one", async () => {

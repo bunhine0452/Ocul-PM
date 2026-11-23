@@ -65,6 +65,17 @@ export const terminalApi = {
   /** 터미널의 이미지 경로를 파일 탐색기(Finder)에서 선택된 채로 연다 — 그림 파일만(`term_image.rs`). */
   imageReveal: (path: string): Promise<null> => call("terminal_image_reveal", commands.terminalImageReveal(path)),
   onSessionsChanged: (cb: () => void) => subscribe(events.termSessionsChanged, () => cb()),
+  /**
+   * 다른 창의 세션으로 — 그 창을 앞으로 가져오고 그 창이 그 세션을 고르게 한다(⌘K · ⌘J). 세션이 그 사이 끝났으면
+   * `false`(부른 쪽이 창만 연다). 못 부르면 `false` — 키가 예외를 던지면 안 된다.
+   */
+  focusSession: (id: number): Promise<boolean> =>
+    Promise.resolve()
+      .then(() => commands.termFocusSession(id))
+      .then((ok) => ok === true)
+      .catch(() => false),
+  /** 다른 창이 이 창의 세션을 골랐다 — 백엔드가 **이 창에만** 보낸다(`subscribeHere`). */
+  onFocusAsked: (cb: (id: number) => void) => subscribeHere(events.termFocusAsked, (p) => cb(p.id)),
   /** 이 창을 닫거나(`quit` 이면 앱을 끄기) 전에 묻는다 — 백엔드가 **이 창에만** 보낸다(`subscribeHere`). */
   onCloseAsked: (cb: (ask: TermCloseAsked) => void) => subscribeHere(events.termCloseAsked, cb),
 };

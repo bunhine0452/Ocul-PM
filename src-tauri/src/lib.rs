@@ -315,7 +315,7 @@ use crate::commands::terminal::{
     term_busy_all, term_close, term_end_window, term_list, term_open, term_overview, term_resize,
     term_take_resume, term_write,
 };
-use crate::commands::terminal::{term_clipboard_files, term_clipboard_write};
+use crate::commands::terminal::{term_clipboard_files, term_clipboard_write, term_focus_session};
 
 /// Build the specta Builder with every command + event registered. Extracted
 /// so the W5-PR3 `export_bindings` test can regenerate `src/lib/bindings.ts`
@@ -365,6 +365,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             term_end_window,
             term_busy_all,
             term_take_resume,
+            term_focus_session,
             terminal_image_preview,
             terminal_image_reveal,
             race_start,
@@ -526,6 +527,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 앱 안 터미널 — 어디서든 세션 · 상태가 바뀜 / 도는 세션이 있는 창을 닫으려 함
             crate::commands::terminal::TermSessionsChanged,
             crate::commands::terminal::TermCloseAsked,
+            crate::commands::terminal::TermFocusAsked,
             // 바깥 터미널의 Claude 기다림이 바뀜 — 오늘이 다시 읽고 창이 뒤면 알린다
             crate::oculpm::claude_waiting::ClaudeWaitingChanged,
             // 자동 모드가 막은 행동이 바뀜 — 오늘이 다시 읽는다

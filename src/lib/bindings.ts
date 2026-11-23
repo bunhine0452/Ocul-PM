@@ -225,6 +225,11 @@ export const commands = {
 	termBusyAll: () => __TAURI_INVOKE<TermBusy>("term_busy_all"),
 	/**  업데이트 재시작 뒤 이 창이 이을 claude 세션 — 창 복원이 맡겨 둔 것을 한 번 가져간다. */
 	termTakeResume: () => __TAURI_INVOKE<TermResume[]>("term_take_resume"),
+	/**
+	 *  다른 창의 세션으로 — 그 세션의 창을 앞으로 가져오고 그 창에 `TermFocusAsked` 를 보낸다. 세션이 없으면
+	 *  (그 사이 끝났다) `false` — 부른 쪽이 창만 연다. 예전엔 창만 앞으로 와서 그 창의 지난 탭이 보였다.
+	 */
+	termFocusSession: (id: number) => __TAURI_INVOKE<boolean>("term_focus_session", { id }),
 	terminalImagePreview: (path: string) => typedError<TermImage, AppError>(__TAURI_INVOKE("terminal_image_preview", { path })),
 	/**
 	 *  터미널의 이미지 경로를 누르면 그 파일을 파일 탐색기(Finder)에서 선택된 채로 연다 (11-04 「클릭 시 경로로
@@ -913,6 +918,7 @@ export const events = {
 	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
 	termCloseAsked: makeEvent<TermCloseAsked>("term-close-asked"),
+	termFocusAsked: makeEvent<TermFocusAsked>("term-focus-asked"),
 	termSessionsChanged: makeEvent<TermSessionsChanged>("term-sessions-changed"),
 	tourRequested: makeEvent<TourRequested>("tour-requested"),
 	windowNavigate: makeEvent<WindowNavigate>("window-navigate"),
@@ -2575,6 +2581,15 @@ export type TermEvent =
 { kind: "bell" } | 
 /**  안의 프로그램이 띄워 달라는 알림(OSC 9 · 777). */
 { kind: "notice"; title: string | null; body: string };
+
+/**
+ *  이 창의 그 세션을 보여 달라 — 다른 창의 ⌘K · ⌘J 가 고른 세션(`term_focus_session`). **그 창에만** 보낸다
+ *  (`emit_to` — 전역 emit 이면 모든 창이 제 터미널 탭으로 옮겨 갔다). 웹뷰는 `subscribeHere` 로 받아
+ *  `requestTermFocus` 에 넘긴다 — 같은 창의 「터미널에서 보기」 와 같은 길.
+ */
+export type TermFocusAsked = {
+	id: number,
+};
 
 export type TermImage = {
 	mime: string,
