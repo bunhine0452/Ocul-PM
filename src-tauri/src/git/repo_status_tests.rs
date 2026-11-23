@@ -8,7 +8,10 @@ fn a_plain_folder_is_not_a_repo_but_git_is_there() {
     let dir = tempfile::tempdir().unwrap();
     let s = status(dir.path());
     assert!(!s.is_git_repo);
-    assert!(!s.git_missing, "git 이 깔린 기계에서 「git 없음」 이라고 했다");
+    assert!(
+        !s.git_missing,
+        "git 이 깔린 기계에서 「git 없음」 이라고 했다"
+    );
     assert!(uncommitted_changes(dir.path()).is_empty());
 }
 

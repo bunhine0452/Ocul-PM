@@ -13,7 +13,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { appDataApi } from "@/api/settings";
 import { toAppError } from "@/api/invoke";
-import { commands } from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
 import type { I18nKey } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { getPlatform } from "@/lib/platform";
@@ -37,11 +37,13 @@ function actionsFor(cause: WatcherCause, projectId: number, t: T): ToastAction[]
         label: t("watcher.takeOver"),
         onClick: () => {
           void (async () => {
-            const r = await commands.oculpmWatcherTakeOver(projectId);
-            if (r.status === "ok") {
+            try {
+              await oculpmApi.watcherTakeOver(projectId);
               noteWatcherFailure(projectId, null);
               toast.info(t("watcher.tookOver"));
-            } else toast.destructive(t("watcher.takeOverFailed", { error: tError(r.error) }));
+            } catch (e) {
+              toast.destructive(t("watcher.takeOverFailed", { error: tError(toAppError(e)) }));
+            }
           })();
         },
       },

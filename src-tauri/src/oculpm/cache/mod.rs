@@ -766,6 +766,6 @@ mod agent_session_tests;
 #[cfg(test)]
 mod distinct_files_tests;
 #[cfg(test)]
-mod unverified_tests;
-#[cfg(test)]
 mod evidence_regrade_tests;
+#[cfg(test)]
+mod unverified_tests;
