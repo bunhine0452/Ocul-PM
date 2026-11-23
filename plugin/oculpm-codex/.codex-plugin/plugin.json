@@ -20,7 +20,7 @@
   "interface": {
     "displayName": "ocul-pm for Codex",
     "shortDescription": "Journal and planner guidance for Codex projects.",
-    "longDescription": "Ships the ocul-pm session hooks (markers, journal delivery gate, plan context) plus Codex-native MCP registration guidance, and keeps Claude integrations independent. Codex asks once to trust the hooks.",
+    "longDescription": "Ships the ocul-pm session hooks (markers, journal delivery gate, plan context), the next · inception · redteam loop skills, and Codex-native MCP registration guidance, and keeps Claude integrations independent. Codex asks once to trust the hooks.",
     "developerName": "ocul-pm",
     "category": "Productivity",
     "capabilities": [],
