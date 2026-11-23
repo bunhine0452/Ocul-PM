@@ -9,6 +9,7 @@
  * 둘째 걸음의 「터미널에서 맡기기」 하나다(영수증 규칙 3) — 첫 걸음은 보통 단추와 링크만 갖는다.
  */
 
+import type { ReactNode } from "react";
 import { CopyCommand } from "@/components/CopyCommand";
 import { NotebookText } from "@/components/Icons";
 import { useT, type I18nKey } from "@/i18n";
@@ -42,7 +43,10 @@ export function FirstSteps({
   onOpenTerminal,
   onHandOff,
   opening,
+  receipt,
 }: {
+  /** 카드 바닥 한 줄 — 첫 활성화가 이 폴더에 쓴 것(`InitReceipt`). */
+  receipt?: ReactNode;
   /** 이 프로젝트에서 플러그인이 어떤 상태인가. 모르면 `null`. */
   connection: PluginConnection | null;
   /** 오늘 열린 작업 세션이 있다 — 첫 작업이 이미 넘어갔다(플러그인 없이 붙은 에이전트도 여기서 끝난다). */
@@ -109,6 +113,7 @@ export function FirstSteps({
           </li>
         ))}
       </ol>
+      {receipt}
     </section>
   );
 }

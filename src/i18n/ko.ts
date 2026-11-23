@@ -713,6 +713,8 @@ export const ko = {
   "today.first.step3": "첫 일지",
   "today.first.step3Body": "에이전트가 일을 마치면 무엇을 했고 무엇으로 확인했는지가 여기 쌓여요",
   "today.first.done": "끝남",
+  "today.first.wrote": "이 폴더에 만든 것:",
+  "today.first.wroteHint": "모두 글 파일이라 함께 커밋해 두면 돼요.",
   "agent.manual": "수동 기록",
   "time.justNow": "방금",
   "time.yesterdayAt": "어제 {time}",
