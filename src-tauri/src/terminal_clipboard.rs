@@ -78,7 +78,9 @@ mod os {
         CloseClipboard, EmptyClipboard, GetClipboardData, IsClipboardFormatAvailable,
         OpenClipboard, SetClipboardData,
     };
-    use windows_sys::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    use windows_sys::Win32::System::Memory::{
+        GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE,
+    };
     use windows_sys::Win32::System::Ole::{CF_HDROP, CF_UNICODETEXT};
     use windows_sys::Win32::UI::Shell::DragQueryFileW;
 

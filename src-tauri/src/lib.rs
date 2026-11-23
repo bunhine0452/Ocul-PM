@@ -307,11 +307,11 @@ use crate::commands::race::{
 };
 use crate::commands::term_image::{terminal_image_preview, terminal_image_reveal};
 use crate::commands::terminal::term_ack;
-use crate::commands::terminal::{term_clipboard_files, term_clipboard_write};
 use crate::commands::terminal::{
     term_busy_all, term_close, term_end_window, term_list, term_open, term_overview, term_resize,
     term_take_resume, term_write,
 };
+use crate::commands::terminal::{term_clipboard_files, term_clipboard_write};
 
 /// Build the specta Builder with every command + event registered. Extracted
 /// so the W5-PR3 `export_bindings` test can regenerate `src/lib/bindings.ts`
