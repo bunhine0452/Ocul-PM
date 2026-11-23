@@ -37,7 +37,7 @@ function EntryRow({ entry, onOpen }: { entry: JournalEntrySummary; onOpen: (e: J
         <span className="tdy-ent-ty">{t(meta.labelKey)}</span>
         <span className="tdy-ent-ti">{entry.title}</span>
         <span className="tdy-ent-ev">
-          <EvidenceMark state={evidenceStateOf(entry)} />
+          <EvidenceMark state={evidenceStateOf(entry)} level={entry.evidence} />
         </span>
         <span className="tdy-ent-ln mono">{t("today.work.files", { n: entry.files_count })}</span>
       </button>

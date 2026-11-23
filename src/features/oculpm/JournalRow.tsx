@@ -31,14 +31,30 @@ function shortDate(createdAt: string): string {
   return m ? `${Number(m[1])}/${Number(m[2])}` : "";
 }
 
-/** 증거 표시 — 경고는 칩, 통과는 체크 하나. 요구하지 않는 유형은 아무것도 안 그린다. */
-export function EvidenceMark({ state }: { state: EvidenceState }) {
+/**
+ * 증거 표시 — 경고는 칩, 통과는 체크 하나. 요구하지 않는 유형은 아무것도 안 그린다.
+ *
+ * 출처를 말한다(11-23 love-round #verdict-honesty-badge): 같은 「검증 없음」 이라도 검증을 아예 안 적은 것과, 적었지만
+ * 돌린 명령 · 결과 끝 줄이 없는 것(에이전트의 말뿐)은 다르다. `level` 1 이면 상세의 검증 상자와 같은 말 「명령 없음」 을
+ * 같은 호박 칩으로 — 새 칩을 만들지 않는다(영수증 규칙 4). ✓ 는 누가 세웠는지(명령 결과 · 사람이 읽음)를 이름에 싣는다.
+ */
+export function EvidenceMark({ state, level }: { state: EvidenceState; level?: number }) {
   const { t } = useT();
-  if (state === "missing") return <span className="chip sm warn">{t("journal.evidence.missing")}</span>;
+  if (state === "missing") {
+    if (level === 1) {
+      return (
+        <span className="chip sm warn" title={t("journal.evidence.wordsTitle")}>
+          {t("journal.verify.noCommand")}
+        </span>
+      );
+    }
+    return <span className="chip sm warn">{t("journal.evidence.missing")}</span>;
+  }
   if (state === "command" || state === "confirmed") {
     const label = state === "command" ? t("entry.evidence.command") : t("entry.verified");
+    const title = state === "command" ? t("journal.evidence.commandTitle") : label;
     return (
-      <span className="jl-ok" role="img" aria-label={label} title={label}>
+      <span className="jl-ok" role="img" aria-label={label} title={title}>
         <CheckMark size={13} />
       </span>
     );
@@ -118,7 +134,7 @@ export const JournalRow = memo(function JournalRow({
       </span>
       {two ? (
         <span className="jl-r2">
-          {missing ? <EvidenceMark state={evState} /> : null}
+          {missing ? <EvidenceMark state={evState} level={entry.evidence} /> : null}
           {open ? (
             <span className="chip sm hairline">
               {entry.status === "abandoned" ? t("entry.status.abandoned") : t("entry.status.open")}
@@ -131,7 +147,7 @@ export const JournalRow = memo(function JournalRow({
             <span className="jl-meta">{meta}</span>
           )}
           {/* 통과 표시는 예외 줄에만 — 미완료지만 검증은 섰다처럼, 두 사실이 함께일 때만 뜻이 있다. */}
-          {exception && !missing ? <EvidenceMark state={evState} /> : null}
+          {exception && !missing ? <EvidenceMark state={evState} level={entry.evidence} /> : null}
         </span>
       ) : null}
     </div>

@@ -780,6 +780,8 @@ export const ko = {
   "journal.goneFoldTitle": "건드린 파일이 지금 프로젝트에 하나도 없는 일지예요. 지우지 않고 접어 둬요.",
   "journal.row.files": "파일 {n}",
   "journal.evidence.missing": "검증 없음",
+  "journal.evidence.wordsTitle": "검증을 적었지만 돌린 명령과 결과 끝 줄이 없어요. 에이전트의 말뿐이에요",
+  "journal.evidence.commandTitle": "검증에 돌린 명령과 결과 끝 줄이 있어요",
   "journal.countOnly": "{n}건",
   "journal.filter.fix": "버그·에러",
   "journal.pickOne": "왼쪽에서 일지를 골라 보세요.",

@@ -769,6 +769,8 @@ export const en: Record<keyof typeof ko, string> = {
   "journal.goneFoldTitle": "None of the files these entries touched are in the project now. They are kept, only folded.",
   "journal.row.files": "{n} {n|file|files}",
   "journal.evidence.missing": "No verification",
+  "journal.evidence.wordsTitle": "Verification is written but has no command run or result line. It is only the agent's word",
+  "journal.evidence.commandTitle": "Verification has a command run and its last output line",
   "journal.countOnly": "{n} {n|entry|entries}",
   "journal.filter.fix": "Bugs",
   "journal.pickOne": "Pick an entry on the left.",
