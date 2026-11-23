@@ -1,5 +1,5 @@
 {
-  "_why": "사람 몫 항목을 누가 「다음」 에서 빼는가 — 세 자리가 이 한 표로 판정한다 (love-round-20261123 #l2-agent-context). 앱의 오늘 · 계획 화면 「다음」 (digest.rs plan_of · needs_user, planMeta.ts nextLeaf), 그리고 시작 훅이 에이전트에게 싣는 미완 항목 (plugin/oculpm/hooks/plan-context.sh). 규칙: 제목이 `[사용자` 나 `[user` (대소문자 무관) 로 시작하는 항목, 그리고 그런 부모 아래의 하위 항목은 사람 몫이다. 리프만 센다 (하위를 가진 부모는 롤업). next = 사람 몫이 아닌 첫 `[ ]` 리프. needs_user = 열린(`[ ]` · `[~]`) 사람 몫 리프, 문서 순서. shipped = 훅이 싣는 항목 id — 사람 몫이 아닌 열린(`[ ]` · `[~]` · `[!]`) 리프와, 그런 하위를 가진 부모(맥락 한 줄). 한쪽만 고치면 Rust · vitest · 훅 시험(plugin_hook_owner.rs)이 함께 붉어진다.",
+  "_why": "사람 몫 항목을 누가 「다음」 에서 빼는가 — 세 자리가 이 한 표로 판정한다 (love-round-20261123 #l2-agent-context). 앱의 오늘 · 계획 화면 「다음」 (digest.rs plan_of · needs_user, planMeta.ts nextLeaf), 그리고 시작 훅이 에이전트에게 싣는 미완 항목 (plugin/oculpm/hooks/plan-context.sh). VS Code 확장 패널의 「다음」 (extension/src/model/plan.ts nextItem, extension/src/model/shared.spec.ts) 도 next 를 이 표로 판정한다. 규칙: 제목이 `[사용자` 나 `[user` (대소문자 무관) 로 시작하는 항목, 그리고 그런 부모 아래의 하위 항목은 사람 몫이다. 리프만 센다 (하위를 가진 부모는 롤업). next = 사람 몫이 아닌 첫 `[ ]` 리프. needs_user = 열린(`[ ]` · `[~]`) 사람 몫 리프, 문서 순서. shipped = 훅이 싣는 항목 id — 사람 몫이 아닌 열린(`[ ]` · `[~]` · `[!]`) 리프와, 그런 하위를 가진 부모(맥락 한 줄). 한쪽만 고치면 Rust · vitest · 훅 시험(plugin_hook_owner.rs)이 함께 붉어진다.",
   "cases": [
     {
       "name": "제 머리표가 사람 몫이면 건너뛴다",

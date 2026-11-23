@@ -61,15 +61,25 @@ export function isUserItem(title: string): boolean {
   return t.startsWith("[사용자") || t.slice(0, 5).toLowerCase() === "[user";
 }
 
+/** 바로 위 부모 — 앞쪽에서 들여쓰기가 더 얕은 첫 항목. */
+function parentOf(items: readonly PlanItem[], i: number): PlanItem | null {
+  for (let j = i - 1; j >= 0; j--) if (items[j].indent < items[i].indent) return items[j];
+  return null;
+}
+
 /**
- * 다음 항목 — 문서 순서상 첫 `[ ]` **리프**(하위가 없는 항목), 사람 몫은 건너뛴다. `[~]` 는 다른 세션이
- * 잡은 것으로 본다 (앱 `digest.rs` · 플러그인 `/oculpm:next` 와 같은 규칙).
+ * 다음 항목 — 문서 순서상 첫 `[ ]` **리프**(하위가 없는 항목), 사람 몫은 건너뛴다. 제 제목이나 부모 제목이 사람 몫
+ * 머리표면 사람 몫이다(`[사용자] 설치본에서 눈 확인` 아래의 하위). `[~]` 는 다른 세션이 잡은 것으로 본다 — 앱
+ * `digest.rs` · `planMeta.ts` · 시작 훅과 같은 사례표 `src-tauri/src/oculpm/planner/owner_cases.json`.
  */
 export function nextItem(items: readonly PlanItem[]): PlanItem | null {
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     const isParent = i + 1 < items.length && items[i + 1].indent > it.indent;
-    if (!isParent && it.glyph === " " && !isUserItem(it.title)) return it;
+    if (isParent || it.glyph !== " " || isUserItem(it.title)) continue;
+    const parent = parentOf(items, i);
+    if (parent && isUserItem(parent.title)) continue;
+    return it;
   }
   return null;
 }
