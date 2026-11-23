@@ -40,15 +40,21 @@ pub fn run(args: &[String]) -> i32 {
     0
 }
 
-/// 프로젝트 루트: `CLAUDE_PROJECT_DIR` → payload 의 `cwd` → 현재 디렉터리 (형제 훅과 같은 3단).
+/// 프로젝트 루트: `CLAUDE_PROJECT_DIR` → payload 의 `cwd` → 현재 디렉터리 (형제 훅과 같은 3단). 거기에
+/// `.oculpm` 이 없으면 위로 올라가 가장 가까운 추적 프로젝트 — 하위 폴더에서 띄운 claude (11-23).
 fn project_root(payload: &Value, project_dir: &str) -> PathBuf {
-    if !project_dir.is_empty() {
-        return PathBuf::from(project_dir);
+    let start = if !project_dir.is_empty() {
+        PathBuf::from(project_dir)
+    } else {
+        match payload.get("cwd").and_then(Value::as_str) {
+            Some(cwd) if !cwd.is_empty() => PathBuf::from(cwd),
+            _ => PathBuf::from("."),
+        }
+    };
+    if start.join(".oculpm").is_dir() {
+        return start;
     }
-    match payload.get("cwd").and_then(Value::as_str) {
-        Some(cwd) if !cwd.is_empty() => PathBuf::from(cwd),
-        _ => PathBuf::from("."),
-    }
+    crate::oculpm::shim::tracked_root(&start).unwrap_or(start)
 }
 
 /// `.oculpm` 이 없거나, 쓰기를 프로젝트 밖으로 돌릴 링크가 끼어 있으면 `false`.

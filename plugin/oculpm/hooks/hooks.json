@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then d=\"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
+            "command": "r=${CLAUDE_PROJECT_DIR:-$PWD}; while [ ! -d \"$r/.oculpm\" ] && [ \"$r\" != \"${HOME:-}\" ]; do u=${r%[/\\\\]*}; [ -n \"$u\" ] && [ \"$u\" != \"$r\" ] || break; r=$u; done; if [ -d \"$r/.oculpm\" ]; then d=\"$r/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"$r/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
           },
           {
             "type": "command",
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then d=\"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
+            "command": "r=${CLAUDE_PROJECT_DIR:-$PWD}; while [ ! -d \"$r/.oculpm\" ] && [ \"$r\" != \"${HOME:-}\" ]; do u=${r%[/\\\\]*}; [ -n \"$u\" ] && [ \"$u\" != \"$r\" ] || break; r=$u; done; if [ -d \"$r/.oculpm\" ]; then d=\"$r/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"$r/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
           },
           {
             "type": "command",
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then d=\"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
+            "command": "r=${CLAUDE_PROJECT_DIR:-$PWD}; while [ ! -d \"$r/.oculpm\" ] && [ \"$r\" != \"${HOME:-}\" ]; do u=${r%[/\\\\]*}; [ -n \"$u\" ] && [ \"$u\" != \"$r\" ] || break; r=$u; done; if [ -d \"$r/.oculpm\" ]; then d=\"$r/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"$r/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
           }
         ]
       }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then d=\"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
+            "command": "r=${CLAUDE_PROJECT_DIR:-$PWD}; while [ ! -d \"$r/.oculpm\" ] && [ \"$r\" != \"${HOME:-}\" ]; do u=${r%[/\\\\]*}; [ -n \"$u\" ] && [ \"$u\" != \"$r\" ] || break; r=$u; done; if [ -d \"$r/.oculpm\" ]; then d=\"$r/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"$r/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
           }
         ]
       }
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then d=\"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
+            "command": "r=${CLAUDE_PROJECT_DIR:-$PWD}; while [ ! -d \"$r/.oculpm\" ] && [ \"$r\" != \"${HOME:-}\" ]; do u=${r%[/\\\\]*}; [ -n \"$u\" ] && [ \"$u\" != \"$r\" ] || break; r=$u; done; if [ -d \"$r/.oculpm\" ]; then d=\"$r/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"$r/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
           }
         ]
       }
@@ -68,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then d=\"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
+            "command": "r=${CLAUDE_PROJECT_DIR:-$PWD}; while [ ! -d \"$r/.oculpm\" ] && [ \"$r\" != \"${HOME:-}\" ]; do u=${r%[/\\\\]*}; [ -n \"$u\" ] && [ \"$u\" != \"$r\" ] || break; r=$u; done; if [ -d \"$r/.oculpm\" ]; then d=\"$r/.oculpm/hooks\"; case \"${OSTYPE:-}\" in msys*|cygwin*) IFS= read -r -d '' p; nl=$'\\n'; p=${p%\"${p##*[!$nl]}\"}; TZ=UTC0 printf -v t '%(%Y-%m-%dT%H:%M:%SZ)T' -1 ;; *) p=$(cat); t=$(date -u +%Y-%m-%dT%H:%M:%SZ) ;; esac; case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$t\\\"}\" ;; esac; if [ -n \"$p\" ] && [ ! -L \"$r/.oculpm\" ] && [ ! -L \"$d\" ] && [ ! -L \"$d/claude-events.jsonl\" ]; then { [ -d \"$d\" ] || mkdir -p \"$d\"; } && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
           }
         ]
       }

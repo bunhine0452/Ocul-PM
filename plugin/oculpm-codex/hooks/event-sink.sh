@@ -18,7 +18,14 @@ ROOT="${CLAUDE_PROJECT_DIR:-}"
 # Windows 경로는 JSON 안에서 `\\` 로 온다 — 한 번 푼다.
 [ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -e 's/.*"\([^"]*\)"$/\1/' -e 's/\\\\/\\/g')
 [ -n "$ROOT" ] || ROOT="."
-[ -d "$ROOT/.oculpm" ] || exit 0
+# 위로 올라가 가장 가까운 .oculpm — 하위 폴더에서 띄운 claude 도 같은 프로젝트다 (plan-context.sh 와 같은
+# 걸음, 11-23). $HOME 위로는 안 간다 · 프로세스 0 · `/` 와 Windows 의 `\` 둘 다 가른다.
+while [ ! -d "$ROOT/.oculpm" ]; do
+  [ "$ROOT" != "${HOME:-}" ] || exit 0
+  _up=${ROOT%[/\\]*}
+  [ -n "$_up" ] && [ "$_up" != "$ROOT" ] || exit 0
+  ROOT=$_up
+done
 # 링크를 따라 쓰지 않는다 — .oculpm 은 저장소에 실려 오고, 그 안의 링크는 아래의
 # 쓰기를 프로젝트 밖으로 돌린다 (앱도 같은 이유로 그런 프로젝트를 열지 않는다).
 for _link in .oculpm .oculpm/hooks .oculpm/hooks/claude-events.jsonl \
