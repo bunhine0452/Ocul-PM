@@ -110,6 +110,29 @@ fn parse_args(args: &Value) -> Result<(String, Vec<String>), String> {
     Ok((question.to_string(), options))
 }
 
+/// 질문 파일의 모양. 묻는 대화의 신원(`agent_id` · `session_id`)을 싣는다 — 터미널 세션이 여럿이면 답하는
+/// 사람이 어느 대화의 질문인지 알아야 한다 (love-round-20261123 #ask-user-session-attribution). 신원이
+/// 없으면(Codex · 손으로 띄운 서버) `session_id` 는 아예 싣지 않는다.
+fn question_body(
+    id: &str,
+    question: &str,
+    options: &[String],
+    agent_id: &str,
+    session_id: Option<String>,
+) -> Value {
+    let mut body = json!({
+        "id": id,
+        "question": question,
+        "options": options,
+        "asked_at": crate::clock::rfc3339(crate::clock::now()),
+        "agent_id": agent_id,
+    });
+    if let Some(session) = session_id {
+        body["session_id"] = json!(session);
+    }
+    body
+}
+
 /// 묻고 기다린다. `wait` 는 테스트가 줄인다(바이너리는 [`ASK_WAIT`]).
 pub fn ask_user(root: &Path, args: &Value, wait: Duration) -> Result<Value, String> {
     let dot = std::fs::symlink_metadata(root.join(".oculpm"));
@@ -122,12 +145,13 @@ pub fn ask_user(root: &Path, args: &Value, wait: Duration) -> Result<Value, Stri
     let (question, options) = parse_args(args)?;
     let id = new_id();
     std::fs::create_dir_all(questions_dir(root)).map_err(|e| format!("질문 폴더: {e}"))?;
-    let body = json!({
-        "id": id,
-        "question": question,
-        "options": options,
-        "asked_at": crate::clock::rfc3339(crate::clock::now()),
-    });
+    let body = question_body(
+        &id,
+        &question,
+        &options,
+        &super::default_agent_id(),
+        super::claude_session_id(),
+    );
     std::fs::write(question_path(root, &id), body.to_string())
         .map_err(|e| format!("질문 쓰기: {e}"))?;
     nudge_app(root, "OculpmQuestion", &id);
@@ -186,6 +210,7 @@ mod tests {
                         serde_json::from_slice(&std::fs::read(e.path()).unwrap()).unwrap();
                     assert_eq!(q["question"], "배포할까요?");
                     assert_eq!(q["options"], json!(["예", "아니오"]), "빈 선택지는 버린다");
+                    assert!(q["agent_id"].is_string(), "묻는 에이전트를 싣는다: {q}");
                     break name.trim_end_matches(".json").to_string();
                 }
             }
@@ -202,6 +227,28 @@ mod tests {
         let inbox =
             std::fs::read_to_string(root.join(crate::oculpm::claude_hooks::INBOX_REL)).unwrap();
         assert!(inbox.contains("\"OculpmQuestion\"") && inbox.contains("\"OculpmQuestionDone\""));
+    }
+
+    /// 묻는 대화의 신원이 질문 파일에 실리고, 앱의 읽기(`ClaudeQuestion`)는 그 파일을 그대로 읽는다.
+    #[test]
+    fn the_question_file_names_the_asking_conversation() {
+        let with = question_body(
+            "q1",
+            "배포할까요?",
+            &[],
+            "claude-code",
+            Some("abc-123".into()),
+        );
+        assert_eq!(with["session_id"], "abc-123");
+        assert_eq!(with["agent_id"], "claude-code");
+        let without = question_body("q2", "?", &[], "codex", None);
+        assert!(
+            without.get("session_id").is_none(),
+            "신원이 없으면 싣지 않는다: {without}"
+        );
+        let read: crate::oculpm::claude_waiting::ClaudeQuestion =
+            serde_json::from_value(with).expect("앱이 신원 실린 질문도 읽는다");
+        assert_eq!(read.id, "q1");
     }
 
     #[test]
