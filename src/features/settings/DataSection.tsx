@@ -1,5 +1,5 @@
 /**
- * 설정 · 앱 — 언어 · 파일 열기 · 판과 업데이트 · 로그 · 캐시 정리. 프로젝트와 무관한 앱 전역의 것들.
+ * 설정 · 앱 — 언어 · 파일 열기 · 잠자기 막기 · 판과 업데이트 · 로그 · 캐시 정리. 프로젝트와 무관한 앱 전역의 것들.
  *
  * 캐시는 디스크에서 다시 만들 수 있는 것만 담는다. 「정리하기」(빈 자리를 되찾는 VACUUM)는 확인 없이
  * 누를 수 있다 — 잃는 것이 없다. 이 프로젝트의 캐시를 다시 만드는 것은 이 프로젝트 칸에 있다 (11-15).
@@ -22,6 +22,7 @@ import { toast } from "@/lib/toast";
 import { useUpdater } from "@/lib/updater";
 import { RELEASES_PAGE } from "@/lib/updaterRoute";
 import { EditorRow } from "./EditorRow";
+import { KeepAwakeRow } from "./KeepAwakeRow";
 import { useSaveSetting } from "./saveSetting";
 import { PrefsCard, PrefsRow, PrefsSeg, useReportFix } from "./prefsUi";
 
@@ -196,6 +197,7 @@ export function AppSection({ id, arrived }: { id: string; arrived?: number }) {
     <PrefsCard id={id} title={t("prefs.data.title")} arrived={arrived}>
       <LanguageRow />
       <EditorRow />
+      <KeepAwakeRow />
       <UpdateRow />
       <LogsRow />
       <PrefsRow

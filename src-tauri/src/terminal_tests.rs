@@ -30,6 +30,14 @@ pub(crate) fn sh(script: &str) -> CommandBuilder {
     cmd
 }
 
+/// 다른 모듈의 시험이 명령 하나를 세션으로 띄운다(`start` 는 이 모듈 밖에 열지 않는다) — 잠자기 막기의 셈.
+#[cfg(unix)]
+pub(crate) fn start_cmd(sessions: &TermSessions, spec: OpenSpec, cmd: CommandBuilder) -> TermInfo {
+    sessions
+        .start(spec, cmd, "claude".into(), None, |_| {})
+        .unwrap()
+}
+
 /// `cond` 가 참이 될 때까지 10초 — 안 되면 `why` 로 실패한다.
 #[cfg(unix)]
 pub(crate) fn wait_until(cond: impl Fn() -> bool, why: &str) {

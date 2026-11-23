@@ -608,6 +608,22 @@ impl TermSessions {
         TermBusy { busy, claude }
     }
 
+    /// 일하는(OSC 7501 working) 세션 수 — 모든 창. 잠자기 막기가 센다(`keep_awake`). 「도는 중」 이 아닌 칸(셸이
+    /// 다시 앞 — claude 가 `state=clear` 없이 죽었다)의 낡은 working 은 세지 않는다. 일하는 칸이 없으면 프로세스를
+    /// 재지 않는다(Windows 스냅숏).
+    pub fn working_all(&self) -> u32 {
+        let rows: Vec<Row> = self
+            .rows(None)
+            .into_iter()
+            .filter(|r| r.info.status.as_ref().is_some_and(|s| s.state == "working"))
+            .collect();
+        if rows.is_empty() {
+            return 0;
+        }
+        let parents = self.parents(&rows);
+        rows.iter().filter(|r| r.busy(parents.as_deref())).count() as u32
+    }
+
     /// 업데이트 재시작 직전 — 창 라벨마다 claude 가 돌던 세션(창 스냅숏에 싣는다).
     pub fn resumable(&self) -> HashMap<String, Vec<TermResume>> {
         let mut out: HashMap<String, Vec<TermResume>> = HashMap::new();

@@ -40,6 +40,7 @@ pub async fn settings_set(
     if key == crate::app_icon::KEY {
         crate::app_icon::apply(&app, &value, true);
     }
+    crate::keep_awake::on_setting(&app, &key, &value);
     announce(&app, vec![key]);
     Ok(())
 }
@@ -65,6 +66,7 @@ pub async fn settings_set_many(
         if k == crate::app_icon::KEY {
             crate::app_icon::apply(&app, &v, true);
         }
+        crate::keep_awake::on_setting(&app, &k, &v);
         keys.push(k);
     }
     announce(&app, keys);
