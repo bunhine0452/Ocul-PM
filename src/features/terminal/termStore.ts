@@ -24,6 +24,7 @@ import { t } from "@/i18n";
 import { oculpmLog } from "@/lib/oculpmLog";
 import { toast } from "@/lib/toast";
 import { watchAgentScreen } from "./agentScreen";
+import { watchOscClipboard } from "./oscClipboard";
 import { alertIfWaiting, alertOnSignal, forgetAlerts, trackSession } from "./attention";
 import { noteWorked } from "./claudeWorked";
 import { createImagePathProvider, createOscLinkHandler, shouldOpenLink } from "./fileLinks";
@@ -265,6 +266,7 @@ export async function openTerm(
   term.unicode.activeVersion = "11";
   // 첫 바이트부터 — 브리지는 첫 마운트에 붙어서 그 전에 온 claude 의 탐침 · idle 을 못 본다.
   const agent = watchAgentScreen(term);
+  watchOscClipboard(term); // OSC 52 쓰기 — 키 직후 · 64KB · 알림, 읽기는 막음
   const openUrl = (uri: string) => void fileOpenApi.url(uri).catch(() => {});
   term.loadAddon(
     new WebLinksAddon((event, uri) => (shouldOpenLink(event, term) ? openUrl(uri) : hintModClick())),
