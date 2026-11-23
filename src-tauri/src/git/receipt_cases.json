@@ -8,7 +8,15 @@
     { "body": "## 검증\ncargo test 통과. 실기기 미확인 — 설치본에서 봐야 한다.\n", "level": 1, "proof": "cargo test 통과. 실기기 미확인 — 설치본에서 봐야 한다." },
     { "body": "## 발생 원인\n확인하지 않아서 났다.\n\n## 검증\ncargo test 초록\n", "level": 2, "proof": "cargo test 초록" },
     { "body": "## 검증\n수동으로 봄\n\n## 다음\ncargo test 통과\n", "level": 1, "proof": "수동으로 봄" },
-    { "body": "### 검증\n* tsc --noEmit 0\n\n", "level": 2, "proof": "tsc --noEmit 0" }
+    { "body": "### 검증\n* tsc --noEmit 0\n\n", "level": 2, "proof": "tsc --noEmit 0" },
+    { "body": "## 검증\n- `pnpm typecheck` exit 0\n- 설치본에서 눈으로 보지는 않았다.\n", "level": 1, "proof": "설치본에서 눈으로 보지는 않았다." },
+    { "body": "## 검증\n`cargo test` 통과. 실기기 확인은 안 했다.\n", "level": 1, "proof": "cargo test 통과. 실기기 확인은 안 했다." },
+    { "body": "## 검증\n`pnpm test` 통과 · 육안 확인은 아직\n", "level": 1, "proof": "pnpm test 통과 · 육안 확인은 아직" },
+    { "body": "## 검증\n`pnpm lint` exit 0. 설치본 · 실제 Windows 에서 눌러 보지는 않았다.\n", "level": 1, "proof": "pnpm lint exit 0. 설치본 · 실제 Windows 에서 눌러 보지는 않았다." },
+    { "body": "## 검증\n`cargo test` 통과. 눈 확인은 안 함\n", "level": 1, "proof": "cargo test 통과. 눈 확인은 안 함" },
+    { "body": "## 검증\n`pnpm test` 통과. 설치본 확인 전\n", "level": 1, "proof": "pnpm test 통과. 설치본 확인 전" },
+    { "body": "## 검증\n`cargo test` 통과. 설치본이 떠 있어 dev 빌드를 띄우지 않고 vitest 로 봤다.\n", "level": 2, "proof": "cargo test 통과. 설치본이 떠 있어 dev 빌드를 띄우지 않고 vitest 로 봤다." },
+    { "body": "## 검증\n`pnpm test` 통과. 설치본에서 눈으로 봤다.\n", "level": 2, "proof": "pnpm test 통과. 설치본에서 눈으로 봤다." }
   ],
   "title": [
     { "body": "[x] 편집기: code 명령 없이 연다\n\n## 발생 원인\n", "title": "편집기: code 명령 없이 연다" },
