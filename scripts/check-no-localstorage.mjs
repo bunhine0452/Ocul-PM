@@ -53,6 +53,9 @@ const ALLOWLIST = new Set([
   "__tests__/diff_v2.test.tsx",
   // 11-15 변경 화면 시험의 그리기 도우미 — 같은 이유(건너온 diffActivePath 를 심고 시험 사이에 비운다). Test-only.
   "__tests__/helpers/diffScreenFx.tsx",
+  // 11-23 「내가 본 뒤로」 — 앱을 껐다 켜도 본 것이 남는지(diffViewed 가 실제로 저장됐는지)를 보려면 레코드를
+  // 직접 읽어야 한다. 다시 마운트만 해서는 창 안 기록과 영속 값을 가를 수 없다. Test-only.
+  "__tests__/diff_review_since.test.tsx",
   // Final UI Update PR-UI 5 — Planner/Search tests clear the persisted
   // WorkspaceContext envelope between mounts (plannerOpen / searchScope).
   // Test-only.

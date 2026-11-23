@@ -50,7 +50,7 @@ function restart() {
 }
 
 describe("viewed files fold into one counted line", () => {
-  it("keeps the picked file in place, then folds it into 「본 것 1」 once you move on", async () => {
+  it("keeps the picked file in place, then folds it into 'Viewed 1' once you move on", async () => {
     seedThree();
     const { container } = renderDiffScreen();
     await viewFirst(container);
