@@ -39,6 +39,11 @@ export interface DiffChanges {
   lastCommit: LastCommit | null;
   /** 작업트리를 보는 중인데 돌아갈 커밋이 있다 — 빈 상태의 탈출구. */
   hasLastCommit: boolean;
+  /**
+   * 저장소인가 — 빈 목록이 「변경 없음」 인지 「볼 수 없음」(저장소 아님 · git 없음)인지 가른다 (11-23). 모르면
+   * `null` 이고 화면은 예전처럼 말한다(못 물었다고 「저장소 아님」 이라 단언하지 않는다).
+   */
+  repo: RepoState | null;
 
   /** 첫 답이 오기 전 — 이 동안 "변경 없음" 이라고 단언하면 안 된다. */
   listLoading: boolean;
@@ -56,6 +61,8 @@ export interface DiffChanges {
 
   toggleVerified: (relativePath: string, next: boolean) => Promise<void>;
 }
+
+export type RepoState = "ok" | "none" | "git_missing";
 
 export function useDiffChanges(projectId: number): DiffChanges {
   const { t } = useT();
@@ -134,6 +141,19 @@ export function useDiffChanges(projectId: number): DiffChanges {
       cancelled = true;
     };
   }, [projectId, watcherPathKey, listNonce]);
+
+  const [repo, setRepo] = useState<RepoState | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setRepo(null);
+    Promise.resolve()
+      .then(() => gitApi.status(projectId))
+      .then((s) => !cancelled && setRepo(s.is_git_repo ? "ok" : s.git_missing ? "git_missing" : "none"))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, listNonce]);
 
   // Working-tree changes: persistent git baseline + live edits.
   const workingChanges = useMemo(
@@ -245,6 +265,7 @@ export function useDiffChanges(projectId: number): DiffChanges {
     pinBaseline: setBaselinePinned,
     lastCommit,
     hasLastCommit,
+    repo,
     listLoading,
     listError,
     retryList,

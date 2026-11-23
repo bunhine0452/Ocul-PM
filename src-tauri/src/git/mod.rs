@@ -44,6 +44,9 @@ mod receipt_cases_tests;
 // git 을 몇 번 띄우는가 — 변경 화면 · 기준선 동기 · 일지 diff 캡처 (Windows 성능 라운드).
 #[cfg(test)]
 mod spawn_count_tests;
+// 저장소 아님 · git 없음 — 변경 화면의 빈 상태가 가려 말한다 (11-23).
+#[cfg(test)]
+mod repo_status_tests;
 
 pub use blob::{blob_size, path_in_head, show_file_bytes};
 pub use changes::{last_commit_changes, uncommitted_changes, GitChange, LastCommitChanges};

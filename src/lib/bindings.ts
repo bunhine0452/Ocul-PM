@@ -1532,6 +1532,12 @@ export type GitRemote = {
 
 export type GitRepoStatus = {
 	is_git_repo: boolean,
+	/**
+	 *  저장소를 못 찾은 까닭이 git 자체다 — 실행이 안 되거나(설치 안 됨) macOS 의 CLT 없는 `/usr/bin/git`
+	 *  껍데기처럼 `git --version` 조차 실패한다. 변경 화면이 「git 저장소가 아니에요」 와 「git 을 찾지
+	 *  못했어요」 를 가려 말한다 (love-round #diff-non-git, 11-23 — 둘 다 「변경이 없어요」 였다).
+	 */
+	git_missing: boolean,
 	head_branch: string | null,
 	remotes: GitRemote[],
 };

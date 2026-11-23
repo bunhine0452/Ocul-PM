@@ -23,6 +23,7 @@ import { ChangeFileList } from "./ChangeFileList";
 import { DiffBody } from "./DiffBody";
 import { DiffEntryFooter } from "./DiffEntryFooter";
 import { DiffFileHead } from "./DiffFileHead";
+import { NoRepoState } from "./NoRepoState";
 import { UnrecordedBanner } from "./UnrecordedBanner";
 import { firstPick, groupKey, missingGroupKeys, recordRequestText, sortGroups, splitChanges } from "./changeGroups";
 import { generatedSet, type DiffBaseline } from "./changeList";
@@ -440,6 +441,8 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
               <SkeletonList rows={4} height={44} />
             ) : list.listError ? (
               <ErrorCard title={t("diff.listFailed")} error={list.listError} onRetry={list.retryList} />
+            ) : list.repo === "none" || list.repo === "git_missing" ? (
+              <NoRepoState missing={list.repo === "git_missing"} />
             ) : (
               /* 직전 커밋으로 가는 길을 글이 아니라 버튼으로 (v3-surface). 보내지 않은 메모가 있으면 윗줄의
                  「메모 N개 맡기기」 가 이 화면의 채운 단추다 — 이것은 보통 단추로 낮춘다(11-15 RC-14). 메모를 쓰고
