@@ -74,21 +74,22 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 What it doesn't give is written down too. Ambition itself is the human's job — Ocul doesn't write the done condition for you and doesn't decide pass or fail for you. It asks and points; it never blocks.
 
-## 🚀 v4.12 — Keeping up when agents run ahead
+## 🚀 v4.13 — Something developers and AI users can love
 
-Claude Code no longer asks before every command (auto mode), hooks do the checking, and work runs in the cloud or in worktrees and comes back through git. This release fixes the places where Ocul still assumed a person sitting at the terminal.
+A first-time developer is no longer stopped by a false "connected" or "nothing here", an agent no longer edits plan files by hand, and the five screens show the exceptions first. Fourteen lanes across a dev team and a design team fixed the 121 findings seven scouts turned up, each lane checked by an independent review.
 
-- **The plugin's MCP tools on Windows too** — up to 4.11 the server always showed as failed in `/mcp`, so the agent wrote the files by hand. `journal_write` · `plan_update` · `ask_user` now connect on Windows.
-- **Closing without running the check gets one nudge** — when a conversation closes a plan item but left no record of running the plan's check command, the Stop hook says so once per conversation. The app neither runs the check nor reads its result — it only points.
-- **Actions auto mode denied · new kinds of waiting** — what the classifier blocked shows up as one row in Today's "Needs your eyes" (one row however many), and a background agent's question or an MCP input request now count as "Claude is waiting".
-- **Files you only pulled are not "changed since the pass"** — files rewritten by a clone, pull or worktree stay quiet when their content is what the check saw. A cloud session without the app is now asked for a journal entry once, too.
-- **Screens that stay quiet at volume** — with many sessions only the long-silent ones are rows, long lists draw 30 or 50 rows at a time, `u` in the Journal toggles "unverified only", the diff screen says when nothing needs you. The terminal list and the journal detail reread only when they must.
-- **Windows updates no longer stop at "couldn't close Ocul-PM"** (4.12.1) — when the app took a moment to exit, the installer tried to close an app that was already closing and cancelled the install. It now waits for the app to finish exiting, then swaps.
+- **An honest first ten minutes** — the plugin reads "connected" only when this project has it switched on; otherwise it says what is missing and puts the one command to copy right there. A folder that isn't a git repo, a missing claude, live updates that stopped — each is said plainly, and Settings has a "Journal entries not arriving" check.
+- **Agents keep the plan through tools** — `plan_update` adds items, locks decisions and records a check result on its own, and a wrong call hears every missing argument at once. Items owned by a person (`[user]`) are never suggested as "next", and a claude started in a subfolder still reaches the repo's records.
+- **Cursor · Gemini CLI get the recording tools** — registered into that project's `.cursor/mcp.json` · `.gemini/settings.json` only when you press the button in Settings. The Codex plugin gains next · inception · redteam.
+- **"Since I looked" · receipts everywhere** — viewed files fold into "Viewed N" and only those changed afterwards open again. ⇧⌘C copies a receipt from Today, Journal or Changes, and it saves as a single HTML page too.
+- **Keep awake · terminal** — the machine stays awake only while Claude works (Settings, off by default). ⌘V of files copied in Finder pastes their paths, copies from tmux · ssh (OSC 52) reach the clipboard, right ⌥ types @ · €, and `.worktreeinclude` brings `.env` into a race lane.
+- **Five screens, exceptions first** — failing plans at the top of the list, no warning colour on chores, a narrower list and wider diff in small windows, `?` for "Keys for this screen", a "This screen" group in ⌘K, and "What goes out of this device" in Settings.
 
 ## Earlier releases at a glance
 
 The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
 
+- **Keeping up when agents run ahead** (4.12) — the plugin's MCP tools on Windows too, one nudge when an item closes without running the check, actions auto mode denied · new kinds of waiting, files you only pulled are not "changed since the pass", screens that stay quiet at volume. 4.12.1 keeps Windows updates from stopping at "couldn't close Ocul-PM".
 - **More exact, quieter, faster** (4.11) — a terminal built for Claude Code (Shift+Enter newline · sessions named after their conversation · no freeze on big output · cleaned pastes), ⌘J to the waiting session, Today in one column, an exact diff with "viewed", "Run in shell" for the check command, a Claude Code theme file
 - **A smoother Windows install and update** (4.11.2) — a % bar while downloading and "Updating Ocul" while it swaps, waiting for a running claude in the terminal before swapping, updates no longer logging sessions as crashes, and an installer that looks like Ocul (art · welcome text · "Open Ocul now").
 - **Working across a Mac and a Windows PC** (4.10) — a ✓ pulled in from another machine reads "Not checked here" (the result line ends with the OS it ran on), "Only on this machine" on Today (uncommitted changes · unpushed commits), the project colour follows the repository through `.oculpm/config.toml`, and an older app no longer writes the journaling-spec file (`journal-spec.md`) back.
