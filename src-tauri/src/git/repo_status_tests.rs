@@ -16,6 +16,15 @@ fn a_plain_folder_is_not_a_repo_but_git_is_there() {
 }
 
 #[test]
+fn a_vanished_folder_is_not_called_git_missing() {
+    let dir = tempfile::tempdir().unwrap();
+    let gone = dir.path().join("moved-away");
+    let s = status(&gone);
+    assert!(!s.is_git_repo);
+    assert!(!s.git_missing, "사라진 폴더를 「git 없음」 이라고 했다");
+}
+
+#[test]
 fn a_repo_is_a_repo() {
     let dir = tempfile::tempdir().unwrap();
     let ok = safe::cmd(dir.path(), &["init", "-q"])

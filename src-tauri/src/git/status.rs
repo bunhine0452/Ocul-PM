@@ -33,7 +33,8 @@ pub fn status(root: &Path) -> GitRepoStatus {
     let Some(repo) = primary_repo(root) else {
         return GitRepoStatus {
             is_git_repo: false,
-            git_missing: run_git(root, &["--version"]).is_err(),
+            // 폴더가 사라졌으면 git 은 작업 폴더 때문에 못 뜬다 — 그것을 「git 없음」 이라 하지 않는다.
+            git_missing: root.is_dir() && run_git(root, &["--version"]).is_err(),
             head_branch: None,
             remotes: Vec::new(),
         };
