@@ -52,9 +52,9 @@ ROOT="${CLAUDE_PROJECT_DIR:-}"
 [ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -e 's/.*"\([^"]*\)"$/\1/' -e 's/\\\\/\\/g')
 [ -n "$ROOT" ] || ROOT="."
 # 위로 올라가 가장 가까운 .oculpm — 저장소의 하위 폴더에서 띄운 claude 도 같은 프로젝트다 (11-23).
-# $HOME 위로는 안 간다. 매개변수 확장만 (프로세스 0) · `/` 와 Windows 의 `\` 둘 다 가른다.
+# $HOME(Windows 는 USERPROFILE — Git Bash 가 HOME 만 `/c/…` 로 바꾼다) 위로는 안 간다. 매개변수 확장만 (프로세스 0) · `/` 와 Windows 의 `\` 둘 다 가른다.
 while [ ! -d "$ROOT/.oculpm" ]; do
-  [ "$ROOT" != "${HOME:-}" ] || exit 0
+  [ "$ROOT" != "${HOME:-}" ] && [ "$ROOT" != "${USERPROFILE:-}" ] || exit 0
   _up=${ROOT%[/\\]*}
   [ -n "$_up" ] && [ "$_up" != "$ROOT" ] || exit 0
   ROOT=$_up
