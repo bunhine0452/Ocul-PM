@@ -39,8 +39,11 @@ const hit = (re, to) => (s) =>
     scrubbed += 1;
     return typeof to === "function" ? to(...m) : to;
   });
-const home = os.homedir();
-const user = path.basename(home);
+// 집 폴더 후보 — Windows 에서 os.homedir() 는 USERPROFILE 만 보고, Git Bash · 시험은 HOME 을 따로 준다.
+// 하나만 가리면 다른 쪽 이름이 픽스처에 남는다(port/love-round-20261123 Windows 에서 실측).
+const homes = [...new Set([process.env.HOME, process.env.USERPROFILE, os.homedir()].filter(Boolean))];
+const users = [...new Set(homes.map((h) => path.basename(h)).filter((u) => u && u !== "dev"))];
+const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const SCRUBBERS = [
   hit(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, "[비밀 키]"),
   hit(/\bsk-[A-Za-z0-9_-]{16,}/g, "sk-[가림]"),
@@ -51,10 +54,10 @@ const SCRUBBERS = [
   hit(/\b(api[_-]?key|secret|passwd|password|token)(\s*[:=]\s*)["']?[A-Za-z0-9+/_-]{12,}["']?/gi, (_m, k, sep) => `${k}${sep}[가림]`),
   hit(/\b[\w.+-]+@(?!example\.)[\w-]+(?:\.[\w-]+)+\b/g, "dev@example.com"),
   // 집 폴더 — 이 기기의 실제 경로와 일반 `/Users/<이름>` 모두.
-  hit(new RegExp(home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), "/Users/dev"),
+  ...homes.map((h) => hit(new RegExp(reEsc(h), "g"), "/Users/dev")),
   hit(/\/Users\/(?!dev\b)[^/\s"'`)]+/g, "/Users/dev"),
   hit(/C:\\Users\\(?!dev\b)[^\\\s"'`)]+/g, "C:\\Users\\dev"),
-  user && user !== "dev" ? hit(new RegExp(`\\b${user.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi"), "dev") : (s) => s,
+  ...users.map((u) => hit(new RegExp(`\\b${reEsc(u)}\\b`, "gi"), "dev")),
 ];
 const scrub = (s) => (typeof s === "string" ? SCRUBBERS.reduce((acc, f) => f(acc), s) : s);
 

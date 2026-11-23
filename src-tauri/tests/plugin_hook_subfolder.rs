@@ -90,9 +90,9 @@ fn payload(event: &str, cwd: &Path) -> String {
 fn run_hook(command: &str, sub: &Path, stdin: &str, home: Option<&Path>) -> Output {
     let command = command.replace("${CLAUDE_PLUGIN_ROOT}", &claude_plugin().to_string_lossy());
     let mut cmd = Command::new(hook_shell());
-    cmd.arg("-c")
-        .arg(command)
-        .current_dir(sub)
+    cmd.arg("-c");
+    push_arg_like_node(&mut cmd, &command);
+    cmd.current_dir(sub)
         .env("CLAUDE_PROJECT_DIR", sub)
         .env("CLAUDE_PLUGIN_ROOT", claude_plugin())
         .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"));
@@ -290,4 +290,49 @@ fn the_mcp_server_started_with_a_subfolder_root_serves_the_tracked_root() {
         .unwrap_or_else(|| panic!("root 줄이 없다: {err}"));
     let shown = PathBuf::from(shown).canonicalize().unwrap();
     assert_eq!(shown, root, "{err}");
+}
+
+/// 인자를 Claude Code(Node·Bun — libuv)가 싸는 모양으로 싣는다 — `plugin_xplat.rs` 와 같은 규칙.
+/// Windows 에서만 뜻이 있다: Rust 는 공백 없는 인자를 따옴표로 싸지 않고 `\"` 만 붙이는데, Git Bash(MSYS)
+/// 의 argv 파서는 따옴표 밖 `\"` 를 이스케이프로 읽지 않아 훅 명령의 따옴표가 깨진다. 이 파일이 처음엔
+/// `.arg(command)` 로 넘겨 Windows CI 에서만 인박스가 비었다(port/love-round-20261123, 훅이 아니라 시험 장치 탓).
+fn push_arg_like_node(cmd: &mut Command, arg: &str) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.raw_arg(libuv_quote(arg));
+    }
+    #[cfg(not(windows))]
+    {
+        cmd.arg(arg);
+    }
+}
+
+/// libuv `src/win/process.c` `quote_cmd_arg` 의 옮김(`plugin_xplat.rs` 에 표 시험이 있다).
+#[cfg(windows)]
+fn libuv_quote(arg: &str) -> String {
+    if arg.is_empty() {
+        return "\"\"".to_string();
+    }
+    if !arg.contains([' ', '\t', '"']) {
+        return arg.to_string();
+    }
+    if !arg.contains(['"', '\\']) {
+        return format!("\"{arg}\"");
+    }
+    let mut reversed = Vec::with_capacity(arg.len() * 2);
+    let mut quote_hit = true;
+    for c in arg.chars().rev() {
+        reversed.push(c);
+        if quote_hit && c == '\\' {
+            reversed.push('\\');
+        } else if c == '"' {
+            quote_hit = true;
+            reversed.push('\\');
+        } else {
+            quote_hit = false;
+        }
+    }
+    let body: String = reversed.into_iter().rev().collect();
+    format!("\"{body}\"")
 }
