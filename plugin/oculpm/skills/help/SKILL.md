@@ -1,5 +1,6 @@
 ---
-description: ocul-pm 플러그인 표면 전체 레퍼런스 카드 — 커맨드·MCP 도구·스킬·훅 한눈에
+description: Ocul 플러그인의 명령 · 도구 · 스킬 · 훅 한눈에 보기 (직접 부를 때만 — /oculpm:help)
+disable-model-invocation: true
 ---
 
 # /oculpm:help
@@ -17,7 +18,7 @@ description: ocul-pm 플러그인 표면 전체 레퍼런스 카드 — 커맨�
 
 ## MCP 도구 8종
 
-`journal_search`(과거 일지 찾기 — 작업 전에) · `journal_read`(일지 원문) · `journal_write`(일지 작성) · `plan_status`(플랜 조회 — 응답의 `plans[].hash` 가 `plan_update` 의 `base_hash` 재료) · `plan_update`(항목 상태 갱신 — **`base_hash` 필수**, 병렬 세션 보호) · `plan_create`(새 플랜 — `done_when` · `check` 필수) · `project_init`(추적 초기화, 사용자 확인 필수) · `ask_user`(사람의 결정을 앱의 오늘 화면에 묻고 답을 기다림 — 사람이 터미널을 안 볼 때, 25분 안)
+`journal_search`(과거 일지 찾기 — 작업 전에) · `journal_read`(일지 원문) · `journal_write`(일지 작성) · `plan_status`(플랜 조회 — 응답의 `plans[].hash` 가 `plan_update` 의 `base_hash` 재료) · `plan_update`(항목 상태 갱신 — **`base_hash` 필수**, 병렬 세션 보호) · `plan_create`(새 플랜 — `done_when` · `check` 는 꼭 적기를 권해요) · `project_init`(추적 초기화, 사용자 확인 필수) · `ask_user`(사람의 결정을 앱의 오늘 화면에 묻고 답을 기다림 — 사람이 터미널을 안 볼 때, 25분 안)
 
 ## 다른 에이전트 (Codex · Cursor · Gemini CLI · Copilot)
 
