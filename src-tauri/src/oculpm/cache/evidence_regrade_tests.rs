@@ -20,7 +20,8 @@ async fn evidence_is_regraded_for_rows_cached_by_an_older_rule() {
     let fm = "schema_version: 1\ntype: feature\nslug: unseen\nstatus: done\n\
               created_at: \"2026-11-23T09:00:00+09:00\"\nsession_id: \"20261123-001\"\n\
               agent: { id: claude-code }\nlanguage: ko";
-    let body = "[x] 화면: 무엇을 했다\n\n## 검증\n`pnpm test` 통과. 설치본에서 눈으로 보지는 않았다.\n";
+    let body =
+        "[x] 화면: 무엇을 했다\n\n## 검증\n`pnpm test` 통과. 설치본에서 눈으로 보지는 않았다.\n";
     fs::write(&abs, format!("---\n{fm}\n---\n{body}")).unwrap();
 
     JournalCache::new(&db)

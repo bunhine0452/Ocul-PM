@@ -161,6 +161,10 @@ export const oculpmApi = {
   watcherStop: (projectId: number) =>
     unwrap<null>("oculpm_watcher_stop", commands.oculpmWatcherStop(projectId)),
 
+  /** 다른 창이 쥔 감시를 이 창으로 가져온다 — 「실시간 갱신이 꺼져 있어요」(잠금) 토스트의 단추. */
+  watcherTakeOver: (projectId: number) =>
+    unwrap<null>("oculpm_watcher_take_over", commands.oculpmWatcherTakeOver(projectId)),
+
   // ─── W3-PR3 — journal cache + manual entry ─────────────────────────────
 
   listJournalEntries: (

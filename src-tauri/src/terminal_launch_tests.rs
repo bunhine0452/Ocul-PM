@@ -314,7 +314,8 @@ mod pty {
                 if present {
                     let fake = bin.join("claude");
                     std::fs::write(&fake, "#!/bin/sh\nprintf READY\nexit 0\n").unwrap();
-                    std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+                    std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755))
+                        .unwrap();
                 }
                 let path = format!("export PATH='{}':/usr/bin:/bin\n", bin.display());
                 std::fs::write(rc.path().join(".zshrc"), &path).unwrap();
@@ -330,7 +331,11 @@ mod pty {
                 let why = format!("{shell:?} present={present}: 셸이 다시 서지 않았다");
                 pty.takes_the_next_line(rc.path(), &why);
                 let out = pty.output();
-                assert_eq!(out.contains(MARK), !present, "{shell:?} present={present}: {out:?}");
+                assert_eq!(
+                    out.contains(MARK),
+                    !present,
+                    "{shell:?} present={present}: {out:?}"
+                );
             }
         }
     }
