@@ -4,6 +4,7 @@
 //! 감싼다. 로직은 전부 여기(lib) 에 있어 앱과 규격 구현을 공유하고 단위
 //! 테스트된다.
 
+pub mod agent_json;
 pub mod codex;
 pub mod hook;
 pub mod protocol;
