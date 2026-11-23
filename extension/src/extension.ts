@@ -16,6 +16,7 @@ import type { Journal } from "./model/journal";
 import { livePlans, type Overview } from "./model/overview";
 import { arrivals } from "./model/panel";
 import { receiptMarkdown } from "./model/receipt";
+import { pluginInstallText } from "./model/start";
 import { ago } from "./model/time";
 import { Project } from "./project";
 import { trackedFolders } from "./store";
@@ -80,6 +81,11 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     vscode.commands.registerCommand("ocul.fileHistory", fileHistory),
     vscode.commands.registerCommand("ocul.copyReceipt", copyReceipt),
     vscode.commands.registerCommand("ocul.refresh", () => rebuild()),
+    // `.oculpm/` 이 없는 폴더의 시작 안내(viewsWelcome)에서 — 복사만, 터미널에 쳐 넣지 않는다.
+    vscode.commands.registerCommand("ocul.copyPluginInstall", async () => {
+      await vscode.env.clipboard.writeText(pluginInstallText());
+      vscode.window.showInformationMessage(t("Copied the two lines. Paste them into a terminal."));
+    }),
     vscode.commands.registerCommand("ocul.openInApp", (arg?: vscode.Uri) => {
       const uri = arg instanceof vscode.Uri ? arg : vscode.window.activeTextEditor?.document.uri;
       const p = current(uri);
