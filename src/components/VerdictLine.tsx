@@ -44,6 +44,7 @@ export function VerdictLine({
   subTitle,
   compact = false,
   bare = false,
+  whenInSub = false,
 }: {
   state: VerdictState;
   /** 결과 끝 줄 그대로 — 비었으면 「끝 줄 없음」. */
@@ -58,8 +59,14 @@ export function VerdictLine({
   compact?: boolean;
   /** 표시(✓/✗)를 그리지 않는다 — 앞에 같은 뜻의 상태 칩이 이미 선 행. 읽기 낱말은 남긴다. */
   bare?: boolean;
+  /**
+   * 시각을 아래 줄 끝에 — 오늘 「먼저 볼 것」 의 다른 행(질문 · 기다림)이 시각을 메타 줄 끝에 두는 것과 같은 자리
+   * (영수증 규칙 4). 아래 줄이 칸 끝에서 잘려도 시각은 잘리지 않는다 — 잘리는 것은 앞의 글뿐이다.
+   */
+  whenInSub?: boolean;
 }) {
   const { t } = useT();
+  const tail = whenInSub && when && sub && !compact;
   return (
     <div className={`vl is-${state}${compact ? " is-compact" : sub ? " has-sub" : ""}${bare ? " is-bare" : ""}`}>
       {bare ? null : (
@@ -71,8 +78,18 @@ export function VerdictLine({
         <span className="vl-sr">{t(WORD[state])} </span>
         {summary ? <MachineText text={summary} /> : <span className="vl-empty">{t("today.check.noSummary")}</span>}
       </span>
-      {when ? <span className="vl-when">{when}</span> : null}
-      {sub && !compact ? (
+      {when && !tail ? <span className="vl-when">{when}</span> : null}
+      {tail ? (
+        <div className="vl-sub has-when">
+          <span className="vl-sub-t" title={subTitle}>
+            {sub}
+          </span>
+          <span className="vl-sub-sep" aria-hidden="true">
+            ·
+          </span>
+          <span className="vl-when">{when}</span>
+        </div>
+      ) : sub && !compact ? (
         <div className="vl-sub" title={subTitle}>
           {sub}
         </div>

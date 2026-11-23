@@ -109,6 +109,8 @@
 .tdy-row-open:hover { text-decoration: underline; text-underline-offset: 2px; }
 .tdy-empty { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px var(--card-pad-x); }
 .tdy-empty-ico { flex: none; margin-top: 1px; color: var(--text-2); }
+/* 빈 상태의 다음 한 동작 — 「다음」 행이 없을 때만 서는 글자 링크 한 줄. */
+.tdy-empty-next { margin-top: var(--space-2); }
 /* 「다음」 — 제목은 세 줄까지, 전부는 툴팁(11-15 V-10). 두 줄이던 때 넓은 창(1440)에서 칩 칸 · 동작 칸이 넓어져
    제목 칸이 400px 로 줄고 끝(「주고받은 지 N일」)이 잘렸다 — 960 창에서는 다 보였다(넓은 창이 덜 보여 줬다). */
 .tdy-next .tdy-row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
@@ -145,7 +147,7 @@
 /* ── 오늘 한 일 ────────────────────────────────────────────── */
 .tdy-ent {
   display: grid;
-  grid-template-columns: 44px 84px minmax(0, 1fr) auto 60px;
+  grid-template-columns: 44px minmax(0, 1fr) auto 3ch;
   align-items: center; gap: var(--space-3);
   width: 100%; padding: 7px var(--card-pad-x);
   border: 0; border-bottom: 1px solid var(--border-card);
@@ -160,16 +162,11 @@
 .tdy-grp:focus-visible { outline-offset: var(--focus-offset-inset); }
 .tdy-ent-tm, .tdy-ent-ln { font-size: var(--fs-3); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .tdy-ent-ln { text-align: right; white-space: nowrap; }
-.tdy-ent-ty {
-  display: flex; align-items: center; gap: var(--space-2);
-  overflow: hidden; white-space: nowrap;
-  font-size: var(--fs-3); color: var(--text-2);
-}
 .tdy-ent-ti { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tdy-ent-ev { display: inline-flex; align-items: center; justify-content: flex-end; }
 @container screen (max-width: 460px) {
   .tdy-ent { grid-template-columns: 44px minmax(0, 1fr) auto; }
-  .tdy-ent-ty, .tdy-ent-ln { display: none; }
+  .tdy-ent-ln { display: none; }
 }
 
 .tdy-grp-wrap + .tdy-grp-wrap { border-top: 1px solid var(--border-card); }

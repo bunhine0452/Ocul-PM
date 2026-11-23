@@ -328,6 +328,7 @@ mod tests {
                 updated_at: updated.into(),
                 item_count: 4,
                 done_count: 2,
+                closable: false,
                 last_verdict: Some(PlanVerdict {
                     passed: false,
                     summary: "2 failed".into(),

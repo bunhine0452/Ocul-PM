@@ -8,9 +8,9 @@
  * 미기록 파일 수로 대신한다. `null` 은 「모름」이라 배지가 없다.
  *
  * 11-15: 수의 색은 **가장 심한 행**을 따른다 — 확인 실패 · 막힘이 하나라도 있으면 빨강(danger), 아니면 앰버.
- * 실패와 기다림이 한 앰버 숫자로 합쳐져 실패가 묻혔다. 플러그인 새 판 같은 중립 행은 수에서 뺀다 — 그래서 풀이는
- * 오늘 머리의 「먼저 볼 것 N」(플러그인 행까지 센다)과 다른 말이다: 「손댈 것 5 · 실패 1」. 같은 말에 다른 수가
- * 서면 어느 쪽이 맞는지 묻게 된다. 이 창의 터미널 세션이 내 손을 기다리면 터미널 탭에 앰버 점.
+ * 실패와 기다림이 한 앰버 숫자로 합쳐져 실패가 묻혔다. 플러그인 새 판 같은 중립 행은 수에서 뺀다 — 오늘 카드 머리의
+ * 「먼저 볼 것 N」 도 같은 규칙(`countedExceptions`)으로 세서 풀이도 같은 이름이다: 「먼저 볼 것 5 · 실패 1」(11-23).
+ * 이 창의 터미널 세션이 내 손을 기다리면 터미널 탭에 앰버 점.
  *
  * 워처 이벤트(파일 변경·새 일지)를 1초로 묶어 다시 센다. 못 읽은 칸은 `null` =
  * 배지 없음(0 과 다르다).
@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { oculpmApi } from "@/api/oculpm";
 import { projectsApi } from "@/api/projects";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
+import { countedExceptions } from "@/features/today/todayModel";
 import { t } from "@/i18n";
 
 export interface NavBadge {
@@ -27,7 +28,7 @@ export interface NavBadge {
   n: number;
   /** 가장 심한 행의 색 — 없으면 앰버. */
   tone?: "warn" | "danger";
-  /** 수의 풀이 — 「손댈 것 5 · 실패 1」. */
+  /** 수의 풀이 — 「먼저 볼 것 5 · 실패 1」. */
   title?: string;
   /** 터미널 탭 — 이 창의 세션이 내 손을 기다린다. */
   dot?: boolean;
@@ -44,8 +45,6 @@ export interface BadgeExtra {
 
 /** 빨강으로 세는 행 — 확인 명령 실패 · 막힌 항목. */
 const DANGER_KINDS = new Set(["verdict", "blocked"]);
-/** 수에 넣지 않는 행 — 플러그인 새 판처럼 지금 손댈 일이 아닌 것. */
-const NEUTRAL_KINDS = new Set(["plugin"]);
 
 const SETTLE_MS = 1000;
 
@@ -102,7 +101,7 @@ export function useNavBadges(
 export function navBadgesOf(unrecorded: number | null, todayToCheck?: number | null, extra: BadgeExtra = {}): NavBadges {
   const badges: NavBadges = {};
   if (extra.todayRows) {
-    const counted = extra.todayRows.filter((r) => !NEUTRAL_KINDS.has(r.kind));
+    const counted = countedExceptions(extra.todayRows);
     const failed = counted.filter((r) => DANGER_KINDS.has(r.kind)).length;
     const n = counted.length;
     if (n) {

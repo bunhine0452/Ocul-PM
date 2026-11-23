@@ -29,7 +29,7 @@ import { sessionWord } from "@/features/terminal/status";
 import { CLAUDE_PLUGIN_UPDATE } from "@/lib/agentCommands";
 import { blocked } from "@/lib/blocked";
 import { whenLabel } from "@/lib/whenLabel";
-import { osLabel, type ExceptionKind, type TodayException, type TodaySplit } from "./todayModel";
+import { countedExceptions, osLabel, type ExceptionKind, type TodayException, type TodaySplit } from "./todayModel";
 
 type ChipKind = Exclude<ExceptionKind, "evidence" | "decision">;
 
@@ -299,17 +299,18 @@ function QuestionAnswer({
   );
 }
 
-/** 판정 실패 · 통과 뒤 바뀜 · 여기선 아직 — 끝 줄을 앞에, 명령 · 계획(· 바뀐 파일 · 돌린 곳)을 아래 한 줄로. */
+/**
+ * 판정 실패 · 통과 뒤 바뀜 · 여기선 아직 — 끝 줄을 앞에, 아래 한 줄은 **어느 계획인지가 먼저**: 계획 이름(사람 말) ·
+ * 바뀐 파일 · 돌린 곳, 확인 명령(고정폭)은 맨 끝이라 칸이 모자라면 명령부터 잘린다(11-23). 명령을 앞에 두던 때는
+ * 긴 확인 명령(`pnpm typecheck && … cargo test --locked`)이 계획 이름을 말줄임 뒤로 밀어, 계획이 여럿인 사람은
+ * 「계획 열기」 를 눌러 보기 전까지 무엇이 실패했는지 몰랐다. 시각은 다른 행처럼 아래 줄 끝(`whenInSub`).
+ */
 function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "stale" | "elsewhere" }> }) {
   const { t } = useT();
   const state = ex.kind === "stale" ? "stale" : ex.kind === "elsewhere" ? "away" : "fail";
   const parts: ReactNode[] = [];
   // 툴팁의 전문 — 바뀐 파일은 「외 N」 으로 줄이지 않고 다 적는다.
   const full: string[] = [];
-  if (ex.plan.check) {
-    parts.push(<code className="mono">{ex.plan.check}</code>);
-    full.push(ex.plan.check);
-  }
   const inPlan = t("today.check.inPlan", { plan: ex.plan.title });
   parts.push(inPlan);
   full.push(inPlan);
@@ -319,6 +320,10 @@ function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "s
     parts.push(<SubText text={sub.text} mono={sub.mono} />);
     full.push(sub.full);
   }
+  if (ex.plan.check) {
+    parts.push(<code className="mono">{ex.plan.check}</code>);
+    full.push(ex.plan.check);
+  }
   return (
     <VerdictLine
       state={state}
@@ -327,6 +332,7 @@ function VerdictRow({ ex }: { ex: Extract<TodayException, { kind: "verdict" | "s
       sub={metaLine(parts)}
       subTitle={full.join(" · ")}
       bare
+      whenInSub
     />
   );
 }
@@ -541,6 +547,8 @@ interface TodayExceptionsProps {
   isSending: (questionId: string) => boolean;
   isBusy: (id: string) => boolean;
   onRunNext: () => void;
+  /** 볼 것도 「다음」 도 없을 때의 한 동작 — 계획 화면으로(새 항목을 세우거나 끝난 계획을 닫는 곳). */
+  onOpenPlans: () => void;
 }
 
 /** 「먼저 볼 것」 — 예외 행 + 마지막의 「다음」. */
@@ -559,6 +567,7 @@ export function TodayExceptions({
   isSending,
   isBusy,
   onRunNext,
+  onOpenPlans,
 }: TodayExceptionsProps) {
   const { t } = useT();
   if (split == null) {
@@ -577,12 +586,14 @@ export function TodayExceptions({
 
   const { first, unread } = split;
   const empty = !firstRun && first.length === 0 && unread.length === 0;
+  // 머리의 수는 윗줄 탭 배지와 같은 수 · 같은 이름이다(`countedExceptions`, 11-23).
+  const counted = countedExceptions(first).length;
   if (first.length === 0 && !next && !empty && staleSince == null) return null;
   return (
     <section className="card tdy-card" aria-labelledby="tdy-check-h">
       <header className="tdy-ch">
         <h2 id="tdy-check-h">{t("today.check.title")}</h2>
-        {first.length > 0 ? <span className="tdy-cnt">{first.length}</span> : null}
+        {counted > 0 ? <span className="tdy-cnt">{counted}</span> : null}
         <span className="tdy-sp" />
         {staleSince != null ? <StaleNote since={staleSince} onRetry={onRetry} /> : null}
       </header>
@@ -598,6 +609,16 @@ export function TodayExceptions({
                   ? t("today.check.emptyBody", { n: entryCount })
                   : t("today.check.emptyBodyUnknown", { n: entryCount })}
             </div>
+            {/* 빈 상태에도 다음 한 동작 하나(11-23) — 「다음」 행이 있으면 그것이 그 동작이고, 없으면 계획 화면으로:
+                다음에 잡을 항목이 없다는 것은 새 항목을 세우거나 끝난 계획을 닫을 때라는 뜻이다. */}
+            {next ? null : (
+              <div className="tdy-meta tdy-empty-next">
+                {t("today.check.emptyNoNext")}{" "}
+                <button type="button" className="text-link" onClick={onOpenPlans}>
+                  {t("today.check.openPlans")}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ) : null}

@@ -41,5 +41,11 @@
 .vl.is-bare { grid-template-columns: minmax(0, 1fr) auto; }
 .vl.is-bare .vl-sub { grid-column: 1 / -1; }
 
+/* 시각이 아래 줄 끝에(`whenInSub`) — 앞의 글만 잘리고 시각은 늘 보인다. */
+.vl-sub.has-when { display: flex; align-items: baseline; gap: 0.35em; overflow: visible; }
+.vl-sub-t { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vl-sub-sep { flex: none; }
+.vl-sub.has-when .vl-when { flex: none; font-size: inherit; }
+
 /* 목록 한 줄. */
 .vl.is-compact { column-gap: var(--space-2); }

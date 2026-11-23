@@ -198,6 +198,17 @@ export function splitExceptions(list: readonly TodayException[]): TodaySplit {
   return { first, unread, mine };
 }
 
+/** 수에 넣지 않는 행 — 플러그인 새 판처럼 지금 손댈 일이 아닌 것. */
+const NEUTRAL_KINDS: ReadonlySet<string> = new Set(["plugin"]);
+
+/**
+ * 「먼저 볼 것」 의 수가 세는 행 (11-23) — 오늘 카드 머리와 윗줄 탭 배지가 이 한 규칙으로 센다. 예전엔 머리는 플러그인
+ * 행까지, 배지는 빼고 세서 같은 자리의 두 수가 달랐고, 그 차이를 「먼저 볼 것」 · 「손댈 것」 두 이름으로 갈라 말했다.
+ */
+export function countedExceptions<T extends { kind: string }>(rows: readonly T[]): T[] {
+  return rows.filter((r) => !NEUTRAL_KINDS.has(r.kind));
+}
+
 /** plan-log 의 일지 열(`.oculpm/` 기준)을 일지 화면의 경로(일지 루트 기준)로. */
 export function normalizeJournalRef(ref: string): string {
   return ref.replace(/^\.oculpm\//, "").replace(/^journal\//, "");

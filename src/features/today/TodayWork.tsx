@@ -27,19 +27,28 @@ type WorkView = "plan" | "time";
 /** 편 목록 하나가 한 번에 그리는 줄 수 — 넘는 만큼은 「N건 더 보기」 가 이만큼씩 더 그린다. */
 export const WORK_LIMIT = 30;
 
+/**
+ * 일지 한 줄 — 시각 · 제목 · 검증 표시 · 파일 수. 사람이 읽을 글(제목)이 가장 넓다(11-23): 종류 이름(「기능 추가」
+ * 84px)과 「파일 12」(60px)가 자리를 차지해 1280 창에서 제목 15개 중 13개가 203px 에서 잘렸다. 종류는 일지 목록의
+ * 한 줄 행처럼 줄에 쓰지 않는다 — 제목이 「영역: 무엇을 했다」 로 이미 말하고, 이름은 툴팁에 있다. 파일 수는 숫자만
+ * (뜻은 툴팁 · 화면 읽기).
+ */
 function EntryRow({ entry, onOpen }: { entry: JournalEntrySummary; onOpen: (e: JournalEntrySummary) => void }) {
   const { t } = useT();
   const meta = TRIGGER_META[entry.type] ?? TRIGGER_META.chore;
+  const files = t("today.work.files", { n: entry.files_count });
   return (
     <li>
-      <button type="button" className="tdy-ent" onClick={() => onOpen(entry)}>
+      <button type="button" className="tdy-ent" title={`${t(meta.labelKey)} · ${entry.title}`} onClick={() => onOpen(entry)}>
         <span className="tdy-ent-tm mono">{clockOf(entry.created_at)}</span>
-        <span className="tdy-ent-ty">{t(meta.labelKey)}</span>
         <span className="tdy-ent-ti">{entry.title}</span>
         <span className="tdy-ent-ev">
           <EvidenceMark state={evidenceStateOf(entry)} level={entry.evidence} />
         </span>
-        <span className="tdy-ent-ln mono">{t("today.work.files", { n: entry.files_count })}</span>
+        <span className="tdy-ent-ln mono" title={files}>
+          <span className="tdy-sr">{files}</span>
+          <span aria-hidden="true">{entry.files_count}</span>
+        </span>
       </button>
     </li>
   );

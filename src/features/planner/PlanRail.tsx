@@ -4,6 +4,10 @@
  * 폭은 일지 목록 칸과 같은 `--panel-w` 다(11-15) — 탭을 바꿀 때 문서 제목이 옆으로 뛰지 않게.
  * 판정 줄은 오늘 화면과 같은 네 모습(`verdictStateOf`)이고, 끝 줄은 「N passed」 · 「N failed」 만(`railSummary`)
  * — 계획 넷이 모두 「✓ pnpm test …」 로 같은 줄을 세우던 것을 걷었다. 끝 줄 전체는 판정 카드에 있다.
+ *
+ * 진행 중 칸은 예외가 먼저다(`railOrder`, 11-23) — 먼저 볼 계획 · 닫을 계획이 있으면 무리마다 이름과 수가 선다
+ * (영수증 규칙 5: 숫자로). 오늘의 「닫을 계획 N」 을 누르면 그 첫 계획이 열리고, 나머지는 레일 맨 위 같은 이름의
+ * 무리에 모여 있다.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -12,8 +16,14 @@ import { VerdictLine } from "@/components/VerdictLine";
 import { whenLabel } from "@/lib/whenLabel";
 import { getLang, useT } from "@/i18n";
 import type { PlanSummary } from "@/lib/bindings";
-import { railOrder } from "./planList";
+import { railGroups, railOrder, type RailGroupKey } from "./planList";
 import { railSummary, verdictStateOf } from "./verdictState";
+
+const GROUP_KEY = {
+  attention: "plan.list.groupAttention",
+  closable: "plan.list.groupClosable",
+  rest: "plan.list.groupRest",
+} as const satisfies Record<RailGroupKey, string>;
 
 function RailRow({ plan, selected, onSelect }: { plan: PlanSummary; selected: boolean; onSelect: () => void }) {
   const { t } = useT();
@@ -79,14 +89,27 @@ export function PlanRail({
     if (closedHasSelection) setClosedOpen(true);
   }, [closedHasSelection]);
   const months = useMemo(() => byMonth(closed), [closed]);
+  const groups = railGroups(active);
+  const row = (p: PlanSummary) => (
+    <RailRow key={p.plan_id} plan={p} selected={p.plan_id === selectedId} onSelect={() => onSelect(p.plan_id)} />
+  );
   return (
     <nav className="plv-rail" aria-label={t("plan.list.aria")}>
       <div className="plv-rail-h">{t("plan.list.active", { n: active.length })}</div>
-      <ul className="plv-rail-list">
-        {active.map((p) => (
-          <RailRow key={p.plan_id} plan={p} selected={p.plan_id === selectedId} onSelect={() => onSelect(p.plan_id)} />
-        ))}
-      </ul>
+      {groups.length > 1 ? (
+        groups.map((g) => (
+          <div key={g.key} className="plv-rail-g" data-group={g.key}>
+            {/* 달 머리와 같은 모양 — 이름 · 수(영수증 규칙 4 · 5). */}
+            <div className="plv-month-h">
+              <span>{t(GROUP_KEY[g.key])}</span>
+              <span className="plv-sec-n">{g.plans.length}</span>
+            </div>
+            <ul className="plv-rail-list">{g.plans.map(row)}</ul>
+          </div>
+        ))
+      ) : (
+        <ul className="plv-rail-list">{active.map(row)}</ul>
+      )}
       {closed.length > 0 ? (
         <Disclosure
           className="plv-closed"
@@ -100,11 +123,7 @@ export function PlanRail({
                 <span>{g.label}</span>
                 <span className="plv-sec-n">{g.plans.length}</span>
               </div>
-              <ul className="plv-rail-list">
-                {g.plans.map((p) => (
-                  <RailRow key={p.plan_id} plan={p} selected={p.plan_id === selectedId} onSelect={() => onSelect(p.plan_id)} />
-                ))}
-              </ul>
+              <ul className="plv-rail-list">{g.plans.map(row)}</ul>
             </div>
           ))}
         </Disclosure>
