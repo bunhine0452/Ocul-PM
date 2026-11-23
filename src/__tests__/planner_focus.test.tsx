@@ -77,8 +77,10 @@ describe("planner focus after the status menu", () => {
     await frames();
     // 단계 「One」 이 끝나 접혔다 — 상자는 사라졌고 같은 자리의 상자(Charlie)가 포커스를 받는다.
     expect(screen.queryByRole("button", { name: t("plan.item.statusAria", { title: "Bravo", status: t("plan.status.done") }) })).toBeNull();
-    await waitFor(() => expect(document.activeElement).toBe(box("Charlie", "todo"))); // 느린 러너에선 접힌 단계가 두 프레임 뒤에 선다
-  });
+    // 느린 러너에선 접힌 단계가 두 프레임 뒤에 선다 — Windows 러너(port/love-round-20261123)에서 이 시험이 5.2초 걸려
+    // 기본 1초 기다림을 넘겼다. 단언은 그대로, 기다림만 넓힌다.
+    await waitFor(() => expect(document.activeElement).toBe(box("Charlie", "todo")), { timeout: 3000 });
+  }, 15000);
 
   it("a status that folds the phase (item with a journal, no dialog) also keeps focus on a box", async () => {
     stage([

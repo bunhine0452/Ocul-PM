@@ -275,7 +275,9 @@ fn the_missing_check_line_names_the_plans_that_lack_it() {
 #[test]
 fn the_how_many_plans_tail_survives_the_budget_cut() {
     let p = project();
-    let long = "가나다라마바사아자차카타파하".repeat(5);
+    // 글자로 세든(Linux gawk) 바이트로 세든(macOS awk) 1,600 을 넘게 — 5번(70자)이면 글자로는 두 계획이
+    // 약 1,510자라 Linux 에서만 자르기가 일어나지 않았다(port/love-round-20261123).
+    let long = "가나다라마바사아자차카타파하".repeat(10);
     let items: String = (1..=8)
         .map(|i| format!("- [ ] {long} {i} {{#i{i}}}\n"))
         .collect();
