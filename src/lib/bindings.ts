@@ -2320,6 +2320,11 @@ export type RaceLane = {
 	journal_title: string | null,
 	evidence: number,
 	proof: string | null,
+	/**
+	 *  만들 때만 — `.worktreeinclude` 로 레인에 복사한 git 무시 파일의 이름(`race_include`). 내용은 싣지 않는다.
+	 *  TS 는 선택 속성(`TermStatus.app` 과 같은 까닭) — 목록(`lanes`)에는 없다.
+	 */
+	included?: string[] | null,
 };
 
 export type Receipt = {

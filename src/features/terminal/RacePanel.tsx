@@ -24,7 +24,7 @@ import { kbd } from "@/lib/kbd";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { toast } from "@/lib/toast";
 import { requestTermFocus } from "./focusRequest";
-import { clearRace, refreshRace, setRaceExpanded, startRace, useRace } from "./race";
+import { clearRace, includedLine, refreshRace, setRaceExpanded, startRace, useRace } from "./race";
 import { SessionDot, SessionWord } from "./SessionTabs";
 import { sessionView, type SessionView } from "./status";
 import { hasWorked, subscribeTerms, termsSnapshot } from "./termStore";
@@ -55,8 +55,11 @@ export function RaceStartDialog({ projectId, onClose }: { projectId: number; onC
     if (!prompt.trim() || busy) return;
     setBusy(true);
     try {
-      const first = await startRace(projectId, prompt.trim(), count);
+      const { first, included } = await startRace(projectId, prompt.trim(), count);
       if (first != null) requestTermFocus(first);
+      // `.worktreeinclude` 로 복사한 파일의 이름만 — 레인이 왜 `.env` 를 갖고 있는지 사람이 안다(내용은 싣지 않는다).
+      const line = includedLine(included);
+      if (line) toast.info(line);
       onClose();
     } catch (e) {
       toast.destructive(t("race.startFailed", { error: tError(toAppError(e)) }));

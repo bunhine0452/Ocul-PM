@@ -532,6 +532,8 @@ export const en: Record<keyof typeof ko, string> = {
   "race.needsPrompt": "Write the prompt first",
   "race.start": "Start {n}",
   "race.startFailed": "Couldn't start: {error}",
+  "race.included": "Copied ignored files into each run (.worktreeinclude): {names}",
+  "race.includedMore": "{names} and {n} more",
   "race.lane": "Run {n}",
   "race.noSession": "No session",
   "race.noChanges": "No changes yet",
