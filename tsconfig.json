@@ -26,6 +26,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "scripts/harness"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -112,6 +112,9 @@ benchmarks/agentic/results/raw/
 # CI 의 ONNX Runtime 사전 빌드 캐시 (ORT_CACHE_DIR — 워크플로 env)
 /.ort-cache/
 
+# 화면 하네스(scripts/harness) 산출물 — 실행 때 만드는 픽스처(이 저장소 일지 본문이 든다)와 찍은 PNG. 커밋 금지.
+scripts/harness/generated/
+
 # impeccable 디자인 작업 — 결정 페이지 스케치 · 검토 캡처 · 빌드 상태 · 훅 캐시는 기기 것. 남기는 것은 surfaces/ · DESIGN.md · design.json
 .impeccable/mocks/
 .impeccable/review/
