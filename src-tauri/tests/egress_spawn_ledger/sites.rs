@@ -288,6 +288,7 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
         ],
     ),
     ("git/race_tests.rs", "레인(worktree 여럿에서) 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
+    ("git/race_include_tests.rs", "레인 준비의 `.worktreeinclude` 복사 시험용 임시 저장소(git 무시 파일 목록)를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("git/authors_tests.rs", "동료 일지 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("git/receipt_tests.rs", "PR 영수증 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
     ("git/spawn_count_tests.rs", "git 기동 수를 재는 시험용 임시 저장소를 만드는 로컬 git 픽스처.", &[("git", "std_cmd(\"git\")")]),
@@ -342,5 +343,11 @@ pub(super) const WEB_LAUNCHES: &[(&str, &str, Reach, &str)] = &[
         "import { revealItemInDir } from \"@tauri-apps/plugin-opener\"",
         Reach::Local,
         "설정 「이 프로젝트」가 `.oculpm` 폴더를 파일 관리자에서 연다 — 로컬 경로.",
+    ),
+    (
+        "features/oculpm/watcherToast.ts",
+        "import { revealItemInDir } from \"@tauri-apps/plugin-opener\"",
+        Reach::Local,
+        "실시간 갱신이 꺼진 원인 토스트가 사람이 누를 때 그 폴더(권한 · 없는 폴더)를 파일 관리자에서 연다 — 로컬 경로.",
     ),
 ];
