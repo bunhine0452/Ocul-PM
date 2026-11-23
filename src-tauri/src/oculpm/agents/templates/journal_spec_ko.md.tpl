@@ -1,8 +1,8 @@
-<!-- template_version: 3 -->
+<!-- template_version: 4 -->
 # 일지·플랜 파일 규격 (ocul-pm)
 
 > 이 파일은 ocul-pm 이 관리합니다 (직접 편집 금지 — 앱 업그레이드 시 갱신됨).
-> 마스터 규칙(`AGENTS.md` §3)이 가리키는 on-demand 규격서입니다 — **MCP 도구(`journal_write`·`plan_update`·`plan_create`)가 없을 때만** 읽으세요. 도구가 있으면 경로·frontmatter·헤더 순서·plan-log 는 서버가 보장합니다.
+> 마스터 규칙(`AGENTS.md` §3)이 가리키는 on-demand 규격서입니다 — **MCP 도구(`journal_write`·`plan_update`·`plan_create`)가 없을 때만** 읽으세요. 도구가 있으면 경로·frontmatter·헤더 순서·plan-log 는 서버가 보장하고, 항목 더하기·결정·판정만 남기기도 `plan_update`(`add`·`decision`·`verdict`)가 합니다 — 이 아래를 손으로 따라 하지 마세요.
 
 ## 일지
 
@@ -17,10 +17,12 @@ frontmatter 필수: `schema_version: 1` · `type` · `slug` · `status`(planned|
 ## 플랜 (`.oculpm/planner/<plan_id>.md`)
 
 갱신: 항목 글리프 한 글자만 바꾸고, 하단 `<!-- oculpm:plan-log begin v1 -->` 표에 **한 줄 append** (기존 행 수정 금지):
-`| <ISO 시각+offset> | #항목id | <네 agent.id 그대로> | 이전→새 글리프 (신규 항목은 →☐) | <방금 쓴 일지 상대경로> | 짧은 메모 |` — 셀 안의 `|` 는 `\|`. 확인 명령을 돌린 결과는 메모를 `판정 ✓ <결과 끝 줄>` 또는 `판정 ✗ <결과 끝 줄>` 로 시작하고, 끝에 돌린 OS 를 ` · mac` · ` · windows` · ` · linux` 중 하나로 붙인다(`plan_update` 는 알아서 붙인다) — 다른 OS 에서 받은 ✓ 는 이 기기의 ✓ 가 아니다.
+`| <ISO 시각+offset> | #항목id | <네 agent.id 그대로> | 이전→새 글리프 (신규 항목은 →☐) | <방금 쓴 일지 상대경로> | 짧은 메모 |` — 셀 안의 `|` 는 `\|`. 확인 명령을 돌린 결과는 메모를 `판정 ✓ <결과 끝 줄>` 또는 `판정 ✗ <결과 끝 줄>` 로 시작하고, 끝에 돌린 OS 를 ` · mac` · ` · windows` · ` · linux` 중 하나로 붙인다(`plan_update` 는 알아서 붙인다) — 다른 OS 에서 받은 ✓ 는 이 기기의 ✓ 가 아니다. 상태를 안 바꾸고 판정만 남기는 행은 항목 칸 `—`, 변화 칸 빈칸.
 
 규칙: `{#id}` 와 managed block 경계는 보존 · 항목은 한 줄 — `{#id}` 를 줄 *끝* 에 두고 줄바꿈 금지(둘째 줄의 `{#id}` 는 파서가 못 읽음) · 새 항목엔 안정적 영어 kebab id · 중첩은 최대 1단계(두 칸 들여쓴 `  - [ ] 하위 {#id}`, 부모 글리프는 하위 롤업) · 일지 내용을 복붙하지 말고 일지 열로 참조 · `archived:` 마커 줄은 손대지 말 것 · 현재 상태는 본문 글리프가 정답, 로그는 이력.
 
 닫기: 미완(`[ ]`·`[~]`·`[!]`)이 남은 plan 을 `status: done` 으로 닫지 말 것 — 남은 항목을 살아 있는 plan 으로 **옮긴 뒤** 닫는다 (접힌 plan 의 미완은 유실된다).
+
+결정: 그 plan 의 `## 결정` 섹션에 `### Decision N — 제목 {#id}` 블록 — 다음 줄 `잠금 YYYY-MM-DD · <agent.id>`, 근거, `영향: #항목id`. plan-log 에 그 id 로 한 줄.
 
 새 plan: YAML frontmatter(`oculpm_plan: v1` · `id`(파일명과 동일 kebab) · `title`(따옴표) · `status: active` · `created`/`updated` · `owner`(네 agent.id)) → `**완료 조건:** …` · `**확인 명령:** …` 한 줄씩 → `## Phase 제목 {#id}` 헤딩(글리프 없음 — 진척은 하위 롤업) → `- [ ] 항목 {#id}` 줄(항목 제목 40자 안) → 빈 `<!-- oculpm:plan-log begin v1 -->`…`<!-- oculpm:plan-log end -->` 블록.

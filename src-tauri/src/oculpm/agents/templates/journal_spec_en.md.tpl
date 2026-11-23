@@ -1,8 +1,8 @@
-<!-- template_version: 3 -->
+<!-- template_version: 4 -->
 # Journal and plan file spec (ocul-pm)
 
 > Managed by ocul-pm (do not edit — refreshed on app upgrade).
-> The on-demand spec that the master rules (`AGENTS.md` §3) point at — read it **only when the MCP tools (`journal_write` · `plan_update` · `plan_create`) are unavailable**. With the tools, the server guarantees paths, frontmatter, header order and the plan-log.
+> The on-demand spec that the master rules (`AGENTS.md` §3) point at — read it **only when the MCP tools (`journal_write` · `plan_update` · `plan_create`) are unavailable**. With the tools, the server guarantees paths, frontmatter, header order and the plan-log, and `plan_update` (`add` · `decision` · `verdict`) adds items, locks decisions and records verdict-only rows — don't do the steps below by hand.
 
 ## Journal
 
@@ -17,10 +17,12 @@ Need an example? Read a recent entry of the same type.
 ## Plans (`.oculpm/planner/<plan_id>.md`)
 
 Update: flip the item's glyph (one character) and **append one row** to the `<!-- oculpm:plan-log begin v1 -->` table at the bottom (never edit existing rows):
-`| <ISO time+offset> | #item-id | <your agent.id verbatim> | old→new glyph (→☐ for new items) | <journal path you just wrote> | short note |` — escape `|` inside a cell as `\|`. When you ran the check command, start the note with `verdict ✓ <last result line>` or `verdict ✗ <last result line>`, and end it with the OS you ran it on — ` · mac`, ` · windows` or ` · linux` (`plan_update` appends it for you). A ✓ from another OS is not a ✓ on this machine.
+`| <ISO time+offset> | #item-id | <your agent.id verbatim> | old→new glyph (→☐ for new items) | <journal path you just wrote> | short note |` — escape `|` inside a cell as `\|`. When you ran the check command, start the note with `verdict ✓ <last result line>` or `verdict ✗ <last result line>`, and end it with the OS you ran it on — ` · mac`, ` · windows` or ` · linux` (`plan_update` appends it for you). A ✓ from another OS is not a ✓ on this machine. A verdict-only row (no status change) has `—` in the item cell and an empty change cell.
 
 Rules: preserve `{#id}` markers and managed-block boundaries · items are ONE line — keep `{#id}` at the *end*, never wrap (a wrapped `{#id}` is invisible) · give new items stable English kebab ids · nest at most one level (two-space indent `  - [ ] sub {#id}`; the parent's glyph rolls up) · reference journals via the journal column, never paste them · never touch the `archived:` marker lines · the body glyph is current truth; the log is history.
 
 Closing: never set `status: done` while any `[ ]`/`[~]`/`[!]` remains — **move** those into a live plan first (open items in a folded plan are lost).
+
+Decisions: a `### Decision N — title {#id}` block under the plan's `## Decisions` — next line `Locked YYYY-MM-DD · <agent.id>`, the rationale, `Affects: #item-ids`. One plan-log row with that id.
 
 New plan: YAML frontmatter (`oculpm_plan: v1` · `id` (kebab, same as filename) · `title` (quoted) · `status: active` · `created`/`updated` · `owner` (your agent.id)) → one line each of `**Done when:** …` and `**Check:** …` → `## Phase title {#id}` headings (no glyph — progress rolls up) → `- [ ] item {#id}` lines (item titles under 40 characters) → an empty `<!-- oculpm:plan-log begin v1 -->`…`<!-- oculpm:plan-log end -->` block.
