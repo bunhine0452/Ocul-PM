@@ -34,11 +34,11 @@ Start with two lines of the Claude Code plugin, and add the desktop app if you w
 When an agent finishes, it says "all done". Whether the tests really passed, which files it changed and why, what it skipped — none of that is in the sentence. To check, you reread the diff and the logs from the top, and tomorrow's new conversation doesn't even have that context.
 
 ```text
-/plugin marketplace add bunhine0452/Ocul-PM
-/plugin install oculpm@oculpm
+claude plugin marketplace add bunhine0452/Ocul-PM
+claude plugin install oculpm@oculpm
 ```
 
-Those two lines in Claude Code are all it takes to start (no app needed). To see the record on screen, [download the app](https://github.com/bunhine0452/Ocul-PM/releases/latest) — macOS, with Windows · Linux in beta.
+Those two lines in a terminal are all it takes to start (no app needed; inside Claude Code use `/plugin marketplace add …` · `/plugin install …`). Restart any Claude that was open. To see the record on screen, [download the app](https://github.com/bunhine0452/Ocul-PM/releases/latest) — macOS, with Windows · Linux in beta.
 
 Ocul leaves a receipt instead of that sentence. Plant a single rules file (`AGENTS.md`) in your project folder and the agent writes a markdown journal entry to `.oculpm/journal/` every time it finishes a unit of work; the next conversation receives those entries and the remaining plan — done condition · check command · last verdict — as its starting context and carries on. From that record the app unfolds **only what a person needs to look at**: failed verdicts, entries without command evidence, changes no entry mentions, blocked items, decisions that are yours to make. Work that has its evidence folds to one line. Because the source of truth is plain markdown, it commits alongside your code and stays readable without the app.
 
@@ -163,12 +163,14 @@ Git backfill tells agents apart by commit signatures.
 
 ## The Claude Code plugin — start without the app
 
-Two lines in your terminal's Claude Code and recording begins:
+Two lines in a terminal and recording begins (inside Claude Code, the same lines as `/plugin …`):
 
 ```
-/plugin marketplace add bunhine0452/Ocul-PM
-/plugin install oculpm@oculpm
+claude plugin marketplace add bunhine0452/Ocul-PM
+claude plugin install oculpm@oculpm
 ```
+
+To update, run `claude plugin update oculpm@oculpm`, then restart any open Claude. The app's Settings and Today screens copy the line that matches what this project is missing (install · turn on · update).
 
 For Codex, two lines in a terminal:
 
