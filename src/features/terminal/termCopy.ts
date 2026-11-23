@@ -40,7 +40,7 @@ export function selectedText(term: CopyTerm): string {
 }
 
 /** 클립보드에 쓸 글 — Windows 면 줄바꿈을 CRLF 로(xterm 의 선택 글과 같은 규칙, Windows 앱에 붙여 넣는 글). */
-const forClipboard = (text: string, windows: boolean) => (windows ? text.replace(/\n/g, "\r\n") : text);
+export const forClipboard = (text: string, windows: boolean) => (windows ? text.replace(/\n/g, "\r\n") : text);
 
 /**
  * host 캡처 단계의 copy — xterm 의 처리기 대신 정리한 글을 클립보드에. 고른 것이 없으면 아무것도

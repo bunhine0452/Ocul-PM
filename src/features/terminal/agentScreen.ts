@@ -44,7 +44,7 @@ type Away = { phase: "out" | "editor" | "back"; at: number };
  * 사람이 친 입력인가 — xterm 이 질의에 스스로 답한 것(장치 속성 · 커서 자리 · 포커스 보고)은 ESC 로 시작한다.
  * 대괄호 붙여넣기는 ESC 로 시작해도 사람 손이다.
  */
-function typedByPerson(data: string): boolean {
+export function typedByPerson(data: string): boolean {
   return !data.startsWith("\x1b") || data.startsWith("\x1b[200~");
 }
 
