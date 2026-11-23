@@ -158,7 +158,7 @@
 .tm-leaf.is-wait .tm-pane { box-shadow: inset 0 0 0 1px var(--warn); }
 .tm-leaf.is-ended .term-host { opacity: var(--dim-disabled); }
 
-/* 칸 위에 겹치는 것 — 상태 띠(맨 위, 칸 폭) · 찾기 막대(그 아래 오른쪽). 줄로 끼우지 않아 격자 크기가 그대로다. */
+/* 칸 위에 겹치는 것 — 상태 띠(오른쪽 위 알약) · 찾기 막대(그 아래 오른쪽). 줄로 끼우지 않아 격자 크기가 그대로다. */
 .tm-over {
   position: absolute; top: 0; left: 0; right: 0; z-index: var(--z-sticky);
   display: flex; flex-direction: column; align-items: stretch; pointer-events: none;

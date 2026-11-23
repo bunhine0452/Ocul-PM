@@ -156,9 +156,15 @@ pub fn install(app: &AppHandle) {
         let Some(db) = handle.try_state::<crate::db::Db>() else {
             return;
         };
-        if let Ok(raw) = db.settings_get(KEY.to_string()).await {
-            if let Some(me) = handle.try_state::<KeepAwake>() {
-                me.set_enabled(&handle, enabled_from(raw.as_deref()));
+        match db.settings_get(KEY.to_string()).await {
+            Ok(raw) => {
+                if let Some(me) = handle.try_state::<KeepAwake>() {
+                    me.set_enabled(&handle, enabled_from(raw.as_deref()));
+                }
+            }
+            // 읽지 못하면 꺼짐(기본)으로 둔다 — 켜 둔 사람이 왜 잠드는지 로그에서 찾게 남긴다.
+            Err(e) => {
+                tracing::warn!(target: "keep_awake", error = %e, "잠자기 막기 설정을 읽지 못해 꺼짐으로 둠")
             }
         }
     });
