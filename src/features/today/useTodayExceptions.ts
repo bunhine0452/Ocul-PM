@@ -147,7 +147,13 @@ const LOADERS: { [K in Key]: Loader<Values[K]> } = {
   // 이 기기에만 있는 것 · 받아 온 것 (11-13) — 실패는 「모름」(null)이라 그 수만 안 선다.
   local: (pid) => () => planApi.todayLocalOnly(pid).catch(() => null),
   arrived: (pid, day) => (day ? () => planApi.todayArrived(pid, workdayStartMs(day)).catch(() => null) : null),
-  plugin: (pid) => () => claudeInstallApi.pluginStatus(pid),
+  // 다시 읽기가 실패하면(null) 알고 있던 답을 둔다 — 창 복귀마다 읽으니, 덮으면 한 번의 실패로 첫 걸음 · 판 어긋남 줄이
+  // 「모름」 으로 내려간다(설정의 플러그인 행과 같은 규칙). 오류로 끝내면 slot 은 값을 지킨다(`settle`).
+  plugin: (pid) => async () => {
+    const s = await claudeInstallApi.pluginStatus(pid);
+    if (s == null && ENTRIES.get(pid)?.store.get().plugin.value) throw new Error("plugin status unavailable");
+    return s;
+  },
   waiting: (pid) => () => hooksApi.waiting(pid),
   questions: (pid) => async () => {
     const list = await hooksApi.questions(pid);

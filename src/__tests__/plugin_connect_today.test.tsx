@@ -152,6 +152,21 @@ describe("first steps — connected means connected here", () => {
     expect(fx.calls.claudePluginStatus).toBeGreaterThan(before);
   });
 
+  it("a failed re-read keeps the answer it had instead of falling back to unknown", async () => {
+    fx.total = 0;
+    fx.plugin = status({ state: "disabled" });
+    const { container } = renderToday();
+    await screen.findByText(t("today.first.connectDisabled"));
+    const before = fx.calls.claudePluginStatus ?? 0;
+    fx.plugin = null;
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() => expect(fx.calls.claudePluginStatus).toBeGreaterThan(before));
+    await act(async () => {});
+    expect(within(firstStep(container)).getByText(t("today.first.connectDisabled"))).toBeInTheDocument();
+  });
+
   it("re-reads the plugin when the Today screen mounts again (back from the terminal tab)", async () => {
     fx.total = 0;
     fx.plugin = status({ state: "not_installed", installed: false });
