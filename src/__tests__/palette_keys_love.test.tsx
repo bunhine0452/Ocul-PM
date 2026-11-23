@@ -105,7 +105,7 @@ function Keys() {
 
 const smallSheet = () => screen.queryByRole("dialog", { name: t("keys.screenKeys") });
 const fullSheet = () => screen.queryByRole("dialog", { name: t("keys.title") });
-const press = (target: EventTarget, key = "?") => fireEvent.keyDown(target, { key, code: "Slash", shiftKey: true });
+const press = (target: Element | Document | Window, key = "?") => fireEvent.keyDown(target, { key, code: "Slash", shiftKey: true });
 
 describe("? — this screen's keys in a small sheet", () => {
   it("opens only the current screen's group from the same registry, closes on a second ?", async () => {
