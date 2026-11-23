@@ -934,6 +934,7 @@ export const ko = {
   "diff.viewed": "봤음",
   "diff.viewedTitle": "이 파일을 봤다고 표시해요 (v). 다시 바뀌면 풀려요",
   "diff.viewedHead": "본 것",
+  "diff.viewedFoldTitle": "본 뒤 바뀌지 않은 파일이에요. 에이전트가 다시 고치면 제자리에 다시 펼쳐져요",
   "diff.changedSinceViewed": "본 뒤 바뀜",
   "diff.generated": "생성된 파일",
   "diff.generatedTitle": "잠금 파일과 맨 위에 생성 표지가 든 파일이에요",

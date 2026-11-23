@@ -9,13 +9,17 @@ import type { ChangeGroup, EntryType, JournalEntrySummary } from "@/lib/bindings
 import { splitPath } from "@/lib/filePath";
 import { workdayDate } from "@/lib/workdayLabel";
 import type { ChangeOp, RecentChange } from "@/lib/recentChangesStore";
-import { cleanTitle, generatedPaths, groupKey, type ChangeBuckets } from "./changeGroups";
+import { cleanTitle, generatedPaths, groupKey, viewedPaths, type ChangeBuckets } from "./changeGroups";
 import type { ViewState } from "./diffSessionStore";
 
 // 변경 화면의 왼쪽 목록 (4.0). 「기록 없음」 이 먼저다 — 어느 일지에도 없는 변경이 이 화면의 예외이고,
 // 사람이 먼저 봐야 하는 것이다. 그다음 「일지에 있음」 이 일지별로 묶여 선다 (펼치면 그 파일들).
 // 11-15: 검증 없는 묶음이 먼저 펼쳐져 서고(차례는 화면이 정한다), 잠금 · 생성 파일은 끝의 접힌 한 줄로
 // 가고, 행 끝이 메모 수와 「본 뒤 바뀜」 을 말한다. 본 파일은 흐리게 선다.
+// 11-23 「내가 본 뒤로」: 본 뒤 바뀌지 않은 파일은 자리에서 빠져 끝의 「본 것 N」 한 줄로 접힌다 — 하루 동안 쌓인
+// 변경에서 그 뒤 바뀐 것만 펼쳐 남는다. 다 본 일지 묶음은 묶음 줄째 접힌다.
+
+const NO_FOLD: ReadonlySet<string> = new Set();
 
 const OP_KEY = { A: "diff.opAdded", M: "diff.opModified", D: "diff.opDeleted" } as const;
 
@@ -33,6 +37,13 @@ interface ChangeFileListProps {
   generated: ReadonlySet<string>;
   generatedOpen: boolean;
   onToggleGenerated: () => void;
+  /**
+   * 「내가 본 뒤로」(11-23) — 본 뒤 바뀌지 않은 파일. 자리에서 빠져 끝의 「본 것 N」 한 줄로 접힌다(영수증 규칙 5).
+   * 지금 고른 파일은 빼고 넘긴다 — 봤음을 누른 줄이 눈앞에서 사라지지 않고, 다른 파일로 옮기면 접힌다.
+   */
+  viewedFold?: ReadonlySet<string>;
+  viewedOpen?: boolean;
+  onToggleViewedFold?: () => void;
   viewStateOf: (path: string) => ViewState;
   noteCounts: ReadonlyMap<string, number>;
   /** 최근 커밋을 보는 중이면 그 커밋 — 목록 머리에 「a1b2c3d · 제목」. */
@@ -130,6 +141,9 @@ export function ChangeFileList({
   generated,
   generatedOpen,
   onToggleGenerated,
+  viewedFold = NO_FOLD,
+  viewedOpen = false,
+  onToggleViewedFold,
   viewStateOf,
   noteCounts,
   commit,
@@ -138,8 +152,9 @@ export function ChangeFileList({
 }: ChangeFileListProps) {
   const { t, lang } = useT();
   const byPath = useMemo(() => new Map(changes.map((c) => [c.path, c] as const)), [changes]);
-  const keep = (p: string) => !generated.has(p);
+  const keep = (p: string) => !generated.has(p) && !viewedFold.has(p);
   const genList = generatedPaths(buckets, changes, generated);
+  const seenList = viewedPaths(buckets, changes, generated, viewedFold);
 
   const fileRow = (path: string, nested: boolean) => (
     <FileRow
@@ -155,6 +170,9 @@ export function ChangeFileList({
   );
 
   const groupRow = (g: ChangeGroup) => {
+    // 파일을 다 봤으면 묶음 줄도 끝의 「본 것」 으로 간다 — 남은 것만 펼친다.
+    const left = g.files.filter((p) => !viewedFold.has(p)).length;
+    if (left === 0) return null;
     const key = groupKey(g);
     const isOpen = open.has(key);
     const summary = g.entry_path ? entries.get(normalizeJournalRef(g.entry_path)) : undefined;
@@ -167,7 +185,7 @@ export function ChangeFileList({
           <span className="chg-r1">
             {isOpen ? <ChevronDown size={11} aria-hidden="true" /> : <ChevronRight size={11} aria-hidden="true" />}
             <span className="chg-ti">{cleanTitle(g.entry_title ?? "") || g.entry_path}</span>
-            <span className="chg-count">{g.files.length}</span>
+            <span className="chg-count">{left}</span>
           </span>
           <span className="chg-meta">
             {t(kind.labelKey)}
@@ -245,6 +263,24 @@ export function ChangeFileList({
           {[...changes].reverse().filter((c) => keep(c.path)).map((c) => fileRow(c.path, false))}
         </section>
       )}
+      {seenList.length > 0 ? (
+        <div className="chg-group">
+          <button
+            type="button"
+            className="chg-item chg-grp chg-gen chg-seen"
+            aria-expanded={viewedOpen}
+            onClick={onToggleViewedFold}
+            title={t("diff.viewedFoldTitle")}
+          >
+            <span className="chg-r1">
+              {viewedOpen ? <ChevronDown size={11} aria-hidden="true" /> : <ChevronRight size={11} aria-hidden="true" />}
+              <span className="chg-ti">{t("diff.viewedHead")}</span>
+              <span className="chg-count">{seenList.length}</span>
+            </span>
+          </button>
+          {viewedOpen ? seenList.map((p) => fileRow(p, true)) : null}
+        </div>
+      ) : null}
       {genList.length > 0 ? (
         <div className="chg-group">
           <button

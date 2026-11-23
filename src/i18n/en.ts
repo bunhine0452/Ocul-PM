@@ -919,6 +919,7 @@ export const en: Record<keyof typeof ko, string> = {
   "diff.viewed": "Viewed",
   "diff.viewedTitle": "Mark this file as viewed (v). It unmarks itself when the file changes again",
   "diff.viewedHead": "Viewed",
+  "diff.viewedFoldTitle": "Files you viewed that have not changed since. They open again here when an agent changes them",
   "diff.changedSinceViewed": "Changed since viewed",
   "diff.generated": "Generated files",
   "diff.generatedTitle": "Lock files and files marked as generated at the top",

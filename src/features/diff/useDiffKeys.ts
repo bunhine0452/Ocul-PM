@@ -24,6 +24,9 @@ export interface DiffKeyDeps {
   expand: (key: string) => void;
   generated: ReadonlySet<string>;
   generatedOpen: boolean;
+  /** 끝의 「본 것」 에 접힌 파일 — 펼쳤을 때만 j/k 가 지난다. 묶음 건너뛰기([ ])는 늘 건너뛴다. */
+  viewedFold: ReadonlySet<string>;
+  viewedOpen: boolean;
   selected: string | null;
   select: (path: string) => void;
   /** 지금 본문의 패치 — 「e」 가 여는 줄과 덩이 수. 바이너리면 null. */
@@ -77,7 +80,12 @@ export function useDiffKeys(d: DiffKeyDeps): (e: KeyboardEvent<HTMLElement>) => 
       return;
     }
     if (e.shiftKey && key !== "[" && key !== "]") return;
-    const paths = visiblePaths(d.buckets, d.changes, d.open, d.generated, d.generatedOpen);
+    const paths = visiblePaths(d.buckets, d.changes, d.open, {
+      generated: d.generated,
+      generatedOpen: d.generatedOpen,
+      viewed: d.viewedFold,
+      viewedOpen: d.viewedOpen,
+    });
     const move = (path: string | undefined) => {
       if (!path) return;
       d.select(path);
@@ -120,7 +128,7 @@ export function useDiffKeys(d: DiffKeyDeps): (e: KeyboardEvent<HTMLElement>) => 
 
   /** 일지 없음(있으면) → 일지 묶음들 차례. 그 묶음을 펼치고 보이는 첫 파일로. */
   function jumpGroup(dir: 1 | -1, move: (path: string | undefined) => void) {
-    const keep = (p: string) => !d.generated.has(p);
+    const keep = (p: string) => !d.generated.has(p) && !d.viewedFold.has(p);
     const stops: Array<{ key: string | null; files: string[] }> = [];
     const loose = d.buckets.unrecorded.filter(keep);
     if (loose.length > 0) stops.push({ key: null, files: loose });

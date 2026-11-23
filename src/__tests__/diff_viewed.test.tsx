@@ -77,37 +77,38 @@ describe("viewed", () => {
   });
 
   // 열쇠의 다른 절반 — 시각이 그대로인 자리(git 바탕 행 ts 0 · 최근 커밋)는 패치 해시만이 풀어 준다.
-  it("unmarks itself when the file's patch changes even though its time did not", async () => {
+  it("unmarks itself when the file's content changes even though its time did not", async () => {
     seedTwo();
+    fx.files.set("src/b1.ts", { ok: "v1" });
     const { container } = renderDiffScreen();
     await waitFor(() => expect(container.textContent).toContain("new line"));
     fireEvent.keyDown(split(container), { key: "v" });
-    await waitFor(() => expect(isViewed(container, "src/b1.ts")).toBe(true));
-    fx.diffByPath["src/b1.ts"] = patchOf("src/b1.ts", "rewritten line");
+    await waitFor(() => expect(fx.reads).toContain("src/b1.ts"));
+    fx.files.set("src/b1.ts", { ok: "v2" });
+    // 다른 파일로 옮기면 내용을 다시 읽는다 — 그사이 바뀌었으면 접히지 않고 「본 뒤 바뀜」 으로 제자리에 선다.
     fireEvent.keyDown(split(container), { key: "j" });
     await waitFor(() => expect(activeName(container)).toBe("src/b2.ts"));
-    expect(isViewed(container, "src/b1.ts")).toBe(true);
-    fireEvent.keyDown(split(container), { key: "k" });
-    await waitFor(() => expect(container.textContent).toContain("rewritten line"));
     await waitFor(() => expect(isViewed(container, "src/b1.ts")).toBe(false));
     expect(row(container, "src/b1.ts")?.querySelector(".chg-changed")).not.toBeNull();
   });
 
-  it("stays viewed when Ignore whitespace reads a different patch, and unmarks when the same view differs", async () => {
+  it("stays viewed when Ignore whitespace reads a different patch of the same content, and unmarks when the content changed", async () => {
     seedTwo();
+    fx.files.set("src/b1.ts", { ok: "v1" });
     const { container } = renderDiffScreen();
     await waitFor(() => expect(container.textContent).toContain("new line"));
     fireEvent.keyDown(split(container), { key: "v" });
-    await waitFor(() => expect(isViewed(container, "src/b1.ts")).toBe(true));
+    await waitFor(() => expect(fx.reads).toContain("src/b1.ts"));
     const toggle = () => [...container.querySelectorAll(".chg-fh button")].find((b) => b.textContent === t("diff.ignoreWhitespace"))!;
-    // 보기 방식이 달라 패치가 다른 것이지 파일이 바뀐 것이 아니다.
+    // 보기 방식이 달라 패치가 다른 것이지 파일이 바뀐 것이 아니다 — 다시 읽은 내용이 같다.
     fx.diffByPath["src/b1.ts"] = patchOf("src/b1.ts", "seen without whitespace");
     fireEvent.click(toggle());
-    await waitFor(() => expect(container.textContent).toContain("seen without whitespace"));
+    await waitFor(() => expect(fx.reads.filter((p) => p === "src/b1.ts").length).toBeGreaterThan(1));
     expect(isViewed(container, "src/b1.ts")).toBe(true);
-    // 공백 무시를 끄고 다시 읽은 패치가 봤을 때와 다르면 그사이 바뀐 것이다.
+    // 그사이 내용이 바뀌었으면 다시 읽은 본문에서 풀린다.
+    fx.files.set("src/b1.ts", { ok: "v2" });
+    fx.diffByPath["src/b1.ts"] = patchOf("src/b1.ts", "changed line");
     fireEvent.click(toggle());
-    await waitFor(() => expect(fx.computeCalls.filter((c) => c[1] === "src/b1.ts" && c[4] === false)).toHaveLength(2));
     await waitFor(() => expect(isViewed(container, "src/b1.ts")).toBe(false));
   });
 });

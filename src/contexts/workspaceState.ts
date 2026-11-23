@@ -17,6 +17,7 @@
 import type { OculpmStatus, Session } from "@/lib/bindings";
 import type { PlanGroup, PlanSort } from "@/features/planner/planList";
 import type { DiffNote } from "@/features/diff/diffNoteStore";
+import type { Viewed } from "@/features/diff/diffSessionStore";
 import type { PlanView } from "@/features/planner/planMeta";
 import type {
   ActiveView,
@@ -106,6 +107,11 @@ export interface WorkspaceState {
   diffMode: DiffMode;
   /** 변경 줄 메모 — 보낸 뒤에도 남아 고쳐졌는지를 보인다. 창을 다시 열어도 유지(10-30 #notes-track). */
   diffNotes: DiffNote[];
+  /**
+   * 「내가 본 뒤로」(11-23) — 변경 화면에서 봤음을 누른 파일의 (그때 내용 해시 · 변경 시각). 열쇠는
+   * `기준선\0경로`(`diffSessionStore.viewedKey`). 창을 다시 열어도 그 뒤 바뀐 것만 펼친다. 선택 필드 — 옛 레코드엔 없다.
+   */
+  diffViewed?: Record<string, Viewed>;
   /** Planner goal 카드 펼침 상태 (goalId → open). */
   plannerOpen: Record<string, boolean>;
   /**
