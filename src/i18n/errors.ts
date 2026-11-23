@@ -47,6 +47,10 @@ const RULES: ReadonlyArray<readonly [RegExp, I18nKey]> = [
   [/^Path escapes the project root$/, "err.pathEscapesRoot"],
   [/^Access denied: path traversal detected$/, "err.pathTraversal"],
   [/Refusing to write through a symbolic link: (?<path>.+)$/, "err.symlinkRefused"],
+  // Cursor · Gemini MCP 등록 (`oculpm/mcp/agent_json.rs` left_unchanged) — 못 읽는 파일은 덮지 않는다.
+  [/^(?<path>.+) was left unchanged: it is not plain JSON \((?<reason>.+)\)$/s, "err.agentMcpNotJson"],
+  [/^(?<path>.+) was left unchanged: its top level is not a JSON object$/, "err.agentMcpNotObject"],
+  [/^(?<path>.+) was left unchanged: "mcpServers" is not an object$/, "err.agentMcpServersNotObject"],
   [/^There are no legacy goals to import\.$/, "err.nothingToImport"],
   [/^Could not open the browser$/, "err.browserOpenFailed"],
   // ── 크로스플랫폼 라운드 ({#ui-followups}) — 백엔드가 **고정 문구**로 낸다. ──

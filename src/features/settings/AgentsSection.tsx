@@ -4,7 +4,7 @@
  * 앱이 직접 설치하지 않는다 — 플러그인은 각 CLI 가 마켓플레이스를 받아 캐시까지
  * 펼쳐야 완성되므로(설정 파일만 흉내 내면 반쪽 상태), 여기서는 **상태를 읽고 붙여
  * 넣을 명령을 준다**. 할 일이 없는 행은 세우지 않는다 — Codex 가 없는 기기의 Codex 행, Windows 밖의
- * 「MCP 직접 등록」, 연결할 것이 없는 Cursor·Gemini CLI(AGENTS.md 하나로 기록한다).
+ * 「MCP 직접 등록」, 흔적이 없는 Cursor·Gemini CLI(있으면 그 프로젝트 파일에 MCP 등록 — `AgentMcpRow`).
  *
  * 11-15 (#settings-status): 설치 명령을 터미널에서 돌리고 돌아와도 「설치 안 됨」 에 머물렀다 — 창이
  * 앞으로 오거나 다시 보이면 다시 묻고, 칸 머리에 「다시 확인」 이 있다. 설치 안 됨 · 뒤처짐은 경고 칩이고
@@ -22,6 +22,7 @@ import type { CodexPluginStatus, McpRegistrationStatus } from "@/lib/bindings";
 import { getPlatform } from "@/lib/platform";
 import { toast } from "@/lib/toast";
 import { CODEX_PLUGIN_INSTALL } from "@/lib/agentCommands";
+import { AgentMcpRow } from "./AgentMcpRow";
 import { ClaudePluginRow } from "./ClaudePluginRow";
 import { ClaudeThemeRow } from "./ClaudeThemeRow";
 import { PrefsCard, PrefsRow, useReportFix } from "./prefsUi";
@@ -189,6 +190,8 @@ export function AgentsSection({ id, arrived }: { id: string; arrived?: number })
       <ClaudePluginRow tick={tick} />
       <ClaudeThemeRow tick={tick} />
       <CodexRow tick={tick} />
+      <AgentMcpRow target="cursor" tick={tick} />
+      <AgentMcpRow target="gemini" tick={tick} />
       <McpRow tick={tick} />
     </PrefsCard>
   );

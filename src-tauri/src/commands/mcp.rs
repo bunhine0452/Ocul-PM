@@ -8,6 +8,7 @@ use tauri::State;
 
 use crate::db::Db;
 use crate::oculpm::mcp::{
+    agent_json::{self, AgentMcpStatus, AgentMcpTarget},
     codex::{self, CodexPluginStatus, CodexRegistrationStatus},
     register::{self, locate_binary, resolve_binary_path, McpRegistrationStatus},
 };
@@ -82,6 +83,48 @@ pub fn codex_mcp_register() -> Result<CodexRegistrationStatus, String> {
 pub fn codex_mcp_unregister() -> Result<CodexRegistrationStatus, String> {
     let binary = resolve_binary_path();
     codex::unregister_at(&codex_config_path()?, binary.as_deref()).map_err(|e| e.to_string())
+}
+
+/// Cursor · Gemini CLI — 프로젝트의 `.cursor/mcp.json` · `.gemini/settings.json` 에 우리
+/// 서버 하나를 제자리 병합한다 (사용자 결정 11-23: 설정에서 누를 때만). 실행 경로는 위의
+/// Claude · Codex 등록과 같은 출처, 홈은 감지에만 쓴다.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_mcp_status(
+    db: State<'_, Db>,
+    project_id: u32,
+    target: AgentMcpTarget,
+) -> Result<AgentMcpStatus, String> {
+    let root = project_root(&db, project_id).await?;
+    let binary = resolve_binary_path();
+    let home = crate::oculpm::paths::home_dir();
+    agent_json::status(target, &root, home.as_deref(), binary.as_deref())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_mcp_register(
+    db: State<'_, Db>,
+    project_id: u32,
+    target: AgentMcpTarget,
+) -> Result<AgentMcpStatus, String> {
+    let root = project_root(&db, project_id).await?;
+    let binary = locate_binary()?;
+    let home = crate::oculpm::paths::home_dir();
+    agent_json::register(target, &root, home.as_deref(), &binary)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_mcp_unregister(
+    db: State<'_, Db>,
+    project_id: u32,
+    target: AgentMcpTarget,
+) -> Result<AgentMcpStatus, String> {
+    let root = project_root(&db, project_id).await?;
+    let binary = resolve_binary_path();
+    let home = crate::oculpm::paths::home_dir();
+    agent_json::unregister(target, &root, home.as_deref(), binary.as_deref())
 }
 
 /// Codex 플러그인 설치 상태 (머신 스코프, **읽기 전용**). 설치·해제는

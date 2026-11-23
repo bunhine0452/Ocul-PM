@@ -37,6 +37,8 @@ import type {
   OculpmConfig,
   OculpmInitReport,
   OculpmStatus,
+  AgentMcpStatus,
+  AgentMcpTarget,
   CodexPluginStatus,
   CodexRegistrationStatus,
   McpRegistrationStatus,
@@ -99,6 +101,17 @@ export const oculpmApi = {
 
   codexMcpUnregister: () =>
     unwrap<CodexRegistrationStatus>("codex_mcp_unregister", commands.codexMcpUnregister()),
+
+  // ─── Cursor · Gemini CLI MCP — 프로젝트 `.cursor/mcp.json` · `.gemini/settings.json` ───
+
+  agentMcpStatus: (projectId: number, target: AgentMcpTarget) =>
+    unwrap<AgentMcpStatus>("agent_mcp_status", commands.agentMcpStatus(projectId, target)),
+
+  agentMcpRegister: (projectId: number, target: AgentMcpTarget) =>
+    unwrap<AgentMcpStatus>("agent_mcp_register", commands.agentMcpRegister(projectId, target)),
+
+  agentMcpUnregister: (projectId: number, target: AgentMcpTarget) =>
+    unwrap<AgentMcpStatus>("agent_mcp_unregister", commands.agentMcpUnregister(projectId, target)),
 
   /** Codex 플러그인 설치 상태 (머신 스코프, 읽기 전용 — 설치는 `codex plugin` CLI). */
   codexPluginStatus: () =>

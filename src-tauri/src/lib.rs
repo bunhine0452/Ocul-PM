@@ -147,6 +147,10 @@ fn setup_logging() {
 }
 
 use crate::commands::{
+    // Cursor · Gemini CLI 프로젝트 MCP 등록 (love-round L7, 11-23)
+    agent_mcp_register,
+    agent_mcp_status,
+    agent_mcp_unregister,
     app_info,
     apply_menu_language,
     // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
@@ -466,6 +470,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             codex_mcp_register,
             codex_mcp_unregister,
             codex_plugin_status,
+            agent_mcp_status,
+            agent_mcp_register,
+            agent_mcp_unregister,
             claude_plugin_status,
             // Claude Code 테마 파일 — `~/.claude` 가 있을 때만, settings.json 은 안 건드린다 (11-15)
             claude_theme_write,
