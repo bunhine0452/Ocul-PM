@@ -99,8 +99,11 @@ export function buildExceptions(input: ExceptionInput): TodayException[] {
   for (const item of input.questions ?? []) {
     out.push({ kind: "question", key: `question:${item.id}`, item });
   }
+  // 셸 위에서 무언가 도는 칸만(`busy`) — claude 가 `state=clear` 없이 죽으면 기다림 기록이 셸에 남는데, 그 칸은
+  // 셸이 다시 앞이라 `busy` 가 거짓이다. 눌렀더니 빈 셸이던 줄이 섰다(창 제목 · Dock 셈 `waiting_in` 과 같은 규칙).
+  // busy 를 잴 수 없는 곳은 백엔드가 상태 신호의 유무로 채워 종전과 같다(`Row::busy`).
   for (const session of input.terms ?? []) {
-    if (session.alive && session.status?.state === "blocked") {
+    if (session.alive && session.busy && session.status?.state === "blocked") {
       out.push({ kind: "waiting", key: `waiting:${session.id}`, session });
     }
   }
