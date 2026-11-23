@@ -57,6 +57,14 @@ fn main() {
         .or_else(|| std::env::var("OCULPM_ROOT").ok().map(Into::into))
         .unwrap_or_else(|| std::env::current_dir().expect("cwd"));
     let root = canonical_root(root);
+    // 하위 폴더에서 띄운 세션 — 플러그인의 `--root ${CLAUDE_PROJECT_DIR}` 가 저장소 안의 폴더를 가리키면
+    // 위로 올라가 가장 가까운 추적 프로젝트를 쓴다 (훅과 같은 걸음, 11-23). 예전엔 아래의 「남의 프로젝트」
+    // 검사가 cwd 의 추적 루트와 달라 서지 않았다. 위에도 없으면 그대로 — project_init 이 거기 만든다.
+    let root = if root.join(".oculpm").is_dir() {
+        root
+    } else {
+        ocul_pm_lib::oculpm::shim::tracked_root(&root).unwrap_or(root)
+    };
     if !root.is_dir() {
         eprintln!("oculpm-mcp: root is not a directory: {}", root.display());
         std::process::exit(2);
