@@ -4,8 +4,10 @@ Your coding agent says “done, all tests pass.” Ocul shows you the receipt, r
 **the command it actually ran and the last line it printed**, and **which changes no record mentions**.
 
 It reads the plain-markdown records in your project's `.oculpm/` folder — written by your agent through the
-[Ocul plugin](https://oculpm.com) for Claude Code (or the rules file for Codex, Cursor, Gemini CLI).
+[Ocul plugin](https://oculpm.com) for Claude Code or Codex, or through the record tools the Ocul app registers for Cursor and Gemini CLI.
 No account, no server, no network, no LLM. The extension only reads.
+
+**Who it's for:** you let a coding agent change your code, and you want to check its work without reading the whole transcript — in the editor you already have open.
 
 ## What you see — only the exceptions
 
@@ -26,6 +28,7 @@ Work with evidence folds away. You look only where something is missing. Claude'
 - **Ocul: Copy PR receipt** — Markdown for the PR description: the branch's journal entries with the command each ran, the plans' check results, and the files no entry mentions. Also a button in the Source Control and Ocul panel title bars. Reviewers read it without Ocul.
 - **Ocul: Open in Ocul** — jump to Today, a journal entry that touched this file, or a live plan in the desktop app. The app asks before it opens anything.
 - **Ocul: Continue in terminal** — types `claude "/oculpm:next <plan>"` into a VS Code terminal, so Claude picks up the plan's next item. Only when you click, only in a trusted workspace.
+- **Ocul: Copy the plugin install lines for Claude Code** — the two lines from "Get started", on your clipboard. It types nothing anywhere.
 
 ### With the desktop app
 
@@ -33,13 +36,15 @@ Ocul and this extension hand work to each other: the app opens a project, a file
 
 ## Get started
 
-1. Install the plugin in Claude Code (two lines):
+1. Open the Ocul panel (the eye in the Activity Bar). In a folder without `.oculpm/` it shows one start guide with a **Copy the two install lines** button — or copy them from here and paste them into a terminal:
    ```
-   /plugin marketplace add bunhine0452/Ocul-PM
-   /plugin install oculpm@oculpm
+   claude plugin marketplace add bunhine0452/Ocul-PM
+   claude plugin install oculpm@oculpm
    ```
-2. Work as usual. When the agent finishes a unit of work it leaves a journal entry in `.oculpm/journal/`.
-3. Open the folder in VS Code. The Ocul panel and the status bar show up as soon as `.oculpm/` exists.
+2. Start Claude Code in that folder and work as usual. When the agent finishes a unit of work it leaves a journal entry in `.oculpm/journal/`.
+3. Back in VS Code, press **reload records** in the guide (or run **Ocul: Reload records**). The panel and the status bar fill in.
+
+Using Codex? Install the `oculpm-codex` plugin (`codex plugin marketplace add bunhine0452/Ocul-PM`, then `codex plugin add oculpm-codex@oculpm`). Cursor and Gemini CLI get the record tools from the Ocul app's Settings → Agents.
 
 The desktop app ([oculpm.com](https://oculpm.com)) is the second step, for people who want to see the records on screens of their own. This extension doesn't need it.
 
@@ -66,4 +71,4 @@ The desktop app ([oculpm.com](https://oculpm.com)) is the second step, for peopl
 - **Ocul 에서 열기** — 앱의 오늘 · 이 파일을 건드린 일지 · 계획으로 바로. 앱은 열기 전에 물어요.
 - **앱과 짝** — 앱에서 프로젝트 색을 고르면 이 창 제목 표시줄도 그 색, 앱에서 일지의 변경 파일을 누르면 VS Code 로. Claude 의 질문에는 앱에서 답해요.
 
-시작은 Claude Code 에 플러그인 두 줄이에요. 확장은 `.oculpm/` 을 읽기만 하고, 네트워크도 LLM 도 쓰지 않아요.
+시작은 Claude Code 에 플러그인 두 줄이에요. `.oculpm/` 이 없는 폴더에서 Ocul 패널을 열면 시작 안내 하나와 「설치 두 줄 복사」 단추가 있어요 — 터미널에 붙여 넣고, 기록이 생기면 「기록 다시 읽기」. Codex 는 `oculpm-codex` 플러그인, Cursor · Gemini CLI 는 Ocul 앱의 설정에서 연결해요. 확장은 `.oculpm/` 을 읽기만 하고, 네트워크도 LLM 도 쓰지 않아요.

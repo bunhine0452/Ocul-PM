@@ -1,5 +1,6 @@
 {
   "Built by Ocul from this repository's .oculpm/ records, without an LLM": "Ocul 이 저장소의 .oculpm/ 기록에서 만든 영수증이에요. LLM 을 쓰지 않았어요",
+  "Copied the two lines. Paste them into a terminal.": "두 줄을 복사했어요. 터미널에 붙여 넣으세요.",
   "Couldn't build the receipt: {0}": "영수증을 만들지 못했어요: {0}",
   "Journal entries that touched {0}": "{0} 을 건드린 일지",
   "No .oculpm/ folder in this workspace.": "이 작업 영역에는 .oculpm/ 폴더가 없어요.",

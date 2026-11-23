@@ -78,6 +78,12 @@
         "icon": "$(terminal)"
       },
       {
+        "command": "ocul.copyPluginInstall",
+        "title": "%cmd.copyPluginInstall%",
+        "category": "Ocul",
+        "icon": "$(copy)"
+      },
+      {
         "command": "ocul.panel.openInApp",
         "title": "%cmd.openInApp%",
         "icon": "$(link-external)"
@@ -204,12 +210,17 @@
         {
           "id": "ocul.overview",
           "name": "%view.overview%",
-          "when": "ocul.tracked",
           "icon": "media/ocul.svg",
           "contextualTitle": "Ocul"
         }
       ]
-    }
+    },
+    "viewsWelcome": [
+      {
+        "view": "ocul.overview",
+        "contents": "%view.welcome%"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",
