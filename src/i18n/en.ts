@@ -389,6 +389,12 @@ export const en: Record<keyof typeof ko, string> = {
   "watcher.takeOverFailed": "Could not take over watching this project — {error}",
   "watcher.offlineTitle": "Live refresh is off",
   "watcher.offline": "Another Ocul instance is using this project. Retrying every minute — until then, changes show up when you reopen the screen.",
+  "watcher.cause.watchLimit": "Too many folders to watch: the OS watch limit was reached. On Linux, raising fs.inotify.max_user_watches fixes it.",
+  "watcher.cause.permission": "Ocul can't read this folder. Allow Ocul in System Settings › Privacy & Security › Files and Folders.",
+  "watcher.cause.permission__pc": "Ocul can't read this folder. Check the folder's access permissions.",
+  "watcher.cause.missing": "The project folder is gone. If you moved or deleted it, reopen it from the start window.",
+  "watcher.cause.other": "Couldn't start watching. Retrying every minute; until then, changes show up when you reopen the screen — {error}",
+  "watcher.cause.copyRaise": "Copy the command that raises it",
   "agents.ahead.title": "This project's journaling rules are newer than this app",
   "agents.ahead.version":
     "Template v{disk} · this app knows up to v{app} — the newer rules are not honored yet. Update the app.",

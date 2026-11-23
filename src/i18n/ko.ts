@@ -391,6 +391,12 @@ export const ko = {
   "watcher.takeOverFailed": "이 프로젝트의 감시를 가져오지 못했어요 — {error}",
   "watcher.offlineTitle": "실시간 갱신이 꺼져 있어요",
   "watcher.offline": "다른 Ocul 창이 이 프로젝트를 감시하고 있어요. 1분마다 다시 시도하고, 그동안 변경은 화면을 다시 열 때 보여요.",
+  "watcher.cause.watchLimit": "감시할 폴더가 너무 많아 OS 의 감시 한도에 걸렸어요. Linux 는 fs.inotify.max_user_watches 를 늘리면 풀려요.",
+  "watcher.cause.permission": "이 폴더를 읽을 권한이 없어요. 시스템 설정 › 개인정보 보호 및 보안 › 파일 및 폴더에서 Ocul 을 허용해 주세요.",
+  "watcher.cause.permission__pc": "이 폴더를 읽을 권한이 없어요. 폴더의 접근 권한을 확인해 주세요.",
+  "watcher.cause.missing": "프로젝트 폴더를 찾지 못했어요. 옮기거나 지웠다면 시작 창에서 다시 열어 주세요.",
+  "watcher.cause.other": "감시를 시작하지 못했어요. 1분마다 다시 시도하고, 그동안 변경은 화면을 다시 열 때 보여요 — {error}",
+  "watcher.cause.copyRaise": "한도 올리는 명령 복사",
   "agents.ahead.title": "이 프로젝트의 기록 규칙이 이 앱 버전보다 새로워요",
   "agents.ahead.version":
     "템플릿은 v{disk} 인데 이 앱은 v{app} 까지만 알아서, 새 규칙은 아직 따르지 않아요. 앱을 업데이트하세요.",
