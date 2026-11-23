@@ -344,7 +344,7 @@ select.set-modal-input { font-family: var(--font); padding-right: calc(var(--spa
 
 /* 변경 줄 메모 (10-30, Orca 「Annotate AI Diffs」) — 거터의 「+」 는 줄에 올리면 보이고, 메모가 있는
    줄은 늘 보인다. 메모 칸은 줄 아래 한 장 — 코드 폭에 맞춰 왼쪽 거터만큼 들여 쓴다. */
-/* 11-23 G2: 표적은 거터 왼쪽 24px × 줄 높이 전체(16px 사각형이던 때 WCAG 2.5.8 에 못 미쳤다). 거터는 메모를 받는
+/* 11-23 G2: 표적은 거터 왼쪽 24 × 24 — 20px 줄 위아래로 2px 씩 넘친다(16px 사각형이던 때 WCAG 2.5.8 에 못 미쳤다). 거터는 메모를 받는
    diff 에서만 56 으로 넓혀 4자리 줄 번호와 「+」 가 겹치지 않는다. 가리키지 않은 줄의 단추는 눈에도 포인터에도 없고
    (이웃 줄 표적과 겹치지 않게) Tab 으로는 닿는다(포커스면 보인다). 색은 강조색이 아니라 --text-2 — 강조색은 채운 단추와
    포커스에만(영수증 규칙 1). */
@@ -352,8 +352,8 @@ select.set-modal-input { font-family: var(--font); padding-right: calc(var(--spa
 .diff-content.has-notes .dl.split { grid-template-columns: 56px minmax(0, 1fr) 56px minmax(0, 1fr); }
 .diff-content.has-notes .dl-gut { position: relative; }
 .dl-note-add {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  display: grid; place-items: center; width: 24px; min-height: 100%; padding: 0;
+  position: absolute; left: 0; top: -2px; bottom: -2px; z-index: 1;
+  display: grid; place-items: center; width: 24px; min-height: 24px; padding: 0;
   border: 0; border-radius: 0; background: transparent; color: var(--text-2);
   cursor: pointer; opacity: 0; pointer-events: none;
 }

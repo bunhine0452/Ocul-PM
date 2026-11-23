@@ -60,10 +60,11 @@ describe("line-note target", () => {
   const css = readFileSync(join(__dirname, "..", "styles/screens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, " ");
   const rule = (sel: string) => new RegExp(`(^|\\n)${sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`).exec(css)?.[2] ?? "";
 
-  it("is 24px wide and the full row tall, and carries no accent colour", () => {
+  it("is 24 × 24 (spilling 2px past a 20px row) and carries no accent colour", () => {
     const add = rule(".dl-note-add");
     expect(add).toMatch(/width:\s*24px/);
-    expect(add).toMatch(/top:\s*0;\s*bottom:\s*0/);
+    expect(add).toMatch(/top:\s*-2px;\s*bottom:\s*-2px/);
+    expect(add).toMatch(/min-height:\s*24px/);
     expect(add).not.toMatch(/--accent/);
     expect(rule(".dl-note-add.has::before")).toMatch(/border:\s*1px solid var\(--text-2\)/);
   });

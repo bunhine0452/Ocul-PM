@@ -57,9 +57,9 @@ describe("narrow list column", () => {
     expect(css("styles/tokens.css")).toMatch(/--panel-w:\s*clamp\(232px, 30vw, 320px\)/);
   });
 
-  it("the search row wraps the period switch before the search box drops under 150px", () => {
+  it("the search row wraps the period switch before the search box drops under 140px", () => {
     const journal = css("features/oculpm/journal.css");
     expect(journal).toMatch(/\.jl-head-row:first-child\s*\{[^}]*flex-wrap:\s*wrap/);
-    expect(journal).toMatch(/\.jl-search\s*\{[^}]*flex:\s*1 1 150px/);
+    expect(journal).toMatch(/\.jl-search\s*\{[^}]*flex:\s*1 1 140px/);
   });
 });
