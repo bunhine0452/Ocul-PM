@@ -291,7 +291,8 @@ fn script(shell: &str, launch: Launch<'_>) -> String {
     let run = match launch {
         Launch::Check(_) if shell == "fish" => format!("eval \"${CHECK_ENV}\""),
         Launch::Check(_) => format!("( eval \"${CHECK_ENV}\" )"),
-        other => other.command(false),
+        other if shell == "fish" => format!("{}\n{MISSING_FISH}", other.command(false)),
+        other => format!("{}\n{MISSING_POSIX}", other.command(false)),
     };
     match shell {
         "fish" => format!("{run}\n{BACK}"),
@@ -299,6 +300,13 @@ fn script(shell: &str, launch: Launch<'_>) -> String {
         _ => format!("{ON_SIGNAL_BACK}\n{run}\n{RESUME_POSIX}\n{BACK}"),
     }
 }
+
+/// claude 를 못 찾았다는 표지 — 셸이 무슨 언어로 말하든(「명령어를 찾을 수 없음」 · 「not found」) 종료 코드 127 은
+/// 같다(love-round #launch-fail-any-locale, 11-23). 화면에 그려지지 않는 OSC(xterm.js 는 모르는 번호를 버린다)라
+/// 사람 눈에는 셸의 원래 문장만 보이고, 웹뷰가 세션 첫머리에서 이 표지를 읽는다(`features/terminal/launchCheck.ts`
+/// 의 `LAUNCH_MISSING_MARK`). 「다음」 · 잇기의 claude 줄 뒤에만 붙는다 — 확인 명령의 127 은 claude 이야기가 아니다.
+const MISSING_POSIX: &str = "[ $? -ne 127 ] || printf '\\033]6973;ocul-launch=127\\007'";
+const MISSING_FISH: &str = "test $status -ne 127; or printf '\\x1b]6973;ocul-launch=127\\x07'";
 
 /// 인자로 못 받는 셸에 쳐 넣는 한 줄 — 셸이 아직 프롬프트를 그리기 전이어도 tty 가 받아 둔다.
 pub(super) fn typed_line(launch: Launch<'_>) -> String {
@@ -420,7 +428,7 @@ mod tests {
         let run = Launch::of(Some("다음 항목"), false, None).unwrap();
         let args = launch_args("zsh", run).unwrap();
         assert_eq!(&args[..3], ["-l", "-i", "-c"]);
-        let claude = format!("claude \"${PROMPT_ENV}\"");
+        let claude = format!("claude \"${PROMPT_ENV}\"\n{MISSING_POSIX}");
         assert_eq!(
             args[3],
             format!("{ON_SIGNAL_BACK}\n{claude}\n{RESUME_ZSH}\n{BACK}")
@@ -431,7 +439,7 @@ mod tests {
         }
         assert_eq!(
             launch_args("fish", run).unwrap()[3],
-            format!("{claude}\n{BACK}")
+            format!("claude \"${PROMPT_ENV}\"\n{MISSING_FISH}\n{BACK}")
         );
         assert!(launch_args("zsh", Launch::Resume).unwrap()[3].contains("\nclaude --continue\n"));
         let empty = Launch::of(Some(""), false, None).unwrap();

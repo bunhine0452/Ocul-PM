@@ -442,6 +442,8 @@ export const en: Record<keyof typeof ko, string> = {
   "terminal.fileMenu.failed": "Couldn't open: {error}",
   "terminal.fileMenu.outside": "Files outside the project aren't opened from here",
   "terminal.launchFailed": "Couldn't find the claude command. Check that Claude Code is installed and on your login shell's PATH.",
+  "terminal.launchBlocked": "PowerShell blocked claude.ps1 from running. Use the native installer or change the execution policy.",
+  "terminal.launchCopyInstall": "Copy install command",
   "terminal.empty": "No sessions. A new session opens a shell in this project folder.",
   "terminal.state.working": "Working",
   "terminal.state.idle": "Waiting for input",

@@ -447,6 +447,8 @@ export const ko = {
   "terminal.fileMenu.failed": "열지 못했어요: {error}",
   "terminal.fileMenu.outside": "프로젝트 밖의 파일은 여기서 열지 않아요",
   "terminal.launchFailed": "claude 명령을 찾지 못했어요. Claude Code 가 깔려 있고 로그인 셸의 PATH 에 있는지 확인해 주세요.",
+  "terminal.launchBlocked": "PowerShell 이 claude.ps1 실행을 막았어요. 네이티브 설치판을 쓰거나 실행 정책을 바꿔 주세요.",
+  "terminal.launchCopyInstall": "설치 명령 복사",
   "terminal.empty": "세션이 없어요. 새 세션을 열면 이 프로젝트 폴더에서 셸이 떠요.",
   "terminal.state.working": "작업 중",
   "terminal.state.idle": "입력을 기다려요",

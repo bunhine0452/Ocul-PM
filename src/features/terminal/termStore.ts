@@ -30,7 +30,7 @@ import { createFileRefProvider, openFileMenu } from "./fileRefs";
 import { peekEvent } from "./imagePeek";
 import { pushImeTrace } from "./imeTrace";
 import { attachImeBridge } from "./imeBridge";
-import { LAUNCH_WATCH_CHARS, launchFailed } from "./launchCheck";
+import { LAUNCH_WATCH_CHARS, announceLaunchFailure, launchFailure } from "./launchCheck";
 import { forgetTermActivity, noteTermActivity } from "./status";
 import { afterFit, forgetCell, initialSize } from "./termSize";
 import { contrastFloor, observeTerminalTheme, readTerminalTheme } from "./termTheme";
@@ -321,9 +321,10 @@ export async function openTerm(
       });
       if (launchHead !== null) {
         launchHead += ev.data;
-        if (launchFailed(launchHead)) {
+        const failure = launchFailure(launchHead);
+        if (failure) {
           launchHead = null;
-          toast.warning(t("terminal.launchFailed"), { durationMs: 15000 });
+          announceLaunchFailure(failure);
         } else if (launchHead.length > LAUNCH_WATCH_CHARS) {
           launchHead = null;
         }
