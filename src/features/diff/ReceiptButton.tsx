@@ -83,9 +83,21 @@ export function BranchReceiptButton({ projectId }: { projectId: number }) {
   return <ReceiptButton actions={actions} title={t("diff.receipt.copyTitle")} />;
 }
 
-/** 앞은 바로 복사, 옆 ▾ 는 메뉴. 툴바 · 일지 머리에 같은 모양으로 선다. */
-export function ReceiptButton({ actions, title }: { actions: ReceiptActions; title: string }) {
+/**
+ * 앞은 바로 복사, 옆 ▾ 는 메뉴. 툴바 · 일지 머리에 같은 모양으로 선다. 윗줄(툴바)에서는 고스트, 일지 머리처럼 테두리
+ * 단추가 늘어선 줄에서는 `outlined` 로 이웃과 같은 테두리 — 한 줄에 단추 모양이 둘 서지 않게(최종 검수).
+ */
+export function ReceiptButton({
+  actions,
+  title,
+  outlined = false,
+}: {
+  actions: ReceiptActions;
+  title: string;
+  outlined?: boolean;
+}) {
   const { t } = useT();
+  const btn = outlined ? "btn sm" : "btn ghost sm";
   const key = kbd("⇧⌘C");
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const moreRef = useRef<HTMLButtonElement | null>(null);
@@ -108,13 +120,13 @@ export function ReceiptButton({ actions, title }: { actions: ReceiptActions; tit
 
   return (
     <span className="rcpt">
-      <button type="button" className="btn ghost sm" title={`${title} (${key})`} onClick={() => void actions.copy()}>
+      <button type="button" className={btn} title={`${title} (${key})`} onClick={() => void actions.copy()}>
         {t("diff.receipt.copy")}
       </button>
       <button
         ref={moreRef}
         type="button"
-        className="btn ghost sm rcpt-more"
+        className={`${btn} rcpt-more`}
         aria-haspopup="menu"
         aria-expanded={at != null}
         aria-label={t("diff.receipt.menu")}
