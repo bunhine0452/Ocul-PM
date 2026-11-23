@@ -314,10 +314,10 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
         <section className="jd-verify" aria-label={t("journal.verify.aria")}>
           <div className="jd-verify-hd">
             <b>{t("journal.verify.title")}</b>
-            {level >= 2 ? (
-              <span className="chip sm ok">{t("journal.verify.hasCommand")}</span>
-            ) : (
-              <span className="chip sm warn">
+            {/* 칩의 색은 목록 · 필터와 같은 정의(`evidenceStateOf`)를 따른다 — 호박색은 증거를 요구하는 유형에서만
+                (영수증 규칙 4, love-round G2). 명령이 있으면 머리의 ✓ 가 이미 말했으니 여기서 다시 말하지 않는다. */}
+            {level >= 2 ? null : (
+              <span className={evState === "missing" ? "chip sm warn" : "chip sm hairline"}>
                 {level === 1 ? t("journal.verify.noCommand") : t("journal.verify.noSection")}
               </span>
             )}
@@ -339,7 +339,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
               </span>
             </button>
           </div>
-          {level < 2 ? <p className="jd-verify-note">{t("journal.verify.claimOnly")}</p> : null}
+          {evState === "missing" ? <p className="jd-verify-note">{t("journal.verify.claimOnly")}</p> : null}
           {/* 본문 서체에 명령 · 결과 토큰만 기계 글씨 — 에이전트가 쓴 한국어 문장까지 고정폭으로 그리지 않는다(V-08). */}
           {lines.length > 0 ? (
             <div className="jd-term">
