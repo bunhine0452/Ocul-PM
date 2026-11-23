@@ -193,7 +193,7 @@
     {
       "@type": "Question",
       "name": "어떤 AI 코딩 에이전트와 함께 쓸 수 있나요?",
-      "acceptedAnswer": { "@type": "Answer", "text": "「지원」 한 마디에 약속 셋이 섞여 있어 등급으로 나눕니다. ① 규칙 호환 — 규칙 파일만 심고, 일지는 모델이 규칙을 지키는 만큼 남습니다: Gemini CLI, Cursor, GitHub Copilot, Windsurf, Cline, aider, Zed, Antigravity, pi (AGENTS.md 를 읽는 에이전트라면 무엇이든 이 등급). ② 구조화 기록 — 에이전트가 oculpm MCP 기록 도구를 부릅니다. ③ 세션 관측 — 훅으로 시작·종료를 받고 일지 없이 끝난 대화를 가려냅니다: Claude Code, Codex (각자의 플러그인으로, ② 포함). 에이전트는 사용자의 터미널에서 돌고, 앱 안에서 구동하던 등급은 2026-10-28 에 화면과 함께 걷었습니다. 등급별 근거와 실측 검증 시점은 위키의 등급표(oculpm.com/wiki/agents)에 있습니다." }
+      "acceptedAnswer": { "@type": "Answer", "text": "「지원」 한 마디에 약속 셋이 섞여 있어 등급으로 나눕니다. ① 규칙 호환 — 규칙 파일만 심고, 일지는 모델이 규칙을 지키는 만큼 남습니다: GitHub Copilot, Windsurf, Cline, aider, Zed, Antigravity, pi (AGENTS.md 를 읽는 에이전트라면 무엇이든 이 등급). ② 구조화 기록 — 에이전트가 oculpm MCP 기록 도구를 부릅니다: Cursor, Gemini CLI (설정에서 눌러 등록). ③ 세션 관측 — 훅으로 시작·종료를 받고 일지 없이 끝난 대화를 가려냅니다: Claude Code, Codex (각자의 플러그인으로, ② 포함). 에이전트는 사용자의 터미널에서 돌고, 앱 안에서 구동하던 등급은 2026-10-28 에 화면과 함께 걷었습니다. 등급별 근거와 실측 검증 시점은 위키의 등급표(oculpm.com/wiki/agents)에 있습니다." }
     },
     {
       "@type": "Question",
@@ -468,7 +468,7 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
     <details><summary>프로젝트를 여러 개 동시에 열 수 있나요?</summary><p>네, <b>창을 여러 개</b> 엽니다. 4.0 부터 창 하나가 프로젝트 하나입니다 — 3.x 의 크롬식 탭과 떼어내기는 걷었고, 프로젝트 사이는 OS 의 창 전환으로 오갑니다. <b>⌘O</b> 로 최근 프로젝트를 열고(이미 열린 프로젝트면 그 창이 앞으로 옵니다), <b>⇧⌘N</b> 은 새 시작 창, <b>⌘W</b> 는 창 닫기, <b>⌥⌘1~9</b> 는 목록을 열지 않고 최근 순 프로젝트 창으로 갑니다(지금 프로젝트에는 번호가 없습니다). 윗줄의 프로젝트 이름(▾)은 프로젝트마다 가장 급한 상태 하나(기다림 N · 확인 실패 · 새 소식 · 실행 중 N)를 칩으로 보여 줍니다. 프로젝트마다 화면·필터 상태를 따로 기억하고, macOS 에서는 마지막 창을 닫아도 앱이 남아 독을 누르면 다시 열립니다.</p></details>
     <details><summary>같은 일을 여러 에이전트에게 시켜 보고 고를 수 있나요?</summary><p>네. 앱 안 터미널의 <b>「나란히 돌리기」</b> 에 프롬프트와 개수(2~4)를 넣으면, 지금 커밋에서 worktree 를 그만큼 만들어 각각 claude 를 띄웁니다. 터미널 위 띠는 평소 「나란히 3 · 기다림 1 · 추천 시도 2」 처럼 한 줄로 접히고, 펼치면 시도마다 상태 · 바뀐 크기 · 검증을 한 줄씩 보여 줍니다. 명령으로 검증한 시도 가운데 바뀐 줄이 가장 적은 시도에 <b>「추천」</b> 이 붙습니다. 「이 변경 가져오기」 는 그 시도의 변경을 원래 폴더에 커밋 전 변경으로 가져오고, 「모두 정리」 는 worktree 와 가지를 지웁니다. worktree 는 앱 데이터 폴더에 만들어 프로젝트 폴더를 어지럽히지 않습니다.</p></details>
     <details><summary>Claude 가 사람에게 물어야 할 때 앱에서 답할 수 있나요?</summary><p>네. Claude Code 플러그인의 MCP 도구 <code>ask_user</code> 가 질문을 <b>오늘 화면</b>에 띄우고, 고르거나 쓴 답을 그대로 Claude 에게 돌려줍니다(25분 안). Claude 가 터미널에서 사람을 기다리면 — 앱 안 터미널이든 앱 밖 터미널이든 — 오늘 화면 「먼저 볼 것」 에 <b>「기다림」</b> 행이 서고, 창이 뒤에 있으면 OS 알림이 옵니다.</p></details>
-    <details><summary>어떤 AI 코딩 에이전트와 함께 쓸 수 있나요?</summary><p>「지원」 한 마디에 약속 셋이 섞여 있어 등급으로 나눕니다. ① <b>규칙 호환</b> — 규칙 파일만 심고, 일지는 모델이 규칙을 지키는 만큼 남습니다: Gemini CLI · Cursor · GitHub Copilot · Windsurf · Cline · aider · Zed · Antigravity · pi (AGENTS.md 를 읽는 에이전트라면 무엇이든 이 등급). ② <b>구조화 기록</b> — 에이전트가 oculpm MCP 기록 도구를 부릅니다. ③ <b>세션 관측</b> — 훅으로 시작·종료를 받고 일지 없이 끝난 대화를 가려냅니다: Claude Code · Codex (각자의 플러그인으로, ② 포함). 에이전트는 여러분의 터미널에서 돌고, 앱 안에서 구동하던 등급은 2026-10-28 에 화면과 함께 걷었습니다. 등급별 근거와 실측 검증 시점은 <a href="/wiki/agents">위키의 등급표</a>에 있습니다.</p></details>
+    <details><summary>어떤 AI 코딩 에이전트와 함께 쓸 수 있나요?</summary><p>「지원」 한 마디에 약속 셋이 섞여 있어 등급으로 나눕니다. ① <b>규칙 호환</b> — 규칙 파일만 심고, 일지는 모델이 규칙을 지키는 만큼 남습니다: GitHub Copilot · Windsurf · Cline · aider · Zed · Antigravity · pi (AGENTS.md 를 읽는 에이전트라면 무엇이든 이 등급). ② <b>구조화 기록</b> — 에이전트가 oculpm MCP 기록 도구를 부릅니다: Cursor · Gemini CLI (설정에서 눌러 등록). ③ <b>세션 관측</b> — 훅으로 시작·종료를 받고 일지 없이 끝난 대화를 가려냅니다: Claude Code · Codex (각자의 플러그인으로, ② 포함). 에이전트는 여러분의 터미널에서 돌고, 앱 안에서 구동하던 등급은 2026-10-28 에 화면과 함께 걷었습니다. 등급별 근거와 실측 검증 시점은 <a href="/wiki/agents">위키의 등급표</a>에 있습니다.</p></details>
     <details><summary>폰이나 태블릿에서도 쓸 수 있나요?</summary><p>앱은 데스크톱 전용입니다. v2.18.0 에 베타로 넣었던 모바일 연동(Tailscale 사설망 안의 폰 브라우저)은 걷어냈습니다 — 표면이 컸는데 쓰임이 그에 못 미쳤습니다. v3.13.0 의 claude.ai 보드 스킬(<code>/oculpm:board</code>)도 2026-10-28 에 걷었습니다. 밖에서 진행을 보려면 <code>.oculpm/planner/</code> 의 플랜 파일을 저장소와 함께 보세요 — 원본은 늘 그 마크다운입니다.</p></details>
     <details><summary>내 코드나 데이터가 외부로 나가나요?</summary><p>아니요. 모든 데이터는 프로젝트의 .oculpm/ 폴더와 로컬 SQLite 에 머뭅니다. 앱은 LLM 을 부르지 않고 화면은 바깥 호스트에 닿지 않습니다. 기기를 떠나는 것은 사용자가 시작한 둘뿐입니다 — ① 새 버전 확인, ② 사용자가 누른 링크(OS 브라우저가 엽니다).</p></details>
     <details><summary>팀·회사 도입이나 제휴(파트너십)를 문의할 수 있나요?</summary><p>네. Ocul 은 로컬-우선이라 팀에 도입해도 코드와 기록이 밖으로 나가지 않습니다. 기업(Enterprise) 도입, 팀 단위 도입, 제휴·파트너십 제안은 <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">bunhine0452@gmail.com</a> 으로 보내 주세요 — 만든 사람이 직접 읽고 답합니다.</p></details>
@@ -530,9 +530,9 @@ AGENTS.md     <span class="dim">에이전트가 읽는 규칙 파일 한 장</sp
         terminal: "<b>터미널</b>이 폴더에서 claude 를 엽니다. 일하는 중인지, 기다리는지 앱이 압니다."
       },
       en: {
-        today: "<b>Today</b>Only what needs you rises to the top: Claude's questions and waits, failed verdicts, changes no entry mentions.",
+        today: "<b>Today</b>Only what needs you rises to the top: Claude's questions and waits, failed check commands, changes no entry mentions.",
         journal: "<b>Work Journal</b>The entries your agent leaves: what it did, how it checked, and the diff of every file.",
-        planner: "<b>Plan</b>Done condition, check command, last verdict. A plan ends when the verdict passes, not when the boxes do.",
+        planner: "<b>Plan</b>Done condition, check command, last result. A plan ends when the check command passes, not when the boxes do.",
         diff: "<b>Diff</b>Changes no entry mentions come first. One click on “Ask Claude” asks for the entry.",
         terminal: "<b>Terminal</b>Opens claude in this folder. The app knows whether it's working or waiting for you."
       }
