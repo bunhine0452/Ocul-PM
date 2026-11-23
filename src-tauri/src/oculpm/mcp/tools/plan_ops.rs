@@ -191,6 +191,13 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
             // 공통 자리가 아니라 이 행에 붙인다.
             "hash": plan_hash(&md),
         }));
+        // `[~]` 마다 누가 · 언제 잡았는지 — 48시간이 지났으면 stale (claims.rs).
+        let claims = super::claims::claims_json(&planner_root, &parsed);
+        if !claims.is_empty() {
+            if let Some(last) = plans.last_mut() {
+                last["claims"] = json!(claims);
+            }
+        }
         for w in &parsed.warnings {
             warnings.push(format!("{plan_id}: {w}"));
         }
@@ -260,7 +267,7 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
     let mut out = json!({
         "plans": plans,
         "items_tsv": tsv,
-        "legend": "st: ' '=todo ~=in_progress x=done !=blocked >=deferred -=dropped (디스크 글리프와 동일 — 단 parent 열이 비지 않은 하위를 가진 부모 행의 st 는 하위 롤업 파생값)",
+        "legend": "st: ' '=todo ~=in_progress x=done !=blocked >=deferred -=dropped (디스크 글리프와 동일 — 단 parent 열이 비지 않은 하위를 가진 부모 행의 st 는 하위 롤업 파생값). plans[].claims: [~] 를 잡은 agent(by) · 시각(at) · 지난 시간(age_h) — stale=true(48시간+ 또는 잡은 기록 없음)면 끝난 세션의 잡기라 이어받아도 된다(note 에 「이어받음(이전: <by> <at 날짜>)」)",
         "returned": page.len(),
         "total": total,
         "more": end < total,
@@ -283,7 +290,7 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
         let mut locked = json!({
             "plans": locked_plans,
             "items": locked_items,
-            "note": "잠긴(done/archived) 플랜에 미완 항목이 남아 있다 - archived 는 '못 끝냈다'를 정직하게 적는 자리라 여기 쌓인다. 목록은 include_locked=true. 잠긴 플랜은 plan_update 가 거부하므로, 살릴 항목은 활성 플랜으로 옮겨 적을 것",
+            "note": "잠긴(done/archived) 플랜에 미완 항목이 남아 있다 - archived 는 '못 끝냈다'를 정직하게 적는 자리라 여기 쌓인다. 목록은 include_locked=true. 잠긴 플랜은 plan_update 가 거부하므로, 살릴 항목은 plan_update 의 add 로 활성 플랜에 옮겨 적을 것",
         });
         if include_locked {
             let shown = locked_rows.len().min(limit);
