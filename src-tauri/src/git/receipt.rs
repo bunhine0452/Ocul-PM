@@ -92,6 +92,10 @@ pub fn build(root: &Path) -> Result<Receipt, String> {
         &["ls-files", "--others", "--exclude-standard", "-z"],
     )?));
 
+    // 영수증은 기기 밖으로 나간다(PR 설명 · HTML 파일) — 일지 원문에서 읽은 제목 · 끝 줄도 가린다(11-23,
+    // `redact` 다섯째 갈래: 일지를 떠나는 것). 캐시 투영과 같은 패턴(기본 바닥 + 프로젝트 설정)이다.
+    let patterns = crate::oculpm::redact::patterns_for_project(root);
+    let mask = |s: String| crate::oculpm::redact::redact_text(&s, &patterns).0;
     let mut journals = Vec::new();
     let mut recorded: BTreeSet<String> = BTreeSet::new();
     for rel in &changed {
@@ -110,14 +114,15 @@ pub fn build(root: &Path) -> Result<Receipt, String> {
         recorded.extend(fm.files_touched.iter().map(|f| f.path.clone()));
         journals.push(ReceiptJournal {
             path: jrel.to_string(),
-            title: crate::oculpm::markdown::parse_body(&body).title,
+            title: mask(crate::oculpm::markdown::parse_body(&body).title),
             kind: serde_json::to_value(fm.entry_type)
                 .ok()
                 .and_then(|v| v.as_str().map(str::to_string))
                 .unwrap_or_default(),
             evidence: crate::oculpm::evidence::evidence_level(&body),
             proof: crate::oculpm::evidence::verification_section(&body)
-                .and_then(super::race::proof_line),
+                .and_then(super::race::proof_line)
+                .map(mask),
         });
     }
     journals.sort_by(|a, b| a.path.cmp(&b.path));

@@ -81,3 +81,33 @@ fn on_the_base_branch_only_uncommitted_work_counts() {
     assert_eq!((got.commits, got.files), (0, 1));
     assert_eq!(got.unrecorded, vec!["src/a.ts".to_string()]);
 }
+
+/// 11-23 — 영수증은 기기 밖으로 나간다(PR 설명 · HTML 파일). 일지 원문에서 읽은 제목 · 끝 줄의 시크릿은 가린다.
+#[test]
+fn a_secret_in_the_journal_never_reaches_the_receipt() {
+    let dir = tempfile::tempdir().unwrap();
+    let r = dir.path();
+    git(r, &["init", "-q", "-b", "main"]);
+    write(r, "src/a.ts", "1\n");
+    git(r, &["add", "-A"]);
+    git(r, &["commit", "-q", "-m", "first"]);
+    // 가짜 키 — 패턴 모양만 맞춘다.
+    let fake = format!("sk-{}", "x".repeat(24));
+    let body = JOURNAL
+        .replace("셸: 이름이 겹쳤다", &format!("키 {fake} 를 걷었다"))
+        .replace("993 passed", &format!("993 passed {fake}"));
+    write(r, ".oculpm/journal/20261102/Bugs/1000_bug_a.md", &body);
+    write(r, "src/a.ts", "2\n");
+    let got = build(r).unwrap();
+    let j = &got.journals[0];
+    assert!(
+        !j.title.contains(&fake) && j.title.contains("[REDACTED]"),
+        "{}",
+        j.title
+    );
+    let proof = j.proof.as_deref().unwrap();
+    assert!(
+        !proof.contains(&fake) && proof.contains("[REDACTED]"),
+        "{proof}"
+    );
+}
