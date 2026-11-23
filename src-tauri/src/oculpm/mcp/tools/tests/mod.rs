@@ -14,6 +14,7 @@ mod plan;
 mod plan_add;
 mod plan_anchor;
 mod plan_goal;
+mod plan_update_safety;
 mod search;
 mod search_alive;
 mod tags;

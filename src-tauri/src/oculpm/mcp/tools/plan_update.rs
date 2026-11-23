@@ -364,6 +364,13 @@ pub(crate) fn plan_update(root: &Path, raw_args: &Value) -> Result<Value, String
     if !actual.eq_ignore_ascii_case(expected) {
         return Err(conflict_message(plan_id, expected, &actual));
     }
+    // 상태 없이 메모 · 판정만 항목에 남길 때도 그 항목이 있어야 한다 — 오타 난 id 로 쓴 행은 어느 항목의
+    // 이력에도 안 잡혀 조용히 사라진다 (상태 바꾸기는 `set_item_status_rolled` 가 같은 것을 거절한다).
+    if let (Some(item), None) = (item_id, new_status) {
+        if !parsed.items.iter().any(|i| i.item_id == item) {
+            return Err(format!("item '{item}' not found in plan '{plan_id}'"));
+        }
+    }
 
     let cfg = load_config(root);
     let resolver = resolver_of(&cfg);
@@ -445,7 +452,9 @@ pub(crate) fn plan_update(root: &Path, raw_args: &Value) -> Result<Value, String
                 None
             }
             None => {
-                let phase = resolve_phase(&md, plan_id, a.phase.as_deref(), en, &mut received);
+                // phase 는 새 `## ` 헤딩 글이 될 수 있다 — 줄바꿈이 남으면 그 뒤가 항목 · 헤딩으로 끼어든다.
+                let want = a.phase.as_deref().map(clean).filter(|p| !p.is_empty());
+                let phase = resolve_phase(&md, plan_id, want.as_deref(), en, &mut received);
                 md = add_item(&md, &phase, &text, &id, a.status)?;
                 Some(phase)
             }
@@ -467,17 +476,41 @@ pub(crate) fn plan_update(root: &Path, raw_args: &Value) -> Result<Value, String
     // ③ 결정 잠그기.
     if let Some(d) = decision {
         let title = clean(&d.title);
-        let base =
-            d.id.filter(|i| valid_kebab(i))
-                .unwrap_or_else(|| derived_id(&title, "decision".to_string()));
+        let derived = derived_id(&title, "decision".to_string());
+        let base = match d.id {
+            Some(id) if valid_kebab(&id) => id,
+            Some(id) => {
+                received.push(if en {
+                    format!("decision id `{id}` is not kebab-case — used `{derived}`")
+                } else {
+                    format!("결정 id `{id}` 가 kebab 이 아니라 `{derived}` 로 썼어요")
+                });
+                derived
+            }
+            None => derived,
+        };
         let id = unique_id(&md, &base);
+        // 영향 칸은 `#id` 들의 한 줄이다 — id 꼴이 아닌 것(줄바꿈 · 헤딩 글)은 본문에 끼어들지 않게 버리고 알린다.
+        let (affects, dropped): (Vec<String>, Vec<String>) = d
+            .affects
+            .iter()
+            .map(|a| a.trim().trim_start_matches('#').to_string())
+            .filter(|a| !a.is_empty())
+            .partition(|a| valid_kebab(a));
+        if !dropped.is_empty() {
+            received.push(if en {
+                format!("dropped affects that are not item ids: {dropped:?}")
+            } else {
+                format!("항목 id 꼴이 아닌 affects 는 버렸어요: {dropped:?}")
+            });
+        }
         md = add_decision(
             &md,
             &NewDecision {
                 id: &id,
                 title: &title,
                 body: &redact_text(&d.body, &patterns).0,
-                affects: &d.affects,
+                affects: &affects,
                 date: &today,
                 agent: &agent_id,
                 en,
