@@ -45,14 +45,14 @@ describe("receipt on an empty diff", () => {
 });
 
 describe("one verb per meaning", () => {
-  it("the file head sends the file with the app-wide 「Claude 에게 보내기」, never a second 「맡기기」", async () => {
+  it("the file head sends the file with the app-wide send verb, never a second hand-off verb", async () => {
     fx.groups = [entryGroup("20260820/Bugs/1000_bug_a.md", "one", ["src/a.ts"])];
     seed([{ path: "src/a.ts", op: "M" }]);
     const { container } = renderDiffScreen();
     await waitFor(() => expect(container.querySelector(".chg-fh-act")?.textContent).toContain(t("diff.viewed")));
     const labels = [...container.querySelectorAll(".chg-fh-act button")].map((b) => b.textContent);
     expect(labels).toContain(t("send.title"));
-    expect(labels.some((l) => l?.includes("맡기기"))).toBe(false);
+    expect(labels).not.toContain(t("diff.unrecorded.ask"));
   });
 });
 
