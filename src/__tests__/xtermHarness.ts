@@ -22,7 +22,7 @@ export interface RealTerm {
   dispose(): void;
 }
 
-export function openRealTerm(opts: { cols?: number; rows?: number } = {}): RealTerm {
+export function openRealTerm(opts: { cols?: number; rows?: number; now?: () => number } = {}): RealTerm {
   // jsdom 에는 canvas 가 없다 — 열 때마다 xterm 이 글자 폭을 재려다 「Not implemented」 를 찍지 않게
   // (모듈을 들일 때의 한 번(Color.ts)은 여기보다 앞서 지나간다).
   HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement["getContext"];
@@ -30,7 +30,7 @@ export function openRealTerm(opts: { cols?: number; rows?: number } = {}): RealT
   document.body.appendChild(host);
   const term = new Terminal({ cols: opts.cols ?? 40, rows: opts.rows ?? 6, allowProposedApi: true, macOptionIsMeta: true });
   // 세션 저장소(`termStore`)와 같은 배선 — 에이전트 신호는 열 때부터 보고, 브리지가 그것을 묻는다.
-  const agent = watchAgentScreen(term);
+  const agent = watchAgentScreen(term, opts.now);
   term.open(host);
   const bridge = attachImeBridge(term, host, agent);
   const data: string[] = [];
