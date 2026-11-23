@@ -11,9 +11,10 @@
 import { useEffect, useState } from "react";
 
 import { hooksApi } from "@/api/claudeSurface";
+import { oculpmApi } from "@/api/oculpm";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { useT } from "@/i18n";
-import { useWatcherFailure } from "@/features/oculpm/watcherCause";
+import { noteWatcherFailure, useWatcherFailure } from "@/features/oculpm/watcherCause";
 import { WATCHER_CAUSE_KEY } from "@/features/oculpm/watcherToast";
 import { useClaudeWorkedAt } from "@/features/terminal/claudeWorked";
 import { PrefsRow, useReportFix } from "./prefsUi";
@@ -48,11 +49,27 @@ export function JournalHealthRows({ tick }: { tick: number }) {
     };
   }, [projectId, workedAt, tick]);
 
+  // 감독관(`supervisor.rs`)은 멈춘 감시를 1분마다 조용히 되살리고 이벤트를 쏘지 않는다 — 남겨 둔 원인만 믿으면
+  // 이미 돌아온 감시를 「갱신 꺼짐」 이라 말하게 된다. 그릴 때마다 지금 상태를 물어, 돌고 있으면 원인을 지운다.
+  useEffect(() => {
+    if (projectId == null || !failure) return;
+    let alive = true;
+    void Promise.resolve()
+      .then(() => oculpmApi.getStatus(projectId))
+      .then((s) => {
+        if (alive && s.watcher_state === "running") noteWatcherFailure(projectId, null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [projectId, failure, tick]);
+
   const label = t("prefs.agents.diag");
   const watcherText = failure ? t(WATCHER_CAUSE_KEY[failure.cause], { error: failure.detail ?? "" }) : null;
   const silent = hookSilent(workedAt, hookLastAt);
-  useReportFix("watcher", watcherText ? { section: "agents", label, detail: t("prefs.agents.diagWatcher") } : null);
-  useReportFix("hooks", silent ? { section: "agents", label, detail: t("prefs.agents.diagHooks") } : null);
+  useReportFix("journalWatcher", watcherText ? { section: "agents", label, detail: t("prefs.agents.diagWatcher") } : null);
+  useReportFix("journalHooks", silent ? { section: "agents", label, detail: t("prefs.agents.diagHooks") } : null);
   if (projectId == null) return null;
 
   return (

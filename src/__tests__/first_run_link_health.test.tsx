@@ -6,6 +6,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 const health = vi.hoisted(() => ({
   value: { claude_seen: true, hook_last_at: null as string | null } as unknown,
   calls: [] as Array<number | null>,
+  watcherState: null as string | null,
 }));
 
 vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn() }));
@@ -19,7 +20,14 @@ vi.mock("@/lib/bindings", () => ({
               health.calls.push(projectId);
               return Promise.resolve({ status: "ok", data: health.value });
             }
-          : () => Promise.resolve({ status: "ok", data: null }),
+          : prop === "oculpmGetStatus"
+            ? () =>
+                Promise.resolve(
+                  health.watcherState
+                    ? { status: "ok", data: { watcher_state: health.watcherState } }
+                    : { status: "error", error: { code: "io", detail: "no status" } },
+                )
+            : () => Promise.resolve({ status: "ok", data: null }),
     },
   ),
   events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),
@@ -50,6 +58,7 @@ const working = (projectId: number, app?: string) =>
 
 beforeEach(() => {
   health.calls.length = 0;
+  health.watcherState = null;
   __resetClaudeWorkedForTests();
   noteWatcherFailure(5, null);
 });
@@ -135,5 +144,13 @@ describe("settings: journals not arriving", () => {
     expect(screen.getByText(t("prefs.agents.diagWatcher"))).toBeInTheDocument();
     expect(screen.getByText(t("watcher.cause.missing"), { exact: false })).toBeInTheDocument();
     expect(screen.queryByText(t("prefs.agents.diagNone"))).toBeNull();
+  });
+
+  it("drops 「live updates off」 once the supervisor has quietly revived the watcher", async () => {
+    health.watcherState = "running";
+    noteWatcherFailure(5, { cause: "lock", detail: null, at: 1 });
+    render(<JournalHealthRows tick={0} />);
+    await screen.findByText(t("prefs.agents.diagNone"));
+    expect(screen.queryByText(t("prefs.agents.diagWatcher"))).toBeNull();
   });
 });
