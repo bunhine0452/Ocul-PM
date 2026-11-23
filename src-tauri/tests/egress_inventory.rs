@@ -148,6 +148,7 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     // ── 목적지가 아닌 것 ──
     ("mcp.notion.com", "앱이 부르지 않는다 — 에이전트 CLI 설정 파일(.mcp.json/config.toml)에 **적히는 값**이고, 그 파서의 테스트 픽스처다."),
     ("www.w3.org", "SVG 네임스페이스 URI — 네트워크 요청이 아니다 (xmlns 속성)."),
+    ("example.invalid", "앱이 부르지 않는다 — Cursor · Gemini MCP 등록 시험(`oculpm/mcp/agent_json_tests.rs`)이 「다른 서버가 이미 있는 설정 파일」 을 흉내 내는 픽스처 값이다. `.invalid` 는 RFC 2606 이 영영 풀리지 않게 예약한 최상위 이름이다."),
     ("claude.ai", "앱이 부르지 않는다 — 「claude 를 못 찾았어요」 토스트 · 시작 창이 **복사만** 하는 Claude Code 설치 줄의 글자다(`lib/agentCommands.ts`). 그 줄은 사람이 자기 터미널에 붙여 돌린다."),
 ];
 
