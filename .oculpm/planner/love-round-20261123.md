@@ -69,4 +69,5 @@ owner: claude-code
 | 2026-11-23T22:42:55+09:00 | #security-scan | claude-code | ☐→- |  | 사용자 결정 11-23: claude-security 변경분 스캔 확인 창에서 「No」 — 스캔하지 않음. 대신 레인 리뷰 14(pr-review-toolkit 관점)와 최종 검수 F1(위험 코드 · 약속 7)이 봤다 |
 | 2026-11-23T22:43:00+09:00 | #release-413 | claude-code | ☐→~ |  | 릴리스 커밋 5ebcbf69 · 태그 v4.13.0 → d7e1b022(CI · E2E success). release run 진행 중, 랜딩 배포는 그 뒤(수동) |
 | 2026-11-23T23:07:04+09:00 | #release-413 | claude-code | ~→x |  | 판정 ✓ release run 45186615967 success — Latest v4.13.0(자산 9개) · latest.json 4.13.0(darwin · windows · linux). 랜딩 배포는 수동(vercel), brew/winget 제출은 사용자 확인 대기 · mac |
+| 2026-11-23T23:36:02+09:00 | #release-413 | claude-code | x→x |  | 설치 채널(사용자 결정 「둘 다 지금」): Homebrew tap bunhine0452/homebrew-tap 공개 · brew audit --online 통과(cask 앱 이름 Ocul-PM.app 으로 고침), winget microsoft/winget-pkgs#487242 심사 중. 남은 사람 몫: Microsoft CLA 서명 · 랜딩 vercel --prod |
 <!-- oculpm:plan-log end -->
