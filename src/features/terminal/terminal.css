@@ -61,13 +61,17 @@
 /* Claude 가 일했는데 시작 뒤 일지 0 (11-02) — 실패가 아니라 확인해 볼 것이라 경고 글자색만. 다른 앰버 낱말처럼
    낱말일 뿐이다(누르면 탭을 고른다) — 기록 부탁은 칸 위 띠의 단추가 한다. */
 .tm-norec { flex: none; font-size: var(--fs-3); color: var(--warn-text); }
-/* 닫기 — 점 자리에 겹친다. 가리킬 때 · 고른 탭 · 탭 안에 포커스가 있을 때만(탭 줄이 × 로 줄무늬지지 않게). */
+/* 닫기 — 점 자리에 겹친다. 가리킬 때 · 고른 탭 · 탭 안에 포커스가 있을 때만(탭 줄이 × 로 줄무늬지지 않게).
+   누르는 자리는 탭 왼쪽 끝부터 24px × 탭 높이(WCAG 2.5.8) — 보이는 네모는 15px 그대로(그림의 바탕). 15px 이던
+   때는 겨누기 어려웠고, 겹쳐 넓히면 옆 번호를 덮었다 — 점 뒤에 4px 를 더 띄워 번호가 24px 밖에서 시작한다. */
 .tm-close {
-  position: absolute; left: var(--space-1); top: 50%; translate: 0 -50%;
-  width: 15px; height: 15px; display: grid; place-items: center;
-  border-radius: var(--radius-2xs); color: var(--text-2); cursor: pointer; opacity: 0;
+  position: absolute; left: 0; top: 0; bottom: 0; width: 24px;
+  display: grid; place-items: center; color: var(--text-2); cursor: pointer; opacity: 0;
 }
-.tm-close:hover { background: var(--bg-active); color: var(--text); }
+.tm-close > svg { box-sizing: content-box; padding: 2px; border-radius: var(--radius-2xs); }
+.tm-close:hover { color: var(--text); }
+.tm-close:hover > svg { background: var(--bg-active); }
+.tm-pick > .tm-dot { margin-right: var(--space-1); }
 .tm-tab:is(:hover, .is-active, :focus-within) .tm-close { opacity: 1; }
 .tm-tab:is(:hover, .is-active, :focus-within) .tm-pick > .tm-dot { opacity: 0; }
 
