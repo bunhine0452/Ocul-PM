@@ -58,6 +58,10 @@ export function buildPlan({ fx, outDir, base, only }) {
       .forEach((s, i) => add(`${String(i + 2).padStart(2, "0")}-${s}-${theme}`, `theme=${theme}`, s, { dark }));
   }
 
+  // 설정은 한 쪽이 창 셋 길이다 — 800 높이로는 맨 위 칸만 보여 아래 칸(앱 · 기기를 떠나는 것)의 행이 장에 안 남았다.
+  add("08-settings-tall-light", "theme=light", "settings", { h: 1800 });
+  add("08-settings-tall-en-dark", "lang=en&theme=dark", "settings", { h: 1800, dark: true });
+
   // 좁은 창 760x700
   for (const s of ["today", "journal", "planner", "diff", "terminal", "settings"]) add(`20-narrow-${s}-light`, "theme=light", s, { w: 760, h: 700 });
   add("20-narrow-start-light", "start=1&theme=light", "start", { w: 760, h: 700 });

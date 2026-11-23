@@ -63,7 +63,8 @@
 .prefs-ver { color: var(--text-2); font-variant-numeric: tabular-nums; }
 /* 「기기를 떠나는 것」(11-23 G2) — 문 하나가 한 줄: 이름 · 회색 한 문장. 색 없음(예외가 아니다). */
 .prefs-egress { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; margin: 0; padding: 0; list-style: none; }
-.prefs-egress > li { display: flex; flex-wrap: wrap; column-gap: var(--space-3); row-gap: 2px; min-width: 0; }
+/* 이름 줄 · 설명 줄로 늘 쌓는다 — 옆으로 흘리면 설명이 짧은 문은 이름 옆에, 긴 문은 다음 줄에 서서 세 줄의 모양이 달랐다(최종 검수). */
+.prefs-egress > li { display: flex; flex-direction: column; row-gap: 2px; min-width: 0; }
 .prefs-egress b { font-size: var(--fs-3); font-weight: var(--fw-label); }
 /* 「일지가 안 와요」(11-23) — 찾은 원인마다 칩 + 한 문장. */
 .prefs-diag { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; font-size: var(--fs-3); }

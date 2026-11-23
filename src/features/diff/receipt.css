@@ -1,6 +1,8 @@
 /* 「영수증 복사」 한 벌 (11-23) — 앞 단추 + 옆 ▾ 가 한 덩이로 붙는다. 메뉴는 툴바의 가로 스크롤에 잘리지 않게 고정 자리. */
 .rcpt { display: inline-flex; align-items: center; gap: 0; flex: none; }
 .rcpt > .btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+/* 테두리 단추(일지 머리)일 때 두 단추의 맞닿은 테두리가 2px 로 겹쳐 보이지 않게. */
+.rcpt > .btn + .btn { margin-left: -1px; }
 .rcpt-more { padding-left: var(--space-1); padding-right: var(--space-1); border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .rcpt-menu {
   position: fixed; z-index: var(--z-popover); width: 240px;

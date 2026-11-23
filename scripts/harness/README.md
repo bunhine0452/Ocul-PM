@@ -1,6 +1,6 @@
 # Ocul 화면 하네스
 
-실제 `src/main.tsx` 를 브라우저에서 통째로 띄우고, Tauri IPC 를 목업으로 바꿔 이 저장소의 **실제 `.oculpm` 일지 · 계획 · 최근 커밋 변경**으로 그린다. 화면을 바꿀 때마다 같은 42장을 전후로 찍어 「좋아졌다」를 주장이 아니라 영수증으로 남기려는 **개발 도구**다.
+실제 `src/main.tsx` 를 브라우저에서 통째로 띄우고, Tauri IPC 를 목업으로 바꿔 이 저장소의 **실제 `.oculpm` 일지 · 계획 · 최근 커밋 변경**으로 그린다. 화면을 바꿀 때마다 같은 44장을 전후로 찍어 「좋아졌다」를 주장이 아니라 영수증으로 남기려는 **개발 도구**다.
 
 - 설치본이 돌고 있어도 안전하다 — 프런트만 뜨고 앱 데이터 · 단일 인스턴스 소켓을 건드리지 않는다.
 - **앱에 닿지 않는다.** `harness.html` 은 Vite 빌드 입력(`index.html` 하나)이 아니라 dev 서버가 `/scripts/harness/harness.html` 로 낼 뿐이라 `dist` 에 안 들어간다. 앱 소스(`src/`)는 이 폴더를 불러오지 않고, 하네스는 네트워크에 나가지 않는다(egress 원장 밖). `src/__tests__/harness_kit.test.ts` 가 지킨다.
@@ -9,7 +9,7 @@
 ## 쓰는 법
 
 ```bash
-pnpm harness:shots                       # 픽스처 새로 뽑기 → dev 서버(1434) → 42장 → generated/shots/*.png + _report.json
+pnpm harness:shots                       # 픽스처 새로 뽑기 → dev 서버(1434) → 44장 → generated/shots/*.png + _report.json
 pnpm harness:shots --out <폴더>          # 다른 곳에
 pnpm harness:shots --only 05-diff,70-    # 이름 조각으로 일부만
 pnpm harness:shots --strict              # 예외 · 핸들러 없는 명령 · 못 찾은 단추가 있으면 끝 코드 1
@@ -29,7 +29,7 @@ Chrome 은 시스템 것을 쓴다(`CHROME_PATH` 로 지정). 한 바퀴 약 4�
 | `derive.ts` | 픽스처 → 응답 재료(일지 요약 · 오늘 digest · 변경 묶음). |
 | `types.ts` | `Fixtures` 와, bindings 에서 「명령 → 응답」 표를 뽑는 타입. |
 | `fixtures.mjs` | 픽스처 뽑기 — 일지 최근 8일 · 활성 계획 · 최근 커밋의 파일과 패치(「커밋 전 변경」 9개, 그중 일지에 안 적힌 2개). 키 모양 · 이메일 · 집 폴더 이름을 가린다. |
-| `plan.mjs` | 찍기 계획 — 화면 × 밝게/어둡게 × 1280/760 × 빈 상태 · 영어 · 예외 · ⌘K. 열 일지 · 계획은 픽스처에서 고른다. |
+| `plan.mjs` | 찍기 계획 — 화면 × 밝게/어둡게 × 1280/760 × 빈 상태 · 영어 · 예외 · ⌘K, 설정 한 쪽 통째(높이 1800). 열 일지 · 계획은 픽스처에서 고른다. |
 | `shots.mjs` | 위를 묶는 실행기 — 시스템 Chrome 하나 + Node 내장 WebSocket CDP. 장마다 새 탭, 결과와 IPC 누락 · 예외 · 콘솔 오류 · 못 찾은 단추를 `_report.json` 에. |
 | `audit.js` | 찍은 직후 DOM 측정 — 잘림(scrollWidth > clientWidth) · 가로 넘침 · 24px 미만 표적 · 채운 단추 · 대비(AA) · 글자 크기 분포. |
 

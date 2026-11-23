@@ -188,13 +188,15 @@ export function AgentsSection({ id, arrived }: { id: string; arrived?: number })
         </button>
       }
     >
+      {/* 순서: 기록이 들어오는 길(에이전트 연결) → 그 길이 막혔는지(일지가 안 와요) → 겉모양(테마). 11-23 에
+          Cursor · Gemini · 진단 행이 늘며 테마 행이 연결 행들 사이에 끼어 「연결」 목록이 끊겨 읽혔다. */}
       <ClaudePluginRow tick={tick} />
-      <ClaudeThemeRow tick={tick} />
       <CodexRow tick={tick} />
       <AgentMcpRow target="cursor" tick={tick} />
       <AgentMcpRow target="gemini" tick={tick} />
       <McpRow tick={tick} />
       <JournalHealthRows tick={tick} />
+      <ClaudeThemeRow tick={tick} />
     </PrefsCard>
   );
 }

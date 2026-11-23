@@ -291,7 +291,7 @@ export const JournalDetail = forwardRef<HTMLDivElement, JournalDetailProps>(func
             {t("send.title")}
           </button>
           {/* 이 일지 한 건의 영수증 — 변경 · 오늘과 같은 단추 · 같은 키(⇧⌘C), 같은 줄 모양 (11-23). */}
-          <ReceiptButton actions={receipt} title={t("diff.receipt.entryTitle")} />
+          <ReceiptButton actions={receipt} title={t("diff.receipt.entryTitle")} outlined />
         </div>
       </header>
 
