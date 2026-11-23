@@ -848,11 +848,16 @@ export const commands = {
 	 */
 	codexPluginStatus: () => typedError<CodexPluginStatus, string>(__TAURI_INVOKE("codex_plugin_status")),
 	/**
-	 *  `~/.claude/plugins/**` 를 얕게 훑어 oculpm 플러그인 설치 여부를 본다.
-	 *  설치 레이아웃(마켓플레이스 캐시 구조)이 CLI 버전에 따라 다를 수 있어
-	 *  "이름이 oculpm 인 `.claude-plugin/plugin.json`" 을 깊이 6·항목 2,000개
-	 *  상한으로 탐색한다 — 설정 화면의 택일 안내(훅·MCP 이중 등록 방지)용이라
-	 *  놓쳐도 무해(안내가 안 뜰 뿐), 오탐만 없으면 된다.
+	 *  Cursor · Gemini CLI — 프로젝트의 `.cursor/mcp.json` · `.gemini/settings.json` 에 우리
+	 *  서버 하나를 제자리 병합한다 (사용자 결정 11-23: 설정에서 누를 때만). 실행 경로는 위의
+	 *  Claude · Codex 등록과 같은 출처, 홈은 감지에만 쓴다.
+	 */
+	agentMcpStatus: (projectId: number, target: AgentMcpTarget) => typedError<AgentMcpStatus, string>(__TAURI_INVOKE("agent_mcp_status", { projectId, target })),
+	agentMcpRegister: (projectId: number, target: AgentMcpTarget) => typedError<AgentMcpStatus, string>(__TAURI_INVOKE("agent_mcp_register", { projectId, target })),
+	agentMcpUnregister: (projectId: number, target: AgentMcpTarget) => typedError<AgentMcpStatus, string>(__TAURI_INVOKE("agent_mcp_unregister", { projectId, target })),
+	/**
+	 *  이 프로젝트에서 Claude Code 플러그인의 상태 (**읽기 전용**) — 연결됨은 이 프로젝트에 적용되는 켜진
+	 *  설치가 있을 때만. `project_id` 가 없으면(시작 창) 사용자 스코프만 본다.
 	 */
 	claudePluginStatus: (projectId: number | null) => typedError<ClaudePluginStatus, string>(__TAURI_INVOKE("claude_plugin_status", { projectId })),
 	/**
@@ -939,6 +944,21 @@ export type AgentLinkHealth = {
 	 */
 	hook_last_at: string | null,
 };
+
+export type AgentMcpStatus = {
+	target: AgentMcpTarget,
+	/**  이 프로젝트나 이 기기에서 그 도구의 흔적을 찾았다 — 없으면 화면에 행을 세우지 않는다. */
+	detected: boolean,
+	/**  설정 파일에 우리 서버가 있다. */
+	registered: boolean,
+	binary_found: boolean,
+	binary_path: string | null,
+	/**  쓰는 자리 (절대 경로) — 화면이 그대로 보여 준다. */
+	config_path: string,
+};
+
+/**  MCP 를 프로젝트 JSON 으로 받는 에이전트. */
+export type AgentMcpTarget = "cursor" | "gemini";
 
 export type AgentRef = {
 	/**
@@ -1127,21 +1147,43 @@ export type ClaudeBlockedChanged = {
 	project_id: number,
 };
 
+/**  이 프로젝트에서 플러그인이 어떤 상태인가 — 상태마다 다음 할 일(붙여 넣을 명령)이 다르다. */
+export type ClaudePluginState = 
+/**  이 프로젝트에 적용되는 설치가 있고 꺼져 있지 않다. */
+"connected" | 
+/**  깔려 있지만 `enabledPlugins` 에서 꺼 두었다. */
+"disabled" | 
+/**  다른 프로젝트에만 깔렸다 (프로젝트 · 로컬 스코프). */
+"other_project" | 
+/**  마켓플레이스만 더했고 설치는 아직이다. */
+"marketplace_only" | "not_installed";
+
 export type ClaudePluginStatus = {
+	state: ClaudePluginState,
+	/**  이 프로젝트에 적용되는 설치 기록이 있다 (켜졌든 꺼졌든 — 켜짐까지는 `state`). */
 	installed: boolean,
-	/**  발견된 플러그인 디렉터리 (installed=true 일 때). */
+	/**  디스크에서 찾은 oculpm 플러그인 폴더(캐시 · 마켓 클론). 설치 여부를 말하지 않는다. */
 	path: string | null,
-	/**
-	 *  `~/.claude/plugins/installed_plugins.json` 이 말하는, **이 프로젝트에 적용되는**
-	 *  판. 프로젝트 스코프 설치가 있으면 그것, 없으면 사용자 스코프.
-	 */
+	/**  `installed_plugins.json` 이 말하는, **이 프로젝트에 적용되는** 판. */
 	installed_version: string | null,
-	/**  `project` | `user` — `installed_version` 의 출처. */
+	/**  `project` | `local` | `user` — `installed_version` 의 출처. */
 	scope: string | null,
 	/**  이 앱이 들고 있는 플러그인 판 (`plugin/oculpm/.claude-plugin/plugin.json`). */
 	bundled_version: string,
-	/**  깔린 판이 앱의 판보다 낮다 — `/plugin update oculpm@oculpm` 을 안내할 때. */
+	/**  깔린 판이 앱의 판보다 낮다 — 플러그인을 올릴 때. */
 	behind: boolean,
+	/**
+	 *  깔린 판이 앱의 판보다 높다 — 앱을 올릴 때. 새 스킬 · 훅이 옛 앱의 MCP 를 부르고, 옛 MCP 는
+	 *  모르는 인자를 조용히 버린다 (#plugin-ahead-of-app).
+	 */
+	ahead: boolean,
+	/**  다른 프로젝트에 깔린 판 중 앱보다 낮은 것의 수. 프로젝트 스코프는 스스로 올라가지 않는다. */
+	other_behind: number,
+	/**
+	 *  플러그인 셔틀이 찾는 자리 중 하나에 앱의 `oculpm-mcp` 가 있다. 없으면 플러그인이 깔려도 MCP ·
+	 *  훅이 앱에 닿지 않는다 (응용 프로그램 폴더 밖에서 연 앱).
+	 */
+	app_reachable: boolean,
 };
 
 /**  앱에 떠 있는 질문 하나 — `oculpm-mcp` 의 `ask_user` 가 `.oculpm/hooks/questions/<id>.json` 에 썼다. */
@@ -1376,7 +1418,7 @@ export type DigestPlan = {
 	 */
 	verdict_from?: string | null,
 	/**
-	 *  다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫은 건너뛴다. `[~]` 는 다른 세션이
+	 *  다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫([`is_user_leaf`])은 건너뛴다. `[~]` 는 다른 세션이
 	 *  잡은 것으로 본다 (`/oculpm:next` 와 같은 규칙).
 	 */
 	next: DigestItem | null,
@@ -2609,7 +2651,7 @@ export type TermStatus = {
 export type TodayDigest = {
 	/**  active 플랜만, 최근 갱신 순. */
 	plans: DigestPlan[],
-	/**  열린 사람 몫 항목 (`[사용자]`·`[사용자 결정]`·`[사용자 액션]`·`[user]` 로 시작). */
+	/**  열린 사람 몫 리프 — 제목이나 부모 제목이 `[사용자]`·`[사용자 결정]`·`[사용자 액션]`·`[user]` 로 시작. */
 	needs_user: DigestItem[],
 	/**  막힌(`[!]`) 리프. */
 	blocked: DigestItem[],

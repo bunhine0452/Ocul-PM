@@ -149,12 +149,12 @@ fn setup_logging() {
 }
 
 use crate::commands::{
+    // Claude 흔적 · 훅 신호 시각 — 시작 창 · 설정 「일지가 안 와요」 (11-23)
+    agent_link_health,
     // Cursor · Gemini CLI 프로젝트 MCP 등록 (love-round L7, 11-23)
     agent_mcp_register,
     agent_mcp_status,
     agent_mcp_unregister,
-    // Claude 흔적 · 훅 신호 시각 — 시작 창 · 설정 「일지가 안 와요」 (11-23)
-    agent_link_health,
     app_info,
     apply_menu_language,
     // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
