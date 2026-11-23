@@ -15,6 +15,7 @@
  *                기본값). xterm 5.5 는 ⌘← → 에 아무것도 안 보내고 ⌘⌫ 는 한 글자만 지운다. ⌥← → 는 5.5 가
  *                흉내 내지만 xterm 6 이 그 흉내를 뺀다(#5346) — 여기서 못박는다. ⌥⌘+방향키(칸 이동)는
  *                터미널 화면의 캡처가 먼저 잡으니 건드리지 않는다.
+ *  맥 오른쪽 ⌥   글자(⌥L → @ 등, 11-23). 왼쪽 ⌥ 는 종전대로 Meta(ESC 글자) — 셸의 ⌥B · ⌥F 손버릇은 그대로.
  *  맥 ⌃ 키        ⌃/ 0x1F(되돌리기) · ⌃2 · ⌃Space 0x00 — xterm 5.5 는 ⌃/ · ⌃2 에 아무것도 안 보낸다.
  *  그 밖 OS 복사  Ctrl+Shift+V 는 붙여넣기, Ctrl+Shift+C · 고른 채 Ctrl+C 는 복사. xterm 은 이 키들을
  *                0x16 · 0x03 으로 보내 키로 복사할 길이 없었다. 고른 것 없는 Ctrl+C 는 그대로 인터럽트다.
@@ -34,6 +35,8 @@ export interface KeyCtx {
   /** 그 화면의 프로그램이 상태 신호(OSC 7501)를 보낸 에이전트다 — Claude Code · Codex (`agentScreen.ts`). */
   agent: boolean;
   hasSelection: boolean;
+  /** 맥 — 지금 쥔 ⌥ 가 오른쪽이다(브리지가 ⌥ 키의 keydown · keyup 자리 `AltRight` 로 센다). 없으면 왼쪽으로 본다. */
+  rightOption?: boolean;
 }
 
 /**
@@ -117,6 +120,11 @@ export function translateKey(e: KeyEventLike, ctx: KeyCtx): KeyAction | null {
     if (only(e, { meta: true })) {
       if (latin(e) === "l") return ctx.hasSelection ? { kind: "sendSelection" } : null;
       return send(MAC_CMD.get(e.key));
+    }
+    // 오른쪽 ⌥ 는 글자를 만든다(Ghostty 의 `macos-option-as-alt = left`) — ⌥L 이 `@` 인 배열(독일어 등)에서
+    // macOptionIsMeta 는 ESC l 을 보냈다. 글자 하나가 나온 때만이고, 죽은 키(`Dead`)와 방향키는 종전대로.
+    if (ctx.rightOption && e.altKey && !e.metaKey && !e.ctrlKey && [...e.key].length === 1 && !/\p{Cc}/u.test(e.key)) {
+      return { kind: "send", seq: e.key };
     }
     if (only(e, { alt: true })) return send(MAC_OPT.get(e.key));
     if (only(e, { ctrl: true })) return send(MAC_CTRL.get(latin(e)));
