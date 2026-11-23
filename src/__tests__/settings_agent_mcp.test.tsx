@@ -89,6 +89,15 @@ describe("Cursor · Gemini MCP registration", () => {
     expect(await screen.findByRole("button", { name: t("prefs.agents.mcpUnregister") })).toBeInTheDocument();
   });
 
+  it("a failure that is not about the config file puts no error row in a settings page of someone who never used the tool", async () => {
+    fx.fail = "Failed to resolve project root: No such file or directory";
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { container } = render(<AgentMcpRow target="cursor" tick={0} />);
+    await waitFor(() => expect(warn).toHaveBeenCalledWith("agent_mcp_status", fx.fail));
+    expect(container).toBeEmptyDOMElement();
+    warn.mockRestore();
+  });
+
   it("an unreadable config file puts its path and reason in the row, in Korean", async () => {
     fx.fail = "/p/.gemini/settings.json was left unchanged: it is not plain JSON (expected value at line 2 column 3)";
     render(<AgentMcpRow target="gemini" tick={0} />);

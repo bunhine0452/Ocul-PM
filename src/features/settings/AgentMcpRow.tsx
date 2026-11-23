@@ -11,7 +11,7 @@
  */
 import { useEffect, useState } from "react";
 
-import { toAppError } from "@/api/invoke";
+import { errorDetail, toAppError } from "@/api/invoke";
 import { OculpmApiError, oculpmApi } from "@/api/oculpm";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { useT, type I18nKey } from "@/i18n";
@@ -25,7 +25,10 @@ const LABELS: Record<AgentMcpTarget, { label: I18nKey; meta: I18nKey }> = {
   gemini: { label: "prefs.agents.gemini", meta: "prefs.agents.geminiMeta" },
 };
 
-type Probe = { state: "loading" } | { state: "error"; message: string } | { state: "ok"; value: AgentMcpStatus };
+/** `agent_json.rs` 가 설정 파일 자리에서 내는 이유들 — 못 읽음 · 덮지 않음 · 링크 · 밖으로 나감. */
+const FILE_PROBLEM = /was left unchanged|^Could not read |symbolic link|escapes the project root|path traversal/;
+
+type Probe ={ state: "loading" } | { state: "error"; message: string } | { state: "ok"; value: AgentMcpStatus };
 
 export function AgentMcpRow({ target, tick }: { target: AgentMcpTarget; tick: number }) {
   const { t } = useT();
@@ -40,8 +43,12 @@ export function AgentMcpRow({ target, tick }: { target: AgentMcpTarget; tick: nu
       .then((s) => alive && setProbe({ state: "ok", value: s }))
       .catch((e: unknown) => {
         if (!alive) return;
-        // 백엔드가 말한 이유(못 읽는 설정 파일)만 행에 싣는다. 그 밖의 실패는 알던 답을 둔다.
-        if (e instanceof OculpmApiError) setProbe({ state: "error", message: tError(toAppError(e)) });
+        // 못 읽는 설정 파일(= 그 도구의 흔적이 있다는 뜻)만 이유를 행에 싣는다. `unwrap` 이 전송 실패까지
+        // OculpmApiError 로 접으므로 클래스로는 못 가른다 — 그 밖의 실패(프로젝트 못 찾음 등)로
+        // Cursor 를 안 쓰는 사람의 설정에 오류 행이 서면 안 되니, 행은 두지 않고 로그(oculpm.log)에 남긴다.
+        const message = tError(toAppError(e));
+        if (e instanceof OculpmApiError && FILE_PROBLEM.test(errorDetail(e))) setProbe({ state: "error", message });
+        else console.warn("agent_mcp_status", errorDetail(e));
       });
     return () => {
       alive = false;
