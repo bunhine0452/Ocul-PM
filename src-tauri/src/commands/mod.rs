@@ -1,4 +1,5 @@
 pub mod claude_hooks;
+pub mod claude_plugin;
 pub mod config;
 pub mod current_session;
 pub mod diagnostics;
@@ -32,6 +33,7 @@ pub mod velocity;
 pub mod window;
 
 pub use claude_hooks::*;
+pub use claude_plugin::*;
 pub use config::*;
 pub use current_session::*;
 pub use diagnostics::*;
