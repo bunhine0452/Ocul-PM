@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import type { JournalEntrySummary } from "@/lib/bindings";
 
 // ─── 일지 상세 (4.0) — 검증 상자 · 확인 토글 · 인라인 diff ──────────────────────
@@ -202,9 +202,9 @@ describe("목록 행 — 증거 표시", () => {
 
 describe("상세 — 검증 상자", () => {
   it("명령 증거가 있으면 mono 상자에 돌린 명령과 결과 끝 줄이 서고 「주장」 문구는 없다", async () => {
-    const { container, findByText, queryByText } = renderDetail(summary({ type: "bug", evidence: 2 }));
-    expect(await findByText("명령 있음")).toBeInTheDocument();
+    const { container, queryByText } = renderDetail(summary({ type: "bug", evidence: 2 }));
     await waitFor(() => expect(container.querySelector(".jd-term")?.textContent).toBe("pnpm test → 2064 passed"));
+    expect(queryByText("명령 있음")).toBeNull(); // 머리의 ✓ 가 이미 말한다 — 상자에서 두 번 말하지 않는다
     expect(queryByText(/이 일지는 주장일 뿐이에요/)).toBeNull();
   });
 
@@ -212,7 +212,7 @@ describe("상세 — 검증 상자", () => {
     mocks.body = BODY_CLAIM_ONLY;
     mocks.evidence = 1;
     const { container, findByText } = renderDetail(summary({ type: "bug", evidence: 1 }));
-    const chip = await findByText("명령 없음");
+    const chip = await within(await findByText("검증", { selector: ".jd-verify-hd b" }).then((b) => b.parentElement as HTMLElement)).findByText("명령 없음");
     expect(chip.className).toContain("warn");
     expect(await findByText(/돌린 명령과 결과 끝 줄이 없으면 이 일지는 주장일 뿐이에요/)).toBeInTheDocument();
     await waitFor(() => expect(container.querySelector(".jd-term")?.textContent).toBe("수동으로 확인했다"));
