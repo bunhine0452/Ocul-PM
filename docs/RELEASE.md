@@ -167,6 +167,8 @@ cd landing && vercel --prod --yes               # 랜딩은 git 연동이 없어
                                                # (§4-1 재빌드가 먼저 — 배포는 디스크에 있는 것만 올립니다)
 ```
 
+(공개된 뒤에 brew · winget 정의를 새 자산으로 맞추는 일은 §9 — 바깥 저장소라 사용자 확인 뒤에.)
+
 태그를 밀면 release.yml 은 이 순서로 갑니다 — **릴리스는 draft 로 만들어졌다가 검증을 전부
 통과한 마지막 단계에서만 공개됩니다**:
 
@@ -473,3 +475,47 @@ gh workflow run release.yml --ref <브랜치> -f nonmac=false     # 공개 스�
   `keep_draft=true` 로 남겼으면 다 본 뒤 `gh release delete v0.0.N --yes`.
 - 한 바퀴 1시간 반 안팎(Windows 릴리스 프로필 콜드 빌드). `workflow_dispatch` 는 기본 브랜치에
   release.yml 이 있어야 뜨고, 실행은 `--ref` 브랜치의 파일 내용으로 합니다.
+
+## 9. 설치 채널 — brew · winget (바깥 저장소, 사람이 확인한 뒤에)
+
+설치가 GitHub Releases 내려받기와 플러그인 두 줄뿐이면 개발자가 한 줄(`brew install` · `winget install`)을 기대하다 시도를
+접습니다. 두 채널의 **정의 원본**이 이 저장소의 `packaging/` 에 있고, 앱은 이것을 읽지 않습니다(앱 번들 · egress 와 무관).
+
+| 채널 | 원본 | 가리키는 자산 (release.yml 이 만듦) | 설치 |
+|---|---|---|---|
+| Homebrew cask | `packaging/homebrew/ocul-pm.rb` | `Ocul-PM_<버전>_aarch64.dmg` (Apple Silicon · macOS 13+. Intel Mac 은 빌드가 없습니다) | `brew install --cask ocul-pm` |
+| winget | `packaging/winget/KimHyunbin.Ocul{,.installer,.locale.en-US}.yaml` (스키마 1.6) | `Ocul-PM_<버전>_x64-setup.exe` (NSIS · 사용자 단위 · 코드 서명 없는 베타) | `winget install KimHyunbin.Ocul` |
+
+**릴리스가 공개된 뒤** 한 번 — 순서대로:
+
+```bash
+# 1. 공개된 자산을 받아 sha256 을 채웁니다. URL 을 주면 이 명령이 그것을 내려받습니다(네트워크는 이때뿐 —
+#    앱 코드가 아니라 사람이 돌리는 릴리스 도구). 로컬 파일 경로를 줘도 됩니다.
+node scripts/packaging/update-manifests.mjs \
+  --dmg https://github.com/bunhine0452/Ocul-PM/releases/download/vX.Y.Z/Ocul-PM_X.Y.Z_aarch64.dmg \
+  --exe https://github.com/bunhine0452/Ocul-PM/releases/download/vX.Y.Z/Ocul-PM_X.Y.Z_x64-setup.exe \
+  --date YYYY-MM-DD            # winget ReleaseDate — 릴리스가 공개된 날 (기본: 오늘 UTC)
+# 한쪽만 주면 그쪽만 고칩니다. --dry-run 은 파일을 안 고치고 무엇이 바뀔지만 적습니다.
+git diff packaging/            # 버전 · sha256 · (winget) 날짜와 주소만 바뀌어야 합니다
+```
+
+- 스크립트는 파일 이름 `Ocul-PM_<버전>_…` 에서 버전을 읽고 모양이 다르면 거절합니다 — 다른 파일을 해시해 올리는
+  사고를 막습니다. 모든 입력을 검사한 **뒤에** 쓰므로 중간에 멈춰도 반쯤 고친 매니페스트가 남지 않습니다.
+- `0000…` 으로 찬 sha256 은 아직 안 채웠다는 뜻입니다 — 그 상태로 제출하지 않습니다.
+- Windows 자산은 저장소 Actions 변수 `OCULPM_RELEASE_NONMAC` 이 `true` 일 때만 릴리스에 오릅니다(§5-1). 자산이 없는
+  버전에는 `--exe` 를 주지 말고 cask 만 올립니다. winget 매니페스트는 실제로 올라온 자산의 버전만 가리킵니다.
+- `packaging_manifests` 시험(`src/__tests__/packaging_manifests.test.ts`)이 자산 이름 · `.app` 이름 · 번들 식별자 ·
+  최소 macOS · 설치 형식이 release.yml · `tauri.conf.json` 과 어긋나지 않는지 지킵니다. 자산 이름을 바꾸는 릴리스
+  변경은 이 시험이 먼저 붉어집니다.
+
+**제출은 바깥 저장소에 PR 을 올리는 일이라 사용자 확인 뒤에만 합니다** — 에이전트가 혼자 올리지 않습니다.
+
+- Homebrew: 자체 tap(`bunhine0452/homebrew-tap` 같은 저장소의 `Casks/ocul-pm.rb`)이면 위 파일을 복사해 커밋하고
+  바로 `brew install --cask bunhine0452/tap/ocul-pm` 이 됩니다. 공식 `Homebrew/homebrew-cask` 는 인기 기준이 있어
+  처음엔 tap 이 현실적입니다. 올리기 전 `brew audit --new --cask ocul-pm` · `brew style --fix ocul-pm` 로 검사합니다.
+- winget: `microsoft/winget-pkgs` 의 `manifests/k/KimHyunbin/Ocul/<버전>/` 에 세 파일을 그대로 두는 PR 입니다.
+  올리기 전 `winget validate --manifest packaging/winget` · `winget install --manifest packaging/winget`(로컬 시험)을
+  Windows 에서 돌립니다. 코드 서명이 없는 동안 SmartScreen 경고와 검증 지연이 있을 수 있습니다.
+- `PackageIdentifier`(`KimHyunbin.Ocul`)는 한 번 올리면 바꿀 수 없으니 첫 제출 전에 정합니다.
+- 앱은 스스로 업데이트하므로(앱 안 업데이터) 새 버전마다 매니페스트를 올릴 필요는 없습니다 — 새로 설치하는 사람이
+  옛 버전을 받는 것이 불편해질 때만 갱신합니다.
