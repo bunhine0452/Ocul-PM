@@ -57,6 +57,7 @@ owner: claude-code
 - [ ] README · 랜딩 스크린샷을 4.13 화면으로 다시 찍기(하네스) {#love-shots}
 - [ ] VS Code 확장 판 올림 · ext 릴리스(Latest 는 앱으로) {#love-ext-release}
 - [ ] plugin README 의 statusline · ▶실행 단락 낡음 {#love-plugin-readme}
+- [ ] Windows Git Bash 에서 하위 폴더 훅이 루트를 못 찾음(시험 붉음) {#love-win-subfolder}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -95,4 +96,5 @@ owner: claude-code
 | 2026-11-23T21:30:34+09:00 | #p2-flow | claude-code | ☐→☐ |  | love-round-20261123 에서 일부 끝남 — 내가 본 뒤로 · ⌘K 화면 동작 · .worktreeinclude · 첫 실행 claude 찾기 · 잠자기 막기. 남은 것: 계획 줄 메모 → Claude |
 | 2026-11-23T21:30:39+09:00 | #p2-terminal-input | claude-code | ☐→☐ |  | love-round-20261123 에서 일부 끝남 — Finder 파일 ⌘V → 경로 · 오른쪽 ⌥ 글자 · 허락 묻는 중 보내기 막기(이미 있었음). 남은 것: 레인 전체 방송 · 화면 낭독기 모드 |
 | 2026-11-23T21:30:44+09:00 | #p2-terminal-next | claude-code | ☐→☐ |  | love-round-20261123 에서 일부 끝남 — OSC 52 쓰기. OSC 9;4 진행 숫자는 실측 근거로 걷기 권고. 남은 것: xterm 6 + DEC 2026 (IME 시험 하네스 먼저) · 원시 바이트 채널(측정 먼저) |
+| 2026-11-23T22:10:00+09:00 | #love-win-subfolder | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 Portability(Windows) — plugin_hook_subfolder 인박스 빔, 따옴표(libuv)는 맞춤 · 실패 때 set -x 추적을 싣게 함 |
 <!-- oculpm:plan-log end -->
