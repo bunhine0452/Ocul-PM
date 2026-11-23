@@ -34,7 +34,10 @@ fn repo_root() -> PathBuf {
 }
 
 fn claude_skill(name: &str) -> PathBuf {
-    repo_root().join("plugin/oculpm/skills").join(name).join("SKILL.md")
+    repo_root()
+        .join("plugin/oculpm/skills")
+        .join(name)
+        .join("SKILL.md")
 }
 
 fn codex_skill(name: &str) -> PathBuf {
@@ -87,7 +90,11 @@ fn render(name: &str, claude: &str) -> String {
         .map(|line| match line.strip_prefix("# /oculpm:") {
             Some(rest) => match rest.split_once(" — ") {
                 Some((name, tail)) => format!("# {name} 스킬 — {tail}"),
-                None => format!("# {} 스킬{}", rest.trim_end(), &rest[rest.trim_end().len()..]),
+                None => format!(
+                    "# {} 스킬{}",
+                    rest.trim_end(),
+                    &rest[rest.trim_end().len()..]
+                ),
             },
             None => line.to_string(),
         })
@@ -140,12 +147,28 @@ fn codex_skills_are_rendered_from_the_claude_originals() {
 fn rendered_skills_carry_no_claude_only_syntax() {
     for name in SHARED {
         let text = render(name, &std::fs::read_to_string(claude_skill(name)).unwrap());
-        for claude_only in ["/oculpm:", "$ARGUMENTS", ".claude/", "CLAUDE_PLUGIN_ROOT", "스킬 가 ", "스킬 를 "] {
-            assert!(!text.contains(claude_only), "{name}: {claude_only:?} 가 남았다");
+        for claude_only in [
+            "/oculpm:",
+            "$ARGUMENTS",
+            ".claude/",
+            "CLAUDE_PLUGIN_ROOT",
+            "스킬 가 ",
+            "스킬 를 ",
+        ] {
+            assert!(
+                !text.contains(claude_only),
+                "{name}: {claude_only:?} 가 남았다"
+            );
         }
         let front: Vec<&str> = text.lines().skip(1).take_while(|l| *l != "---").collect();
-        assert!(front.contains(&format!("name: {name}").as_str()), "{name}: name 필수");
-        assert!(front.iter().any(|l| l.starts_with("description: ")), "{name}: description 필수");
+        assert!(
+            front.contains(&format!("name: {name}").as_str()),
+            "{name}: name 필수"
+        );
+        assert!(
+            front.iter().any(|l| l.starts_with("description: ")),
+            "{name}: description 필수"
+        );
     }
 }
 
@@ -158,7 +181,10 @@ fn the_renderer_maps_commands_arguments_and_particles() {
     );
     // 이미 name 이 있으면 두 번 넣지 않는다. 제목의 줄표 뒤는 그대로.
     let red = "---\nname: redteam\ndescription: d\n---\n\n# /oculpm:redteam — 반대편\n";
-    assert_eq!(render("redteam", red), "---\nname: redteam\ndescription: d\n---\n\n# redteam 스킬 — 반대편\n");
+    assert_eq!(
+        render("redteam", red),
+        "---\nname: redteam\ndescription: d\n---\n\n# redteam 스킬 — 반대편\n"
+    );
 }
 
 /// Codex 도 스킬 description 을 늘 컨텍스트에 싣는다 — 넷(안내 + 셋)의 합을 Claude 판과 같은

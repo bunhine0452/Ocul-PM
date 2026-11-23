@@ -7,7 +7,9 @@
 use std::path::PathBuf;
 
 fn read(rel: &str) -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join(rel);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join(rel);
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{rel}: {e}"))
 }
 
