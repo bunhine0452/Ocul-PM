@@ -5,10 +5,12 @@
 //! 봐주지만, 쪼개서 나온 파일은 「신규」라 상한을 그대로 맞는다. 그래서 도구
 //! 갈래로 한 번 더 나눴다 — 동작은 그대로고, 옮기기만 했다.
 
+mod args_forgive;
 mod files_infer;
 mod guards;
 mod journal;
 mod plan;
+mod plan_add;
 mod plan_anchor;
 mod plan_goal;
 mod search;

@@ -24,6 +24,8 @@ pub mod log_archive;
 pub mod log_query;
 pub mod parse;
 pub mod paths;
+/// `## 결정` 블록 더하기 — MCP `plan_update` 의 `decision` 인자.
+pub mod plan_decision;
 pub mod plan_edit;
 pub mod project;
 pub mod stale;

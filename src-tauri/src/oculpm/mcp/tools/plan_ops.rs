@@ -9,7 +9,7 @@
 use super::*;
 
 use crate::oculpm::file_guard::FileGuard;
-use crate::oculpm::planner::log_archive::{archive_overflow, is_archive_markdown, is_plan_path};
+use crate::oculpm::planner::log_archive::{is_archive_markdown, is_plan_path};
 
 // ─── plan_status ─────────────────────────────────────────────────────────────
 
@@ -36,14 +36,15 @@ pub(crate) fn plan_status_definition() -> Value {
                 },
                 "limit": { "type": "integer", "description": "항목 수 상한 (기본 60, 최대 500)" },
                 "cursor": { "type": "string", "description": "이어보기 — 이전 응답의 next_cursor 를 그대로 넘긴다" },
-                "include_locked": { "type": "boolean", "description": "잠긴(done/archived) 플랜에 남은 미완 항목까지 목록으로 싣는다 (기본 false — 요약 한 줄은 항상 실린다). 이월할 것을 찾을 때 쓴다: 잠긴 플랜은 plan_update 가 거부하므로, 살릴 항목은 활성 플랜으로 옮겨 적어야 한다" }
+                "include_locked": { "type": "boolean", "description": "잠긴(done/archived) 플랜에 남은 미완 항목까지 목록으로 싣는다 (기본 false — 요약 한 줄은 항상 실린다). 이월할 것을 찾을 때 쓴다: 잠긴 플랜은 plan_update 가 거부하므로, 살릴 항목은 plan_update 의 add 로 활성 플랜에 옮겨 적는다" }
             }
-        }
+        },
+        "annotations": { "readOnlyHint": true }
     })
 }
 
 /// `summary` 뷰에서 제외하는 종료 상태.
-fn is_terminal(s: ItemStatus) -> bool {
+pub(crate) fn is_terminal(s: ItemStatus) -> bool {
     matches!(s, ItemStatus::Done | ItemStatus::Dropped)
 }
 
@@ -308,123 +309,25 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
 
 // ─── plan_update ─────────────────────────────────────────────────────────────
 
+/// 상태 낱말 **또는 디스크 글리프**(`[ ]`·` `·`~`·`x`·`!`·`>`·`-`). `plan_status` 의 `st` 열은 글리프를 주므로,
+/// 읽은 글자를 그대로 넘긴 호출이 「invalid status 'x'」 로 거절되던 왕복을 없앤다 (#mcp-arg-forgiveness).
 pub(crate) fn parse_item_status(s: &str) -> Result<ItemStatus, String> {
-    Ok(match s {
-        "todo" => ItemStatus::Todo,
-        "in_progress" => ItemStatus::InProgress,
-        "done" => ItemStatus::Done,
-        "blocked" => ItemStatus::Blocked,
-        "deferred" => ItemStatus::Deferred,
-        "dropped" => ItemStatus::Dropped,
-        other => {
-            return Err(format!(
-                "invalid status '{other}' (todo|in_progress|done|blocked|deferred|dropped)"
-            ))
-        }
-    })
-}
-
-pub(crate) fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
-    let plan_id = arg_str(args, "plan_id").ok_or("'plan_id' is required")?;
-    let item_id = arg_str(args, "item_id")
-        .ok_or("'item_id' is required")?
-        .trim_start_matches('#');
-    let new_status = parse_item_status(arg_str(args, "status").ok_or("'status' is required")?)?;
-    let agent_id = arg_str(args, "agent_id")
-        .map(str::to_string)
-        .unwrap_or_else(default_agent_id);
-
-    // **`base_hash` 는 필수다** ({#cas-required}).
-    //
-    // `session-shim-cli` 라운드는 이것을 선택 인자로 넣었다 — 기존 호출자를
-    // 깨지 않으려는 판단이었다. 이번 감사에서 그 선택이 곧 실효 0 이라는 것이
-    // 드러났다: 주지 않는 것이 옵트아웃이면, 병렬 세션 사고를 내는 호출은
-    // **정확히 주지 않은 호출**이므로 보호가 켜지는 일이 없다. 안전장치를
-    // 선택으로 두면 그것은 안전장치가 아니라 문서다.
-    //
-    // **하위호환은 깨는 쪽을 골랐다.** 낡은 호출자는 조용히 옛 동작으로
-    // 흐르는 대신 여기서 멈추고, 오류가 다음 행동(`plan_status` 로 hash 를 읽고
-    // 다시 부르기)까지 말한다. 에이전트에게는 그 문장이 곧 마이그레이션
-    // 경로다 — 사람이 모든 프롬프트 사본을 고치기 전에도 스스로 복구한다.
-    //
-    // 이름 붙은 강제 우회로는 **두지 않았다.** 우회 플래그가 있으면 계약이 둘이
-    // 되고, 마찰을 만나는 쪽은 늘 그 둘째 계약을 고른다. 정당한 "지금 막 읽었다"
-    // 는 이미 세 곳에서 공짜로 나온다 — `plan_status.plans[].hash`,
-    // `plan_create.hash`, 직전 `plan_update.hash`.
-    let expected = arg_str(args, "base_hash").ok_or_else(|| missing_base_hash(plan_id))?;
-
-    let planner_root = planner_dir(root);
-    let path = find_plan_path(&planner_root, plan_id)
-        .ok_or_else(|| format!("plan '{plan_id}' not found"))?;
-
-    // **여기서부터 쓰기까지가 한 임계구역이다** ({#cas-toctou}).
-    //
-    // 예전에는 해시 비교와 `write_atomic` 사이에 아무 것도 없어서, 그 틈에 남이
-    // 쓰면 CAS 가 통째로 무의미했다 — 두 호출이 같은 내용을 읽고 둘 다 대조를
-    // 통과한 뒤 나중 쓴 쪽이 앞의 것을 덮는다. 락을 **읽기 앞**에 두는 것이
-    // 요점이다: 대조에 쓴 그 바이트가 쓰기 순간까지 유효해야 한다.
-    //
-    // 락만으로 닫힌다 — 안에서 다시 읽어 재검증할 필요가 없다. 이 문지기는
-    // 프로세스 경계를 넘고(파일 생성), 플랜 파일을 고치는 이 경로의 모든
-    // 진입자가 같은 자리를 잡기 때문이다. 앱 내부의 화해기
-    // (`oculpm::reconcile`)도 이제 같은 문(`acquire_plan_guard`)을 지난다
-    // ({#reconcile-file-guard}) — 인프로세스 뮤텍스만 들던 창은 닫혔다.
-    let _guard = plan_guard(&path)?;
-
-    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-
-    // 잠금 판정이 **해시 대조보다 먼저**다. 잠긴 플랜은 어떤 해시로 와도 못
-    // 고치므로, 순서가 반대면 호출자는 "다시 읽고 재시도하라"는 안내를 받아
-    // 한 왕복을 더 쓴 끝에 결국 같은 거절을 만난다.
-    let parsed = parse_plan(&md, plan_id);
-    if parsed.frontmatter.status.as_str() != "active" {
-        return Err(format!(
-            "plan '{plan_id}' is locked (status={}) - locked plans cannot be edited",
-            parsed.frontmatter.status.as_str()
-        ));
+    let word = s.trim().replace('-', "_");
+    if let Some(st) = ItemStatus::parse_status(&word) {
+        return Ok(st);
     }
-
-    let actual = plan_hash(&md);
-    if !actual.eq_ignore_ascii_case(expected) {
-        return Err(conflict_message(plan_id, expected, &actual));
+    let t = s.trim();
+    let glyph = t
+        .strip_prefix('[')
+        .and_then(|x| x.strip_suffix(']'))
+        .unwrap_or(if t.is_empty() { s } else { t });
+    match ItemStatus::from_token(glyph) {
+        Some(st) if !s.is_empty() => Ok(st),
+        _ => Err(format!(
+            "invalid status '{s}' — 상태는 todo|in_progress|done|blocked|deferred|dropped 낱말이나 \
+             글리프 ' '|~|x|!|>|- 로 주세요"
+        )),
     }
-
-    let result = set_item_status_rolled(&md, item_id, new_status)?;
-    let cfg = load_config(root);
-    let resolver = resolver_of(&cfg);
-    let now_local = crate::clock::now().to_zoned(resolver.tz.clone());
-    // note·journal_path 도 plan-log 에 원문 그대로 남으므로 본문과 동일하게 redact.
-    let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
-    let row = LogRow {
-        ts: crate::clock::zoned_rfc3339_secs(&now_local),
-        item_id: item_id.to_string(),
-        agent_id,
-        from: Some(result.old_status),
-        to: Some(new_status),
-        journal_ref: arg_str(args, "journal_path").map(|s| redact_text(s, &patterns).0),
-        // 판정 메모에는 돌린 OS 를 붙인다 — 다른 기기의 앱이 「여기선 아직」을 가린다 (`judge::stamp`).
-        note: arg_str(args, "note")
-            .map(|s| redact_text(s, &patterns).0)
-            .map(|s| crate::oculpm::planner::judge::stamp(&s, crate::oculpm::planner::judge::HERE)),
-    };
-    // 로그 표가 넘쳤으면 여기서 `<plan_id>.log.md` 로 갈라진다 — 본문 해시가
-    // 바뀌는 것은 정상이고, 아래 응답의 `hash` 는 갈라진 뒤 내용을 가리킨다.
-    let with_log = archive_overflow(&planner_root, plan_id, &append_log_row(&result.md, &row))?;
-    write_atomic(&path, with_log.as_bytes()).map_err(|e| e.to_string())?;
-
-    let mut out = json!({
-        "plan_id": plan_id,
-        "item_id": item_id,
-        "from": result.old_status.as_str(),
-        "to": new_status.as_str(),
-        // 다음 CAS 의 재료 — 방금 쓴 내용의 해시. 이걸 안 주면 호출자가 파일을
-        // 다시 읽어야 하고, 그 사이가 또 창이 된다.
-        "hash": plan_hash(&with_log),
-    });
-    if let Some(nudge) = close_nudge(&with_log, plan_id, new_status) {
-        out["warnings"] = json!([nudge]);
-    }
-    Ok(out)
 }
 
 /// 마지막 미완 항목이 닫혔을 때의 안내 — **항목 완료 ≠ 목표 달성** (고도, 2026-10-28).
@@ -432,7 +335,7 @@ pub(crate) fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
 /// 할 일 목록을 다 지운 에이전트는 거기서 끝낸다. 완료 조건이 참인지는 다른 질문이고,
 /// 확인 명령이 있으면 그것이 판정한다. 막지 않는다 — 플랜을 닫는 것은 사용자(앱)의
 /// 몫이고, 이 문장은 그 결정에 재료를 댈 뿐이다.
-fn close_nudge(md: &str, plan_id: &str, new_status: ItemStatus) -> Option<String> {
+pub(crate) fn close_nudge(md: &str, plan_id: &str, new_status: ItemStatus) -> Option<String> {
     if new_status != ItemStatus::Done {
         return None;
     }
@@ -505,7 +408,7 @@ pub(crate) fn acquire_plan_guard(
 }
 
 /// [`acquire_plan_guard`] + MCP 호출자를 위한 다음 행동 안내.
-fn plan_guard(plan_path: &Path) -> Result<FileGuard, String> {
+pub(crate) fn plan_guard(plan_path: &Path) -> Result<FileGuard, String> {
     acquire_plan_guard(plan_path).map_err(|e| {
         // 문지기를 못 잡았으면 **쓰지 않는다.** 조용히 진행하면 락이 없는 것보다
         // 나쁘다 — 보호받는다고 믿으면서 보호받지 못한다.
@@ -527,7 +430,7 @@ fn plan_guard(plan_path: &Path) -> Result<FileGuard, String> {
 /// (CLI exit 5 는 "그 사이 남이 고쳤다" 라는 뜻이어야 계약이 유지된다).
 ///
 /// [`WRITE_CONFLICT_PREFIX`]: crate::oculpm::agent_cli::WRITE_CONFLICT_PREFIX
-fn missing_base_hash(plan_id: &str) -> String {
+pub(crate) fn missing_base_hash(plan_id: &str) -> String {
     format!(
         "'base_hash' is required — plan_status 로 '{plan_id}' 의 현재 hash 를 읽고 그 값을 \
          base_hash 로 넘겨 다시 호출하세요 (plan_status 응답의 plans[].hash, 또는 직전 \
@@ -542,7 +445,7 @@ fn missing_base_hash(plan_id: &str) -> String {
 /// 이미 다른 상태로 갔을 수 있으므로 **다시 읽어 판단**하는 것이 먼저다 —
 /// 그래도 값을 실어 주는 것은, 안 실으면 호출자가 파일을 다시 읽어야 하고 그
 /// 사이가 또 창이 되기 때문이다.
-fn conflict_message(plan_id: &str, expected: &str, actual: &str) -> String {
+pub(crate) fn conflict_message(plan_id: &str, expected: &str, actual: &str) -> String {
     format!(
         "{} plan '{plan_id}' changed since you read it (expected {expected}, now {actual}) — \
          그 사이 다른 세션이 이 플랜을 고쳤습니다. ① plan_status 로 다시 읽어 그 항목이 아직 \

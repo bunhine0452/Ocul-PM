@@ -120,7 +120,7 @@ pub fn tool_definitions() -> Value {
                 "type": "object",
                 "properties": {
                     "type": { "type": "string", "enum": ["bug", "feature", "error", "refactor", "chore"], "description": "작업 단위의 종류" },
-                    "slug": { "type": "string", "description": "ASCII kebab-case, 40자 이내 (예: fix-cache-invalidation)" },
+                    "slug": { "type": "string", "description": "권장 — ASCII kebab-case, 40자 이내 (예: fix-cache-invalidation). 생략하면 서버가 건드린 첫 파일 이름으로 짓고 응답 received 로 알린다" },
                     "title": { "type": "string", "description": "**`영역: 무엇을 했다`** 한 문장, 영역 포함 **40자 안** (예: `터미널: Claude 상태를 안다`, `CI: 리눅스 스모크 창 이름 고침`). 줄표(— –)로 두 문장을 잇지 말 것 — 자세한 것은 본문에. 영역은 이 프로젝트가 이미 쓰는 말을 다시 쓴다. 규격에 안 맞으면 기록하지 않고 고칠 말을 돌려준다. 언어는 프로젝트 AGENTS.md 를 따른다" },
                     "area": { "type": "string", "description": "선택 — 제목 앞에 `영역: ` 을 쓰지 않았다면 여기에(1~12자). 둘 다 주면 같아야 한다. 영역은 태그로도 남는다" },
                     "body_markdown": { "type": "string", "description": "본문. 타입별 권장 헤더 — bug/error: 발생 원인·해결 방법, feature: 추가 기능·동작 흐름, refactor: 동기·변경 요약. 마지막에 검증 섹션 1~3줄 필수. **정확한 헤더 이름과 언어는 프로젝트 AGENTS.md 를 따른다** (영어 프로젝트는 Root cause / Fix / Verification). 시크릿 금지." },
@@ -154,7 +154,7 @@ pub fn tool_definitions() -> Value {
                     "agent_id": { "type": "string", "description": "호출한 에이전트 id (생략 시 이 세션을 띄운 에이전트)" },
                     "agent_version": { "type": "string", "description": "모델명 (예: Opus 4.8)" }
                 },
-                "required": ["type", "slug", "title", "body_markdown"]
+                "required": ["type", "title", "body_markdown"]
             }
         },
         {
@@ -172,7 +172,8 @@ pub fn tool_definitions() -> Value {
                     "until": { "type": "string", "description": "YYYYMMDD — 이 workday 이전(포함)" },
                     "limit": { "type": "integer", "description": "히트 수 상한 (기본 20, 최대 50). 넘치면 total_matched 로 알려준다" }
                 }
-            }
+            },
+            "annotations": { "readOnlyHint": true }
         },
         {
             "name": "journal_read",
@@ -183,29 +184,14 @@ pub fn tool_definitions() -> Value {
                     "path": { "type": "string", "description": "journal_search 응답의 path (예: \"20260821/Bugs/1842_bug_live-refresh.md\"). \".oculpm/\" 접두사가 붙어 있어도 된다" }
                 },
                 "required": ["path"]
-            }
+            },
+            "annotations": { "readOnlyHint": true }
         },
         plan_status_definition(),
-        {
-            "name": "plan_update",
-            "description": "플랜 항목 하나의 상태를 갱신하고 갱신 로그를 남긴다. 일지를 쓴 직후 대응 항목이 있으면 호출 (plan-log append 는 서버가 규격대로 수행). **base_hash 가 필수다** — 먼저 plan_status 로 그 플랜의 hash 를 읽고 그 값을 넘길 것. 병렬 세션이 같은 플랜을 고칠 때 한쪽 변경이 조용히 사라지는 것을 막는다. 해시가 어긋나면 아무것도 쓰지 않고 현재 hash 를 담은 오류로 돌아오니, 다시 읽어 판단한 뒤 새 hash 로 재호출할 것.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "plan_id": { "type": "string" },
-                    "item_id": { "type": "string", "description": "{#id} 의 id (# 제외)" },
-                    "status": { "type": "string", "enum": ["todo", "in_progress", "done", "blocked", "deferred", "dropped"] },
-                    "journal_path": { "type": "string", "description": "방금 쓴 일지의 .oculpm/ 상대경로 (journal_write 응답의 path)" },
-                    "note": { "type": "string", "description": "plan-log 메모 열 (짧게). 확인 명령을 돌렸으면 `판정 ✓ <결과 끝 줄>` 또는 `판정 ✗ <결과 끝 줄>` 로 시작 — 다음 세션의 시작 훅이 「마지막 판정」으로 싣는다" },
-                    "base_hash": { "type": "string", "description": "**필수** — 네가 읽은 그 플랜 파일의 blake3 해시. 출처는 셋: plan_status 응답의 plans[].hash · plan_create 응답의 hash · 직전 plan_update 응답의 hash. 그 사이 남이 고쳤으면 덮어쓰지 않고 거부한다 (병렬 세션 보호)." },
-                    "agent_id": { "type": "string", "description": "생략 시 이 세션을 띄운 에이전트" }
-                },
-                "required": ["plan_id", "item_id", "status", "base_hash"]
-            }
-        },
+        plan_update_definition(),
         {
             "name": "plan_create",
-            "description": "새 플랜 파일(.oculpm/planner/<plan_id>.md)을 규격대로 생성한다. 사용자가 새 계획 수립을 승인/요청했고 기존 활성 플랜에 넣을 자리가 없을 때 호출. 제목이나 id 가 겹치는 **활성** 플랜이 이미 있으면 만들지 않고 그 후보(id·제목·hash)를 돌려준다 — 거기에 항목을 더하는 쪽을 먼저 검토할 것(plan_update). 정말 별개 계획이면 allow_similar: true. frontmatter·phase 헤딩·항목 {#id}·plan-log 블록은 서버가 보장 — 파일을 직접 만들지 말 것. 응답의 hash 는 곧바로 이어지는 plan_update 의 base_hash 로 쓸 수 있다.",
+            "description": "새 플랜 파일(.oculpm/planner/<plan_id>.md)을 규격대로 생성한다. 사용자가 새 계획 수립을 승인/요청했고 기존 활성 플랜에 넣을 자리가 없을 때 호출. 제목이나 id 가 겹치는 **활성** 플랜이 이미 있으면 만들지 않고 그 후보(id·제목·hash)를 돌려준다 — 그 플랜에 plan_update 의 add 로 항목을 더하는 쪽을 먼저 검토할 것(같은 일을 다루는 플랜이 라운드마다 새로 생기면 미완이 흩어진다). 정말 별개 계획이면 allow_similar: true. frontmatter·phase 헤딩·항목 {#id}·plan-log 블록은 서버가 보장 — 파일을 직접 만들지 말 것. 응답의 hash 는 곧바로 이어지는 plan_update 의 base_hash 로 쓸 수 있다.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -331,133 +317,6 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
     }
 }
 
-/// 플러그인-온리 그린필드의 시작점 — `.oculpm/` 스캐폴드를 만든다.
-///
-/// 앱의 `init_project` 중 **디스크 부분만** 재현한다: config + schema-version +
-/// gitignore managed block + `.oculpm/README.md` + 에이전트 규칙 동기화
-/// (AGENTS.md 어댑터·마스터 템플릿·journal-spec). 락/세션 감지/워처/DB
-/// 캐시는 앱 몫 — 앱을 열면 기존 초기화를 그대로 이어받는다 (idempotent).
-fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
-    if !args
-        .get("confirm")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        return Err(
-            "project_init may only be called after the user explicitly confirms starting \
-             있습니다 — 사용자에게 물어보고 동의를 받은 경우에만 confirm=true 로 다시 호출하세요."
-                .to_string(),
-        );
-    }
-    if !root.is_dir() {
-        return Err(format!(
-            "Project root is not a directory: {}",
-            root.display()
-        ));
-    }
-    // 폭발 반경 가드 — --root 를 홈/파일시스템 루트로 잘못 고정한 설정 사고가
-    // ~/.gitignore(core.excludesFile 관행)·~/AGENTS.md 오염으로 번지지 않게.
-    let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    if canonical.parent().is_none() {
-        return Err(
-            "The filesystem root cannot be initialized - check your --root setting.".to_string(),
-        );
-    }
-    // 홈은 `HOME` 이 아니라 `paths::is_home_dir` — Windows 에는 `HOME` 이 없다.
-    if crate::oculpm::paths::is_home_dir(&canonical) {
-        return Err(
-            "The home directory cannot be initialized - retry from a project folder \
-             (.mcp.json 의 --root 가 프로젝트 경로인지 확인)."
-                .to_string(),
-        );
-    }
-
-    let oculpm_dir = root.join(".oculpm");
-    // 원자적 선점: create_dir(비재귀)은 이미 무언가 있으면 실패한다 — "없음 확인
-    // 후 생성" 사이에 심볼릭 링크를 끼워 넣는 TOCTOU 를 원천 차단. 이미 있으면
-    // 종류를 판정해 실디렉터리만 ensure 경로로 계속 간다.
-    let already = match std::fs::create_dir(&oculpm_dir) {
-        Ok(()) => false,
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            let m = std::fs::symlink_metadata(&oculpm_dir).map_err(|e| e.to_string())?;
-            if m.file_type().is_symlink() {
-                return Err(format!(
-                    "The .oculpm in {} is a symlink - not initializing, for safety.",
-                    root.display()
-                ));
-            }
-            if !m.file_type().is_dir() {
-                return Err(
-                    ".oculpm exists as a file, not a directory - remove it and retry.".to_string(),
-                );
-            }
-            true
-        }
-        Err(e) => return Err(e.to_string()),
-    };
-
-    // 여기부터는 **ensure 시맨틱** — 이미 추적 중이든, 이전 호출이 중간에
-    // 실패했든, 누락분만 채우고 재호출은 항상 완전 상태로 수렴한다. (초기
-    // 구현은 디렉터리 존재 시 전면 스킵이라 반쪽 초기화가 영구 고착됐고,
-    // 특히 gitignore 블록 없이 훅 인박스가 커밋될 수 있었다 — 리뷰 지적.)
-    // 1. config.toml (있으면 검증만) + `.schema-version`
-    let config_path = oculpm_dir.join("config.toml");
-    let cfg = if config_path.exists() {
-        let cfg =
-            crate::oculpm::spec::OculpmConfig::load(&config_path).map_err(|e| e.to_string())?;
-        cfg.validate().map_err(|e| e.to_string())?;
-        cfg
-    } else {
-        let cfg = crate::oculpm::spec::OculpmConfig::default_for_new_project();
-        cfg.validate().map_err(|e| e.to_string())?;
-        cfg.save(&config_path).map_err(|e| e.to_string())?;
-        cfg
-    };
-    let schema_version = oculpm_dir.join(".schema-version");
-    if !schema_version.exists() {
-        write_atomic(&schema_version, b"1\n").map_err(|e| e.to_string())?;
-    }
-
-    // 2. `.gitignore` managed block — 앱과 동일한 union 병합 + 다운그레이드 가드.
-    let gitignore = root.join(".gitignore");
-    let existing = crate::oculpm::atomic_io::read_managed_block(
-        &gitignore,
-        "oculpm",
-        crate::oculpm::spec::CommentStyle::Hash,
-    )
-    .map_err(|e| e.to_string())?;
-    let body = crate::oculpm::manager::merged_gitignore_body(
-        existing.as_ref().map(|b| b.content.as_str()),
-    );
-    crate::oculpm::atomic_io::write_managed_block(
-        &gitignore,
-        "oculpm",
-        &body,
-        crate::oculpm::spec::CommentStyle::Hash,
-    )
-    .map_err(|e| e.to_string())?;
-
-    // 3. 방문자용 README (실패 무해).
-    crate::oculpm::readme::ensure_oculpm_readme(root);
-
-    // 4. 에이전트 규칙 — 마스터 템플릿 시드 + AGENTS.md 등 활성 어댑터 렌더.
-    //    sync_active 는 await 이 없는 async 서명이라 executor block_on 이 안전.
-    let report = futures::executor::block_on(crate::oculpm::agents::sync_active(root, &cfg))
-        .map_err(|e| e.to_string())?;
-
-    Ok(json!({
-        "initialized": !already,
-        "root": canonical.display().to_string(),
-        "adapters_synced": report.results.len(),
-        "note": if already {
-            "이미 추적 중인 프로젝트 — 누락된 구성(설정·gitignore 보호·규칙 파일)을 보완했습니다."
-        } else {
-            "이제 journal_write · plan_create 등 ocul-pm 도구를 쓸 수 있습니다. \
-             ocul-pm 앱에서 이 폴더를 열면 타임라인·세션 감지·인덱싱이 활성화됩니다."
-        }
-    }))
-}
-
 pub(super) fn arg_str<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
     args.get(key)
         .and_then(Value::as_str)
@@ -564,14 +423,53 @@ fn sanitize_slug(raw: &str) -> Result<String, String> {
     }
 }
 
-fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
-    let entry_type = parse_entry_type(arg_str(args, "type").ok_or("'type' is required")?)?;
-    let slug = sanitize_slug(arg_str(args, "slug").ok_or("'slug' is required")?)?;
-    let body = args
-        .get("body_markdown")
-        .and_then(Value::as_str)
-        .filter(|s| !s.trim().is_empty())
-        .ok_or("'body_markdown' is required")?;
+/// slug 를 안 준 일지의 파일 이름 꼬리 — 건드린 첫 파일 이름, 없으면 제목의 ASCII 낱말, 그것도 없으면
+/// `entry`. 파일 이름 앞에는 이미 `HHMM_type_` 이 붙으므로 겹쳐도 배타적 생성이 `-2` 를 단다.
+fn derived_slug(files: &[crate::oculpm::spec::FileTouched], title: &str) -> String {
+    let from_file = files.first().and_then(|f| {
+        let stem = std::path::Path::new(&f.path).file_stem()?.to_str()?;
+        sanitize_slug(stem).ok()
+    });
+    from_file
+        .or_else(|| sanitize_slug(title).ok().filter(|s| s.len() >= 3))
+        .map(|s| {
+            s.chars()
+                .take(40)
+                .collect::<String>()
+                .trim_end_matches('-')
+                .to_string()
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "entry".to_string())
+}
+
+/// `journal_write` 가 받아 주는 동의어 — 실측 실패 호출의 키가 전부 `body` 였다 (`args.rs`).
+const JOURNAL_ALIASES: &[(&str, &str)] = &[
+    ("body", "body_markdown"),
+    ("content", "body_markdown"),
+    ("markdown", "body_markdown"),
+    ("entry_type", "type"),
+    ("files", "files_touched"),
+    ("model", "agent_version"),
+];
+
+fn journal_write(root: &Path, raw_args: &Value) -> Result<Value, String> {
+    let en = self::args::project_en(root);
+    let def = self::args::definition_of("journal_write");
+    let norm = self::args::normalize(raw_args, JOURNAL_ALIASES, en);
+    let args = &norm.args;
+    let mut received = norm.received;
+    let missing = self::args::missing(args, &["type", "title", "body_markdown"]);
+    if !missing.is_empty() {
+        return Err(self::args::missing_error(
+            "journal_write",
+            &missing,
+            &def,
+            en,
+        ));
+    }
+    let entry_type = parse_entry_type(arg_str(args, "type").unwrap_or_default())?;
+    let body = arg_str(args, "body_markdown").unwrap_or_default();
     let status = match arg_str(args, "status") {
         Some(s) => parse_entry_status(s)?,
         None => EntryStatus::Done,
@@ -615,6 +513,28 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
                 hits.join(", ")
             ));
         }
+    }
+    // slug 는 파일 이름의 꼬리일 뿐이다 — 없거나 ASCII 가 없으면 거절하는 대신 짓고 알린다.
+    let slug = match arg_str(args, "slug").map(sanitize_slug) {
+        Some(Ok(s)) => s,
+        given => {
+            let made = derived_slug(&files, &checked.title);
+            received.push(match (given.is_some(), en) {
+                (true, true) => format!("`slug` had no ASCII letters — named the file `{made}`"),
+                (true, false) => {
+                    format!("`slug` 에 ASCII 글자가 없어 파일 이름을 `{made}` 로 지었어요")
+                }
+                (false, true) => format!("no `slug` — named the file `{made}`"),
+                (false, false) => format!("`slug` 가 없어 파일 이름을 `{made}` 로 지었어요"),
+            });
+            made
+        }
+    };
+    if let Some(w) = self::args::unknown_warning(
+        &self::args::unknown_keys(args, &def, &["agent_session"]),
+        en,
+    ) {
+        warnings.push(w);
     }
 
     // redact — MCP 로 들어온 본문에도 프로젝트 시크릿 패턴을 적용. 마스킹이
@@ -747,8 +667,9 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     // A2 활성화 배선 — 앱 없이 플러그인만으로 기록이 시작된 저장소에도
     // `.oculpm/` 정체를 설명하는 README 가 생기게 한다 (있으면 불변, 실패 무해).
     crate::oculpm::readme::ensure_oculpm_readme(root);
-    Ok(json!({
+    let mut out = json!({
         "path": rel,
+        "slug": slug,
         "session_id": fm.session_id,
         "language": fm.language,
         "related": fm.related.len(),
@@ -756,7 +677,11 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         "tag_hints": tag_hints,
         "redacted": redacted,
         "warnings": warnings,
-    }))
+    });
+    if !received.is_empty() {
+        out["received"] = json!(received);
+    }
+    Ok(out)
 }
 
 // ─── journal_search · journal_read → search.rs ──────────────────────────────
@@ -782,11 +707,22 @@ pub mod title;
 
 mod plan_ops;
 pub(crate) use plan_ops::*;
+mod plan_update;
+pub(crate) use plan_update::*;
 
 // ─── plan_create → plan_create.rs ───────────────────────────────────────────
 
 mod plan_create;
 pub(crate) use plan_create::*;
+
+// ─── 인자 받기(동의어 · 빠진 것 전부 · 모르는 키) → args.rs ─────────────────
+
+mod args;
+
+// ─── project_init → project_init.rs ─────────────────────────────────────────
+
+mod project_init;
+use project_init::project_init;
 
 #[cfg(test)]
 mod tests;
