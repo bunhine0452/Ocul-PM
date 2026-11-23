@@ -1,5 +1,5 @@
 {
-  "_doc": "확인 명령 한 줄의 문 사례표 — 앱의 두 문이 **같은 표**로 판정한다. 웹뷰 `src/features/terminal/runCheck.ts` 의 `prepareCheck`(단추를 막고 이유를 말한다, kind \"hidden\")와 Rust `terminal_env::is_one_line`(셸 인자를 만들기 전 마지막 문). 한쪽 범위만 고치면 둘 다 붉어진다. Rust 쪽 시험: `terminal_launch_tests.rs`, 웹뷰 쪽: `src/__tests__/check_line_gate.test.tsx`. invisible = 그 글자가 든 줄은 둘 다 거절한다(범위마다 첫 글자와 끝 글자). visible = 범위 바로 옆 글자와 흔한 글자 — 둘 다 지난다. lines = 최종 검수가 든 모양들(ok 는 둘 다 지나는가).",
+  "_doc": "확인 명령 한 줄의 문 사례표 — 앱의 두 문이 **같은 표**로 판정한다. 웹뷰 `src/features/terminal/runCheck.ts` 의 `prepareCheck`(단추를 막고 이유를 말한다, kind \"hidden\")와 Rust `terminal_env::is_one_line`(셸 인자를 만들기 전 마지막 문). 한쪽 범위만 고치면 둘 다 붉어진다. Rust 쪽 시험: `terminal_launch_tests.rs`, 웹뷰 쪽: `src/__tests__/check_line_gate.test.tsx`. invisible = 그 글자가 든 줄은 둘 다 거절한다(범위마다 첫 글자와 끝 글자). visible = 범위 바로 옆 글자와 흔한 글자 — 둘 다 지난다. lines = 최종 검수가 든 모양들(ok 는 둘 다 지나는가). ps51 = Windows PowerShell 5.1(pwsh 없음)에서만 Rust 가 거절하는 사슬(chain 이 true 면 열지 않는다, `terminal_env::ps51_chain`) — 웹뷰는 셸을 모르니 이 칸은 Rust 만 문다.",
   "invisible": [
     "U+00A0", "U+00AD", "U+034F", "U+0600", "U+0605", "U+061C", "U+06DD", "U+070F", "U+0890", "U+0891",
     "U+08E2", "U+115F", "U+1160", "U+1680", "U+17B4", "U+17B5", "U+180B", "U+180C", "U+180D", "U+180E",
@@ -22,5 +22,17 @@
     { "why": "폭 0 공백 · 오른쪽에서 왼쪽 표시", "line": "pnpm\u200btest \u200f&& cargo test", "ok": false },
     { "why": "이 저장소의 확인 명령", "line": "pnpm typecheck && pnpm test && pnpm lint && pnpm build && cd src-tauri && cargo test --locked", "ok": true },
     { "why": "평범한 한국어 · 기호 · 따옴표", "line": "pnpm test && echo \"확인 — 끝 · ✓ …\" '$HOME'", "ok": true }
+  ],
+  "ps51": [
+    { "why": "이 저장소의 확인 명령", "line": "pnpm typecheck && pnpm test && pnpm lint", "chain": true },
+    { "why": "실패 사슬", "line": "pnpm test || exit 1", "chain": true },
+    { "why": "띄어 쓰지 않은 사슬", "line": "cargo build&&cargo test", "chain": true },
+    { "why": "따옴표 뒤의 사슬", "line": "echo 'a' && echo \"b\"", "chain": true },
+    { "why": "한 명령", "line": "pnpm test", "chain": false },
+    { "why": "5.1 의 이음(;) · 파이프 하나", "line": "pnpm typecheck; if ($?) { pnpm test } | Out-Host", "chain": false },
+    { "why": "작은따옴표 안의 && 는 글", "line": "echo 'a && b'", "chain": false },
+    { "why": "큰따옴표 안의 || 는 글", "line": "Write-Host \"x || y\"", "chain": false },
+    { "why": "백틱으로 묶은 &", "line": "echo a `&& b", "chain": false },
+    { "why": "백그라운드 하나 · 리디렉션", "line": "pnpm dev & pnpm test 2>&1", "chain": false }
   ]
 }

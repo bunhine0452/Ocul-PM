@@ -12,6 +12,9 @@ use crate::terminal::{
 };
 
 fn term_err(e: String) -> AppError {
+    if e == crate::terminal::CHECK_PS51_CHAIN {
+        return AppError::new("check_ps51_chain", e);
+    }
     AppError::new("terminal", e)
 }
 

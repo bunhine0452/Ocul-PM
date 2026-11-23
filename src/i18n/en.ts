@@ -1208,6 +1208,8 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.race_not_a_lane": "Not a run of this project",
   "err.code.race_empty_lane": "This run has no changes yet",
   "err.code.race_failed": "git refused: {detail}",
+  "err.code.check_ps51_chain":
+    "This PC's shell is Windows PowerShell 5.1, so the check command chained with && or || didn't run. 5.1 doesn't understand && or ||. Install PowerShell 7 (pwsh) and it runs as written.",
   "err.code.unsafe_project_root": "The filesystem root, your home folder and the folders above it (like /Users), and system folders (like /etc) can't be a project — pick a project folder inside them.",
   "err.code.oculpm_symlink":
     "This project wasn't opened because .oculpm/ contains a symbolic link. The app never follows links in that folder — remove the link and open it again: {detail}",

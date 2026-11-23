@@ -1237,6 +1237,8 @@ export const ko = {
   "err.code.race_not_a_lane": "이 프로젝트의 시도가 아니에요",
   "err.code.race_empty_lane": "이 시도에는 아직 변경이 없어요",
   "err.code.race_failed": "git 이 거절했어요: {detail}",
+  "err.code.check_ps51_chain":
+    "이 PC 의 셸은 Windows PowerShell 5.1 이라 && · || 로 이은 확인 명령을 돌리지 않았어요. 5.1 은 && · || 를 몰라요. PowerShell 7(pwsh)을 설치하면 그대로 돌아요.",
   "err.code.unsafe_project_root": "파일시스템 루트, 홈 폴더와 그 위(/Users 등), 시스템 폴더(/etc 등)는 프로젝트로 쓸 수 없어요. 그 안의 프로젝트 폴더를 고르세요.",
   "err.code.oculpm_symlink":
     ".oculpm/ 안에 심볼릭 링크가 있어 이 프로젝트를 열지 않았어요. 앱은 이 폴더의 링크를 따라가지 않아요. 링크를 지운 뒤 다시 여세요. ({detail})",

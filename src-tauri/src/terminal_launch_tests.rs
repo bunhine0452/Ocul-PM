@@ -12,6 +12,31 @@ struct Cases {
     invisible: Vec<String>,
     visible: Vec<String>,
     lines: Vec<CaseLine>,
+    ps51: Vec<Ps51Case>,
+}
+
+#[derive(serde::Deserialize)]
+struct Ps51Case {
+    why: String,
+    line: String,
+    chain: bool,
+}
+
+/// Windows PowerShell 5.1 은 `&&` · `||` 를 모른다 — 따옴표 밖의 사슬만 거절한다(사례표의 `ps51`). 5.1 에서 거절하는
+/// 오류 문구는 명령이 `check_ps51_chain` 코드로 바꾸는 바로 그 글이다.
+#[test]
+fn ps51_refuses_chains_outside_quotes() {
+    let cases: Cases =
+        serde_json::from_str(include_str!("terminal_check_cases.json")).expect("사례표");
+    assert!(!cases.ps51.is_empty());
+    for case in &cases.ps51 {
+        assert_eq!(ps51_chain(&case.line), case.chain, "{}", case.why);
+        // 5.1 이 거절할 줄도 한 줄 문은 지난다 — 거절은 셸을 고른 뒤 따로 한다.
+        if case.chain {
+            assert!(is_one_line(&case.line), "{}", case.why);
+        }
+    }
+    assert!(super::super::CHECK_PS51_CHAIN.starts_with("check: "));
 }
 
 #[derive(serde::Deserialize)]
