@@ -1,10 +1,12 @@
 #!/bin/sh
 # oculpm-mcp 셔틀 (#a1-schema-paths) — 설치 위치가 유동적인 실바이너리를 찾아
 # exec 한다. 종전 .mcp.json 은 macOS 절대경로를 하드코딩해 앱을 다른 위치에
-# 설치하면 즉시 깨졌다. 탐색 순서 (앱의 `acp/recording.rs` `candidate_paths` 와
-# 같은 자리·같은 순서 — 화면의 안내와 셔틀이 다른 곳을 가리키지 않게):
+# 설치하면 즉시 깨졌다. 탐색 순서 (앱의 `commands/claude_plugin/reach.rs`
+# `SHUTTLE_CANDIDATES` 와 같은 자리·같은 순서 — 앱은 그 표로 「플러그인이 앱을 찾나」를
+# 판정하고, 테스트가 아래 목록과 그 표를 줄마다 맞춘다):
 #   1. OCULPM_MCP_BIN 환경변수 (수동 지정)
-#   2. macOS .app 번들 (시스템 / 유저 Applications)
+#   2. macOS .app 번들 (시스템 / 유저 Applications). 번들 이름은 productName 그대로
+#      `Ocul-PM.app` — 대소문자를 가르는 볼륨에서는 `ocul-pm.app` 으로 못 찾았다.
 #   3. Linux — deb(/usr/bin), AppImage 안정 사본. AppImage 안의 원본은 실행 중에만
 #      있는 마운트라 가리킬 수 없어, 앱이 기동 때
 #      ${XDG_DATA_HOME:-~/.local/share}/ocul-pm/bin 으로 복사한다.
@@ -36,8 +38,8 @@ program_files=${PROGRAMFILES:-${ProgramFiles:-}}
 program_w6432=${PROGRAMW6432:-${ProgramW6432:-}}
 for cand in \
   "${OCULPM_MCP_BIN:-}" \
-  "/Applications/ocul-pm.app/Contents/MacOS/oculpm-mcp" \
-  "$HOME/Applications/ocul-pm.app/Contents/MacOS/oculpm-mcp" \
+  "/Applications/Ocul-PM.app/Contents/MacOS/oculpm-mcp" \
+  "$HOME/Applications/Ocul-PM.app/Contents/MacOS/oculpm-mcp" \
   "/usr/bin/oculpm-mcp" \
   "${data_home:+$data_home/ocul-pm/bin/oculpm-mcp}" \
   "$HOME/.local/bin/oculpm-mcp" \
