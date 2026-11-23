@@ -69,7 +69,7 @@ An app update can raise the rules spec (template version). When Settings → **T
 | Tier | Meaning |
 |---|---|
 | **1 · Rules-compatible** | The app only writes the rules file that agent reads. Entries get written as far as the model obeys it |
-| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …). The plugin registers the server (Claude Code) or walks you through it (Codex) |
+| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …). The plugin registers the server (Claude Code), walks you through it (Codex), or Settings writes it for you (Cursor · Gemini CLI) |
 | **3 · Session observation** | Session start/stop arrive through hooks, and conversations that ended without an entry are flagged (the Stop delivery gate · `sessions.json`) |
 
 | Agent | Tier | What it does | Verified |

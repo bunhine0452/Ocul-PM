@@ -69,7 +69,7 @@ Claude Code·Codex CLI·Gemini CLI 를 비롯한 다수의 에이전트가 이 �
 | 등급 | 뜻 |
 |---|---|
 | **1 · 규칙 호환** | 앱은 그 에이전트가 읽는 규칙 파일만 씁니다. 일지는 모델이 규칙을 지키는 만큼만 남습니다 |
-| **2 · 구조화 기록** | 에이전트가 `oculpm` MCP 서버의 도구(`journal_write` · `plan_update` …)를 부를 수 있습니다. 등록은 플러그인이 하거나(Claude Code) 안내합니다(Codex) |
+| **2 · 구조화 기록** | 에이전트가 `oculpm` MCP 서버의 도구(`journal_write` · `plan_update` …)를 부를 수 있습니다. 등록은 플러그인이 하거나(Claude Code), 안내하거나(Codex), 설정에서 누르면 앱이 적습니다(Cursor · Gemini CLI) |
 | **3 · 세션 관측** | 세션 시작·종료를 훅으로 받고, 일지 없이 끝난 대화를 가려냅니다 (Stop 배달 게이트 · `sessions.json`) |
 
 | 에이전트 | 등급 | 하는 일 | 검증 |

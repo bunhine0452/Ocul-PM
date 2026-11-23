@@ -139,7 +139,7 @@ One window is one project. ⌘1–⌘5 or ⌃Tab · ⌃⇧Tab switch screens, �
 | Tier | What it means |
 |---|---|
 | **1 · Rules-compatible** | Ocul only writes the rules file that agent reads (`AGENTS.md`, a `.claude/CLAUDE.md` block, `.cursor/rules/*.mdc`, `GEMINI.md` …). Journals get written only as far as the model obeys the rules. |
-| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …). The plugin registers the server (Claude Code) or walks you through it (Codex). |
+| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …). The plugin registers the server (Claude Code), walks you through it (Codex), or Settings writes it for you (Cursor · Gemini CLI). |
 | **3 · Session observation** | Ocul receives session start/stop through hooks and can tell when a conversation ended without a journal (the Stop delivery gate · `sessions.json`). |
 
 | Agent | Tier | What Ocul does | Verified |
