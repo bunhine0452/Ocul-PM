@@ -65,7 +65,7 @@ claude plugin install oculpm@oculpm
 (Windows 는 Git Bash 가 돌립니다). 셔틀과 `.cmd` 실행기는 같은 순서로 탐색합니다:
 
 1. `OCULPM_MCP_BIN` 환경변수
-2. `/Applications/ocul-pm.app` · `~/Applications/ocul-pm.app` 번들 (macOS)
+2. `/Applications/Ocul-PM.app` · `~/Applications/Ocul-PM.app` 번들 (macOS)
 3. Linux — `/usr/bin/oculpm-mcp`(deb), `${XDG_DATA_HOME:-~/.local/share}/ocul-pm/bin/oculpm-mcp`
    (AppImage — 앱이 기동 때 마운트 밖으로 복사해 둔 사본)
 4. `~/.local/bin/oculpm-mcp` (수동 설치)
