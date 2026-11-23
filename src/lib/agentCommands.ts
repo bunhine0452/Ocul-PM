@@ -26,3 +26,11 @@ export const CODEX_PLUGIN_INSTALL = [
   "codex plugin marketplace add bunhine0452/Ocul-PM",
   "codex plugin add oculpm-codex@oculpm",
 ] as const;
+
+/**
+ * Claude Code 자체를 까는 줄 — 공식 네이티브 설치판(OS 별). 「claude 를 못 찾았어요」 토스트와 시작 창이 복사만 한다
+ * (앱은 돌리지 않는다 · 바깥에 닿지 않는다). 네이티브판은 PowerShell 실행 정책에 걸리는 `claude.ps1` 을 쓰지 않는다.
+ */
+export function claudeCliInstall(windows: boolean): readonly string[] {
+  return windows ? ["irm https://claude.ai/install.ps1 | iex"] : ["curl -fsSL https://claude.ai/install.sh | bash"];
+}

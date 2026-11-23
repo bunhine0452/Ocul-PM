@@ -298,4 +298,40 @@ mod pty {
         pty.write("\x03");
         pty.takes_the_next_line(rc.path(), "claude 가 SIGINT 로 죽은 뒤 셸이 남지 않았다");
     }
+    /// claude 를 못 찾으면 셸이 무슨 언어로 말하든 종료 코드 127 로 표지(OSC 6973)를 남긴다 — 웹뷰가 그것을 읽어
+    /// 「claude 를 못 찾았어요」 를 띄운다(love-round #launch-fail-any-locale). 한국어 로캘 bash 의 「명령어를 찾을 수
+    /// 없음」 은 영어 정규식에 안 걸렸다. claude 가 있으면(가짜 claude, 종료 0) 표지가 없다. PATH 는 rc 에서 시스템
+    /// 폴더만으로 좁힌다 — 이 기계에 진짜 claude 가 깔려 있어도 시험이 그것을 띄우지 않게.
+    #[test]
+    fn a_missing_claude_leaves_a_mark_whatever_the_shell_language() {
+        use std::os::unix::fs::PermissionsExt;
+        const MARK: &str = "\x1b]6973;ocul-launch=127\x07";
+        for shell in shells() {
+            for present in [false, true] {
+                let rc = tempfile::tempdir().unwrap();
+                let bin = rc.path().join("bin");
+                std::fs::create_dir_all(&bin).unwrap();
+                if present {
+                    let fake = bin.join("claude");
+                    std::fs::write(&fake, "#!/bin/sh\nprintf READY\nexit 0\n").unwrap();
+                    std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+                }
+                let path = format!("export PATH='{}':/usr/bin:/bin\n", bin.display());
+                std::fs::write(rc.path().join(".zshrc"), &path).unwrap();
+                std::fs::write(rc.path().join(".bash_profile"), &path).unwrap();
+                let run = Launch::Run {
+                    prompt_empty: false,
+                };
+                let spec = OpenSpec {
+                    prompt: Some("다음 항목".into()),
+                    ..spec("w", 1)
+                };
+                let pty = launch(shell, run, spec, rc.path());
+                let why = format!("{shell:?} present={present}: 셸이 다시 서지 않았다");
+                pty.takes_the_next_line(rc.path(), &why);
+                let out = pty.output();
+                assert_eq!(out.contains(MARK), !present, "{shell:?} present={present}: {out:?}");
+            }
+        }
+    }
 }
