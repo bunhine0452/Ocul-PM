@@ -25,6 +25,8 @@ use portable_pty::{native_pty_system, Child, CommandBuilder, PtySize};
 mod output;
 #[path = "terminal_io.rs"]
 mod pty_io;
+#[path = "terminal_clipboard.rs"]
+pub mod clipboard;
 #[path = "terminal_env.rs"]
 mod shell_env;
 #[path = "terminal_types.rs"]

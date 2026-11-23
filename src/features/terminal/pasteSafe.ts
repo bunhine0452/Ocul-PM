@@ -161,16 +161,33 @@ function warnMultiline(term: PasteTerm, text: string): void {
  *   ④ 다만 Windows 셸(보통 화면)에는 묻지 않고 PSReadLine 에 맡긴다. PowerShell 은 대괄호 붙여넣기를
  *      켜지 않지만 PSReadLine 의 Paste(⌃V)가 클립보드를 직접 읽어 실행하지 않고 한 덩어리로 입력줄에
  *      넣는다 — 예전 Ctrl+V 가 하던 그대로다. 경고도, 줄마다 실행도 없다.
+ *   ⑤ Finder · 탐색기에서 복사한 파일 → 경로를 붙인다(`files`, `filePaste.ts` — 11-23). 웹뷰가 주는 글은 파일
+ *      이름뿐이라 그보다 먼저 본다. 경로를 못 얻으면(그림만 든 클립보드) 위 ①~④ 그대로.
  */
-export function handlePaste(term: PasteTerm, event: ClipboardEvent, windows: boolean): void {
+export function handlePaste(
+  term: PasteTerm,
+  event: ClipboardEvent,
+  windows: boolean,
+  files?: (data: DataTransfer) => Promise<string> | null,
+): void {
   const data = event.clipboardData;
   if (!data) return; // 읽을 것이 없다 — xterm 에게 맡긴다
   event.preventDefault();
   event.stopPropagation();
   const raw = data.getData("text/plain");
+  const image = clipboardHasImage(data);
+  const paths = files?.(data);
+  if (!paths) return pasteText(term, raw, image, windows);
+  void paths
+    .catch(() => "")
+    .then((text) => (text ? term.paste(text) : pasteText(term, raw, image, windows)));
+}
+
+/** 글 붙여넣기 — 위 ①~④. */
+function pasteText(term: PasteTerm, raw: string, image: boolean, windows: boolean): void {
   const alt = term.buffer.active.type === "alternate";
   if (!raw) {
-    if (clipboardHasImage(data) && alt) term.input(imagePasteKey(windows), true);
+    if (image && alt) term.input(imagePasteKey(windows), true);
     return;
   }
   const clean = sanitizePaste(raw);

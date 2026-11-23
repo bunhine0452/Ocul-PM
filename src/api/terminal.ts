@@ -38,6 +38,10 @@ export const terminalApi = {
     return call("term_open", commands.termOpen(projectId, cols, rows, prompt, cwd, resume, check, channel));
   },
   write: (id: number, data: string) => call("term_write", commands.termWrite(id, data)),
+  /** 클립보드에 복사해 둔 파일의 경로들(macOS · Windows) — 파일이 아니면 빈 목록(`terminal_clipboard.rs`). */
+  clipboardFiles: (): Promise<string[]> => call("term_clipboard_files", commands.termClipboardFiles()),
+  /** OSC 52 의 복사를 OS 클립보드에 — 앱이 쓰지 않는 OS(Linux)면 `false`(웹뷰가 쓴다). */
+  clipboardWrite: (text: string): Promise<boolean> => call("term_clipboard_write", commands.termClipboardWrite(text)),
   /**
    * 웹뷰가 그 세션의 출력을 `bytes` 만큼 그렸다 — 백엔드가 그만큼 더 읽는다(출력 흐름 제어,
    * `src-tauri/src/terminal_io.rs`). 알림을 잃어도 백엔드는 2초 뒤 스스로 푼다.

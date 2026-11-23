@@ -3,6 +3,7 @@ import { oculpmLog } from "@/lib/oculpmLog";
 import { dumpImeTrace, dumpImeTraceAuto, pushImeTrace, shapeImeDetail } from "./imeTrace";
 import { isImeComposing } from "@/lib/ime";
 import { getPlatform, isMac } from "@/lib/platform";
+import { copiedFilesText } from "./filePaste";
 import { handlePaste } from "./pasteSafe";
 import { requestSendSelection } from "./sendToClaude";
 import { copySelectionNow, handleCopy, selectedText } from "./termCopy";
@@ -440,7 +441,8 @@ export function attachImeBridge(term: Terminal, container: HTMLElement, agent: (
   // 붙인 글은 줄을 바꾸므로 조합 부기는 새로 시작한다.
   const onPaste = (event: Event) => {
     endSession();
-    handlePaste(term, event as ClipboardEvent, getPlatform() === "windows");
+    const windows = getPlatform() === "windows";
+    handlePaste(term, event as ClipboardEvent, windows, (data) => copiedFilesText(data, windows));
   };
   const onCopy = (event: Event) =>
     handleCopy(term, event as ClipboardEvent, { windows: getPlatform() === "windows", clear: !isMac() });
