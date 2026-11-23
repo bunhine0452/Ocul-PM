@@ -569,6 +569,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
           isSending={(id) => busy.some(`answer:${id}:`)}
           isBusy={busy.has}
           onRunNext={runNext}
+          onOpenPlans={() => onNavigate("planner")}
         />
         <TodayUnread
           split={split}

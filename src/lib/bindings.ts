@@ -2234,6 +2234,12 @@ export type PlanSummary = {
 	updated_at: string,
 	item_count: number,
 	done_count: number,
+	/**
+	 *  닫을 수 있다 — 항목(리프)이 있고 남은 것(할 일 · 진행 · 막힘)이 0 이다. 오늘의 「닫을 계획」
+	 *  (`digest::DigestPlan::closable`)과 같은 규칙이라 두 화면이 같은 계획을 센다. 안 함 · 나중은 남은 것이 아니라
+	 *  `done_count == item_count` 로는 셀 수 없다(11-23, 계획 목록이 닫을 계획을 앞세운다).
+	 */
+	closable?: boolean,
 	/**  「마지막 판정」 (`judge.rs`) — 확인 명령을 돌린 가장 최근 결과. 선택 필드(TS `?:`). */
 	last_verdict?: PlanVerdict | null,
 	/**

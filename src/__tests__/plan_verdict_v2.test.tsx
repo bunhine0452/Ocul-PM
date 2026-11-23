@@ -140,13 +140,13 @@ describe("verdict card — nothing cut", () => {
     const ok = plan("ok", { title: "Passing", last_verdict: verdict(), updated_at: "2026-11-03" });
     const bad = plan("bad", { title: "Failing", last_verdict: verdict({ passed: false, summary: "2 failed" }), updated_at: "2026-11-02" });
     stage([detail(ok, [item("a", "done", 0)]), detail(bad, [item("b", "done", 0)])]);
-    const { container } = renderPlanner();
+    const { container } = renderPlanner(); // 실패한 계획이 레일 맨 위라 먼저 열린다(11-23 railOrder).
+    await screen.findByRole("heading", { level: 2, name: "Failing" });
+    await waitFor(() => expect(container.querySelector(".plv-next")?.textContent).toContain(t("plan.nextRow.allClosed")));
+    within(screen.getByRole("navigation", { name: t("plan.list.aria") })).getByRole("button", { name: /Passing/ }).click();
     await screen.findByRole("heading", { level: 2, name: "Passing" });
     await waitFor(() => expect(container.querySelector(".plv-next")?.textContent).toContain(t("plan.nextRow.allClosedPassed")));
     expect(container.querySelector(".plv-next-label")?.textContent).toBe(t("plan.nextRow.doneLabel"));
-    within(screen.getByRole("navigation", { name: t("plan.list.aria") })).getByRole("button", { name: /Failing/ }).click();
-    await screen.findByRole("heading", { level: 2, name: "Failing" });
-    await waitFor(() => expect(container.querySelector(".plv-next")?.textContent).toContain(t("plan.nextRow.allClosed")));
     expect(pfx.edits).toEqual([]);
   });
 });

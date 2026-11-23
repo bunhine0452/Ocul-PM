@@ -124,6 +124,13 @@ fn summary_dto(loaded: &LoadedPlan) -> PlanSummary {
     };
     let done = leaves().filter(|i| i.status == ItemStatus::Done).count() as u32;
     let item_count = leaves().count() as u32;
+    let closable = item_count > 0
+        && !leaves().any(|i| {
+            matches!(
+                i.status,
+                ItemStatus::Todo | ItemStatus::InProgress | ItemStatus::Blocked
+            )
+        });
     PlanSummary {
         plan_id: loaded.plan_id.clone(),
         title: p.frontmatter.title.clone(),
@@ -134,6 +141,7 @@ fn summary_dto(loaded: &LoadedPlan) -> PlanSummary {
         updated_at: loaded.updated_at.clone(),
         item_count,
         done_count: done,
+        closable,
         last_verdict: super::judge::last_verdict(&p.updates),
         stale_files: Vec::new(),
         verdict_from: None,
@@ -653,6 +661,7 @@ updated: 2026-06-07
         assert_eq!(s.title, "데모 계획");
         assert_eq!(s.item_count, 2);
         assert_eq!(s.done_count, 1);
+        assert!(!s.closable, "진행 중 항목이 남았다");
         // (done=1, in_progress=.5) / 2 = 0.75
         assert!((s.progress - 0.75).abs() < 1e-9);
 
@@ -714,5 +723,48 @@ updated: 2026-06-07
         // a done + b in_progress → rollup in_progress
         assert_eq!(ph.status, "in_progress");
         assert_eq!(ph.last_agent.as_deref(), Some("claude-code"));
+    }
+
+    /// 닫을 수 있음은 오늘의 「닫을 계획」 과 같은 규칙이다 — 안 함 · 나중은 남은 것이 아니고, 부모는 세지 않는다.
+    #[tokio::test]
+    async fn summary_closable_matches_the_today_rule() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().to_path_buf();
+        std::fs::create_dir_all(planner_dir(&root)).unwrap();
+        let w = |id: &str, body: &str| {
+            std::fs::write(
+                planner_dir(&root).join(format!("{id}.md")),
+                format!("# {id}\n{body}"),
+            )
+            .unwrap()
+        };
+        w("done", "- [x] a {#a}\n- [-] b {#b}\n- [>] c {#c}\n");
+        w("open", "- [x] a {#a}\n- [!] b {#b}\n");
+        w("empty", "본문만\n");
+        w("kids", "- [ ] mom {#mom}\n  - [x] kid {#kid}\n");
+        let db = Db::open(dir.path().join("t.db")).await.unwrap();
+        let pid = db
+            .create_project("p".into(), root.to_string_lossy().to_string())
+            .await
+            .unwrap();
+        let list = PlanCache::new(&db)
+            .list(pid, &planner_dir(&root))
+            .await
+            .unwrap();
+        let closable = |id: &str| list.iter().find(|s| s.plan_id == id).unwrap().closable;
+        assert!(closable("done"), "끝남 · 안 함 · 나중뿐이면 닫을 수 있다");
+        assert_eq!(
+            list.iter()
+                .find(|s| s.plan_id == "done")
+                .unwrap()
+                .done_count,
+            1
+        );
+        assert!(!closable("open"), "막힘은 남은 것이다");
+        assert!(!closable("empty"), "항목 없는 계획은 닫을 것이 없다");
+        assert!(
+            closable("kids"),
+            "하위가 다 끝났으면 부모 글리프와 상관없다"
+        );
     }
 }
