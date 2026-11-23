@@ -431,11 +431,11 @@ jrn=""
 # Makefile test:)은 Rust 쪽 `oculpm/check_infer.rs`(plan_create 의 기본값)와
 # **공유하는 계약**이다 — 한쪽만 고치면 훅이 보인 후보와 플랜에 적힌 기본값이 갈린다.
 # 루트 한 단계만 · 네트워크 0 · 실행 0.
-# 실린 미완 항목 수 (`^[[:space:]]*- \[` 줄) — 셸 내장만으로 센다.
+# 실린 미완 항목 수 (`- [` · `* [` 로 시작하는 줄 — 하위를 실을 때 붙는 부모 맥락 줄도 센다) — 셸 내장만으로 센다.
 open_items=0
 while IFS= read -r l; do
   l=${l#"${l%%[![:space:]]*}"}
-  case $l in "- ["*) open_items=$((open_items + 1)) ;; esac
+  case $l in "- ["* | "* ["*) open_items=$((open_items + 1)) ;; esac
 done <<EOF
 $body
 EOF
