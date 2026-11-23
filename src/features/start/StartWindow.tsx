@@ -42,6 +42,7 @@ import { workdayDate } from "@/lib/workdayLabel";
 import { ProjectRow, describedBy, distinctWhere } from "@/features/shell/ProjectRow";
 import { useTermOverview } from "@/features/terminal/status";
 import { addProjectFromFolder } from "./addFolder";
+import { ClaudeUnseen } from "./ClaudeUnseen";
 import { useRecentProjects, type BriefState, type RecentProject } from "./useRecentProjects";
 import "./start.css";
 
@@ -450,6 +451,7 @@ export function StartWindow() {
               </button>
             </div>
             {list()}
+            <ClaudeUnseen />
             <p className="start-foot">{t("start.footRecent")}</p>
           </section>
         </div>

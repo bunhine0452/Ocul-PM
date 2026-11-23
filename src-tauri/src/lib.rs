@@ -151,6 +151,8 @@ use crate::commands::{
     agent_mcp_register,
     agent_mcp_status,
     agent_mcp_unregister,
+    // Claude 흔적 · 훅 신호 시각 — 시작 창 · 설정 「일지가 안 와요」 (11-23)
+    agent_link_health,
     app_info,
     apply_menu_language,
     // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
@@ -452,6 +454,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // PR-ACP1 — ACP 어댑터 런타임
             // v3-record-integrity {#mcp-missing-visible} — 기록 도구 부착 결과
             // PR-CI0 — Claude Code 훅 브리지
+            agent_link_health,
             claude_waiting,
             claude_waiting_dismiss,
             claude_blocked,

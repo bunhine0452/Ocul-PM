@@ -25,6 +25,7 @@ import { oculpmLog } from "@/lib/oculpmLog";
 import { toast } from "@/lib/toast";
 import { watchAgentScreen } from "./agentScreen";
 import { alertIfWaiting, alertOnSignal, forgetAlerts, trackSession } from "./attention";
+import { noteWorked } from "./claudeWorked";
 import { createImagePathProvider, createOscLinkHandler, shouldOpenLink } from "./fileLinks";
 import { createFileRefProvider, openFileMenu } from "./fileRefs";
 import { peekEvent } from "./imagePeek";
@@ -338,6 +339,7 @@ export async function openTerm(
       const prev = entry.info.status;
       if (ev.status?.state === "working") worked.add(entry.info.id);
       entry.info = { ...entry.info, status: ev.status };
+      noteWorked(entry.info); // 설정 「일지가 안 와요」 — 훅 신호와 견줄 Claude 의 일한 때(11-23)
       alertIfWaiting(prev, entry.info);
       notify();
       return;

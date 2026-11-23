@@ -25,6 +25,7 @@ import { CODEX_PLUGIN_INSTALL } from "@/lib/agentCommands";
 import { AgentMcpRow } from "./AgentMcpRow";
 import { ClaudePluginRow } from "./ClaudePluginRow";
 import { ClaudeThemeRow } from "./ClaudeThemeRow";
+import { JournalHealthRows } from "./JournalHealth";
 import { PrefsCard, PrefsRow, useReportFix } from "./prefsUi";
 
 /** 아직 묻는 중 · 물었는데 모름 · 답. */
@@ -193,6 +194,7 @@ export function AgentsSection({ id, arrived }: { id: string; arrived?: number })
       <AgentMcpRow target="cursor" tick={tick} />
       <AgentMcpRow target="gemini" tick={tick} />
       <McpRow tick={tick} />
+      <JournalHealthRows tick={tick} />
     </PrefsCard>
   );
 }

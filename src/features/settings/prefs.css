@@ -61,6 +61,9 @@
 .prefs-act { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); }
 .prefs-dim { font-size: var(--fs-3); color: var(--text-2); }
 .prefs-ver { color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* 「일지가 안 와요」(11-23) — 찾은 원인마다 칩 + 한 문장. */
+.prefs-diag { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; font-size: var(--fs-3); }
+.prefs-diag > p { margin: 0; }
 /* 설명 안의 명령(`/theme`) — 기계 글씨(영수증 규칙 2). 크기는 설명 글자 그대로. */
 .prefs-meta code { font-size: inherit; font-variant-ligatures: none; }
 /* 등록 해제 — 가리킬 때만 붉다(위험한 동작이라는 표시는 응답일 때만). */

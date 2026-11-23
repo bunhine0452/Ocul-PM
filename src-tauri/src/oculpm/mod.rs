@@ -9,6 +9,7 @@
 //! `schema_version`.
 
 pub mod agent_cli;
+pub mod agent_link; // Claude 흔적 · 훅 신호 시각 — 시작 창 · 설정 진단 (11-23)
 pub mod agents;
 pub mod atomic_io;
 pub mod cache;
