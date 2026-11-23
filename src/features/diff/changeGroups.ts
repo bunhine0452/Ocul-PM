@@ -56,25 +56,51 @@ export function splitChanges(groups: ChangeGroup[] | null, changes: readonly Rec
 
 const NONE: ReadonlySet<string> = new Set();
 
+/** 끝에 접히는 두 줄 — 「본 것」(11-23 내가 본 뒤로) · 「생성된 파일」. 둘 다 제자리에서 빠진다. */
+export interface ListFolds {
+  generated?: ReadonlySet<string>;
+  generatedOpen?: boolean;
+  /** 본 것 — 지금 고른 파일은 빼고 넘긴다(고른 줄이 눈앞에서 사라지지 않게). 생성 파일이면 생성 줄이 이긴다. */
+  viewed?: ReadonlySet<string>;
+  viewedOpen?: boolean;
+}
+
 /**
- * 화면에 보이는 순서의 파일 경로들 — j/k 이동이 따른다. 펼친 묶음의 파일만 센다. 잠금 · 생성 파일은
- * 제자리에서 빠지고, 끝의 「생성된 파일」 을 펼쳤을 때만 맨 뒤에 선다.
+ * 화면에 보이는 순서의 파일 경로들 — j/k 이동이 따른다. 펼친 묶음의 파일만 센다. 본 파일 · 잠금 · 생성 파일은
+ * 제자리에서 빠지고, 끝의 「본 것」 · 「생성된 파일」 을 펼쳤을 때만 그 차례로 맨 뒤에 선다.
  */
 export function visiblePaths(
   buckets: ChangeBuckets,
   changes: readonly RecentChange[],
   open: ReadonlySet<string>,
-  generated: ReadonlySet<string> = NONE,
-  generatedOpen = false,
+  folds: ListFolds = {},
 ): string[] {
-  const keep = (p: string) => !generated.has(p);
+  const generated = folds.generated ?? NONE;
+  const viewed = folds.viewed ?? NONE;
+  const keep = (p: string) => !generated.has(p) && !viewed.has(p);
   const rows = !buckets.known
     ? changes.map((c) => c.path).reverse().filter(keep)
     : [
         ...buckets.unrecorded.filter(keep),
         ...buckets.groups.flatMap((g) => (open.has(groupKey(g)) ? g.files.filter(keep) : [])),
       ];
-  return generatedOpen ? [...rows, ...generatedPaths(buckets, changes, generated)] : rows;
+  if (folds.viewedOpen) rows.push(...viewedPaths(buckets, changes, generated, viewed));
+  if (folds.generatedOpen) rows.push(...generatedPaths(buckets, changes, generated));
+  return rows;
+}
+
+/** 끝의 「본 것」 에 접힌 파일들 — 원래 서던 차례대로. 생성 파일은 생성 줄에 둔다. */
+export function viewedPaths(
+  buckets: ChangeBuckets,
+  changes: readonly RecentChange[],
+  generated: ReadonlySet<string>,
+  viewed: ReadonlySet<string>,
+): string[] {
+  if (viewed.size === 0) return [];
+  const order = buckets.known
+    ? [...buckets.unrecorded, ...buckets.groups.flatMap((g) => g.files)]
+    : changes.map((c) => c.path).reverse();
+  return order.filter((p) => viewed.has(p) && !generated.has(p));
 }
 
 /** 끝의 「생성된 파일」 에 접힌 파일들 — 원래 서던 차례대로(일지 없음 → 일지 묶음, 모르면 최신 먼저). */

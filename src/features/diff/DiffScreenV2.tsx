@@ -38,22 +38,14 @@ import {
   restoreNotes,
   useDiffNotes,
 } from "./diffNoteStore";
-import {
-  ignoreWhitespaceStore,
-  markAsked,
-  patchHash,
-  setViewed,
-  useAskedKey,
-  useViewed,
-  viewStateOf,
-  viewedKey,
-} from "./diffSessionStore";
+import { ignoreWhitespaceStore, markAsked, useAskedKey } from "./diffSessionStore";
 import { buildReceipt } from "./receipt";
 import { useDiffChanges } from "./useDiffChanges";
 import { useDiffFile } from "./useDiffFile";
 import { useDiffHandoff } from "./useDiffHandoff";
 import { useDiffKeys } from "./useDiffKeys";
 import { useGroupEntries } from "./useGroupEntries";
+import { useViewedMarks } from "./useViewedMarks";
 import "./changes.css";
 
 // 변경 화면 (4.0) — 왼쪽 목록 + 오른쪽 diff. 목록은 「일지 없음」(어느 일지에도 없는 변경)이 먼저이고
@@ -131,6 +123,32 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
   const diffPath = file.diff?.path ?? null;
   const diffPatch = file.diff && "patch" in file.diff.source ? file.diff.source.patch : null;
 
+  // 봤음 — 「내가 본 뒤로」(11-23, `useViewedMarks`): (경로, 그때 파일 내용 해시). 다시 바뀌면 풀려 예외로 다시
+  // 서고, 같은 내용이면 그대로 본 것이다. 창을 다시 열어도 남는다(WorkspaceContext `diffViewed`). 본 파일은 목록
+  // 끝의 「본 것 N」 으로 접힌다 — 고른 파일만 제자리에 남는다(누른 줄이 눈앞에서 사라지지 않게).
+  const marks = useViewedMarks({
+    projectId,
+    baseline,
+    commitSha: lastCommit?.sha ?? null,
+    changes,
+    workingChanges,
+    listSettled: !list.listLoading && list.listError == null,
+    focusPath: file.loading ? null : diffPath,
+    focusPatch: file.loading ? null : diffPatch,
+  });
+  const { viewStateFor, toggle: toggleMark, viewedCount: viewedN } = marks;
+  const selectedViewed = selected ? viewStateFor(selected) === "viewed" : false;
+  const toggleViewed = useCallback(() => {
+    if (selected) toggleMark(selected);
+  }, [selected, toggleMark]);
+  // 접힌 줄을 펼쳐 둔 동안은 고른 파일도 그 안에 둔다 — 안에서 고른 줄이 제자리로 튀어 나가지 않게.
+  const [seenOpen, setSeenOpen] = useState(false);
+  const viewedFold = useMemo(
+    () =>
+      new Set(changes.map((c) => c.path).filter((p) => (seenOpen || p !== selected) && viewStateFor(p) === "viewed")),
+    [changes, selected, seenOpen, viewStateFor],
+  );
+
   // 에이전트가 방금 일지를 남겼으면 「일지 없음」 이 풀려야 한다 — 일지 이벤트에 묶음을 다시 받는다.
   useJournalEvents(projectId, changes.length > 0, list.retryEnrich);
 
@@ -195,8 +213,12 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
   useEffect(() => {
     if (handingOff || !buckets.known || !entriesReady || !list.markedReady || pickedFor.current === baseline) return;
     pickedFor.current = baseline;
-    const first = firstPick(buckets, missing, generated, changes);
+    // 본 뒤 그대로인 파일은 처음 고르지 않는다 — 다 봤으면 예전 규칙 그대로.
+    const skip = new Set([...generated, ...viewedFold]);
+    const first = firstPick(buckets, missing, skip, changes) ?? firstPick(buckets, missing, generated, changes);
     if (first) select(first);
+    // 고르는 순간의 봤음만 본다 — 고른 뒤 봤음을 눌러도 다시 고르지 않는다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handingOff, buckets, baseline, entriesReady, list.markedReady, missing, generated, changes, select]);
 
   const splitRef = useRef<HTMLDivElement>(null);
@@ -338,31 +360,6 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
     };
   }, [projectId, sentKey]);
 
-  // 봤음 — (경로, 그때 패치 해시). 다시 바뀌면 풀려 예외로 다시 선다. 공백 무시는 본문을 읽은 때의 값이다
-  // (토글 직후 다시 읽기 전의 본문을 새 토글 값의 해시로 견주면 「본 뒤 바뀜」 이 한 번 깜빡였다).
-  const viewedMap = useViewed(projectId);
-  const currentHash = useMemo(
-    () => (diffPatch != null && !file.loading ? { hash: patchHash(diffPatch), ws: file.diffWs } : null),
-    [diffPatch, file.loading, file.diffWs],
-  );
-  const viewStateFor = useCallback(
-    (path: string) =>
-      viewStateOf(viewedMap.get(viewedKey(baseline, path)), changeByPath.get(path), path === diffPath ? currentHash : null),
-    [viewedMap, baseline, changeByPath, diffPath, currentHash],
-  );
-  const viewedN = changes.filter((c) => viewStateFor(c.path) === "viewed").length;
-  const selectedViewed = selected ? viewStateFor(selected) === "viewed" : false;
-  const toggleViewed = useCallback(() => {
-    if (!selected) return;
-    const key = viewedKey(baseline, selected);
-    if (viewStateFor(selected) === "viewed") {
-      setViewed(projectId, key, null);
-      return;
-    }
-    const hash = diffPath === selected && diffPatch != null ? patchHash(diffPatch) : "";
-    setViewed(projectId, key, { hash, ts: changeByPath.get(selected)?.ts ?? 0, ws: file.diffWs });
-  }, [selected, baseline, viewStateFor, projectId, diffPath, diffPatch, changeByPath, file.diffWs]);
-
   // 공백 무시는 git 갈래에만 걸린다 — 스냅샷 · 기준본 없는 새 파일 · 바이너리를 보는 중이면 막고 이유를 말한다.
   const wsBlocked =
     file.diff && file.diff.path === selected && file.diff.source.source !== "git" ? t("diff.ignoreWhitespaceGitOnly") : null;
@@ -374,6 +371,8 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
     expand,
     generated,
     generatedOpen: genOpen,
+    viewedFold,
+    viewedOpen: seenOpen,
     selected,
     select: pick,
     patch: diffPatch,
@@ -480,6 +479,9 @@ export function DiffScreenV2({ projectId, projectRoot, onOpenEntry }: DiffScreen
             generated={generated}
             generatedOpen={genOpen}
             onToggleGenerated={() => setGenOpen((v) => !v)}
+            viewedFold={viewedFold}
+            viewedOpen={seenOpen}
+            onToggleViewedFold={() => setSeenOpen((v) => !v)}
             viewStateOf={viewStateFor}
             noteCounts={noteCounts}
             commit={baseline === "last_commit" && lastCommit ? lastCommit : null}
