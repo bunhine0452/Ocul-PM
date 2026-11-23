@@ -277,7 +277,8 @@ describe("another window's session — the window and the session", () => {
     const group = await screen.findByRole("group", { name: t("palette.group.sessions") });
     fireEvent.click(within(group).getAllByRole("option")[0]);
     await waitFor(() => expect(fx.focus).toHaveBeenCalledWith(42));
-    await Promise.resolve();
+    // 사슬(focus → catch → then)이 다 돈 뒤에 본다 — 마이크로태스크 하나만 기다리면 창을 여는 결함도 통과했다.
+    await new Promise((r) => setTimeout(r, 0));
     expect(fx.openWindow).not.toHaveBeenCalled();
   });
 
