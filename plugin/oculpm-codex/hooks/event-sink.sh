@@ -21,7 +21,7 @@ ROOT="${CLAUDE_PROJECT_DIR:-}"
 # 위로 올라가 가장 가까운 .oculpm — 하위 폴더에서 띄운 claude 도 같은 프로젝트다 (plan-context.sh 와 같은
 # 걸음, 11-23). $HOME 위로는 안 간다 · 프로세스 0 · `/` 와 Windows 의 `\` 둘 다 가른다.
 while [ ! -d "$ROOT/.oculpm" ]; do
-  [ "$ROOT" != "${HOME:-}" ] || exit 0
+  [ "$ROOT" != "${HOME:-}" ] && [ "$ROOT" != "${USERPROFILE:-}" ] || exit 0
   _up=${ROOT%[/\\]*}
   [ -n "$_up" ] && [ "$_up" != "$ROOT" ] || exit 0
   ROOT=$_up

@@ -97,7 +97,9 @@ fn run_hook(command: &str, sub: &Path, stdin: &str, home: Option<&Path>) -> Outp
         .env("CLAUDE_PLUGIN_ROOT", claude_plugin())
         .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"));
     if let Some(h) = home {
-        cmd.env("HOME", h);
+        // Git Bash 는 시작 때 HOME 을 `/c/…` 로 바꾸고 `CLAUDE_PROJECT_DIR` 은 `C:\…` 그대로라 둘이 같아지지
+        // 않는다 — 훅은 바꾸지 않는 USERPROFILE 에서도 멈춘다. 둘 다 준다.
+        cmd.env("HOME", h).env("USERPROFILE", h);
     }
     spawn_with_stdin(cmd, stdin)
 }
