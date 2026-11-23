@@ -8,21 +8,21 @@
  *
  * 11-15 (#settings-status): 설치 명령을 터미널에서 돌리고 돌아와도 「설치 안 됨」 에 머물렀다 — 창이
  * 앞으로 오거나 다시 보이면 다시 묻고, 칸 머리에 「다시 확인」 이 있다. 설치 안 됨 · 뒤처짐은 경고 칩이고
- * 맨 위 「고칠 것」 에 올라간다. 판 번호는 mono.
+ * 맨 위 「고칠 것」 에 올라간다. 판 번호는 mono. Claude 플러그인 행은 `ClaudePluginRow` (11-23 연결 판정).
  */
 import { useEffect, useState } from "react";
 
-import { claudeInstallApi } from "@/api/claudeSurface";
 import { toAppError } from "@/api/invoke";
 import { oculpmApi } from "@/api/oculpm";
 import { CopyCommand } from "@/components/CopyCommand";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
-import type { ClaudePluginStatus, CodexPluginStatus, McpRegistrationStatus } from "@/lib/bindings";
+import type { CodexPluginStatus, McpRegistrationStatus } from "@/lib/bindings";
 import { getPlatform } from "@/lib/platform";
 import { toast } from "@/lib/toast";
-import { CLAUDE_PLUGIN_INSTALL, CLAUDE_PLUGIN_UPDATE, CODEX_PLUGIN_INSTALL } from "@/lib/agentCommands";
+import { CODEX_PLUGIN_INSTALL } from "@/lib/agentCommands";
+import { ClaudePluginRow } from "./ClaudePluginRow";
 import { ClaudeThemeRow } from "./ClaudeThemeRow";
 import { PrefsCard, PrefsRow, useReportFix } from "./prefsUi";
 
@@ -45,69 +45,6 @@ function useRecheck(): [number, () => void] {
     };
   }, []);
   return [tick, () => setTick((n) => n + 1)];
-}
-
-function ClaudeRow({ tick }: { tick: number }) {
-  const { t } = useT();
-  const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
-  const [probe, setProbe] = useState<Probe<ClaudePluginStatus>>({ state: "loading" });
-  // 다시 물을 때는 지금 답을 둔 채 묻는다 — 창을 앞으로 가져올 때마다 「확인 중」 이 깜빡이지 않게. 다시 묻기가
-  // 한 번 실패해도(null) 알고 있던 답을 둔다: 덮으면 맨 위 「고칠 것」 의 플러그인 뒤처짐까지 내려갔다(Codex · MCP 와 같은 규칙).
-  useEffect(() => {
-    let alive = true;
-    void claudeInstallApi.pluginStatus(projectId).then((s) => {
-      if (alive) setProbe((p) => (s ? { state: "ok", value: s } : p.state === "ok" ? p : { state: "unknown" }));
-    });
-    return () => {
-      alive = false;
-    };
-  }, [projectId, tick]);
-
-  const v = probe.state === "ok" ? probe.value : null;
-  const label = t("prefs.agents.claude");
-  const behind = v?.installed && v.behind ? `${v.installed_version ?? "?"} → ${v.bundled_version}` : null;
-  useReportFix(
-    "claude",
-    !v
-      ? null
-      : !v.installed
-        ? { section: "agents", label, detail: t("prefs.agents.notInstalled") }
-        : behind
-          ? { section: "agents", label, detail: behind, mono: true }
-          : null,
-  );
-
-  let body;
-  if (probe.state === "loading") body = <span className="prefs-dim">{t("prefs.checking")}</span>;
-  else if (!v) body = <span className="prefs-dim">{t("prefs.unknown")}</span>;
-  else if (!v.installed)
-    body = (
-      <>
-        <span className="chip sm warn">{t("prefs.agents.notInstalled")}</span>
-        <CopyCommand lines={CLAUDE_PLUGIN_INSTALL} label={t("prefs.agents.installCmd")} />
-      </>
-    );
-  else if (behind)
-    body = (
-      <>
-        <span className="chip sm warn">{t("prefs.agents.behind")}</span>
-        <span className="prefs-ver mono">{behind}</span>
-        <CopyCommand lines={CLAUDE_PLUGIN_UPDATE} label={t("prefs.agents.updateCmd")} />
-      </>
-    );
-  else
-    body = (
-      <>
-        <span className="chip sm ok">{t("prefs.agents.connected")}</span>
-        {v.installed_version ? <span className="prefs-ver mono">{v.installed_version}</span> : null}
-      </>
-    );
-
-  return (
-    <PrefsRow label={label} meta={t("prefs.agents.claudeMeta")}>
-      {body}
-    </PrefsRow>
-  );
 }
 
 function CodexRow({ tick }: { tick: number }) {
@@ -249,7 +186,7 @@ export function AgentsSection({ id, arrived }: { id: string; arrived?: number })
         </button>
       }
     >
-      <ClaudeRow tick={tick} />
+      <ClaudePluginRow tick={tick} />
       <ClaudeThemeRow tick={tick} />
       <CodexRow tick={tick} />
       <McpRow tick={tick} />

@@ -44,13 +44,13 @@ describe("the empty day uses the busy day's frame", () => {
     expect((busy.container.querySelector(".tdy-body") as HTMLElement).className).toBe(emptyBody);
   });
 
-  it("shows three steps to the first entry with one filled button — the next step's", async () => {
+  it("shows three steps to the first entry; the connect step has a link, not a filled button (11-23)", async () => {
     fx.total = 0;
     fx.plugin = null;
     const { container, onNavigate } = renderToday();
     await screen.findByRole("region", { name: t("today.first.title") });
     expect(container.querySelectorAll(".tdy-step")).toHaveLength(3);
-    expect(container.querySelectorAll(".btn.primary")).toHaveLength(1);
+    expect(container.querySelectorAll(".btn.primary")).toHaveLength(0);
     expect(screen.getByText(t("today.first.step1Body"))).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: t("today.first.connect") }));
     expect(onNavigate).toHaveBeenCalledWith("settings");
@@ -87,7 +87,7 @@ describe("chips are short state names", () => {
     });
     fx.unrecorded = ["src/x.ts"];
     fx.missing = [{ ts: since, session_id: "conv-1", segments: 1 }];
-    fx.plugin = { installed: true, behind: true, installed_version: "3.0.0", bundled_version: "4.0.0", path: "/p", scope: "user" };
+    fx.plugin = { state: "connected", ahead: false, other_behind: 0, app_reachable: true, installed: true, behind: true, installed_version: "3.0.0", bundled_version: "4.0.0", path: "/p", scope: "user" };
     const { container } = renderToday();
     await waitFor(() => expect(container.querySelectorAll(".tdy-rows .chip")).toHaveLength(10));
     const chips = [...container.querySelectorAll(".tdy-rows .chip")].map((c) => c.textContent ?? "");

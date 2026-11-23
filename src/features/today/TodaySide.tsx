@@ -1,5 +1,5 @@
 /**
- * 오늘 화면의 곁 — 날짜 줄의 수 한 줄 · 지금 일하는 중 · 첫 기록까지 세 걸음.
+ * 오늘 화면의 곁 — 날짜 줄의 수 한 줄 · 지금 일하는 중 (첫 기록까지 세 걸음은 `FirstSteps.tsx`).
  *
  * 셋 다 「지금 무엇을 결정할까」의 곁가지다: 계획에 남은 내 몫과 닫을 계획, 다른 기기와 주고받은 것은 날마다
  * 바뀌는 예외가 아니라 날짜 줄 오른쪽의 **수**로만 선다(영수증 규칙 5). 예전엔 이것들이 「먼저 볼 것」 밖에
@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 
 import { Disclosure } from "@/components/Disclosure";
-import { NotebookText, SquareTerminal } from "@/components/Icons";
+import { SquareTerminal } from "@/components/Icons";
 import type { TermInfo } from "@/api/terminal";
 import { agentLabel } from "@/features/today/agentColor";
 import { useT, type I18nKey } from "@/i18n";
@@ -263,79 +263,5 @@ export function TodayNumbers({
       </div>
       {handoff}
     </>
-  );
-}
-
-interface Step {
-  id: string;
-  title: string;
-  body: string;
-  done: boolean;
-  action?: { label: string; run: () => void; busy?: boolean };
-}
-
-/**
- * 첫 기록까지 세 걸음 (11-15) — 일지가 하나도 없는 프로젝트. 바쁜 날과 같은 틀(날짜 줄 · 두 칸) 안의 카드 하나라
- * 덜 만든 화면처럼 보이지 않는다. 끝난 걸음은 회색 ✓, 다음 걸음만 채운 단추를 갖는다(영수증 규칙 3) — 셋째
- * (첫 일지)는 에이전트가 일을 마치면 저절로 끝나는 걸음이라 단추가 없다.
- */
-export function FirstSteps({
-  connected,
-  working,
-  onConnect,
-  onHandOff,
-  opening,
-}: {
-  /** 에이전트가 이 프로젝트에 붙었다(플러그인이 깔렸거나 이미 무언가 일하는 중). */
-  connected: boolean;
-  /** 오늘 열린 작업 세션이 있다 — 첫 작업이 이미 넘어갔다. */
-  working: boolean;
-  onConnect: () => void;
-  onHandOff: () => void;
-  /** 첫 작업을 맡길 터미널을 여는 중. */
-  opening: boolean;
-}) {
-  const { t } = useT();
-  const steps: Step[] = [
-    { id: "connect", title: t("today.first.step1"), body: t("today.first.step1Body"), done: connected, action: { label: t("today.first.connect"), run: onConnect } },
-    {
-      id: "task",
-      title: t("today.first.step2"),
-      body: t("today.first.step2Body"),
-      done: working,
-      action: { label: opening ? t("today.busy.opening") : t("today.first.step2Run"), run: onHandOff, busy: opening },
-    },
-    { id: "journal", title: t("today.first.step3"), body: t("today.first.step3Body"), done: false },
-  ];
-  const nextAt = steps.findIndex((s) => !s.done);
-  return (
-    <section className="card tdy-card tdy-first" aria-labelledby="tdy-first-h">
-      <header className="tdy-ch">
-        <NotebookText size={15} className="tdy-first-ico" aria-hidden="true" />
-        <h2 id="tdy-first-h">{t("today.first.title")}</h2>
-        <span className="tdy-meta">{t("today.first.body")}</span>
-      </header>
-      <ol className="tdy-steps">
-        {steps.map((s, i) => (
-          <li key={s.id} className="tdy-step" data-done={s.done ? "" : undefined}>
-            <span className="tdy-step-mark" aria-hidden="true">
-              {s.done ? "✓" : String(i + 1)}
-            </span>
-            <div className="tdy-grow">
-              <div className="tdy-row-title">
-                {s.title}
-                {s.done ? <span className="tdy-sr"> · {t("today.first.done")}</span> : null}
-              </div>
-              <div className="tdy-meta">{s.body}</div>
-            </div>
-            {i === nextAt && s.action ? (
-              <button type="button" className="btn primary sm" disabled={s.action.busy} onClick={s.action.run}>
-                {s.action.label}
-              </button>
-            ) : null}
-          </li>
-        ))}
-      </ol>
-    </section>
   );
 }

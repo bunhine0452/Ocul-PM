@@ -11,10 +11,12 @@
  * (메뉴에서 1~6) · r 다음 할 일 실행. 예전엔 단축키가 하나도 없었다.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { claudeInstallApi } from "@/api/claudeSurface";
 import { toAppError } from "@/api/invoke";
 import { planApi } from "@/api/plan";
+import { CopyCommand } from "@/components/CopyCommand";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { StaleNote } from "@/components/StaleNote";
@@ -24,8 +26,11 @@ import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { useConfirm } from "@/hooks/useConfirm";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
-import type { PlanItemDto } from "@/lib/bindings";
+import type { ClaudePluginStatus, PlanItemDto } from "@/lib/bindings";
 import { readChord } from "@/lib/kbd";
+import { getPlatform } from "@/lib/platform";
+import { commandLabelKey, pluginConnection } from "@/lib/pluginConnection";
+import { useRefetchOnWake } from "@/lib/useRefetchOnWake";
 import { toast } from "@/lib/toast";
 import { runCheckInTerminal } from "@/features/terminal/runCheck";
 import { runGoalInTerminal, runPromptInTerminal } from "@/features/terminal/runPrompt";
@@ -40,7 +45,11 @@ import { nextLeaf } from "./planMeta";
 import { usePlanDocument } from "./usePlanDocument";
 import "./planner.css";
 
-/** 계획이 하나도 없을 때 터미널의 claude 에게 넘기는 것 — 플러그인의 「새 계획 세우기」 스킬. */
+/**
+ * 계획이 하나도 없을 때 터미널의 claude 에게 넘기는 것 — 플러그인의 「새 계획 세우기」 스킬. 플러그인이 이
+ * 프로젝트에 붙지 않았으면 Claude 는 이 명령을 모른다 — 그때는 쉬운 말 프롬프트(`plan.emptyPromptNoPlugin`)와
+ * 설치 명령을 준다(11-23 #inception-without-plugin).
+ */
 export const INCEPTION_PROMPT = "/oculpm:inception";
 
 interface PlannerScreenV2Props {
@@ -56,6 +65,27 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   const plan = usePlanDocument(projectId);
   const { detail, selectedId, locked, busy } = plan;
   const bodyRef = useRef<HTMLDivElement>(null);
+
+  // 「계획이 없다」 는 목록을 받아서 0 개일 때만 — 못 읽은 목록은 `plans` 가 null 로 남는다(usePlanDocument).
+  const empty = !plan.error && plan.plans != null && plan.plans.length === 0;
+  // 빈 화면일 때만 플러그인 상태를 묻는다 — 창으로 돌아오면 다시(설치 명령을 돌리고 온 사람). 모르면 `null` 이고
+  // 그때는 예전처럼 스킬을 넘긴다(모르는 것을 「없다」 고 하지 않는다).
+  const [pluginStatus, setPluginStatus] = useState<ClaudePluginStatus | null>(null);
+  const [pluginTick, setPluginTick] = useState(0);
+  const recheckPlugin = useCallback(() => setPluginTick((n) => n + 1), []);
+  useRefetchOnWake(recheckPlugin, empty);
+  useEffect(() => {
+    if (!empty) return;
+    let alive = true;
+    void claudeInstallApi.pluginStatus(projectId).then((s) => {
+      if (alive && s) setPluginStatus(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [projectId, empty, pluginTick]);
+  const conn = empty ? pluginConnection(pluginStatus, getPlatform()) : null;
+  const noPlugin = conn != null && conn.kind !== "connected";
   // 화면에 들어오면 본문이 키를 받게 한다 — 윗줄 탭을 누르고 들어와도 바로 j/k 가 먹는다.
   useEffect(() => {
     const el = document.activeElement as HTMLElement | null;
@@ -137,9 +167,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     else onNavigate("journal");
   };
 
-  // 계획이 없을 때의 한 길 — 터미널의 claude 에게 「새 계획 세우기」 를 넘긴다(채운 단추는 화면에 하나).
+  // 계획이 없을 때의 한 길 — 터미널의 claude 에게 「새 계획 세우기」 를 넘긴다(채운 단추는 화면에 하나). 플러그인이
+  // 없으면 슬래시 명령 대신 쉬운 말로 — Claude 가 모르는 명령으로 다루면 계획이 생기지 않는다.
   const startPlan = () => {
-    void runPromptInTerminal(projectId, INCEPTION_PROMPT).catch((e) =>
+    void runPromptInTerminal(projectId, noPlugin ? t("plan.emptyPromptNoPlugin") : INCEPTION_PROMPT).catch((e) =>
       toast.destructive(t("plan.dispatchFailed", { error: tError(toAppError(e)) })),
     );
   };
@@ -221,8 +252,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     );
   }
 
-  // 「계획이 없다」 는 목록을 받아서 0 개일 때만 — 못 읽은 목록은 `plans` 가 null 로 남는다(usePlanDocument).
-  const empty = !plan.error && plan.plans != null && plan.plans.length === 0;
+  const pluginLines = conn && "lines" in conn ? conn.lines : null;
+  let emptyText = t("plan.emptyAgents");
+  if (conn?.kind === "unreachable") emptyText = t(getPlatform() === "mac" ? "prefs.agents.unreachableMac" : "prefs.agents.unreachableOther");
+  else if (noPlugin) emptyText = t("plan.emptyNoPlugin");
 
   return (
     <>
@@ -241,7 +274,12 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
                   </button>
                 }
               >
-                {t("plan.emptyAgents")}
+                {emptyText}
+                {conn && pluginLines ? (
+                  <div className="plv-empty-cmd">
+                    <CopyCommand lines={pluginLines} label={t(commandLabelKey(conn.kind))} />
+                  </div>
+                ) : null}
               </EmptyState>
             </div>
           </div>

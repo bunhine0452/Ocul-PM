@@ -26,6 +26,7 @@ import type { DigestItem, DigestPlan, JournalEntrySummary } from "@/lib/bindings
 import { stripUserTag } from "@/features/planner/planMeta";
 import { verdictSub } from "@/features/planner/verdictState";
 import { sessionWord } from "@/features/terminal/status";
+import { CLAUDE_PLUGIN_UPDATE } from "@/lib/agentCommands";
 import { blocked } from "@/lib/blocked";
 import { whenLabel } from "@/lib/whenLabel";
 import { osLabel, type ExceptionKind, type TodayException, type TodaySplit } from "./todayModel";
@@ -206,8 +207,21 @@ function useRowText(ex: TodayException): RowText {
     }
     case "plugin": {
       // 판 번호는 기계 글씨다(영수증 규칙 2) — 문장은 본문 서체, 두 번호만 고정폭.
+      // 플러그인이 앱보다 새 판이면(11-23 #plugin-ahead-of-app) 올릴 것은 앱이다 — 새 스킬 · 훅이 옛 앱의 기록
+      // 도구를 부르고, 옛 도구는 모르는 칸을 조용히 버린다. 붙여 넣는 명령은 터미널에 넣는 셸 명령 한 모양이다.
+      if (ex.ahead) {
+        const title = t("today.pluginDrift.aheadTitle", { installed: ex.installed, bundled: ex.bundled });
+        const meta = t("today.pluginDrift.aheadMeta");
+        return { title, titleNode: monoPart(title, ex.bundled, ex.installed), meta, metaTitle: meta };
+      }
       const title = t("today.pluginDrift.title", { installed: ex.installed, bundled: ex.bundled });
-      return { title, titleNode: monoPart(title, ex.installed, ex.bundled), meta: mono("/plugin update oculpm@oculpm") };
+      const why = t("today.pluginDrift.behindMeta");
+      return {
+        title,
+        titleNode: monoPart(title, ex.installed, ex.bundled),
+        meta: metaLine([why, mono(CLAUDE_PLUGIN_UPDATE[0])]),
+        metaTitle: `${why}\n${CLAUDE_PLUGIN_UPDATE[0]}`,
+      };
     }
   }
 }

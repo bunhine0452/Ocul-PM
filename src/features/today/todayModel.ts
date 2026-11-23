@@ -39,7 +39,8 @@ export type TodayException =
   | { kind: "silent"; key: string; signals: JournalMissingSignal[] }
   | { kind: "blocked"; key: string; planId: string; planTitle: string; items: DigestItem[] }
   | { kind: "decision"; key: string; planId: string; planTitle: string; items: DigestItem[] }
-  | { kind: "plugin"; key: string; installed: string; bundled: string };
+  /** 플러그인과 앱의 판이 어긋남 — `ahead` 면 플러그인이 앱보다 새 판이라 올릴 것은 앱이다. */
+  | { kind: "plugin"; key: string; installed: string; bundled: string; ahead: boolean };
 
 export type ExceptionKind = TodayException["kind"];
 
@@ -68,8 +69,8 @@ export interface ExceptionInput {
   unrecorded: readonly string[] | null;
   /** 오늘 일지 없이 끝난 대화 신호. `null` = 모름. */
   silent: readonly JournalMissingSignal[] | null;
-  /** 깔린 플러그인이 앱의 판보다 낮을 때만. */
-  plugin: { installed: string; bundled: string } | null;
+  /** 이 프로젝트의 플러그인이 앱의 판과 어긋날 때만 — 낮거나(`ahead: false`) 높거나(`ahead: true`). */
+  plugin: { installed: string; bundled: string; ahead?: boolean } | null;
   /** 방금 「확인함」을 눌러 응답을 기다리는 일지 — 다시 읽기 전에 목록에서 뺀다. */
   verifiedLocally?: ReadonlySet<string>;
   /** 이 창의 터미널 세션 — 안의 프로그램이 내 손을 기다리는 것만 줄이 된다(OSC 7501 blocked). */
@@ -154,7 +155,8 @@ export function buildExceptions(input: ExceptionInput): TodayException[] {
     out.push({ kind: "decision", key: `decision:${first.plan_id}`, planId: first.plan_id, planTitle: first.plan_title, items });
   }
   if (input.plugin) {
-    out.push({ kind: "plugin", key: "plugin", installed: input.plugin.installed, bundled: input.plugin.bundled });
+    const { installed, bundled, ahead = false } = input.plugin;
+    out.push({ kind: "plugin", key: "plugin", installed, bundled, ahead });
   }
   return out;
 }

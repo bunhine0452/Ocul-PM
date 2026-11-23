@@ -41,8 +41,11 @@ import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext
 import { useMinuteTick } from "@/hooks/useSecondTick";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
+import { CLAUDE_PLUGIN_UPDATE } from "@/lib/agentCommands";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { readChord } from "@/lib/kbd";
+import { getPlatform } from "@/lib/platform";
+import { pluginConnection } from "@/lib/pluginConnection";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { openSettings } from "@/lib/settingsNav";
 import { toast } from "@/lib/toast";
@@ -51,7 +54,8 @@ import { runPromptInTerminal } from "@/features/terminal/runPrompt";
 import { requestTermFocus } from "@/features/terminal/focusRequest";
 import { requestOnlyMissing } from "@/features/oculpm/onlyMissing";
 import { TodayExceptions, TodayUnread, type RowAction, type RowNav } from "./TodayExceptions";
-import { FirstSteps, LiveCard, TodayNumbers, liveTerm } from "./TodaySide";
+import { FirstSteps } from "./FirstSteps";
+import { LiveCard, TodayNumbers, liveTerm } from "./TodaySide";
 import { TodayWork } from "./TodayWork";
 import { UNREAD_LIMIT, firstNext, osLabel, splitExceptions, type TodayException } from "./todayModel";
 import { useTodayExceptions } from "./useTodayExceptions";
@@ -114,7 +118,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
   const { t } = useT();
   const ws = useOptionalWorkspace();
   const today = useTodayExceptions(projectId, workday, oculpmReady);
-  const { data, exceptions, error, staleSince, refresh, reloadEntries, markVerified } = today;
+  const { data, exceptions, error, staleSince, refresh, recheckPlugin, reloadEntries, markVerified } = today;
   const split = useMemo(() => (exceptions ? splitExceptions(exceptions) : null), [exceptions]);
   const { sessions } = useLiveSessions(projectId, workday, oculpmReady);
   const now = useMinuteTick(oculpmReady);
@@ -132,6 +136,12 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
    * 사람이 포커스를 화면 밖으로 옮겼으면 `null` — 그때는 아무것도 되찾지 않는다.
    */
   const lastFocus = useRef<{ el: HTMLElement; land: number | null } | null>(null);
+
+  // 화면에 들어오면 플러그인 상태를 다시 묻는다 — 앱 안 터미널 탭에서 설치 명령을 돌리고 오면 창 포커스는 그대로라
+  // 창 복귀가 없다(11-23 #today-plugin-read-once). 처음 마운트면 저장소의 첫 읽기와 같은 틱이라 한 번으로 접힌다.
+  useEffect(() => {
+    if (oculpmReady) recheckPlugin();
+  }, [oculpmReady, recheckPlugin]);
 
   // 화면에 들어오면 키보드가 바로 닿게 — 입력칸에 있던 포커스는 빼앗지 않는다.
   useEffect(() => {
@@ -258,14 +268,15 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
     [busy, next, projectId, t],
   );
 
-  // 복사가 거절되면(클립보드 권한 · 포커스 없음) 한 문장으로 말한다 — 조용히 삼키면 붙여 넣을 것이 없다.
+  // 복사가 거절되면(클립보드 권한 · 포커스 없음) 한 문장으로 말한다 — 조용히 삼키면 붙여 넣을 것이 없다. 명령은 설정 ·
+  // 첫 실행 안내와 같은 셸 명령 한 모양이다(11-23 #plugin-command-forms — 예전엔 여기만 Claude 안의 `/plugin` 형이었다).
   const copyPluginUpdate = useCallback(
     () =>
       void busy.run("copyPlugin", async () => {
         try {
           if (!navigator.clipboard) throw new Error("clipboard unavailable");
-          await navigator.clipboard.writeText("/plugin update oculpm@oculpm");
-          toast.info(t("today.pluginDrift.copied"));
+          await navigator.clipboard.writeText(CLAUDE_PLUGIN_UPDATE.join("\n"));
+          toast.info(t("today.pluginDrift.copiedShell"));
         } catch {
           toast.destructive(t("op.copyFailed"));
         }
@@ -371,6 +382,19 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
       case "decision":
         return [{ id: "plan", label: t("today.check.openPlan"), run: () => openPlan(ex.planId) }];
       case "plugin":
+        // 플러그인이 앱보다 새 판이면 올릴 것은 앱이다 — 설정의 업데이트 칸으로.
+        if (ex.ahead) {
+          return [
+            {
+              id: "update",
+              label: t("today.pluginDrift.checkUpdate"),
+              run: () => {
+                onNavigate("settings");
+                openSettings("data");
+              },
+            },
+          ];
+        }
         return [{ id: "copy", label: t("today.pluginDrift.copy"), busy: busy.has("copyPlugin"), run: copyPluginUpdate }];
     }
   };
@@ -516,12 +540,13 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
       <>
         {firstRun ? (
           <FirstSteps
-            connected={data.pluginInstalled === true || live.length > 0}
+            connection={pluginConnection(data.plugin, getPlatform())}
             working={live.length > 0}
             onConnect={() => {
               onNavigate("settings");
               openSettings("agents");
             }}
+            onOpenTerminal={() => onNavigate("terminal")}
             onHandOff={() => void busy.run("first", () => runInTerminal(t("today.first.step2Prompt")))}
             opening={busy.has("first")}
           />
