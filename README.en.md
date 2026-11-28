@@ -84,6 +84,7 @@ A first-time developer is no longer stopped by a false "connected" or "nothing h
 - **"Since I looked" · receipts everywhere** — viewed files fold into "Viewed N" and only those changed afterwards open again. ⇧⌘C copies a receipt from Today, Journal or Changes, and it saves as a single HTML page too.
 - **Keep awake · terminal** — the machine stays awake only while Claude works (Settings, off by default). ⌘V of files copied in Finder pastes their paths, copies from tmux · ssh (OSC 52) reach the clipboard, right ⌥ types @ · €, and `.worktreeinclude` brings `.env` into a race lane.
 - **Five screens, exceptions first** — failing plans at the top of the list, no warning colour on chores, a narrower list and wider diff in small windows, `?` for "Keys for this screen", a "This screen" group in ⌘K, and "What goes out of this device" in Settings.
+- **4.13.1 — quitting with ⌘Q cleans up** — on macOS, ⌘Q and the Dock's Quit skipped closing sessions and cleaning up the terminal; that is fixed, and the app asks before quitting while something runs in the terminal. Closing the last window and reopening from the Dock no longer leaves a screen that stopped updating.
 
 ## Earlier releases at a glance
 

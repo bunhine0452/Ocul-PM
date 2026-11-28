@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul (최신 v4.13.0)</title>
-<meta name="description" content="Ocul 의 전체 릴리스 노트 153개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
+<title>변경 이력 — Ocul (최신 v4.13.1)</title>
+<meta name="description" content="Ocul 의 전체 릴리스 노트 154개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul (최신 v4.13.0)" />
-<meta property="og:description" content="Ocul 의 전체 릴리스 노트 153개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
+<meta property="og:title" content="변경 이력 — Ocul (최신 v4.13.1)" />
+<meta property="og:description" content="Ocul 의 전체 릴리스 노트 154개. GitHub 릴리스 노트와 같은 파일(CHANGELOG.md)에서 나옵니다. 새 판은 앱의 업데이트 알림과 설정 → 앱의 업데이트 줄이 알려 줍니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul</a>
-    <span class="nav-ver" data-version>v4.13.0</span>
+    <span class="nav-ver" data-version>v4.13.1</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>153개</b>의 전문입니다. 새 판이 나오면 앱의 업데이트 알림과 <b>설정 → 앱</b>의 업데이트 줄이 알려 주고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 둘이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>154개</b>의 전문입니다. 새 판이 나오면 앱의 업데이트 알림과 <b>설정 → 앱</b>의 업데이트 줄이 알려 주고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 둘이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v4-13-1">v4.13.1</a>
       <a href="#v4-13-0">v4.13.0</a>
       <a href="#v4-12-1">v4.12.1</a>
       <a href="#v4-12-0">v4.12.0</a>
@@ -60,10 +61,21 @@
       <a href="#v4-9-1">v4.9.1</a>
       <a href="#v4-9-0">v4.9.0</a>
       <a href="#v4-8-0">v4.8.0</a>
-      <a href="#v4-7-0">v4.7.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v4-13-1"><a href="#v4-13-1">v4.13.1</a></h2>
+      <div class="cl-body">
+<p><b>설치본 로그에서 찾은 결함을 고친 패치입니다 — 사용자 결정(2026-11-28, 「릴리즈까지 진행해」).</b> 확인 날 기록이 없고 눈 확인 20건이 남았으며, 마지막 외부 리뷰(v3.11.0) 뒤로 판이 많이 지났다는 경고가 떴습니다. 코드 게이트는 GitHub 가 돌렸습니다. ⌘Q 의 묻기와 Dock 으로 다시 열기는 설치본에서 눈으로 보는 일이 남아 있습니다.</p>
+<p><b>macOS 에서 ⌘Q 로 꺼도 정리하고 끝납니다.</b> ⌘Q · Dock 의 종료 · 로그아웃으로 끄면 앱이 정리 없이 끝났습니다. 열려 있던 세션은 다음에 켤 때 「비정상 종료」 로 마감됐고, 앱 터미널의 셸은 거두는 절차 없이 끊겼습니다. 2주치 로그에서 정리가 돈 것은 업데이트 재시작 세 번뿐이었습니다. 이제 어떤 길로 꺼도 터미널 셸을 거두고 세션을 마감한 뒤 끝납니다.</p>
+<p><b>터미널에서 무언가 도는 중에 ⌘Q 를 누르면 묻습니다.</b> 창을 닫을 때처럼 끄기 전에도 묻게 만들어 두었지만, macOS 에서는 그 물음이 한 번도 뜨지 않았습니다. 이제 도는 세션이 있으면 무엇이 도는지 보이고, 한 번 더 ⌘Q 를 누르면 그대로 꺼집니다. Dock 의 종료와 로그아웃은 묻지 않고 정리만 합니다.</p>
+<p><b>마지막 창을 닫았다가 Dock 을 눌러도 화면이 멈추지 않습니다.</b> 마지막 창을 닫고 Dock 아이콘으로 다시 열면 닫기 전 화면이 그대로 나왔는데, 그 창에는 새 일지 · 파일 변경이 오지 않았습니다. 이제 닫기 전의 프로젝트를 새로 읽어 돌아옵니다. 닫아 둔 동안에는 그 창이 뒤에서 프로젝트 화면을 돌리지 않습니다.</p>
+<p><b>업데이트.</b> 새 판을 받아 두고 기다리는 동안 「지금 재시작」 을 누르면 바꾸기가 두 번 돌 수 있었습니다. 한 번만 돕니다. 다시 띄우지 못하면 「새 버전으로 바꾸고 있어요」 가 창을 덮은 채 남지 않고 다시 누를 수 있습니다.</p>
+<p><b>쉴 때 더 조용합니다.</b> 추적 중인 프로젝트마다 쉬는 동안에도 초당 네 번 깨던 것을 걷었습니다. 최소화했거나 다른 창에 가려진 창은 일지 · 계획이 바뀔 때마다 다시 읽지 않고, 다시 보일 때 한 번 읽습니다.</p>
+<p><b>터미널의 복사.</b> Claude 의 복사(OSC 52)가 드물게 조용히 사라지던 것 — 클립보드가 한 번 거절하면 다시 씁니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v4-13-0"><a href="#v4-13-0">v4.13.0</a></h2>
       <div class="cl-body">
