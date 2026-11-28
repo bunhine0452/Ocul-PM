@@ -100,15 +100,14 @@ owner: claude-code
 
 ## 종료 · 백그라운드 고침 (11-28)
 - [ ] [사용자] ⌘Q 묻기 · 종료 정리 줄 · Dock 다시 열기 눈 확인 {#eyes-quit-reopen}
-- [ ] 종료 고침 — 전체 cargo test · Windows · Linux 는 PR CI 에서 {#quit-fix-other-os}
+- [x] 종료 고침 — 전체 cargo test · Windows · Linux 는 PR CI 에서 {#quit-fix-other-os}
+- [ ] [사용자] 그림 미리보기가 안 버벅이는지 눈 확인 (4.13.2) {#eyes-image-peek}
+- [ ] [사용자 액션] 랜딩 배포 vercel --prod (4.13.2) {#landing-deploy-4132}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 34 rows → polish-round-20261027.log.md -->
+<!-- oculpm:plan-log archived: 37 rows → polish-round-20261027.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-10-28T23:25:57+09:00 | #eyes-compact-chrome | claude-code | →☐ |  | ← compact-chrome (플랜 18→4, simplify-round-20261028 #plans-4) |
-| 2026-10-28T23:26:00+09:00 | #eyes-scorecard | claude-code | →☐ |  | ← best-results-round-20261028 (플랜 18→4, simplify-round-20261028 #plans-4) |
-| 2026-10-28T23:26:03+09:00 | #eyes-hook-check | claude-code | →☐ |  | ← best-results-round-20261028 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:06+09:00 | #eyes-drift-card | claude-code | →☐ |  | ← record-quality-round-20261027 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:09+09:00 | #eyes-evidence-badge | claude-code | →☐ |  | ← record-quality-round-20261027 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:12+09:00 | #eyes-carry-inbox | claude-code | →☐ |  | ← record-quality-round-20261027 (플랜 18→4, simplify-round-20261028 #plans-4) |
@@ -146,5 +145,8 @@ owner: claude-code
 | 2026-11-28T19:30:47+09:00 | #eyes-quit-reopen | claude-code | →☐ | journal/20261128/Bugs/1930_bug_quit-teardown-dock-reopen.md | 추가 |
 | 2026-11-28T19:30:47+09:00 | #quit-fix-other-os | claude-code | →☐ |  | 추가 |
 | 2026-11-28T19:30:47+09:00 | — | claude-code |  |  | 대상 테스트 206 · clippy · 프런트 2275 통과, 커밋 전 |
-<!-- oculpm:plan-log archived: 34 rows → polish-round-20261027.log.md -->
+| 2026-11-28T20:27:07+09:00 | #quit-fix-other-os | claude-code | ☐→x | journal/20261128/Chores/2026_chore_release-4-13-1-and-2.md | PR #178 CI · release run 46136410109 success (mac · win · linux), v4.13.2 가 Latest |
+| 2026-11-28T20:27:07+09:00 | #eyes-image-peek | claude-code | →☐ |  | 추가 |
+| 2026-11-28T20:27:07+09:00 | #landing-deploy-4132 | claude-code | →☐ |  | 추가 |
+<!-- oculpm:plan-log archived: 37 rows → polish-round-20261027.log.md -->
 <!-- oculpm:plan-log end -->

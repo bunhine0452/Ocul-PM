@@ -40,4 +40,7 @@ plan: polish-round-20261027
 | 2026-10-28T23:25:48+09:00 | #eyes-ui-react193 | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:25:51+09:00 | #eyes-removals | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:25:54+09:00 | #eyes-worktree-index | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:25:57+09:00 | #eyes-compact-chrome | claude-code | →☐ |  | ← compact-chrome (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:26:00+09:00 | #eyes-scorecard | claude-code | →☐ |  | ← best-results-round-20261028 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:26:03+09:00 | #eyes-hook-check | claude-code | →☐ |  | ← best-results-round-20261028 (플랜 18→4, simplify-round-20261028 #plans-4) |
 <!-- oculpm:plan-log end -->
