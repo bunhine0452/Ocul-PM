@@ -72,6 +72,25 @@ fn removing_a_window_reports_how_many_remain_and_forgets_focus() {
     assert_eq!(reg.remove("main"), 0);
 }
 
+/// macOS 에서 숨긴 마지막 창은 Dock 을 누르면 닫히기 전의 프로젝트로 한 번 돌아온다 — 그사이 그 창이
+/// 다른 일로 다시 쓰였거나 그 프로젝트가 다른 창에 열렸으면 돌아갈 자리는 없다.
+#[test]
+fn a_hidden_last_window_returns_to_its_project_once() {
+    let mut reg = reg_with(&[("main", Some(7))]);
+    assert_eq!(reg.remove("main"), 0);
+    reg.set_dormant("main", 7);
+    assert_eq!(reg.take_dormant(), Some(("main".to_string(), 7)));
+    assert_eq!(reg.take_dormant(), None, "한 번만");
+
+    reg.set_dormant("main", 7);
+    reg.register("main", None); // ⇧⌘N 이 숨은 창을 시작 창으로 다시 썼다
+    assert_eq!(reg.take_dormant(), None);
+
+    let mut reg = reg_with(&[("win-1", Some(7))]);
+    reg.set_dormant("main", 7);
+    assert_eq!(reg.take_dormant(), None, "I1 — 그 프로젝트는 이미 다른 창에 있다");
+}
+
 #[test]
 fn preferred_window_follows_focus() {
     let mut reg = reg_with(&[("main", None), ("win-1", Some(3))]);

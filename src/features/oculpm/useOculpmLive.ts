@@ -34,13 +34,28 @@ function useOculpmEventRefresh<P extends { project_id: number }>(
     if (!enabled || projectId == null) return;
     let active = true;
     let timer: number | null = null;
+    // 보이지 않는 창(최소화 · 숨김 · 다른 창에 다 가려짐)은 사건마다 다시 읽지 않는다 — 놓친 것이 있다고만
+    // 적어 두고 다시 보일 때 한 번 읽는다. 창을 여럿 열어 두고 에이전트가 일지를 쓰는 날, 안 보이는 창들이
+    // 사건마다 목록 · 요약을 다시 읽고 그렸다.
+    let missed = false;
     const schedule = () => {
+      if (document.visibilityState === "hidden") {
+        missed = true;
+        return;
+      }
       if (timer != null) return;
       timer = window.setTimeout(() => {
         timer = null;
         onChange();
       }, COALESCE_MS);
     };
+    const onShown = () => {
+      if (!missed || document.visibilityState === "hidden") return;
+      missed = false;
+      schedule();
+    };
+    document.addEventListener("visibilitychange", onShown);
+    window.addEventListener("focus", onShown);
     const offs: Array<() => void> = [];
     for (const channel of channels) {
       // 방어적: jsdom / 비-Tauri 컨텍스트에는 이벤트 채널이 없다. 삼켜서
@@ -65,6 +80,8 @@ function useOculpmEventRefresh<P extends { project_id: number }>(
     return () => {
       active = false;
       if (timer != null) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onShown);
+      window.removeEventListener("focus", onShown);
       offs.forEach(safeUnlisten);
     };
   }, [channels, projectId, enabled, onChange, accept]);

@@ -33,4 +33,11 @@ plan: polish-round-20261027
 | 2026-10-28T23:25:27+09:00 | #eyes-claude-integration | claude-code | →☐ |  | ← improvement-round-2026-09-14 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:25:30+09:00 | #eyes-first-run | claude-code | →☐ |  | ← improvement-round-2026-09-14 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:25:33+09:00 | #eyes-bug-hunt-0922 | claude-code | →☐ |  | ← improvement-round-2026-09-14 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:25:36+09:00 | #eyes-security | claude-code | →☐ |  | ← improvement-round-2026-09-14 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:25:39+09:00 | #eyes-restart | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:25:42+09:00 | #eyes-tray | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:25:45+09:00 | #eyes-focus-drop | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:25:48+09:00 | #eyes-ui-react193 | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:25:51+09:00 | #eyes-removals | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:25:54+09:00 | #eyes-worktree-index | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
 <!-- oculpm:plan-log end -->

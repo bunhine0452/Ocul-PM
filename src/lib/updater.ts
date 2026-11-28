@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { check as checkForUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { windowApi } from "@/api/window";
@@ -123,6 +123,7 @@ async function restartRestoringWindows(): Promise<void> {
 export function useUpdater() {
   const [status, setStatus] = useState<UpdaterStatus>({ kind: "idle" });
   const [update, setUpdate] = useState<Update | null>(null);
+  const applying = useRef(false);
 
   /** Ask the endpoint whether a newer signed build exists. Returns the Update
    *  when one is available, else null. Failures (offline / private repo / no
@@ -166,12 +167,24 @@ export function useUpdater() {
    *   정리 뒤 설치 파일을 못 띄우면 앱을 다시 띄운다 — 정리된 채로 계속 쓸 수는 없다.
    */
   const apply = useCallback(async (upd: Update) => {
+    // 한 번만 — 기다리는 동안의 다시 보기(사건 · 10초 간격)와 「지금 재시작」 이 겹치면 두 번 불렸다.
+    // Windows 에서는 종료 정리와 설치 파일이 두 번 돌았다.
+    if (applying.current) return;
+    applying.current = true;
     setStatus({ kind: "restarting" });
     await saveWindows();
     // 「바꾸고 있어요」 를 그릴 틈 — 다음 줄에서 창이 닫힌다(재시작이든 설치 파일이든).
     await paint();
     if (getPlatform() !== "windows") {
-      await relaunch();
+      try {
+        await relaunch();
+      } catch (e) {
+        // 다시 띄우지 못했다 — 「바꾸고 있어요」 가 창을 덮은 채 남지 않게 풀고, 다시 누를 수 있게 한다.
+        const message = errMessage(e);
+        oculpmLog.warn("updater", "apply -> relaunch failed", { version: upd.version, message });
+        applying.current = false;
+        setStatus({ kind: "error", message });
+      }
       return;
     }
     await updateExitApi.prepare();

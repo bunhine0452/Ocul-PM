@@ -242,10 +242,9 @@ impl ActorInner {
                         None => break, // all senders dropped
                     }
                 }
-                _ = tick.tick() => {
-                    if !matches!(self.state, SessionState::Closing) {
-                        self.maybe_flush().await;
-                    }
+                // 쓸 것이 있을 때만 깬다 — 쉬는 프로젝트의 액터는 명령이 올 때까지 잔다(예전엔 프로젝트마다 늘 초당 4번).
+                _ = tick.tick(), if matches!(&self.state, SessionState::Active(a) if a.dirty) => {
+                    self.maybe_flush().await;
                 }
             }
         }

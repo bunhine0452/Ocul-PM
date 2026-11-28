@@ -57,14 +57,18 @@ mod os {
 
     pub fn write_text(text: &str) -> Result<bool, String> {
         let pb = NSPasteboard::generalPasteboard();
-        pb.clearContents();
         // SAFETY: AppKit 이 내보내는 상수 — 프로세스 동안 산다.
         let string_type = unsafe { NSPasteboardTypeString };
-        if pb.setString_forType(&NSString::from_str(text), string_type) {
-            Ok(true)
-        } else {
-            Err("pasteboard refused the text".to_string())
+        let text = NSString::from_str(text);
+        // 비운 직후 다른 프로세스(클립보드 관리자)가 판을 가져가면 쓰기가 거절된다 — 한 번 더 비우고 쓴다
+        // (설치본 로그 11-26: Claude 의 복사가 한 번 조용히 사라졌다).
+        for _ in 0..2 {
+            pb.clearContents();
+            if pb.setString_forType(&text, string_type) {
+                return Ok(true);
+            }
         }
+        Err("pasteboard refused the text".to_string())
     }
 }
 

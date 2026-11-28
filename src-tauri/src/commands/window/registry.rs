@@ -13,6 +13,8 @@ pub struct Registry {
     /// 최근에 쓴 창 순서(앞 = 가장 최근) — 창 전환기(⌥Tab)가 이 순서로 줄을 세운다 (2026-11-04).
     recent: Vec<String>,
     next_window: u32,
+    /// macOS 에서 마지막 창을 숨길 때 그 창(라벨)이 담고 있던 프로젝트 — Dock 을 누르면 그 자리로 돌아온다.
+    dormant: Option<(String, u32)>,
 }
 
 impl Registry {
@@ -91,6 +93,25 @@ impl Registry {
         self.windows.insert(label.to_string(), project);
         self.last_focused = Some(label.to_string());
         self.touch(label);
+        // 숨겨 둔 창이 다시 쓰였다 — 돌아갈 자리는 더 없다.
+        if self.dormant.as_ref().is_some_and(|(l, _)| l == label) {
+            self.dormant = None;
+        }
+    }
+
+    /// 마지막 창을 숨겼다 — 그 창이 담고 있던 프로젝트를 적어 둔다(`take_dormant`).
+    pub(super) fn set_dormant(&mut self, label: &str, project: u32) {
+        self.dormant = Some((label.to_string(), project));
+    }
+
+    /// 숨겨 둔 창과 그 프로젝트 — 한 번만. 그 프로젝트가 그사이 다른 창에 열렸으면 없다(I1).
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+    pub(super) fn take_dormant(&mut self) -> Option<(String, u32)> {
+        let (label, project) = self.dormant.take()?;
+        if self.locate_project(project).is_some() || self.windows.contains_key(&label) {
+            return None;
+        }
+        Some((label, project))
     }
 
     /// 새 창 라벨을 발급하고 등록한다.

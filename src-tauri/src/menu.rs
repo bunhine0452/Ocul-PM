@@ -32,6 +32,9 @@ pub const CLOSE_WINDOW: &str = "menu:close-window";
 pub const TOUR: &str = "menu:tour";
 /// 창 › 프로젝트 창 정리 — 최근에 쓴 창 6개까지를 지금 화면에 칸으로 (`commands/window/tile.rs`).
 pub const TILE_WINDOWS: &str = "menu:tile-windows";
+/// 앱 메뉴 › 종료(⌘Q) — OS 가 주는 종료 항목을 쓰지 않는다. 그 항목은 `terminate:` 를 곧장 불러 앱의
+/// 「끄기 전에 묻기」 와 종료 정리(`RunEvent::ExitRequested`)를 건너뛴다(`crate::request_quit`).
+pub const QUIT: &str = "menu:quit";
 
 /// 메뉴의 「처음 쓰는 법」 — 그 창의 프런트가 안내 모달을 연다.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type, tauri_specta::Event)]
@@ -47,6 +50,7 @@ pub struct CloseKeyPressed {}
 const ACC_NEW_WINDOW: &str = "Shift+CmdOrCtrl+N";
 const ACC_CLOSE_WINDOW: &str = "CmdOrCtrl+W";
 const ACC_TILE_WINDOWS: &str = "Alt+CmdOrCtrl+T";
+const ACC_QUIT: &str = "CmdOrCtrl+Q";
 
 /// 메뉴 라벨 묶음. 프런트의 i18n 사전을 Rust 가 읽을 수 없으므로 최소 집합만
 /// 여기에 둔다 — 언어는 프런트가 `apply_menu_language` 로 알려준다.
@@ -143,6 +147,9 @@ pub fn build<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<(Menu<
         .name(Some(APP_NAME))
         .version(Some(app.package_info().version.to_string()))
         .build();
+    let quit = MenuItemBuilder::with_id(QUIT, l.quit)
+        .accelerator(ACC_QUIT)
+        .build(app)?;
     let app_menu = SubmenuBuilder::new(app, APP_NAME)
         .about_with_text(l.about, Some(about))
         .separator()
@@ -150,7 +157,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<(Menu<
         .separator()
         .hide_with_text(l.hide)
         .separator()
-        .quit_with_text(l.quit)
+        .item(&quit)
         .build()?;
 
     // ② 파일 — 새 창(⇧⌘N, 시작 창)과 창 닫기(⌘W).
@@ -275,6 +282,7 @@ pub fn handle_event(app: &AppHandle, id: &str) {
                 let _ = TourRequested {}.emit_to(app, label.as_str());
             }
         }
+        QUIT => crate::request_quit(app),
         _ => {}
     }
 }
@@ -381,18 +389,31 @@ mod tests {
     /// 액셀러레이터가 겹치면 어느 항목이 이길지 플랫폼에 맡기게 된다.
     #[test]
     fn accelerators_do_not_collide() {
-        let all = [ACC_NEW_WINDOW, ACC_CLOSE_WINDOW, ACC_TILE_WINDOWS];
+        let all = [ACC_NEW_WINDOW, ACC_CLOSE_WINDOW, ACC_TILE_WINDOWS, ACC_QUIT];
         let mut sorted = all.to_vec();
         sorted.sort_unstable();
         sorted.dedup();
         assert_eq!(sorted.len(), all.len(), "액셀러레이터 중복: {all:?}");
     }
 
+    /// 종료는 OS 가 주는 항목(`terminate:`)이 아니라 앱의 항목이어야 한다 — 그래야 ⌘Q 가 「끄기 전에
+    /// 묻기」 와 종료 정리를 지난다(`crate::request_quit`).
+    #[test]
+    fn quit_goes_through_the_app_not_the_os_item() {
+        let src = include_str!("menu.rs");
+        let os_item = [".quit", "_with_text("].concat();
+        assert!(
+            !src.contains(&os_item),
+            "앱 메뉴가 OS 의 종료 항목을 쓴다 — ⌘Q 가 종료 정리를 건너뛴다"
+        );
+        assert_eq!(ACC_QUIT, "CmdOrCtrl+Q");
+    }
+
     /// 메뉴 id 는 프런트와 공유하지 않지만, 서로 충돌하면 조용히 엉뚱한
     /// 동작을 한다 — 접두사로 네임스페이스를 나눠 둔다.
     #[test]
     fn menu_ids_are_namespaced_and_unique() {
-        let ids = [NEW_WINDOW, CLOSE_WINDOW, TOUR, TILE_WINDOWS];
+        let ids = [NEW_WINDOW, CLOSE_WINDOW, TOUR, TILE_WINDOWS, QUIT];
         for id in ids {
             assert!(id.starts_with("menu:"), "{id} 에 네임스페이스가 없다");
         }
