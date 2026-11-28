@@ -15,7 +15,7 @@ import {
   lineCells,
   type CellLine,
 } from "@/features/terminal/fileLinks";
-import { closePeek, HOVER_DELAY_MS, peekEvent } from "@/features/terminal/imagePeek";
+import { closePeek, HOVER_DELAY_MS, LEAVE_GRACE_MS, peekEvent } from "@/features/terminal/imagePeek";
 import { TermImagePeekHost } from "@/features/terminal/TermImagePeek";
 
 afterEach(() => {
@@ -117,6 +117,39 @@ describe("TermImagePeek", () => {
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  // xterm 은 링크의 줄이 다시 그려질 때마다 벗어남 → 올림을 다시 보낸다(Claude 가 일하는 동안 계속). 그때마다
+  // 카드를 내렸다 다시 띄우면 그림을 매번 새로 푼다 — 같은 그림에 곧 다시 올라오면 카드는 그대로다.
+  it("keeps the card when the same link is left and hovered again at once, and closes after a real leave", async () => {
+    setLangSetting("ko");
+    h.preview.mockResolvedValue({ mime: "image/png", bytes: 2048, base64: "iVBORw0KGgo=" });
+    vi.useFakeTimers();
+    render(<TermImagePeekHost />);
+    // 앞 시험과 다른 경로 — 읽은 그림은 모듈이 기억한다.
+    const hover = { kind: "hover" as const, path: "/tmp/shots/again.png", x: 40, y: 40 };
+    act(() => peekEvent(hover));
+    await act(async () => {
+      vi.advanceTimersByTime(HOVER_DELAY_MS);
+    });
+    const card = screen.getByRole("tooltip");
+
+    for (let i = 0; i < 5; i++) {
+      act(() => peekEvent({ kind: "leave" }));
+      expect(screen.getByRole("tooltip")).toBe(card);
+      act(() => peekEvent(hover));
+      act(() => {
+        vi.advanceTimersByTime(LEAVE_GRACE_MS + HOVER_DELAY_MS);
+      });
+      expect(screen.getByRole("tooltip")).toBe(card);
+    }
+    expect(h.preview).toHaveBeenCalledTimes(1);
+
+    act(() => peekEvent({ kind: "leave" }));
+    act(() => {
+      vi.advanceTimersByTime(LEAVE_GRACE_MS);
+    });
+    expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
   it("says why when the file is not an image", async () => {

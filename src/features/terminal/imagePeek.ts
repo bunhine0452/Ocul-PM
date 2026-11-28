@@ -30,8 +30,17 @@ export interface Peek {
   tracking: boolean;
 }
 
+/**
+ * 벗어난 뒤 이만큼은 카드를 그대로 둔다 (11-28). xterm 은 링크가 있는 줄이 다시 그려질 때마다 「벗어남」 을 보내고
+ * 곧바로 「올림」 을 다시 보낸다(`Linkifier` 의 `onRenderedViewportChange`). Claude 가 일하는 동안에는 화면이 계속
+ * 다시 그려져, 마우스를 올려 둔 내내 카드가 내려갔다 다시 뜨며 그림을 매번 새로 풀었다 — 그것이 버벅임이었다.
+ * 같은 경로에 이 안에 다시 올라오면 카드는 그 자리에 그대로다.
+ */
+export const LEAVE_GRACE_MS = 150;
+
 let current: Peek | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
+let leaving: ReturnType<typeof setTimeout> | null = null;
 const subs = new Set<() => void>();
 
 function set(next: Peek | null) {
@@ -44,31 +53,48 @@ function clearTimer() {
   timer = null;
 }
 
+function clearLeaving() {
+  if (leaving !== null) clearTimeout(leaving);
+  leaving = null;
+}
+
 export function peekEvent(event: ImageLinkEvent): void {
   clearTimer();
   if (event.kind === "leave") {
-    if (current && !current.pinned) set(null);
+    if (!current || current.pinned || leaving !== null) return;
+    leaving = setTimeout(() => {
+      leaving = null;
+      if (current && !current.pinned) set(null);
+    }, LEAVE_GRACE_MS);
     return;
   }
   const { path, x, y } = event;
   if (event.kind === "reveal") {
+    clearLeaving();
     if (current && !current.pinned) set(null);
     terminalApi
       .imageReveal(path)
       .catch((e: unknown) => toast.warning(t("terminal.peek.revealFailed", { error: tError(toAppError(e)) })));
     return;
   }
-  if (event.kind === "open") return set({ path, x, y, pinned: true, tracking: false });
+  if (event.kind === "open") {
+    clearLeaving();
+    return set({ path, x, y, pinned: true, tracking: false });
+  }
   if (current?.pinned) return;
+  // 떠 있는 카드와 같은 그림에 다시 올라왔다 — 내리려던 것을 거두고 그대로 둔다(다시 그리지도 않는다).
+  if (current?.path === path) return clearLeaving();
   const tracking = event.tracking === true;
   timer = setTimeout(() => {
     timer = null;
+    clearLeaving();
     if (!current?.pinned) set({ path, x, y, pinned: false, tracking });
   }, HOVER_DELAY_MS);
 }
 
 export function closePeek(): void {
   clearTimer();
+  clearLeaving();
   set(null);
 }
 

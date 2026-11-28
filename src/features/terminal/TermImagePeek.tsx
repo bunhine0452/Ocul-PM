@@ -37,17 +37,56 @@ export function middleEllipsis(name: string, max = NAME_MAX): string {
   return name.slice(0, max - 1 - tail) + "…" + name.slice(name.length - tail);
 }
 
-type Load =
-  | { status: "loading" }
-  | { status: "ready"; src: string; bytes: number }
-  | { status: "error"; message: string };
+/**
+ * 읽은 그림 — `src` 는 원본(크게 볼 때), `thumb` 는 카드에 그릴 줄인 그림, `dims` 는 원본의 크기.
+ * 카드는 344×240 안에 그리는데 예전에는 수 MB 원본을 그대로 넣어, 카드가 뜰 때마다 원본 해상도를 통째로 풀었다.
+ */
+interface Loaded {
+  src: string;
+  bytes: number;
+  thumb?: string;
+  dims?: { w: number; h: number };
+}
 
-const cache = new Map<string, { src: string; bytes: number }>();
+type Load = { status: "loading" } | ({ status: "ready" } & Loaded) | { status: "error"; message: string };
 
-function remember(path: string, value: { src: string; bytes: number }) {
+const cache = new Map<string, Loaded>();
+
+function remember(path: string, value: Loaded) {
   cache.delete(path);
   cache.set(path, value);
   while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
+}
+
+/** 줄인 그림의 상한 — 카드(344×240)의 두 배 밀도. */
+const THUMB_W = 688;
+const THUMB_H = 480;
+
+/** 줄인 그림을 만들 수 있나 — 움직이는 그림(gif)은 그대로 두고, 풀기(`decode`)가 없는 환경(시험)은 원본을 쓴다. */
+function canThumb(mime: string): boolean {
+  return mime !== "image/gif" && typeof HTMLImageElement !== "undefined" && "decode" in HTMLImageElement.prototype;
+}
+
+/** 원본을 한 번 풀어 크기를 재고, 카드보다 크면 줄인 PNG(투명 유지)를 만든다. 못 만들면 `null` — 원본을 쓴다. */
+async function makeThumb(src: string): Promise<Pick<Loaded, "thumb" | "dims"> | null> {
+  try {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const dims = { w: img.naturalWidth, h: img.naturalHeight };
+    const scale = Math.min(1, THUMB_W / dims.w, THUMB_H / dims.h);
+    if (!(scale < 1)) return { dims };
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(dims.w * scale));
+    canvas.height = Math.max(1, Math.round(dims.h * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { dims };
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return { dims, thumb: canvas.toDataURL("image/png") };
+  } catch {
+    return null;
+  }
 }
 
 export function TermImagePeekHost() {
@@ -70,9 +109,14 @@ function TermImagePeek({ path, x, y, pinned, tracking }: Peek) {
     let alive = true;
     terminalApi.imagePreview(path).then(
       (img) => {
-        const value = { src: `data:${img.mime};base64,${img.base64}`, bytes: img.bytes };
-        remember(path, value);
-        if (alive) setLoad({ status: "ready", ...value });
+        const value: Loaded = { src: `data:${img.mime};base64,${img.base64}`, bytes: img.bytes };
+        const done = (v: Loaded) => {
+          remember(path, v);
+          if (alive) setLoad({ status: "ready", ...v });
+        };
+        if (!canThumb(img.mime)) return done(value);
+        // 줄인 그림이 설 때까지는 뼈대 그대로 — 원본을 카드에 먼저 넣으면 그것을 한 번 더 푼다.
+        void makeThumb(value.src).then((extra) => done({ ...value, ...extra }));
       },
       (e: unknown) => alive && setLoad({ status: "error", message: tError(toAppError(e)) }),
     );
@@ -96,7 +140,9 @@ function TermImagePeek({ path, x, y, pinned, tracking }: Peek) {
   }, [pinned]);
 
   const name = path.split(/[\\/]/).pop() || path;
-  const facts = [size ? `${size.w}×${size.h}` : null, load.status === "ready" ? formatBytes(load.bytes) : null]
+  // 크기는 원본의 것 — 줄인 그림을 그리는 카드에서도. 재지 못했으면(줄이지 않은 길) 그려진 그림에서 읽는다.
+  const dims = (load.status === "ready" ? load.dims : undefined) ?? size;
+  const facts = [dims ? `${dims.w}×${dims.h}` : null, load.status === "ready" ? formatBytes(load.bytes) : null]
     .filter(Boolean)
     .join(" · ");
 
@@ -104,8 +150,9 @@ function TermImagePeek({ path, x, y, pinned, tracking }: Peek) {
     <div className="tm-peek-stage">
       {load.status === "ready" ? (
         <img
-          src={load.src}
+          src={pinned ? load.src : (load.thumb ?? load.src)}
           alt={name}
+          decoding="async"
           onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
         />
       ) : load.status === "error" ? (
