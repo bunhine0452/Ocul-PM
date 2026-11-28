@@ -43,4 +43,5 @@ plan: polish-round-20261027
 | 2026-10-28T23:25:57+09:00 | #eyes-compact-chrome | claude-code | →☐ |  | ← compact-chrome (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:00+09:00 | #eyes-scorecard | claude-code | →☐ |  | ← best-results-round-20261028 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:03+09:00 | #eyes-hook-check | claude-code | →☐ |  | ← best-results-round-20261028 (플랜 18→4, simplify-round-20261028 #plans-4) |
+| 2026-10-28T23:26:06+09:00 | #eyes-drift-card | claude-code | →☐ |  | ← record-quality-round-20261027 (플랜 18→4, simplify-round-20261028 #plans-4) |
 <!-- oculpm:plan-log end -->

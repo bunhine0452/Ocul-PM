@@ -102,13 +102,12 @@ owner: claude-code
 - [ ] [사용자] ⌘Q 묻기 · 종료 정리 줄 · Dock 다시 열기 눈 확인 {#eyes-quit-reopen}
 - [x] 종료 고침 — 전체 cargo test · Windows · Linux 는 PR CI 에서 {#quit-fix-other-os}
 - [ ] [사용자] 그림 미리보기가 안 버벅이는지 눈 확인 (4.13.2) {#eyes-image-peek}
-- [ ] [사용자 액션] 랜딩 배포 vercel --prod (4.13.2) {#landing-deploy-4132}
+- [x] [사용자 액션] 랜딩 배포 vercel --prod (4.13.2) {#landing-deploy-4132}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 37 rows → polish-round-20261027.log.md -->
+<!-- oculpm:plan-log archived: 38 rows → polish-round-20261027.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-10-28T23:26:06+09:00 | #eyes-drift-card | claude-code | →☐ |  | ← record-quality-round-20261027 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:09+09:00 | #eyes-evidence-badge | claude-code | →☐ |  | ← record-quality-round-20261027 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:12+09:00 | #eyes-carry-inbox | claude-code | →☐ |  | ← record-quality-round-20261027 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:15+09:00 | #eyes-density | claude-code | →☐ |  | ← ui-density-round-20261028 (플랜 18→4, simplify-round-20261028 #plans-4) |
@@ -148,5 +147,6 @@ owner: claude-code
 | 2026-11-28T20:27:07+09:00 | #quit-fix-other-os | claude-code | ☐→x | journal/20261128/Chores/2026_chore_release-4-13-1-and-2.md | PR #178 CI · release run 46136410109 success (mac · win · linux), v4.13.2 가 Latest |
 | 2026-11-28T20:27:07+09:00 | #eyes-image-peek | claude-code | →☐ |  | 추가 |
 | 2026-11-28T20:27:07+09:00 | #landing-deploy-4132 | claude-code | →☐ |  | 추가 |
-<!-- oculpm:plan-log archived: 37 rows → polish-round-20261027.log.md -->
+| 2026-11-28T20:30:01+09:00 | #landing-deploy-4132 | claude-code | ☐→x |  | 사용자가 vercel --prod 배포, oculpm.com softwareVersion 4.13.2 · changelog 앵커 v4-13-2 확인 |
+<!-- oculpm:plan-log archived: 38 rows → polish-round-20261027.log.md -->
 <!-- oculpm:plan-log end -->
