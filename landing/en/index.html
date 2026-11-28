@@ -48,7 +48,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og-en.png",
-  "softwareVersion": "4.13.1",
+  "softwareVersion": "4.13.2",
   "inLanguage": "en",
   "description": "Not “all done” — a receipt. Every time a coding agent (Claude Code, Codex, Cursor, Gemini CLI) finishes, what it changed and the command that checked it are kept in your project folder as a Markdown receipt. Ocul unfolds only what isn't proven — failed check commands, entries without command evidence, changes no entry mentions. With Claude Code, turn recording on in the desktop app and add two plugin lines. The app calls no LLM, and there is no account, server or telemetry.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -242,7 +242,7 @@
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="/en"><img src="/icon.svg" alt="" width="24" height="24" />Ocul</a>
-    <span class="nav-ver" data-version>v4.13.1</span>
+    <span class="nav-ver" data-version>v4.13.2</span>
     <nav class="nav-links" aria-label="Site">
       <a href="#screens">Screens</a>
       <a href="/wiki/en">Wiki</a>
@@ -265,7 +265,7 @@
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.13.1</span><span class="sub">macOS · free</span>
+        <span class="lg">Get v4.13.2</span><span class="sub">macOS · free</span>
       </a>
     </div>
     <div class="subrow">
@@ -274,7 +274,7 @@
         <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
         <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
       </p>
-      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.13.1 — Quitting with ⌘Q cleans up, and asks when a terminal is busy</a>
+      <a class="whatsnew" href="#updates"><span class="ap-new">New</span>&nbsp; v4.13.2 — The terminal's image preview no longer stutters</a>
     </div>
 
     <div class="stage" id="screens" data-app>
@@ -436,10 +436,10 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
     <h2 id="updates-h">This app is built with this app.</h2>
     <p class="intro">This repository's <b>1,083 entries, 99 plans and 154 releases</b> were recorded with Ocul. The history below comes from those entries.</p>
     <ul class="releases">
+      <li class="rel"><span class="ver">v4.13.2</span><div><h3>The terminal's image preview no longer stutters</h3><p>With the mouse resting on an image path, the preview card went away and came back for as long as Claude was working, decoding the full-size image each time. The card now stays where it is and draws a copy that was scaled down once.</p></div></li>
       <li class="rel"><span class="ver">v4.13.1</span><div><h3>Quitting with ⌘Q cleans up, and asks when a terminal is busy</h3><p>On macOS, quitting with ⌘Q or the Dock's Quit skipped closing sessions and cleaning up the terminal, so the next launch logged an abnormal exit. Every way of quitting now cleans up first, and the app asks before quitting while something runs in the terminal. Closing the last window and reopening from the Dock no longer leaves a screen that stopped updating.</p></div></li>
       <li class="rel"><span class="ver">v4.13.0</span><div><h3>Something developers and AI users can love: an honest first ten minutes · plans kept through tools · exceptions first</h3><p>The plugin reads "connected" only when this project has it switched on; otherwise it says what is missing and puts the one command to copy right there. Agents add items, decisions and check results to a plan through MCP alone, and the Changes screen remembers what you already looked at. Cursor and Gemini CLI can get the recording tools too, and the machine can stay awake while Claude works.</p></div></li>
-      <li class="rel"><span class="ver">v4.12.1</span><div><h3>Windows updates no longer stop at "couldn't close Ocul-PM"</h3><p>The in-app update starts the installer, then exits the app. When the app took a moment to exit, the installer tried to close an app that was already closing, failed, and cancelled the install. It now waits for the app to finish exiting, then swaps.</p></div></li>
-      <li class="rel"><span class="ver">v4.12.0</span><div><h3>Keeping up when agents run ahead: MCP on Windows · a check gate · what auto mode denied</h3><p>The plugin's MCP tools now connect on Windows. A conversation that closes a plan item without running the plan's check command gets one nudge from the Stop hook, and actions Claude Code's auto mode denied show up as one row on Today. Files you only pulled no longer read as "changed since the pass", and the screens draw only what needs you even with many sessions and entries.</p></div></li>    </ul>
+      <li class="rel"><span class="ver">v4.12.1</span><div><h3>Windows updates no longer stop at "couldn't close Ocul-PM"</h3><p>The in-app update starts the installer, then exits the app. When the app took a moment to exit, the installer tried to close an app that was already closing, failed, and cancelled the install. It now waits for the app to finish exiting, then swaps.</p></div></li>    </ul>
     <p class="more"><a href="/changelog">Full changelog</a><a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub releases</a></p>
   </div>
 </section>
@@ -488,7 +488,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
       <button class="cmd two is-primary" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM&#10;/plugin install oculpm@oculpm" aria-label="Copy the two Claude Code plugin install lines"><code><span>/plugin marketplace add bunhine0452/Ocul-PM</span><span>/plugin install oculpm@oculpm</span></code><span class="copy">Copy both</span></button>
       <a class="btn" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
-        <span class="lg">Get v4.13.1</span><span class="sub">free · auto-updates</span>
+        <span class="lg">Get v4.13.2</span><span class="sub">free · auto-updates</span>
       </a>
       <a class="btn" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Teams &amp; partnerships</a>
     </div>
@@ -497,7 +497,7 @@ AGENTS.md     <span class="dim">the one rules file agents read</span></pre>
       <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
       <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
     </p>
-    <p class="cta-ver">v4.13.1 — macOS · Windows · Linux (beta)</p>
+    <p class="cta-ver">v4.13.2 — macOS · Windows · Linux (beta)</p>
   </div>
 </section>
 </main>
