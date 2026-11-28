@@ -67,6 +67,11 @@ pub(super) async fn create_window(
         app.state::<WindowProjects>()
             .lock()
             .register(&label, project_id);
+        // 숨길 때 앱 이름으로 돌려 둔 제목을 그 프로젝트 이름으로(창 전환기 · Mission Control).
+        let title = window_title(app, project_id).await;
+        if let Some(win) = app.get_webview_window(&label) {
+            let _ = win.set_title(&title);
+        }
         focus_window(app, &label);
         announce(app, &label);
         return Ok(label);
@@ -249,12 +254,17 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
     if let Some(terms) = app.try_state::<crate::terminal::TermSessions>() {
         terms.close_window(label);
     }
-    let remaining = app.state::<WindowProjects>().lock().remove(label);
+    let (project, remaining) = {
+        let state = app.state::<WindowProjects>();
+        let mut reg = state.lock();
+        let project = reg.project_of(label).flatten();
+        (project, reg.remove(label))
+    };
     emit_open_projects(app);
     if remaining > 0 {
         return false;
     }
-    handle_last_window_closed(app, label)
+    handle_last_window_closed(app, label, project)
 }
 
 /// 마지막 창이 닫혔을 때 앱이 종료되는가 — 플랫폼 표준을 따른다. macOS 는 창이 없어도
@@ -267,13 +277,74 @@ pub(super) fn exits_on_last_window_close(remaining_windows: usize, is_mac: bool)
 
 /// 마지막 앱 창이 닫혔다. `true` 를 돌려주면 닫기를 가로챈 것 — 창을 파괴하는 대신
 /// 숨겨 두면 다음 `create_window` 가 그 휴면 창을 재사용해 즉시 뜬다.
-fn handle_last_window_closed(app: &AppHandle, label: &str) -> bool {
+///
+/// 숨긴 창의 프런트에는 「이제 시작 창」 이라고 알린다(2026-11-28). 예전에는 레지스트리에서만 빼고
+/// 알리지 않아, 숨은 웹뷰가 닫은 프로젝트의 화면을 그대로 들고 뒤에서 계속 돌았다 — 그리고 Dock 을
+/// 눌러 다시 보이면 레지스트리가 모르는 창이라 그 프로젝트의 파일 변경이 오지 않았다(워처는 프로젝트를
+/// 담은 창에만 보낸다). 담고 있던 프로젝트는 적어 두었다가 Dock 을 누르면 새로 읽어 돌아온다([`reopen`]).
+fn handle_last_window_closed(app: &AppHandle, label: &str, project: Option<u32>) -> bool {
     if exits_on_last_window_close(0, cfg!(target_os = "macos")) {
         app.exit(0);
         return false;
     }
     if let Some(win) = app.get_webview_window(label) {
         let _ = win.hide();
+        let _ = win.set_title(crate::menu::APP_NAME);
     }
+    if let Some(project) = project {
+        app.state::<WindowProjects>()
+            .lock()
+            .set_dormant(label, project);
+    }
+    let _ = WindowProjectChanged {
+        window: label.to_string(),
+        project_id: None,
+    }
+    .emit_to(app, label);
     true
+}
+
+/// macOS — Dock 아이콘을 눌렀다(`RunEvent::Reopen`). 창을 다 닫아도 앱은 살아 있으므로 이 길이 없으면
+/// Dock 을 눌러도 아무 일도 안 난다.
+///
+/// - 레지스트리가 아는 창이 있으면 모두 앞으로(가장 최근에 쓴 창이 맨 앞).
+/// - 없으면 숨겨 둔 창이 닫히기 전의 프로젝트로 돌아온다 — 그사이 지워졌으면 시작 창.
+/// - 그것도 없으면 시작 창을 연다.
+#[cfg(target_os = "macos")]
+pub fn reopen(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let known: Vec<String> = app
+            .state::<WindowProjects>()
+            .lock()
+            .recent_labels()
+            .into_iter()
+            .filter(|l| app.get_webview_window(l).is_some())
+            .collect();
+        if !known.is_empty() {
+            // 뒤에서부터 — 마지막에 포커스를 받는 것이 가장 최근에 쓴 창이다.
+            for label in known.iter().rev() {
+                focus_window(&app, label);
+            }
+            return;
+        }
+        let dormant = app.state::<WindowProjects>().lock().take_dormant();
+        if let Some((label, project_id)) = dormant {
+            let alive = app.get_webview_window(&label).is_some();
+            let exists = app
+                .state::<crate::db::Db>()
+                .get_project(project_id)
+                .await
+                .is_ok();
+            if alive && exists {
+                if let Err(e) = open_project_window_with_nav(&app, project_id, None).await {
+                    tracing::warn!(target: "window", error = %e, "숨겨 둔 창을 되살리지 못했다");
+                }
+                return;
+            }
+        }
+        if let Err(e) = create_window(&app, None, None).await {
+            tracing::warn!(target: "window", error = %e, "Dock 에서 시작 창을 열지 못했다");
+        }
+    });
 }

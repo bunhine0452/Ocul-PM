@@ -97,17 +97,15 @@ owner: claude-code
 - [ ] [사용자 결정] 「기기를 떠나는 것」 둘 · 셋 셈과 CLAUDE.md 「정확히 둘」 문장 {#love-egress-count}
 - [ ] [사용자 결정] 「마지막 판정」 · 「마지막 확인 결과」 이름을 하나로 {#love-verdict-name}
 
+
+## 종료 · 백그라운드 고침 (11-28)
+- [ ] [사용자] ⌘Q 묻기 · 종료 정리 줄 · Dock 다시 열기 눈 확인 {#eyes-quit-reopen}
+- [ ] 종료 고침 — 전체 cargo test · Windows · Linux 는 PR CI 에서 {#quit-fix-other-os}
+
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 27 rows → polish-round-20261027.log.md -->
+<!-- oculpm:plan-log archived: 34 rows → polish-round-20261027.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-10-28T23:25:36+09:00 | #eyes-security | claude-code | →☐ |  | ← improvement-round-2026-09-14 (플랜 18→4, simplify-round-20261028 #plans-4) |
-| 2026-10-28T23:25:39+09:00 | #eyes-restart | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
-| 2026-10-28T23:25:42+09:00 | #eyes-tray | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
-| 2026-10-28T23:25:45+09:00 | #eyes-focus-drop | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
-| 2026-10-28T23:25:48+09:00 | #eyes-ui-react193 | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
-| 2026-10-28T23:25:51+09:00 | #eyes-removals | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
-| 2026-10-28T23:25:54+09:00 | #eyes-worktree-index | claude-code | →☐ |  | ← optimize-round-20261024 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:25:57+09:00 | #eyes-compact-chrome | claude-code | →☐ |  | ← compact-chrome (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:00+09:00 | #eyes-scorecard | claude-code | →☐ |  | ← best-results-round-20261028 (플랜 18→4, simplify-round-20261028 #plans-4) |
 | 2026-10-28T23:26:03+09:00 | #eyes-hook-check | claude-code | →☐ |  | ← best-results-round-20261028 (플랜 18→4, simplify-round-20261028 #plans-4) |
@@ -141,9 +139,12 @@ owner: claude-code
 | 2026-11-23T19:10:32+09:00 | #eyes-density | claude-code | ☐→- |  | 사용자 결정 11-23: 걷은 화면 눈 확인 걷기 — 밀도(간단/전문) 토글은 4.0 에서 걷음 |
 | 2026-11-23T19:10:36+09:00 | #memo-verdict-words | claude-code | ☐→x |  | 사용자 결정 11-23: 이미 된 것 닫기 — 코드는 11-15 에 「반영됨/아직」 으로 확정(ko.ts diff.notes.* · en Applied/Not yet) |
 | 2026-11-23T19:10:41+09:00 | #list-scrollbar-gutter | claude-code | ☐→x |  | 사용자 결정 11-23: 이미 된 것 닫기 — 일지 · 변경 · 계획 목록 모두 스크롤바 폭 0(journal.css · changes.css · planner.css) |
-<!-- oculpm:plan-log archived: 27 rows → polish-round-20261027.log.md -->
 | 2026-11-23T21:29:11+09:00 | #love-firstday-order | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
 | 2026-11-23T21:29:11+09:00 | #love-narrow-titles | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
 | 2026-11-23T21:29:11+09:00 | #love-egress-count | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
 | 2026-11-23T21:29:11+09:00 | #love-verdict-name | claude-code | →☐ | .oculpm/journal/20261123/Chores/2126_chore_love-round-merge-final-review.md | ← love-round-20261123 최종 검수 이월 |
+| 2026-11-28T19:30:47+09:00 | #eyes-quit-reopen | claude-code | →☐ | journal/20261128/Bugs/1930_bug_quit-teardown-dock-reopen.md | 추가 |
+| 2026-11-28T19:30:47+09:00 | #quit-fix-other-os | claude-code | →☐ |  | 추가 |
+| 2026-11-28T19:30:47+09:00 | — | claude-code |  |  | 대상 테스트 206 · clippy · 프런트 2275 통과, 커밋 전 |
+<!-- oculpm:plan-log archived: 34 rows → polish-round-20261027.log.md -->
 <!-- oculpm:plan-log end -->

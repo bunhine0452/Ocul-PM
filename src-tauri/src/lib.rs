@@ -788,25 +788,19 @@ pub fn run() {
     app.run(|app_handle, event| {
         match event {
             tauri::RunEvent::ExitRequested { api, code, .. } => {
-                // 사용자가 끄려 했고(`code` 없음 — ⌘Q) 도는 터미널 세션이 있으면 멈추고 묻는다.
+                // 마지막 창이 사라져 끝나려 하고(`code` 없음) 도는 터미널 세션이 있으면 멈추고 묻는다.
                 // 확인하면 창이 프로세스 플러그인으로 다시 끈다(`code` 가 있어 여기를 지난다).
-                if let Some(terms) = app_handle.try_state::<crate::terminal::TermSessions>() {
-                    if code.is_none() {
-                        if let Some((label, alive)) = terms.ask_before_quit() {
-                            api.prevent_exit();
-                            use tauri_specta::Event;
-                            if let Some(win) = app_handle.get_webview_window(&label) {
-                                let _ = win.show();
-                                let _ = win.set_focus();
-                            }
-                            let _ = crate::commands::terminal::TermCloseAsked { alive, quit: true }
-                                .emit_to(app_handle, label.as_str());
-                            return;
-                        }
-                    }
+                if code.is_none() && ask_before_quit(app_handle) {
+                    api.prevent_exit();
+                    return;
                 }
                 teardown_for_exit(app_handle);
             }
+            // macOS 의 ⌘Q 가 아닌 끄기(Dock 의 종료 · 로그아웃 · 시스템 종료)는 `terminate:` 로 와서
+            // `ExitRequested` 를 지나지 않고 여기로만 온다 — 2주치 설치본 로그에서 종료 정리 줄이 업데이트
+            // 재시작 때만 찍혔고, 그 밖의 종료는 모두 다음 기동이 세션을 크래시로 마감했다(2026-11-28).
+            // `ExitRequested` 를 지난 종료에서는 이미 비어 있어 두 번째 정리는 곧장 돌아온다.
+            tauri::RunEvent::Exit => teardown_for_exit(app_handle),
             // macOS: Dock 아이콘 클릭 / "모두 앞으로 가져오기".
             //
             // 창을 다 닫아도 macOS 에서는 앱이 살아 있는데(마지막 창은 숨기기만 한다 —
@@ -816,36 +810,47 @@ pub fn run() {
             // 창이 하나라도 살아 있으면 앞으로 가져오기만 하고, 하나도 없으면
             // 새로 연다 (macOS 의 표준 동작).
             #[cfg(target_os = "macos")]
-            tauri::RunEvent::Reopen { .. } => {
-                use tauri::Manager as _;
-                let existing: Vec<_> = app_handle
-                    .webview_windows()
-                    .into_iter()
-                    .filter(|(label, _)| crate::commands::window::is_app_window(label))
-                    .map(|(_, window)| window)
-                    .collect();
-
-                if existing.is_empty() {
-                    let handle = app_handle.clone();
-                    tauri::async_runtime::spawn(async move {
-                        let _ = crate::commands::window::new_window_inner(&handle).await;
-                    });
-                } else {
-                    for window in existing {
-                        let _ = window.show();
-                        let _ = window.unminimize();
-                        let _ = window.set_focus();
-                    }
-                }
-            }
+            tauri::RunEvent::Reopen { .. } => crate::commands::window::reopen(app_handle),
             _ => {}
         }
     });
 }
 
+/// 도는 터미널 세션이 있으면 그 창을 앞에 세우고 끌지 묻는다 — 물었으면 `true`(끄기를 멈춘다).
+/// 방금 물었으면(`QUIT_AGAIN_WINDOW`) 묻지 않는다 — 한 번 더 끄면 그대로 꺼진다.
+fn ask_before_quit(app_handle: &tauri::AppHandle) -> bool {
+    use tauri_specta::Event;
+    let Some(terms) = app_handle.try_state::<crate::terminal::TermSessions>() else {
+        return false;
+    };
+    let Some((label, alive)) = terms.ask_before_quit() else {
+        return false;
+    };
+    if let Some(win) = app_handle.get_webview_window(&label) {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+    // 그 창이 못 받으면 묻는 이가 없다 — 멈추지 않고 끈다.
+    crate::commands::terminal::TermCloseAsked { alive, quit: true }
+        .emit_to(app_handle, label.as_str())
+        .is_ok()
+}
+
+/// 사용자가 앱을 끄려 한다 — macOS 앱 메뉴의 「종료」(⌘Q). 도는 터미널 세션이 있으면 묻고, 없으면 끈다.
+///
+/// OS 가 주는 종료 항목은 `terminate:` 를 곧장 불러 `RunEvent::ExitRequested` 를 지나지 않는다 — 그래서
+/// 4.0 부터 있던 「끄기 전에 묻기」 가 macOS 에서는 한 번도 뜨지 않았다(2026-11-28). 메뉴가 이 함수를 부르고,
+/// 종료 코드를 실은 `exit` 이 `ExitRequested` → 정리 → 종료의 길을 지난다.
+pub(crate) fn request_quit(app_handle: &tauri::AppHandle) {
+    if !ask_before_quit(app_handle) {
+        app_handle.exit(0);
+    }
+}
+
 /// 프로세스를 끝내기 전의 정리 — 터미널 세션을 닫고(고아 셸 0), 프로젝트마다 세션을 `AppQuit` 으로
-/// 마감하고 락을 놓는다. 두 길이 함께 쓴다:
-/// - `RunEvent::ExitRequested` — ⌘Q · 창 닫기 · 업데이트 뒤 재시작(macOS · Linux).
+/// 마감하고 락을 놓는다. 세 길이 함께 쓴다(두 번 불러도 된다 — 두 번째는 빈 표를 보고 곧장 돌아온다):
+/// - `RunEvent::ExitRequested` — ⌘Q(`request_quit`) · 마지막 창 닫기 · 업데이트 뒤 재시작(macOS · Linux).
+/// - `RunEvent::Exit` — macOS 의 `terminate:`(Dock 의 종료 · 로그아웃)는 위를 지나지 않고 여기로만 온다.
 /// - Windows 업데이트 — 업데이터 플러그인이 설치 파일을 띄우고 `std::process::exit(0)` 으로 끝내
 ///   이 이벤트를 지나지 않는다. 그래서 설치 직전 프런트가 `update_prepare_exit` 로 부른다.
 ///
