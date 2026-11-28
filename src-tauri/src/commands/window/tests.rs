@@ -88,7 +88,11 @@ fn a_hidden_last_window_returns_to_its_project_once() {
 
     let mut reg = reg_with(&[("win-1", Some(7))]);
     reg.set_dormant("main", 7);
-    assert_eq!(reg.take_dormant(), None, "I1 — 그 프로젝트는 이미 다른 창에 있다");
+    assert_eq!(
+        reg.take_dormant(),
+        None,
+        "I1 — 그 프로젝트는 이미 다른 창에 있다"
+    );
 }
 
 #[test]
